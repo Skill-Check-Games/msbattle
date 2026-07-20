@@ -144,13 +144,110 @@ function searchHeartbeat(ctx, master, t, beatS, cycleIdx, rate) {
 	}
 }
 
+// A deep tom/taiko hit — a sine sweeping through a low tom's range plus a short filtered-noise
+// "skin" transient for the attack. Longer, rounder tail than the kick/growl voices used
+// elsewhere, and no low-pass sweep down to sub-bass — a drum, not a bassline.
+function warDrumHit(ctx, master, t, gain, dur) {
+	var osc = ctx.createOscillator();
+	osc.type = "sine";
+	osc.frequency.setValueAtTime(150, t);
+	osc.frequency.exponentialRampToValueAtTime(65, t + dur * 0.85);
+	var g = ctx.createGain();
+	g.gain.setValueAtTime(0.0001, t);
+	g.gain.linearRampToValueAtTime(gain, t + 0.006);
+	g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+	osc.connect(g); g.connect(master);
+	osc.start(t); osc.stop(t + dur + 0.02);
+
+	var noiseDur = 0.05;
+	var samples = Math.floor(ctx.sampleRate * noiseDur);
+	var buf = ctx.createBuffer(1, samples, ctx.sampleRate);
+	var data = buf.getChannelData(0);
+	for (var i = 0; i < samples; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / samples, 2.2);
+	var src = ctx.createBufferSource(); src.buffer = buf;
+	var bp = ctx.createBiquadFilter();
+	bp.type = "bandpass"; bp.frequency.value = 220; bp.Q.value = 1.1;
+	var ng = ctx.createGain();
+	ng.gain.setValueAtTime(0.0001, t);
+	ng.gain.linearRampToValueAtTime(gain * 0.6, t + 0.003);
+	ng.gain.exponentialRampToValueAtTime(0.0001, t + noiseDur);
+	src.connect(bp); bp.connect(ng); ng.connect(master);
+	src.start(t);
+}
+// A sharp, bright noise crack — the "call to arms" accent, sparser and higher-pitched than the
+// drum hits so it cuts through as a punctuation mark rather than another hit in the pattern.
+function warAccent(ctx, master, t, gain) {
+	var dur = 0.16;
+	var samples = Math.floor(ctx.sampleRate * dur);
+	var buf = ctx.createBuffer(1, samples, ctx.sampleRate);
+	var data = buf.getChannelData(0);
+	for (var i = 0; i < samples; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / samples, 1.3);
+	var src = ctx.createBufferSource(); src.buffer = buf;
+	var bp = ctx.createBiquadFilter();
+	bp.type = "bandpass"; bp.frequency.value = 3200; bp.Q.value = 0.9;
+	var g = ctx.createGain();
+	g.gain.setValueAtTime(0.0001, t);
+	g.gain.linearRampToValueAtTime(gain, t + 0.003);
+	g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+	src.connect(bp); bp.connect(g); g.connect(master);
+	src.start(t);
+}
+// A distant horn call — a slow-swelling sawtooth dyad through a dark lowpass, standing in for a
+// war horn rallying the troops rather than a melodic voice.
+function warHorn(ctx, master, freqs, t, dur, gain) {
+	freqs.forEach(function(f) {
+		var osc = ctx.createOscillator();
+		osc.type = "sawtooth";
+		osc.frequency.value = f;
+		var filt = ctx.createBiquadFilter();
+		filt.type = "lowpass";
+		filt.frequency.value = 900;
+		var g = ctx.createGain();
+		g.gain.setValueAtTime(0.0001, t);
+		g.gain.linearRampToValueAtTime(gain, t + dur * 0.35);
+		g.gain.linearRampToValueAtTime(0.0001, t + dur);
+		osc.connect(filt); filt.connect(g); g.connect(master);
+		osc.start(t); osc.stop(t + dur + 0.05);
+	});
+}
+// A 2-bar marching phrase that escalates over its first ~3 phrases (stage 0→3) then holds at full
+// readiness rather than escalating forever — troops mustering, not an infinite crescendo. Stage 0
+// is one deep hit per bar; each stage layers in more of the pattern (backbeat, then pickup
+// triplets ahead of the downbeat) before stage 3 adds the call-to-arms crack + a horn call every
+// other phrase. The dark open-fifth drone (no third — a "power chord", more martial than the
+// other variants' full Am triad) runs underneath throughout.
+function searchWarDrums(ctx, master, t, beatS, cycleIdx, rate) {
+	var stage = Math.min(3, Math.floor(cycleIdx / 3));
+	var hitDur = beatS * 0.7;
+
+	if (cycleIdx % 2 === 0) searchPad(ctx, master, [110.00, 164.81], t, beatS * 16, 0.026);
+
+	warDrumHit(ctx, master, t, 0.06, hitDur);
+	warDrumHit(ctx, master, t + beatS * 4, 0.06, hitDur);
+
+	if (stage >= 1) {
+		warDrumHit(ctx, master, t + beatS * 2, 0.045, hitDur * 0.8);
+		warDrumHit(ctx, master, t + beatS * 6, 0.045, hitDur * 0.8);
+	}
+	if (stage >= 2) {
+		warDrumHit(ctx, master, t + beatS * 3.5, 0.035, hitDur * 0.5);
+		warDrumHit(ctx, master, t + beatS * 7.5, 0.035, hitDur * 0.5);
+	}
+	if (stage >= 3) {
+		warAccent(ctx, master, t + 0.01, 0.05);
+		if (cycleIdx % 4 === 0) warHorn(ctx, master, [110.00, 164.81], t + beatS * 0.5, beatS * 3, 0.03);
+	}
+}
+
 var SEARCH_LAB_VARIANTS = [
 	{ id: "sonar", name: "Sonar Drift", cycleBeats: 4, schedule: searchSonarDrift,
 		desc: "A hushed Am pad breathing underneath, with an occasional soft ping stepping up through the same notes sound.sweep() climbs. The most spacious/ambient of the three." },
 	{ id: "slowarp", name: "Slow Arpeggio", cycleBeats: 2, schedule: searchSlowArp,
 		desc: "sound.sweep()'s own scale and voice, unhurried — one note every couple of beats instead of a fast climb. The most direct \"preview\" of the handoff into sweep." },
 	{ id: "heartbeat", name: "Heartbeat", cycleBeats: 8, schedule: searchHeartbeat,
-		desc: "A soft double pulse on the battle theme's own bass voice, like a waiting-room heartbeat, with rare high blips for other players joining. The most \"tension/anticipation\" flavored." }
+		desc: "A soft double pulse on the battle theme's own bass voice, like a waiting-room heartbeat, with rare high blips for other players joining. The most \"tension/anticipation\" flavored." },
+	{ id: "wardrums", name: "War Drums", cycleBeats: 8, schedule: searchWarDrums,
+		desc: "Heartbeat's idea, more involved: real taiko-style drum hits over a dark open-fifth drone, starting as a sparse marching pulse and layering in backbeats, pickup triplets, a call-to-arms crack, and a distant horn over ~30s — then holding there, like troops mustering before the fight." }
 ];
 
 var searchLabPlayingId = null;
