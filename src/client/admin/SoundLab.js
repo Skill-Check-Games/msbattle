@@ -1,11 +1,13 @@
 // Admin "Sound Lab" (/admin/sounds) — every sound effect the game has, each with its own Play
 // button, plus a shared playback-rate slider for auditioning a clip snappier or more drawn-out
-// without touching its pitch. Three sections: the real sound.* methods (Sound.js) that ship in
+// without touching its pitch. Four sections: the real sound.* methods (Sound.js) that ship in
 // gameplay, played exactly as they'd play in a match; alternate takes on the idle→ready sweep
 // sound (sound.sweep — currently "Shimmer"), built from the same sound.lab.tone/arp primitives
-// Sound.js itself uses; and the "Battle theme lab" — independent timbre/rhythm/progression
-// pickers for the battle theme's bass (music.lab.pulseBass in Music.js), looping whichever
-// combination is selected instead of a fixed list of presets.
+// Sound.js itself uses; the "Search theme" candidates — subtle looping ambience for the currently-
+// silent "Finding match" phase, each a Play/Stop toggle so only one plays at a time; and the
+// "Battle theme lab" — independent timbre/rhythm/progression pickers for the battle theme's bass
+// (music.lab.pulseBass in Music.js), looping whichever combination is selected instead of a fixed
+// list of presets.
 
 // Every real gameplay sound, with the args (if any) it needs to actually make noise standalone.
 var SOUND_LAB_GAME_SOUNDS = [
@@ -68,6 +70,175 @@ function playArp(freqs, step, dur, gain) {
 	for (var i = 0; i < freqs.length; i++) {
 		sound.lab.tone({ type: "triangle", freq: freqs[i], dur: dur, gain: gain, delay: i * step });
 	}
+}
+
+// ---- search theme lab: subtle looping candidates for the "Finding match" phase (currently
+// silent — see rankedSearch / startBattleSearch in Main.js), which today cuts straight from no
+// music to sound.sweep() then the battle theme the instant a match forms. All three candidates
+// stay in A minor and reuse the exact melody/bass voices (music.lab.triangleArp/subGrowlBass) or
+// the same A-minor-pentatonic notes sound.sweep() climbs (SEARCH_SCALE below, identical to
+// CHORD_Am.scale in Music.js minus its top note) — so whichever one ships, the ear is already
+// tuned to the right key and voices before sweep/the battle theme take over, rather than jumping
+// in cold. Deliberately much quieter than the battle theme (gains here top out ~0.05 vs. its
+// ~0.2+) — this plays under lobby chatter/search UI, not as a second song.
+var SEARCH_PAD_AM = [220.00, 261.63, 329.63];                              // A3 C4 E4 — the bare Am triad
+var SEARCH_SCALE = [220.00, 261.63, 293.66, 329.63, 392.00, 440.00];       // A minor pentatonic — same notes sound.sweep() climbs
+
+// A soft sine ping with a long, reverb-like decay (release much longer than attack) — a sonar
+// blip rather than the percussive attack every other tone() in this codebase uses.
+function searchPing(ctx, master, freq, t, dur, gain) {
+	var osc = ctx.createOscillator();
+	osc.type = "sine";
+	osc.frequency.value = freq;
+	var g = ctx.createGain();
+	g.gain.setValueAtTime(0.0001, t);
+	g.gain.linearRampToValueAtTime(gain, t + 0.03);
+	g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+	osc.connect(g); g.connect(master);
+	osc.start(t); osc.stop(t + dur + 0.05);
+}
+// A hushed held chord (slow fade in/out, no attack transient) — the room tone a variant's pings
+// or arpeggio sit inside.
+function searchPad(ctx, master, freqs, t, dur, gain) {
+	freqs.forEach(function(f) {
+		var osc = ctx.createOscillator();
+		osc.type = "sine";
+		osc.frequency.value = f;
+		var g = ctx.createGain();
+		g.gain.setValueAtTime(0.0001, t);
+		g.gain.linearRampToValueAtTime(gain, t + dur * 0.4);
+		g.gain.linearRampToValueAtTime(0.0001, t + dur);
+		osc.connect(g); g.connect(master);
+		osc.start(t); osc.stop(t + dur + 0.05);
+	});
+}
+
+// One bar per cycle: a hushed Am pad held every 4th bar, and every other bar a single soft ping
+// stepping up through SEARCH_SCALE — the exact scale sound.sweep() later climbs fast, just visited
+// here one note at a time, slowly, while the match is still being found.
+function searchSonarDrift(ctx, master, t, beatS, cycleIdx, rate) {
+	if (cycleIdx % 4 === 0) searchPad(ctx, master, SEARCH_PAD_AM, t, beatS * 16, 0.035);
+	if (cycleIdx % 2 === 0) {
+		var note = SEARCH_SCALE[(cycleIdx / 2) % SEARCH_SCALE.length];
+		searchPing(ctx, master, note, t + beatS * 0.5, 1.4 / rate, 0.05);
+	}
+}
+// The melody layer's exact voice (triangleArp), playing the exact scale sound.sweep() uses, just
+// one note every 2 beats instead of a fast climb — literally "sweep in slow motion", so the real
+// sweep later reads as this same idea sped up rather than a new, unrelated sound.
+function searchSlowArp(ctx, master, t, beatS, cycleIdx) {
+	var idx = cycleIdx % SEARCH_SCALE.length;
+	var note = SEARCH_SCALE[idx];
+	music.lab.triangleArp(note, t, beatS * 1.6, 0.045);
+	if (idx % 3 === 0) music.lab.triangleArp(note / 2, t + beatS * 1.0, beatS * 1.2, 0.02);
+}
+// A soft two-part "lub-dub" on the battle theme's own bass voice (subGrowlBass), once every 2
+// bars — steady and unhurried, a waiting-room pulse rather than a groove — plus an occasional
+// high pentatonic blip standing in for other players quietly joining the search.
+function searchHeartbeat(ctx, master, t, beatS, cycleIdx, rate) {
+	music.lab.subGrowlBass(110.00, t, beatS * 0.5, 0.05);
+	music.lab.subGrowlBass(110.00, t + beatS * 0.9, beatS * 0.35, 0.03);
+	if (cycleIdx % 4 === 2) {
+		var note = SEARCH_SCALE[(cycleIdx * 3) % SEARCH_SCALE.length];
+		searchPing(ctx, master, note * 2, t + beatS * 1.5, 0.9 / rate, 0.035);
+	}
+}
+
+var SEARCH_LAB_VARIANTS = [
+	{ id: "sonar", name: "Sonar Drift", cycleBeats: 4, schedule: searchSonarDrift,
+		desc: "A hushed Am pad breathing underneath, with an occasional soft ping stepping up through the same notes sound.sweep() climbs. The most spacious/ambient of the three." },
+	{ id: "slowarp", name: "Slow Arpeggio", cycleBeats: 2, schedule: searchSlowArp,
+		desc: "sound.sweep()'s own scale and voice, unhurried — one note every couple of beats instead of a fast climb. The most direct \"preview\" of the handoff into sweep." },
+	{ id: "heartbeat", name: "Heartbeat", cycleBeats: 8, schedule: searchHeartbeat,
+		desc: "A soft double pulse on the battle theme's own bass voice, like a waiting-room heartbeat, with rare high blips for other players joining. The most \"tension/anticipation\" flavored." }
+];
+
+var searchLabPlayingId = null;
+var searchLabTimer = null;
+var searchLabCycleIdx = 0;
+var searchLabButtons = {}; // variant id -> its button element, so starting one flips the others back
+
+function stopSearchLab() {
+	if (searchLabTimer) { clearTimeout(searchLabTimer); searchLabTimer = null; }
+	if (searchLabPlayingId && searchLabButtons[searchLabPlayingId]) {
+		searchLabButtons[searchLabPlayingId].textContent = "▶ Play loop";
+		searchLabButtons[searchLabPlayingId].classList.remove("active");
+	}
+	searchLabPlayingId = null;
+}
+
+function startSearchLab(variant) {
+	stopSearchLab();
+	searchLabPlayingId = variant.id;
+	searchLabCycleIdx = 0;
+	if (searchLabButtons[variant.id]) {
+		searchLabButtons[variant.id].textContent = "■ Stop";
+		searchLabButtons[variant.id].classList.add("active");
+	}
+	playSearchLabCycle(variant);
+}
+
+// Same setTimeout-chain idiom as playBattleLabBar — one cycle scheduled per call, chained by the
+// variant's own cycleBeats so each can run at a different loop length.
+function playSearchLabCycle(variant) {
+	var ctx = music.lab.getCtx();
+	var master = music.lab.getMaster();
+	if (!ctx || !master) return;
+	var rate = sound.getRate();
+	var beatS = music.lab.BEAT_S / rate;
+	var t = ctx.currentTime + 0.05;
+	variant.schedule(ctx, master, t, beatS, searchLabCycleIdx, rate);
+	searchLabCycleIdx++;
+	searchLabTimer = setTimeout(function() { playSearchLabCycle(variant); }, variant.cycleBeats * beatS * 1000);
+}
+
+function buildSearchLabSection() {
+	var section = document.createElement("div");
+	section.className = "sound-lab-section";
+	var head = document.createElement("h2");
+	head.className = "controls-title";
+	head.textContent = "Search theme (candidates)";
+	section.appendChild(head);
+	var sp = document.createElement("p");
+	sp.className = "sound-lab-section-sub";
+	sp.textContent = "Nothing plays today while a ranked match is being found — these are subtle looping candidates to fill that gap, built to sit naturally against sound.sweep() and the battle theme (same A-minor key + voices). Starting one stops any other that's playing.";
+	section.appendChild(sp);
+
+	var grid = document.createElement("div");
+	grid.className = "sound-lab-grid";
+	SEARCH_LAB_VARIANTS.forEach(function(variant) {
+		var card = document.createElement("div");
+		card.className = "section-card sound-lab-card";
+
+		var head2 = document.createElement("div");
+		head2.className = "sound-lab-card-head";
+		var name = document.createElement("span");
+		name.className = "sound-lab-card-name";
+		name.textContent = variant.name;
+		head2.appendChild(name);
+		card.appendChild(head2);
+
+		var desc = document.createElement("p");
+		desc.className = "sound-lab-card-desc";
+		desc.textContent = variant.desc;
+		card.appendChild(desc);
+
+		var btn = document.createElement("button");
+		btn.type = "button";
+		btn.className = "btn btn-secondary sound-lab-play-btn";
+		btn.textContent = "▶ Play loop";
+		searchLabButtons[variant.id] = btn;
+		btn.addEventListener("click", function() {
+			if (typeof unlockAudio === "function") unlockAudio();
+			if (searchLabPlayingId === variant.id) stopSearchLab();
+			else startSearchLab(variant);
+		});
+		card.appendChild(btn);
+
+		grid.appendChild(card);
+	});
+	section.appendChild(grid);
+	return section;
 }
 
 // ---- battle theme lab: bass / melody / percussion, each independently switchable, playable
@@ -598,6 +769,7 @@ function renderSoundLab() {
 
 	view.appendChild(buildSoundLabSection("Game sounds", "Exactly what plays in a real match.", SOUND_LAB_GAME_SOUNDS));
 	view.appendChild(buildSoundLabSection("Sweep variants", "Alternate takes on the idle→ready sweep (sound.sweep) — for comparing candidates, not a proposal ranked in order.", SOUND_LAB_SWEEP_VARIANTS));
+	view.appendChild(buildSearchLabSection());
 	view.appendChild(buildBattleLabSection());
 }
 
@@ -785,5 +957,6 @@ function buildBattleLabSection() {
 // state this page touches outside itself.
 function teardownSoundLab() {
 	stopBattleLab();
+	stopSearchLab();
 	sound.setRate(1);
 }
