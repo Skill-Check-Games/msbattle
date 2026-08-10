@@ -5,7 +5,7 @@ no-guess layout, fastest wins. Casual rooms + a ranked ladder with accounts and 
 
 ## Commands
 
-Run from this directory (`Minesweeper/`):
+Run from this directory (`msbattle/`):
 
 - `npm run dev` — start locally with dev login enabled (`DEV_AUTH=1`), on port 1337.
   Auto-loads `.env`.
