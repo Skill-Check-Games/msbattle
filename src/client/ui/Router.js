@@ -45,7 +45,8 @@ var ROUTE_VIEWS = {
 	"/admin/sounds": { view: "sound_lab_view", nav: "admin", fn: "showSoundLabView" },
 	"/leaderboard": { view: "leaderboard_view", nav: "leaderboard", fn: "showLeaderboardView" },
 	"/profile": { view: "profile_view", nav: "profile", fn: "showProfileView" },
-	"/settings": { view: "settings_view", nav: "settings", fn: "showSettingsView" }
+	"/settings": { view: "settings_view", nav: "settings", fn: "showSettingsView" },
+	"/shop": { view: "shop_view", nav: "shop", fn: "showShopView" }
 };
 // SSR_INLINE:END
 
@@ -423,6 +424,13 @@ function showSettingsView() {
 	if (typeof renderAudioSettings === "function") renderAudioSettings();
 	if (typeof renderBoardSkins === "function") renderBoardSkins();
 	if (typeof renderKeybindings === "function") renderKeybindings();
+}
+
+function showShopView() {
+	hideAllViews();
+	document.getElementById("shop_view").style.display = "";
+	setSiteNavActive("shop");
+	if (typeof renderShop === "function") renderShop();
 }
 
 // Legal pages render as normal in-app views (navbar stays); not a main-nav item, so no link is marked active.

@@ -10,6 +10,7 @@ var db = require("../db");
 var zlib = require("zlib");
 var roomState = require("./roomState");
 var gameUtil = require("./gameUtil");
+var ShopCatalog = require("../../common/ShopCatalog");
 
 var accounts = appState.accounts, names = appState.names, games = appState.games, roomMapping = appState.roomMapping, skins = appState.skins;
 var avatars = appState.avatars, countries = appState.countries;
@@ -49,7 +50,12 @@ function buildAccountPayload(user) {
 		isAdmin: !!user.is_admin,
 		guest: !!user.is_guest,
 		soloBests: db.getSoloBests(user.id),
-		provider: user.last_provider || user.provider
+		provider: user.last_provider || user.provider,
+		// Shop: purchased cosmetic ids (e.g. "img:teddy", "tactical"). Ships here so the client has
+		// the owned-item list on first paint (live socket + SSR hydration both use this payload) with
+		// no separate fetch — see ShopCatalog.js for what these ids mean and set_avatar/set_skin below
+		// for where they're enforced.
+		ownedItems: db.listOwnedItemIds(user.id)
 	};
 }
 
@@ -106,10 +112,22 @@ function registerSocketHandlers(socket, playerID) {
 	// Board skin: a display preference relayed to opponents so each player's board renders in
 	// their own skin. Stored per-player (like names); mirrored into any live game + rebroadcast.
 	// The id is just a short slug — the client maps unknown ids to its default skin.
+	// Purchasable skins (currently just "tactical" — see ShopCatalog.js) require ownership; this is
+	// the only enforcement point (skin choice was never DB-persisted, only relayed live), so it's
+	// also what closes the previously-client-only admin gate — nobody, admins included, gets a free
+	// pass anymore, only actual ownership.
 	socket.on("set_skin", function(data) {
 		var skin = (data && typeof data.skin === "string") ? data.skin.trim().slice(0, 32) : "";
 		if (!/^[a-z0-9_-]*$/i.test(skin)) return;
-		skins[playerID] = skin || "classic";
+		skin = skin || "classic";
+		if (ShopCatalog.isPurchasable("skin", skin)) {
+			var acc = accounts[playerID];
+			if (!acc || !db.ownsItem(acc.userId, "skin", skin)) {
+				socket.emit("skin_rejected", { reason: "not_owned", skin: skin });
+				skin = "classic";
+			}
+		}
+		skins[playerID] = skin;
 		if (games[playerID]) {
 			games[playerID].skin = skins[playerID];
 			updateDraw(roomMapping[playerID]);
@@ -117,12 +135,18 @@ function registerSocketHandlers(socket, playerID) {
 	});
 
 	// Avatar cloth colour (the in-game flag, recoloured). Persisted on the account + mirrored to opponents.
+	// Purchasable avatars ("img:<id>" presets — see ShopCatalog.js) require ownership; the free values
+	// (a #rrggbb colour, "anon", "mine") are never in the catalog so isPurchasable is always false for them.
 	socket.on("set_avatar", function(data) {
 		var acc = accounts[playerID];
 		if (!acc) return;
 		var color = (data && typeof data.color === "string") ? data.color.trim() : "";
 		// A #rrggbb cloth colour, the "anon" silhouette, the "mine", or an "img:<id>" preset (or "" → default red).
 		if (color && color !== "anon" && color !== "mine" && !/^#[0-9a-f]{6}$/i.test(color) && !/^img:[a-z0-9_-]+$/i.test(color)) return;
+		if (color && ShopCatalog.isPurchasable("avatar", color) && !db.ownsItem(acc.userId, "avatar", color)) {
+			socket.emit("avatar_rejected", { reason: "not_owned", color: color });
+			return;
+		}
 		var value = color || null;
 		db.setAvatarColor(acc.userId, value);
 		avatars[playerID] = value;
@@ -156,6 +180,14 @@ function registerSocketHandlers(socket, playerID) {
 	socket.on("record_clear", function(data) {
 		var acc = accounts[playerID];
 		if (acc && data) db.recordClear(acc.userId, !!data.noFlag, !!data.noReveal);
+	});
+
+	// Shop: re-sync the socket-held owned-item list after a purchase, without a full reconnect/re-auth.
+	// The client can't hear about a purchase live (Stripe redirects the browser back into the app, no
+	// socket is involved) — this is the client's explicit "did anything change?" pull on return.
+	socket.on("refresh_owned_items", function() {
+		var acc = accounts[playerID];
+		socket.emit("owned_items", { items: acc ? db.listOwnedItemIds(acc.userId) : [] });
 	});
 
 	// Profile: recent ranked matches + per-style rating points (graph). Empty for signed-out.

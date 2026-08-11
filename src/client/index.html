@@ -34,6 +34,7 @@
 			<a href="/learn" class="site-nav-link" data-route="learn">Learn</a>
 			<a href="/leaderboard" class="site-nav-link" data-route="leaderboard">Leaderboard</a>
 			<a href="/profile" class="site-nav-link" data-route="profile">Profile</a>
+			<a href="/shop" class="site-nav-link" data-route="shop">Shop</a>
 			<a href="/settings" class="site-nav-link" data-route="settings">Settings</a>
 			<button type="button" id="help_nav_link" class="site-nav-link">Help</button>
 			<!-- Account card — only shown inside the mobile burger menu (hidden on desktop, where the
@@ -482,6 +483,8 @@
 			<div id="skins_card" class="section-card" style="margin-top:1.25rem"></div>
 			<div id="controls_card" class="section-card" style="margin-top:1.25rem"></div>
 		</section>
+
+		<section id="shop_view" class="view section-view" style="display:none"></section>
 
 		<section id="replay_view" class="view section-view" style="display:none"></section>
 		<section id="admin_view" class="view section-view" style="display:none"></section>
@@ -1032,6 +1035,8 @@
 <script src="/core/Countries.js" defer></script>
 <script src="/core/PuzzleLadder.js" defer></script>
 <script src="/ui/Fullscreen.js" defer></script>
+<script src="/Cosmetics.js" defer></script>
+<script src="/ShopCatalog.js" defer></script>
 <script src="/core/BoardRender.js" defer></script>
 <script src="/admin/AdminList.js" defer></script>
 <script src="/ui/MobileLayout.js" defer></script>
@@ -1066,6 +1071,7 @@
 <script src="/views/Learn.js" defer></script>
 <script src="/views/Solo.js" defer></script>
 <script src="/views/Profile.js" defer></script>
+<script src="/views/Shop.js" defer></script>
 <script src="/views/Replay.js" defer></script>
 <script src="/ui/Router.js" defer></script>
 <script src="/core/Main.js" defer></script>

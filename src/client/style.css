@@ -540,9 +540,15 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 .appearance { display: flex; flex-direction: column; gap: 0.5rem; }
 .appearance-sub { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin-top: 0.35rem; }
 .avatar-swatches { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-.avatar-swatch { padding: 0.25rem; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-2); cursor: pointer; line-height: 0; transition: border-color .12s, transform .12s; }
+.avatar-swatch { position: relative; padding: 0.25rem; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-2); cursor: pointer; line-height: 0; transition: border-color .12s, transform .12s; }
 .avatar-swatch:hover { border-color: var(--muted); transform: translateY(-1px); }
 .avatar-swatch.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+/* Shop-locked cosmetics (avatar swatches + skin options): dimmed but still clickable — unlike
+   .learn-course-card.locked (an inert, disabled card), these route to /shop on click, so they
+   deliberately keep the pointer cursor instead of not-allowed. */
+.avatar-swatch.locked, .skin-option.locked { opacity: 0.55; }
+.avatar-swatch.locked .shop-lock-badge { position: absolute; top: -6px; right: -6px; padding: 0.1rem 0.35rem; border-radius: 999px; }
+.shop-lock-badge { font-size: 0.72rem; font-weight: 700; color: var(--muted); background: rgba(148, 163, 184, 0.12); border-radius: 6px; padding: 0.05rem 0.4rem; }
 .country-select { max-width: 22rem; padding: 0.5rem 0.7rem; border-radius: 9px; background: var(--surface-2); color: var(--text); border: 1px solid var(--border); font: inherit; cursor: pointer; }
 .country-select:focus { outline: none; border-color: var(--accent); }
 .appearance-note { font-size: 0.78rem; color: var(--muted); margin-top: 0.4rem; }
@@ -3471,6 +3477,21 @@ body[data-board-skin="tactical"] .board-scroll::after {
 .skin-meta { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
 .skin-name { font-weight: 700; font-size: 0.95rem; }
 .skin-blurb { font-size: 0.8rem; color: var(--muted); }
+
+/* Shop page */
+.shop-grid { display: flex; flex-wrap: wrap; gap: 0.9rem; margin-top: 0.75rem; }
+.shop-tile {
+	display: flex; flex-direction: column; align-items: center; gap: 0.55rem;
+	width: 132px; padding: 0.85rem 0.7rem; border-radius: 12px;
+	background: var(--bg); border: 1px solid var(--border); text-align: center;
+}
+.shop-tile-preview { display: flex; align-items: center; justify-content: center; min-height: 66px; }
+.shop-tile-name { font-weight: 700; font-size: 0.88rem; }
+.shop-tile-owned { font-size: 0.78rem; font-weight: 700; color: var(--success); }
+.shop-tile-btn { width: 100%; font-size: 0.82rem; padding: 0.4rem 0.5rem; }
+.shop-status { margin-bottom: 1.25rem; }
+.shop-status-success { border-color: rgba(74, 222, 128, 0.4); }
+.shop-status-error { border-color: rgba(248, 113, 113, 0.4); }
 
 .player-controls {
 	display: flex;

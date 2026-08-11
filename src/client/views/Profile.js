@@ -4,15 +4,52 @@
 // rating fields the server updates after each ranked match. The rank chips on
 // the home page (renderHomeRankChips) read the same data.
 
-// Board-skin picker (local, like keybindings). Each option shows a tiny swatch built
-// from the skin's palette; clicking applies it live via setBoardSkin (BoardRender.js).
+// The tiny palette-built swatch (unknown cell + three numbered cells) shared by the Settings
+// picker below and the Shop tile for the same skin, so both render it identically.
+function buildSkinPreview(id) {
+	var s = BOARD_SKINS[id];
+	var prev = document.createElement("span");
+	prev.className = "skin-preview";
+	var unknown = document.createElement("span");
+	unknown.className = "skin-cell";
+	unknown.style.background = "linear-gradient(180deg," + s.unknownTop + "," + s.unknownBottom + ")";
+	unknown.style.borderColor = s.unknownEdge;
+	prev.appendChild(unknown);
+	[1, 2, 3].forEach(function(n) {
+		var c = document.createElement("span");
+		c.className = "skin-cell skin-cell-num";
+		c.style.background = s.knownBg;
+		c.style.borderColor = s.knownEdge;
+		c.style.color = s.numbers[n];
+		c.style.fontFamily = s.font;
+		if (s.glow) c.style.textShadow = "0 0 5px " + s.numbers[n];
+		c.textContent = n;
+		prev.appendChild(c);
+	});
+	return prev;
+}
+
+// True iff this cosmetic (avatar "img:<id>"/color/anon/mine, or skin id) is free-by-default (not
+// in the shop catalog) or already owned. Shared by the Settings pickers below and the Shop grid.
+function shopItemUnlocked(kind, id) {
+	if (typeof ShopCatalog === "undefined" || !ShopCatalog.isPurchasable(kind, id)) return true;
+	return !!(account && account.ownedItems && account.ownedItems.indexOf(id) !== -1);
+}
+function shopPriceLabel(id) {
+	var item = typeof ShopCatalog !== "undefined" && ShopCatalog.byId(id);
+	return item ? "$" + (item.priceCents / 100).toFixed(2) : "";
+}
+function goToShop() { if (typeof navigate === "function") navigate("/shop"); }
+
+// Board-skin picker (local, like keybindings). Each option shows a tiny swatch built from the
+// skin's palette; clicking an OWNED option applies it live via setBoardSkin (BoardRender.js).
+// Purchasable-but-unowned skins (currently just "tactical" — see ShopCatalog.js) render locked
+// with their price instead of being hidden, so players discover what's for sale; clicking one
+// goes to the Shop rather than selecting it. Signed-out visitors can't own anything, so every
+// purchasable skin shows locked until they sign in.
 function renderBoardSkins() {
 	var card = document.getElementById("skins_card");
 	if (!card || typeof BOARD_SKINS === "undefined") return;
-	// Admin-only option for now (visible in local dev too, matching the Admin nav link).
-	var dev = window.serverInfo && window.serverInfo.dev;
-	var admin = (typeof account !== "undefined" && account && account.isAdmin);
-	if (!dev && !admin) { card.innerHTML = ""; card.style.display = "none"; return; }
 	card.style.display = "";
 	card.innerHTML = "";
 	var h = document.createElement("h2");
@@ -22,42 +59,32 @@ function renderBoardSkins() {
 	var sub = document.createElement("p");
 	sub.className = "section-stub-note";
 	sub.style.marginTop = "0";
-	sub.textContent = "Choose how your board looks. More texture packs coming.";
+	sub.textContent = "Choose how your board looks. Locked skins are in the Shop.";
 	card.appendChild(sub);
 
 	var grid = document.createElement("div");
 	grid.className = "skin-options";
 	BOARD_SKIN_LIST.forEach(function(id) {
 		var s = BOARD_SKINS[id];
+		var unlocked = shopItemUnlocked("skin", id);
 		var btn = document.createElement("button");
 		btn.type = "button";
-		btn.className = "skin-option" + (id === localBoardSkin ? " active" : "");
-		var prev = document.createElement("span");
-		prev.className = "skin-preview";
-		var unknown = document.createElement("span");
-		unknown.className = "skin-cell";
-		unknown.style.background = "linear-gradient(180deg," + s.unknownTop + "," + s.unknownBottom + ")";
-		unknown.style.borderColor = s.unknownEdge;
-		prev.appendChild(unknown);
-		[1, 2, 3].forEach(function(n) {
-			var c = document.createElement("span");
-			c.className = "skin-cell skin-cell-num";
-			c.style.background = s.knownBg;
-			c.style.borderColor = s.knownEdge;
-			c.style.color = s.numbers[n];
-			c.style.fontFamily = s.font;
-			if (s.glow) c.style.textShadow = "0 0 5px " + s.numbers[n];
-			c.textContent = n;
-			prev.appendChild(c);
-		});
-		btn.appendChild(prev);
+		btn.className = "skin-option" + (id === localBoardSkin ? " active" : "") + (unlocked ? "" : " locked");
+		btn.appendChild(buildSkinPreview(id));
 		var meta = document.createElement("span");
 		meta.className = "skin-meta";
 		var name = document.createElement("span"); name.className = "skin-name"; name.textContent = s.label;
 		var blurb = document.createElement("span"); blurb.className = "skin-blurb"; blurb.textContent = s.blurb;
 		meta.appendChild(name); meta.appendChild(blurb);
+		if (!unlocked) {
+			var price = document.createElement("span"); price.className = "shop-lock-badge"; price.textContent = "🔒 " + shopPriceLabel(id);
+			meta.appendChild(price);
+		}
 		btn.appendChild(meta);
-		btn.addEventListener("click", function() { if (typeof setBoardSkin === "function") setBoardSkin(id); });
+		btn.addEventListener("click", function() {
+			if (!unlocked) { goToShop(); return; }
+			if (typeof setBoardSkin === "function") setBoardSkin(id);
+		});
 		grid.appendChild(btn);
 	});
 	card.appendChild(grid);
@@ -214,12 +241,24 @@ function renderAppearance() {
 	var aLabel = document.createElement("div"); aLabel.className = "appearance-sub"; aLabel.textContent = "Avatar"; wrap.appendChild(aLabel);
 	var swatches = document.createElement("div"); swatches.className = "avatar-swatches";
 	var current = (account.avatarColor || DEFAULT_AVATAR).toLowerCase();
+	// Unowned image presets render locked (dimmed, priced, still clickable) instead of being hidden,
+	// so the picker doubles as a discovery surface for the shop; clicking one goes there instead of
+	// selecting it. Free values (anon/mine/the flag colour) are never gated — shopItemUnlocked
+	// returns true for anything not in the catalog.
 	function swatch(value) {
+		var unlocked = shopItemUnlocked("avatar", value);
 		var b = document.createElement("button"); b.type = "button";
-		b.className = "avatar-swatch" + (value.toLowerCase() === current ? " active" : "");
+		b.className = "avatar-swatch" + (value.toLowerCase() === current ? " active" : "") + (unlocked ? "" : " locked");
 		b.dataset.color = value;
 		b.appendChild(buildAvatarCanvas(value, 50));
-		b.addEventListener("click", function() { setAvatarColor(value); });
+		if (!unlocked) {
+			var price = document.createElement("span"); price.className = "shop-lock-badge"; price.textContent = "🔒";
+			b.appendChild(price);
+		}
+		b.addEventListener("click", function() {
+			if (!unlocked) { goToShop(); return; }
+			setAvatarColor(value);
+		});
 		swatches.appendChild(b);
 	}
 	// Preset avatars (anonymous silhouette, the mine, then image presets), then the flag pennant.
@@ -229,7 +268,7 @@ function renderAppearance() {
 	AVATAR_COLORS.forEach(function(col) { swatch(col); });
 	wrap.appendChild(swatches);
 	var note = document.createElement("div"); note.className = "appearance-note";
-	note.textContent = "Flag colours are used when no country is set; an image avatar replaces the flag.";
+	note.textContent = "Flag colours are used when no country is set; an image avatar replaces the flag. Locked presets are in the Shop.";
 	wrap.appendChild(note);
 	return wrap;
 }

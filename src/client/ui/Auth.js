@@ -307,9 +307,10 @@ if (menuSignoutButton) menuSignoutButton.addEventListener("click", doSignOut);
 // Socket handler bodies — inline registers the events and calls these.
 function applyConnected(data) {
 	id = data.id;
-	// Tell the server our board skin so opponents render our board in it (re-sent on
-	// every (re)connect; setBoardSkin re-emits on change).
-	if (typeof localBoardSkin !== "undefined") socket.emit("set_skin", { skin: localBoardSkin });
+	// Board skin is sent from applyAuthenticated instead of here — set_skin is ownership-gated
+	// server-side (purchasable skins require db.ownsItem), and accounts[playerID] doesn't exist yet
+	// at connect time, so an emit this early would always be rejected for anyone who legitimately
+	// owns a paid skin. setBoardSkin still re-emits immediately on any later in-session change.
 	var oauth = (data && data.oauth) || {};
 	googleSigninButton.style.display = oauth.google ? "" : "none";
 	discordSigninButton.style.display = oauth.discord ? "" : "none";
@@ -334,6 +335,15 @@ function applyAuthenticated(data) {
 	myName = data.name;
 	// A freshly-minted guest session ships its token back so it survives reloads.
 	if (data.token) { localStorage.setItem("ms_session", data.token); setSessionCookie(data.token); }
+	// Now that we know who's signed in (and what they own), tell the server our board skin so
+	// opponents render our board in it. "classic" is always free; anything else needs to be in
+	// data.ownedItems or the server would reject it anyway — check locally so an unowned stored
+	// pick (e.g. storage carried over from another account) just quietly falls back to classic
+	// instead of round-tripping a doomed request.
+	if (typeof localBoardSkin !== "undefined" && typeof socket !== "undefined") {
+		var skinOwned = localBoardSkin === "classic" || (data.ownedItems && data.ownedItems.indexOf(localBoardSkin) !== -1);
+		socket.emit("set_skin", { skin: skinOwned ? localBoardSkin : "classic" });
+	}
 	renderRatingBadge();
 	// Topbar: real accounts show name + provider logo + Change + Sign out; guests show only Sign in.
 	applyUserIdentity(data);

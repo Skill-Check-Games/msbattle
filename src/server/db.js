@@ -262,6 +262,30 @@ db.exec(
 	"  created_at INTEGER NOT NULL" +
 	");"
 );
+// Shop: cosmetic ownership (real-money purchases via Stripe — see runtime/shopApi.js). One row per
+// owned item; kind/item_id together are the wire value already used by set_avatar/set_skin (e.g.
+// kind="avatar" item_id="img:teddy", kind="skin" item_id="tactical"), so no id translation is needed
+// anywhere ownership is checked. processed_stripe_events is the webhook idempotency ledger, same
+// shape/purpose as processed_matches above — Stripe can redeliver the same event, and grantItem's own
+// INSERT OR IGNORE also protects against double-granting even if this ledger were ever bypassed.
+db.exec(
+	"CREATE TABLE IF NOT EXISTS shop_purchases (" +
+	"  user_id INTEGER NOT NULL," +
+	"  kind TEXT NOT NULL," +
+	"  item_id TEXT NOT NULL," +
+	"  price_cents INTEGER," +
+	"  currency TEXT," +
+	"  stripe_session_id TEXT," +
+	"  stripe_payment_intent TEXT," +
+	"  granted_at INTEGER NOT NULL," +
+	"  PRIMARY KEY (user_id, kind, item_id)" +
+	");" +
+	"CREATE INDEX IF NOT EXISTS idx_shop_purchases_user ON shop_purchases(user_id);" +
+	"CREATE TABLE IF NOT EXISTS processed_stripe_events (" +
+	"  event_id TEXT PRIMARY KEY," +
+	"  created_at INTEGER NOT NULL" +
+	");"
+);
 // Link each match_history row to its stored replay (set after the replay is saved at series end).
 // Null for matches with no replay (pre-feature history, or matches with no recorded moves).
 addColumnIfMissing("match_history", "replay_id", "INTEGER");
@@ -692,6 +716,37 @@ function topPlayers(limit, mode) {
 // Cosmetic identity setters (avatar cloth colour + country code). Null clears.
 function setAvatarColor(userId, color) { db.prepare("UPDATE users SET avatar_color = ? WHERE id = ?").run(color || null, userId); }
 function setCountry(userId, country) { db.prepare("UPDATE users SET country = ? WHERE id = ?").run(country || null, userId); }
+
+// --- Shop: purchased-item ownership ----------------------------------------------------------------
+function listOwnedItemIds(userId) {
+	return db.prepare("SELECT item_id FROM shop_purchases WHERE user_id = ?").all(userId).map(function(r) { return r.item_id; });
+}
+function ownsItem(userId, kind, itemId) {
+	return !!db.prepare("SELECT 1 FROM shop_purchases WHERE user_id = ? AND kind = ? AND item_id = ? LIMIT 1").get(userId, kind, itemId);
+}
+// Idempotent grant (INSERT OR IGNORE on the (user,kind,item) PK) — returns true iff this call newly
+// granted it (false if already owned, or on error). meta: {priceCents, currency, stripeSessionId, stripePaymentIntent}.
+function grantItem(userId, kind, itemId, meta) {
+	meta = meta || {};
+	try {
+		var info = db.prepare(
+			"INSERT OR IGNORE INTO shop_purchases (user_id, kind, item_id, price_cents, currency, stripe_session_id, stripe_payment_intent, granted_at) " +
+			"VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+		).run(userId, kind, itemId, meta.priceCents || null, meta.currency || null, meta.stripeSessionId || null, meta.stripePaymentIntent || null, Date.now());
+		return info.changes > 0;
+	} catch (e) { console.error("grantItem failed", e); return false; }
+}
+// Webhook idempotency guard, identical idiom to markMatchPersisted above: true the FIRST time an
+// event id is seen (caller should apply it), false if already processed. Fails OPEN on error — a rare
+// double-processed webhook is harmless here since grantItem itself is idempotent on the PK.
+function markStripeEventProcessed(eventId) {
+	if (!eventId) return true;
+	try {
+		var info = db.prepare("INSERT OR IGNORE INTO processed_stripe_events (event_id, created_at) VALUES (?, ?)")
+			.run(String(eventId), Date.now());
+		return info.changes > 0;
+	} catch (e) { console.error("markStripeEventProcessed failed", e); return true; }
+}
 
 // --- Ranked match history + incremental player stats ---------------------------------------------
 // Both writes are non-critical — never let them break rating application / match-end, so each
@@ -1589,6 +1644,10 @@ module.exports = {
 	topPlayers: topPlayers,
 	setAvatarColor: setAvatarColor,
 	setCountry: setCountry,
+	listOwnedItemIds: listOwnedItemIds,
+	ownsItem: ownsItem,
+	grantItem: grantItem,
+	markStripeEventProcessed: markStripeEventProcessed,
 	recordMatch: recordMatch,
 	markMatchPersisted: markMatchPersisted,
 	recordClear: recordClear,

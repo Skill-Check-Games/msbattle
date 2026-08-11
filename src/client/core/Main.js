@@ -1520,6 +1520,25 @@ socket.on("auth_failed", applyAuthFailed);
 socket.on("name_rejected", applyNameRejected);
 socket.on("name_accepted", applyNameAccepted);
 
+// Shop ownership sync. Under normal use the picker UI only offers owned items (unowned ones route
+// to /shop instead of emitting set_avatar/set_skin), so these are a defense-in-depth net for a
+// stale/tampered client rather than a path real usage takes.
+socket.on("owned_items", function(data) {
+	account = account || {};
+	account.ownedItems = (data && data.items) || [];
+	if (typeof renderBoardSkins === "function") renderBoardSkins();
+	if (typeof renderShop === "function") renderShop();
+});
+socket.on("skin_rejected", function() {
+	if (typeof applyBoardSkin === "function") applyBoardSkin("classic");
+	try { localStorage.setItem("ms_board_skin", "classic"); } catch (e) {}
+	if (typeof renderBoardSkins === "function") renderBoardSkins();
+});
+socket.on("avatar_rejected", function() {
+	if (account) account.avatarColor = null;
+	if (typeof refreshAvatarDisplays === "function") refreshAvatarDisplays();
+});
+
 socket.on("room_list", function(data) {
 	renderRoomList(data.rooms || []);
 	if (typeof renderHomeRooms === "function") renderHomeRooms(data.rooms || []);
@@ -2279,7 +2298,7 @@ socket.on("draw_board", function(data) {
 
 // danger warning moved to DangerWarning.js
 
-var allViews = ["name_view", "lobby_view", "game_view", "learn_view", "leaderboard_view", "profile_view", "settings_view", "custom_view", "admin_view", "puzzles_view", "puzzles_list_view", "bots_view", "starting_positions_view", "patterns_view", "start_patterns_view", "combined_puzzles_view", "marathon_boards_view", "design_view", "countdown_lab_view", "sound_lab_view", "territory_view", "puzzle_play_view", "ranked_picker_view", "puzzle_picker_view", "replay_view", "privacy_view", "terms_view"];
+var allViews = ["name_view", "lobby_view", "game_view", "learn_view", "leaderboard_view", "profile_view", "settings_view", "shop_view", "custom_view", "admin_view", "puzzles_view", "puzzles_list_view", "bots_view", "starting_positions_view", "patterns_view", "start_patterns_view", "combined_puzzles_view", "marathon_boards_view", "design_view", "countdown_lab_view", "sound_lab_view", "territory_view", "puzzle_play_view", "ranked_picker_view", "puzzle_picker_view", "replay_view", "privacy_view", "terms_view"];
 // Routing + view show/hide moved to Router.js.
 // Profile view rendering moved to Profile.js.
 

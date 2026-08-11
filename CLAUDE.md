@@ -550,25 +550,34 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   PNG for upload as the OAuth consent-screen app logo.
 - `BoardRender.js` — canvas paint + palette + animation timings + DPR.
 - **Board skins** (the foundation for texture packs) — **per-player**: each board renders in its owner's
-  skin (yours in yours, opponents in theirs, bots in the default). `BOARD_SKINS` in `BoardRender.js` holds
-  each skin's colours (mine, per-number, known/unknown cell, flag, font, `glow`). The palette is **per
-  `BoardView`**: `BoardView.skinId` (set via `liveBoardView(canvas, state, skinId)` /
-  `drawBoardStatic(state, canvas, skinId)`), and `BoardView.draw()` loads that skin's palette
-  (`setPaletteVars`) for the synchronous paint then restores `localBoardSkin` — so the draw helpers stay
-  unchanged. `localBoardSkin` is the local user's pick (their own board + UI previews + the
+  skin (yours in yours, opponents in theirs, bots in the default). `BOARD_SKINS`/`BOARD_SKIN_LIST` live in
+  `src/common/Cosmetics.js` (shared with the server — see Shop below) and are re-exported as globals at
+  the top of `BoardRender.js` (`var BOARD_SKINS = Cosmetics.BOARD_SKINS`, etc.) so every other client file
+  keeps reading the same names. Each skin holds its colours (mine, per-number, known/unknown cell, flag,
+  font, `glow`). The palette is **per `BoardView`**: `BoardView.skinId` (set via `liveBoardView(canvas,
+  state, skinId)` / `drawBoardStatic(state, canvas, skinId)`), and `BoardView.draw()` loads that skin's
+  palette (`setPaletteVars`) for the synchronous paint then restores `localBoardSkin` — so the draw helpers
+  stay unchanged. `localBoardSkin` is the local user's pick (their own board + UI previews + the
   `body[data-board-skin]` CSS frame); opponent draws pass `game.skin || "classic"` (bots/unknown →
   classic, never the local skin). `drawNumber` glows each digit when `NUMBER_GLOW` is on. Two skins ship:
-  **classic** (blue) and **tactical** (phosphor-CRT: dark screen, teal cells, neon glowing monospace
-  digits); the tactical **frame** is CSS under `body[data-board-skin="tactical"]` (`.player-board` bezel +
-  `.board-scroll` dark screen, inset cyan glow, scanline `::after`) so it only frames YOUR board.
-  **Sync:** `setBoardSkin(id)` persists to `localStorage["ms_board_skin"]`, applies, and emits `set_skin`;
-  the client also emits it on connect (`applyConnected`). Server mirrors the `names`/`set_name` pattern:
-  `appState.skins[pid]`, the `set_skin` handler (session.js) stores it + updates the live `game.skin` +
-  rebroadcasts, `createPlayerGame` seeds `game.skin = skins[pid] || null`, `gameForBroadcast` ships
-  `skin`, and disconnect clears it. The picker is on the **Settings** page (`renderBoardSkins` →
-  `#skins_card`), **admin-only** (gated on `dev || account.isAdmin`, like the Admin nav link — so
-  non-admins keep classic).
-  New skins = a `BOARD_SKINS` entry (+ optional CSS frame); image texture packs extend the same hook.
+  **classic** (blue, free) and **tactical** (phosphor-CRT: dark screen, teal cells, neon glowing monospace
+  digits; a **paid shop item**, see Shop below); the tactical **frame** is CSS under
+  `body[data-board-skin="tactical"]` (`.player-board` bezel + `.board-scroll` dark screen, inset cyan glow,
+  scanline `::after`) so it only frames YOUR board.
+  **Sync:** `setBoardSkin(id)` persists to `localStorage["ms_board_skin"]`, applies, and emits `set_skin`.
+  The client's *initial* emit happens from `applyAuthenticated` (Auth.js), not the earlier `applyConnected`
+  — `set_skin` is ownership-gated server-side (see Shop below) and `accounts[playerID]` doesn't exist yet
+  at raw connect time, so emitting before auth would always be rejected for a legitimate owner; the
+  authenticated payload's `ownedItems` decides locally whether the stored pick is even worth sending, else
+  it falls back to `classic`. Server mirrors the `names`/`set_name` pattern: `appState.skins[pid]`, the
+  `set_skin` handler (session.js) shape-validates + (for a purchasable id) checks `db.ownsItem` before
+  storing it (falling back to `"classic"` + emitting `skin_rejected` otherwise) and updates the live
+  `game.skin` + rebroadcasts, `createPlayerGame` seeds `game.skin = skins[pid] || null`, `gameForBroadcast`
+  ships `skin`, and disconnect clears it. The picker is on the **Settings** page (`renderBoardSkins` →
+  `#skins_card`) — no more admin gate; every signed-in player sees every skin, purchasable-and-unowned
+  ones rendered locked (dimmed, priced, clicking routes to `/shop`) via `shopItemUnlocked("skin", id)`.
+  New **free** skins = just a `BOARD_SKINS` entry (+ optional CSS frame); a new **paid** skin also needs a
+  `ShopCatalog.ITEMS` entry (see Shop below). Image texture packs extend the same hook.
 - **Avatars + country** — account-level cosmetic identity, mirroring the skin pattern. The **avatar** is
   the in-game flag on a pole — a **triangular pennant**. With a country set, the player's country flag fills
   the pennant: the (circular) `/flags` SVG is scaled to a square big enough that its disc covers the whole
@@ -821,9 +830,41 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   `teardownReplay` (called from `hideAllViews`) cancels the rAF on navigation. Entry point: the **recent-
   games rows** on the profile that have a `replay_id` link to `/replay?id=N` (see Match history above).
 - **Settings page** (`/settings`, `#settings_view`, `showSettingsView`) — local, on-device preferences,
-  split out from Profile: the **Board skin** picker (`#skins_card`, admin-only) and **Controls** /
-  keybindings (`#controls_card`). `showSettingsView` calls `renderBoardSkins` + `renderKeybindings`
-  (Profile no longer does). Its own nav link (`data-route="settings"`).
+  split out from Profile: the **Board skin** picker (`#skins_card` — every skin is shown, purchasable-
+  and-unowned ones locked/priced, see Shop below) and **Controls** / keybindings (`#controls_card`).
+  `showSettingsView` calls `renderBoardSkins` + `renderKeybindings` (Profile no longer does). Its own nav
+  link (`data-route="settings"`).
+- **Shop** (`/shop`, `#shop_view`, `showShopView` → `renderShop` in `Shop.js`) — real-money cosmetic
+  purchases via **Stripe Checkout** (hosted page; the client never loads Stripe.js, it only calls our own
+  `/api/shop/*`). **Catalog**: `src/common/ShopCatalog.js` (common, `require`'d server-side + loaded as a
+  `<script>` client-side) hand-authors `ITEMS` — currently every `AVATAR_IMAGES` preset at $1.99 (`id`s are
+  literally the `"img:<id>"` wire value `set_avatar` already uses) and the `tactical` skin at $4.99 (`id`
+  is literally `set_skin`'s wire value) — plus a boot-time check that every catalog id round-trips against
+  `Cosmetics.js`. Free/default values (`anon`, `mine`, the red flag colour, `classic`) are simply absent
+  from `ITEMS`; `ShopCatalog.isPurchasable(kind, id)` is how every gate (client picker + server handler)
+  decides whether ownership even needs checking. **Ownership**: `db.js`'s `shop_purchases` table
+  (`user_id, kind, item_id, …, PRIMARY KEY(user_id, kind, item_id)`, matching the `match_replay_players`
+  multi-row-per-user shape) + `listOwnedItemIds`/`ownsItem`/`grantItem` (idempotent — `INSERT OR IGNORE`,
+  returns whether newly granted); `session.js`'s `buildAccountPayload` ships `ownedItems` on both the live
+  `authenticated` event and SSR hydration, and a `refresh_owned_items` → `owned_items` socket round-trip
+  re-syncs it after a purchase (the client can't hear about one live — Stripe redirects the browser, no
+  socket involved). **HTTP** (`src/server/runtime/shopApi.js`, mounted in `minesweeperServer.js` like
+  `oauth`/`puzzleApi`): `POST /api/shop/checkout` (resolves the caller via `X-Session-Token`, rejects
+  guests, looks up the item + **builds the Stripe price server-side from the catalog** — never trusts a
+  client-submitted price — creates a Checkout Session, returns `{url}` for a full-page redirect);
+  `GET /api/shop/session-status` (UX fast-path on the redirect back — grants immediately if already paid,
+  since the webhook can lag); `POST /api/shop/webhook` (the **authoritative** grant path — verifies
+  `stripe-signature` via `stripe.webhooks.constructEvent` against a **raw Buffer body** — signature
+  verification needs the exact bytes, so this route has its own reader and can't reuse the string-based
+  JSON reader the checkout endpoint uses — then grants from the session's `metadata.{userId,kind,itemId}`,
+  deduped through `processed_stripe_events`/`markStripeEventProcessed` against Stripe's at-least-once
+  redelivery). Env: `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET` (`.env.example`; a restricted key is
+  recommended over a full secret key). **No refund/chargeback revocation** and **no grandfathering** of
+  pre-shop `tactical` usage — deliberate launch scope, not an oversight. **Client UI**: `Shop.js` renders
+  tiles grouped by kind (Owned / Buy — $X.XX / Sign in to buy) and handles the `?purchase=success|cancel`
+  return trip; `Profile.js`'s `renderAppearance`/`renderBoardSkins` share `shopItemUnlocked(kind, id)` +
+  `goToShop()` + `buildSkinPreview(id)` (also reused by the Shop tile) to render unowned purchasable items
+  locked (dimmed, priced, clicking navigates to `/shop`) instead of hidden or freely selectable.
 - **Help modal** (`#help_modal`, `wireHelpModal` in Main.js). The navbar **Help** item is a `<button>`
   (not an `<a>`, so the router's link interceptor ignores it) that opens a concise modal — rules, game
   modes, and controls — reusing the `.cr-modal`/`.cr-dialog` chrome. On open it fills the control-key
@@ -906,6 +947,11 @@ hides the total.
   wired server-side but no longer shown in the UI) — OAuth credentials. The server reads these plus
   `GOOGLE_CLIENT_ID` / `DISCORD_CLIENT_ID`-style UPPER_CASE names. Sign-in offers **Google + Discord**
   (Facebook is a planned addition); each provider's button only appears when its client ID is configured.
+- `stripe_secret_key` / `stripe_webhook_secret` (also read as `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`)
+  — the shop's Stripe credentials (see Shop above). Absent locally → every `/api/shop/*` route degrades to
+  a clean `503 {error:"shop_unconfigured"}` rather than throwing, so the rest of the server/tests run fine
+  without them. Test the webhook locally with the Stripe CLI: `stripe listen --forward-to
+  localhost:1337/api/shop/webhook`.
 
 Ranked data persists in SQLite at `ranked.db` (gitignored), or `RANKED_DB` if set.
 

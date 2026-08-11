@@ -14,6 +14,7 @@ var http = require("http")
   , cspSolver = require("./engine/CSPSolver")
   , oauth = require("./runtime/oauth")
   , puzzleApi = require("./runtime/puzzleApi")
+  , shopApi = require("./runtime/shopApi")
   , staticServer = require("./runtime/staticServer")
   , appState = require("./runtime/appState")
   , territory = require("./runtime/territory")
@@ -101,6 +102,7 @@ function handler (req, res) {
 	// Internal main↔game API (split roles only) — secret-guarded, never part of the monolith surface.
 	if (role.isSplit() && internalApi.handleInternalRoute(req, res, url)) return;
 	if (oauth.handleAuthRoute(req, res, url)) return;
+	if (shopApi.handleShopRoute(req, res, url)) return;
 	if (puzzleApi.handleApiRoute(req, res, url)) return;
 	staticServer.serve(res, url.pathname, req);
 }

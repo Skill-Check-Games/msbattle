@@ -16,36 +16,14 @@ var COLOR_MINE, NUMBER_COLORS, COLOR_KNOWN_BG, COLOR_KNOWN_EDGE,
 	COLOR_UNKNOWN_TOP, COLOR_UNKNOWN_BOTTOM, COLOR_UNKNOWN_EDGE, COLOR_UNKNOWN_HILITE,
 	COLOR_FLAG_CLOTH, COLOR_FLAG_POLE, NUMBER_FONT, NUMBER_GLOW;
 
-var BOARD_SKINS = {
-	classic: {
-		label: "Classic", blurb: "The default blue tiles.",
-		mine: "#fca5a5",
-		numbers: { 1: "#60a5fa", 2: "#4ade80", 3: "#f87171", 4: "#c084fc", 5: "#fbbf24", 6: "#22d3ee", 7: "#f9a8d4", 8: "#e2e8f0" },
-		knownBg: "#162033", knownEdge: "#0b1220",
-		unknownTop: "#4f93f7", unknownBottom: "#2563eb", unknownEdge: "#1e40af",
-		unknownHilite: "rgba(255,255,255,0.28)",
-		flagCloth: "#ef4444", flagPole: "#e2e8f0",
-		font: "Inter, system-ui, sans-serif", glow: false
-	},
-	tactical: {
-		label: "Tactical", blurb: "Phosphor-CRT display with glowing digits.",
-		mine: "#ff4d4d",
-		numbers: { 1: "#00e8c8", 2: "#39ff14", 3: "#ff4d4d", 4: "#c084fc", 5: "#fb923c", 6: "#22d3ee", 7: "#80fff4", 8: "#eeeef5" },
-		knownBg: "#020c0f", knownEdge: "#0a2a30",
-		unknownTop: "#0a3a42", unknownBottom: "#062830", unknownEdge: "#00614f",
-		unknownHilite: "rgba(0,232,200,0.20)",
-		flagCloth: "#ff4d4d", flagPole: "#80fff4",
-		font: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace", glow: true
-	}
-};
-var BOARD_SKIN_LIST = ["classic", "tactical"];
-// Avatar cloth colour — the in-game flag. Just the classic red flag now (the other colours were dropped).
-var AVATAR_COLORS = ["#ef4444"];
-var DEFAULT_AVATAR_COLOR = "#ef4444";
-// The default avatar shown anywhere a player hasn't chosen one — the anonymous silhouette.
-var DEFAULT_AVATAR = "anon";
-// Preset image avatars — an avatar value of "img:<id>" renders the image instead of a flag pennant.
-var AVATAR_IMAGES = { teddy: "/avatars/mine-teddy.png", "recon-fox": "/avatars/recon-fox.png", "eod-bulldog": "/avatars/eod-bulldog.png", "night-cat": "/avatars/night-cat.png", "commando-cat": "/avatars/commando-cat.png", "comms-cat": "/avatars/comms-cat.png", "mine-dog": "/avatars/mine-dog.png", "drone-fox": "/avatars/drone-fox.png", "demo-raccoon": "/avatars/demo-raccoon.png", "rookie-penguin": "/avatars/rookie-penguin.png", "field-corgi": "/avatars/field-corgi.png", "journal-cat": "/avatars/journal-cat.png", "recon-owl": "/avatars/recon-owl.png", "scout-dog": "/avatars/scout-dog.png", "sentry-fox": "/avatars/sentry-fox.png", "sentry-owl": "/avatars/sentry-owl.png", "signal-cat": "/avatars/signal-cat.png", "guard-teddy": "/avatars/guard-teddy.png" };
+// Cosmetic catalogue (skins + avatars) now lives in common/Cosmetics.js, shared with
+// the server (loaded before this file — see index.html's BUNDLE block).
+var BOARD_SKINS = Cosmetics.BOARD_SKINS;
+var BOARD_SKIN_LIST = Cosmetics.BOARD_SKIN_LIST;
+var AVATAR_COLORS = Cosmetics.AVATAR_COLORS;
+var DEFAULT_AVATAR_COLOR = Cosmetics.DEFAULT_AVATAR_COLOR;
+var DEFAULT_AVATAR = Cosmetics.DEFAULT_AVATAR;
+var AVATAR_IMAGES = Cosmetics.AVATAR_IMAGES;
 // localBoardSkin = the skin the *local* user picked (their own board + UI previews).
 // Other players' boards render in THEIR skin (passed per-BoardView); bots/unknown fall
 // back to classic. Each BoardView.draw() loads its skin's palette into these vars for the
