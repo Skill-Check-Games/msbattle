@@ -34,7 +34,7 @@
 		// The default avatar shown anywhere a player hasn't chosen one — the anonymous silhouette.
 		DEFAULT_AVATAR: "anon",
 		// Preset image avatars — an avatar value of "img:<id>" renders the image instead of a flag pennant.
-		AVATAR_IMAGES: { teddy: "/avatars/mine-teddy.png", "recon-fox": "/avatars/recon-fox.png", "eod-bulldog": "/avatars/eod-bulldog.png", "night-cat": "/avatars/night-cat.png", "commando-cat": "/avatars/commando-cat.png", "comms-cat": "/avatars/comms-cat.png", "mine-dog": "/avatars/mine-dog.png", "drone-fox": "/avatars/drone-fox.png", "demo-raccoon": "/avatars/demo-raccoon.png", "rookie-penguin": "/avatars/rookie-penguin.png", "field-corgi": "/avatars/field-corgi.png", "journal-cat": "/avatars/journal-cat.png", "recon-owl": "/avatars/recon-owl.png", "scout-dog": "/avatars/scout-dog.png", "sentry-fox": "/avatars/sentry-fox.png", "sentry-owl": "/avatars/sentry-owl.png", "signal-cat": "/avatars/signal-cat.png", "guard-teddy": "/avatars/guard-teddy.png" }
+		AVATAR_IMAGES: { teddy: "/avatars/mine-teddy.png", "commando-cat": "/avatars/commando-cat.png", "comms-cat": "/avatars/comms-cat.png", "mine-dog": "/avatars/mine-dog.png", "drone-fox": "/avatars/drone-fox.png", "demo-raccoon": "/avatars/demo-raccoon.png", "rookie-penguin": "/avatars/rookie-penguin.png", "field-corgi": "/avatars/field-corgi.png", "journal-cat": "/avatars/journal-cat.png", "recon-owl": "/avatars/recon-owl.png", "scout-dog": "/avatars/scout-dog.png", "sentry-fox": "/avatars/sentry-fox.png", "sentry-owl": "/avatars/sentry-owl.png", "signal-cat": "/avatars/signal-cat.png", "guard-teddy": "/avatars/guard-teddy.png" }
 	};
 
 	if (typeof module !== "undefined" && module.exports) {

@@ -27,10 +27,10 @@ test("listOwnedItemIds returns every owned item for a user, independent of other
 	const u2 = db.createGuest();
 	db.grantItem(u1.id, "avatar", "img:teddy", {});
 	db.grantItem(u1.id, "skin", "tactical", {});
-	db.grantItem(u2.id, "avatar", "img:night-cat", {});
+	db.grantItem(u2.id, "avatar", "img:mine-dog", {});
 
 	assert.deepStrictEqual(db.listOwnedItemIds(u1.id).sort(), ["img:teddy", "tactical"]);
-	assert.deepStrictEqual(db.listOwnedItemIds(u2.id), ["img:night-cat"]);
+	assert.deepStrictEqual(db.listOwnedItemIds(u2.id), ["img:mine-dog"]);
 });
 
 test("markStripeEventProcessed records an eventId exactly once", () => {
