@@ -43,7 +43,7 @@ test.after(function() { if (plainServer) plainServer.stop(); });
 
 test("checkout is a clean 503 when Stripe isn't configured", async function() {
 	var r = await fetch(plainServer.base + "/api/shop/checkout", {
-		method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ itemId: "img:teddy" })
+		method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ itemId: "img:scout-dog" })
 	});
 	assert.strictEqual(r.status, 503);
 	assert.strictEqual((await r.json()).error, "shop_unconfigured");
@@ -77,7 +77,7 @@ async function realUserToken() {
 
 test("checkout with no session token -> 401 unauthenticated", async function() {
 	var r = await fetch(stripeServer.base + "/api/shop/checkout", {
-		method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ itemId: "img:teddy" })
+		method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ itemId: "img:scout-dog" })
 	});
 	assert.strictEqual(r.status, 401);
 });
@@ -85,7 +85,7 @@ test("checkout with no session token -> 401 unauthenticated", async function() {
 test("checkout as a guest -> 403 guest_not_allowed", async function() {
 	var token = await guestToken();
 	var r = await fetch(stripeServer.base + "/api/shop/checkout", {
-		method: "POST", headers: { "Content-Type": "application/json", "X-Session-Token": token }, body: JSON.stringify({ itemId: "img:teddy" })
+		method: "POST", headers: { "Content-Type": "application/json", "X-Session-Token": token }, body: JSON.stringify({ itemId: "img:scout-dog" })
 	});
 	assert.strictEqual(r.status, 403);
 	assert.strictEqual((await r.json()).error, "guest_not_allowed");
@@ -103,10 +103,10 @@ test("checkout with an unknown itemId -> 404 unknown_item", async function() {
 test("checkout for an already-owned item skips Stripe entirely -> { alreadyOwned: true }", async function() {
 	var token = await realUserToken();
 	var userId = dbCall("console.log(JSON.stringify(db.getUserByToken('" + token + "').id))");
-	dbCall("db.grantItem(" + userId + ", 'avatar', 'img:teddy', {}); console.log('null')");
+	dbCall("db.grantItem(" + userId + ", 'avatar', 'img:scout-dog', {}); console.log('null')");
 
 	var r = await fetch(stripeServer.base + "/api/shop/checkout", {
-		method: "POST", headers: { "Content-Type": "application/json", "X-Session-Token": token }, body: JSON.stringify({ itemId: "img:teddy" })
+		method: "POST", headers: { "Content-Type": "application/json", "X-Session-Token": token }, body: JSON.stringify({ itemId: "img:scout-dog" })
 	});
 	assert.strictEqual(r.status, 200);
 	assert.deepStrictEqual(await r.json(), { alreadyOwned: true });

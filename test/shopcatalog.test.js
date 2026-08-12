@@ -26,7 +26,7 @@ test("free avatar values (anon, mine, the default flag colour) are not purchasab
 });
 
 test("byId resolves a real item with its price, and returns null for an unknown id", () => {
-	const item = ShopCatalog.byId("img:teddy");
+	const item = ShopCatalog.byId("img:scout-dog");
 	assert.strictEqual(item.kind, "avatar");
 	assert.strictEqual(item.priceCents, 199);
 	assert.strictEqual(ShopCatalog.byId("img:not-a-real-avatar"), null);
@@ -34,7 +34,7 @@ test("byId resolves a real item with its price, and returns null for an unknown 
 
 test("the tactical skin item is priced higher than an avatar preset", () => {
 	const skin = ShopCatalog.byId("tactical");
-	const avatar = ShopCatalog.byId("img:teddy");
+	const avatar = ShopCatalog.byId("img:scout-dog");
 	assert.strictEqual(skin.priceCents, 499);
 	assert.ok(skin.priceCents > avatar.priceCents);
 });

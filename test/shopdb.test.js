@@ -16,21 +16,21 @@ before(() => {
 
 test("grantItem grants an item exactly once", () => {
 	const u = db.createGuest();
-	assert.strictEqual(db.ownsItem(u.id, "avatar", "img:teddy"), false);
-	assert.strictEqual(db.grantItem(u.id, "avatar", "img:teddy", { priceCents: 199, currency: "usd" }), true, "first grant → newly granted");
-	assert.strictEqual(db.ownsItem(u.id, "avatar", "img:teddy"), true);
-	assert.strictEqual(db.grantItem(u.id, "avatar", "img:teddy", { priceCents: 199, currency: "usd" }), false, "second grant → already owned");
+	assert.strictEqual(db.ownsItem(u.id, "avatar", "img:scout-dog"), false);
+	assert.strictEqual(db.grantItem(u.id, "avatar", "img:scout-dog", { priceCents: 199, currency: "usd" }), true, "first grant → newly granted");
+	assert.strictEqual(db.ownsItem(u.id, "avatar", "img:scout-dog"), true);
+	assert.strictEqual(db.grantItem(u.id, "avatar", "img:scout-dog", { priceCents: 199, currency: "usd" }), false, "second grant → already owned");
 });
 
 test("listOwnedItemIds returns every owned item for a user, independent of other users", () => {
 	const u1 = db.createGuest();
 	const u2 = db.createGuest();
-	db.grantItem(u1.id, "avatar", "img:teddy", {});
+	db.grantItem(u1.id, "avatar", "img:scout-dog", {});
 	db.grantItem(u1.id, "skin", "tactical", {});
-	db.grantItem(u2.id, "avatar", "img:mine-dog", {});
+	db.grantItem(u2.id, "avatar", "img:sentry-fox", {});
 
-	assert.deepStrictEqual(db.listOwnedItemIds(u1.id).sort(), ["img:teddy", "tactical"]);
-	assert.deepStrictEqual(db.listOwnedItemIds(u2.id), ["img:mine-dog"]);
+	assert.deepStrictEqual(db.listOwnedItemIds(u1.id).sort(), ["img:scout-dog", "tactical"]);
+	assert.deepStrictEqual(db.listOwnedItemIds(u2.id), ["img:sentry-fox"]);
 });
 
 test("markStripeEventProcessed records an eventId exactly once", () => {
