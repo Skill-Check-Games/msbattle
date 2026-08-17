@@ -36,7 +36,11 @@
 				knownBg: "#1a140a", knownEdge: "#0d0904",
 				unknownTop: "#d4a017", unknownBottom: "#8b6914", unknownEdge: "#5c4409",
 				unknownHilite: "rgba(255,223,128,0.35)",
-				flagCloth: "#facc15", flagPole: "#f5e6c8",
+				// A vivid red cloth on a near-black pole (reusing knownEdge's dark tone) — the previous
+				// gold-on-gold flag sat almost the same hue/lightness as the unrevealed cell gradient
+				// right behind it and nearly disappeared; red is the highest-contrast option against a
+				// warm gold field, and it's the same colour language Classic/Tactical already use for "flag".
+				flagCloth: "#dc2626", flagPole: "#0d0904",
 				// Same font as Classic too, for the same reason as the number colours above — digit
 				// shapes stay consistent across skins so recognition speed doesn't drop.
 				font: "Inter, system-ui, sans-serif", glow: false
