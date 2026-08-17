@@ -1527,6 +1527,7 @@ socket.on("owned_items", function(data) {
 	account = account || {};
 	account.ownedItems = (data && data.items) || [];
 	if (typeof renderBoardSkins === "function") renderBoardSkins();
+	if (typeof renderAvatarModalSkins === "function") renderAvatarModalSkins();
 	if (typeof renderShop === "function") renderShop();
 });
 socket.on("skin_rejected", function() {

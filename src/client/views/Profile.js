@@ -47,27 +47,13 @@ function goToShop() {
 	if (typeof navigate === "function") navigate("/shop");
 }
 
-// Board-skin picker (local, like keybindings). Each option shows a tiny swatch built from the
-// skin's palette; clicking an OWNED option applies it live via setBoardSkin (BoardRender.js).
-// Purchasable-but-unowned skins (currently just "tactical" — see ShopCatalog.js) render locked
-// with their price instead of being hidden, so players discover what's for sale; clicking one
-// goes to the Shop rather than selecting it. Signed-out visitors can't own anything, so every
-// purchasable skin shows locked until they sign in.
-function renderBoardSkins() {
-	var card = document.getElementById("skins_card");
-	if (!card || typeof BOARD_SKINS === "undefined") return;
-	card.style.display = "";
-	card.innerHTML = "";
-	var h = document.createElement("h2");
-	h.className = "controls-title";
-	h.textContent = "Board skin";
-	card.appendChild(h);
-	var sub = document.createElement("p");
-	sub.className = "section-stub-note";
-	sub.style.marginTop = "0";
-	sub.textContent = "Choose how your board looks. Locked skins are in the Shop.";
-	card.appendChild(sub);
-
+// The skin-option button grid: one button per BOARD_SKIN_LIST entry, each showing a tiny palette
+// swatch (buildSkinPreview), label/blurb, and — for a purchasable-but-unowned skin (currently just
+// "tactical" — see ShopCatalog.js) — a locked/priced state instead of being hidden, so the picker
+// doubles as shop discovery. Clicking a locked one goes to the Shop instead of selecting it.
+// Shared by the Settings page card (renderBoardSkins) and the avatar-editor modal (openAvatarEditor)
+// so both pickers stay identical and in sync.
+function buildSkinOptionsGrid() {
 	var grid = document.createElement("div");
 	grid.className = "skin-options";
 	BOARD_SKIN_LIST.forEach(function(id) {
@@ -93,7 +79,36 @@ function renderBoardSkins() {
 		});
 		grid.appendChild(btn);
 	});
-	card.appendChild(grid);
+	return grid;
+}
+
+// Board-skin picker (local, like keybindings) on the Settings page.
+function renderBoardSkins() {
+	var card = document.getElementById("skins_card");
+	if (!card || typeof BOARD_SKINS === "undefined") return;
+	card.style.display = "";
+	card.innerHTML = "";
+	var h = document.createElement("h2");
+	h.className = "controls-title";
+	h.textContent = "Board skin";
+	card.appendChild(h);
+	var sub = document.createElement("p");
+	sub.className = "section-stub-note";
+	sub.style.marginTop = "0";
+	sub.textContent = "Choose how your board looks. Locked skins are in the Shop.";
+	card.appendChild(sub);
+	card.appendChild(buildSkinOptionsGrid());
+}
+
+// Same picker, inside the avatar-editor modal (#avatar_modal_skins) — re-render-only, so it can be
+// called both when the modal (re)opens and whenever the skin changes elsewhere (setBoardSkin calls
+// this too, so a selection made in the modal itself updates its own "active" state). A no-op if the
+// modal hasn't been built yet (container isn't in the DOM) — harmless to call while hidden too.
+function renderAvatarModalSkins() {
+	var container = document.getElementById("avatar_modal_skins");
+	if (!container) return;
+	container.innerHTML = "";
+	container.appendChild(buildSkinOptionsGrid());
 }
 
 // Profile renders from the account cache plus the most recent leaderboard snapshot.
@@ -291,7 +306,7 @@ function openAvatarEditor() {
 		modal.innerHTML =
 			'<div class="cr-backdrop" data-avatar-close></div>' +
 			'<div class="cr-dialog" role="dialog" aria-modal="true" aria-labelledby="avatar_modal_title">' +
-				'<div class="cr-dialog-head"><h2 id="avatar_modal_title">Your avatar</h2>' +
+				'<div class="cr-dialog-head"><h2 id="avatar_modal_title">Appearance</h2>' +
 				'<button class="cr-close" type="button" data-avatar-close aria-label="Close">×</button></div>' +
 				'<div id="avatar_modal_body"></div>' +
 			'</div>';
@@ -305,6 +320,13 @@ function openAvatarEditor() {
 	if (typeof buildAvatarChip === "function") preview.appendChild(buildAvatarChip(account.avatarColor || DEFAULT_AVATAR, account.country || null, 92));
 	body.appendChild(preview);
 	body.appendChild(renderAppearance());
+	if (typeof BOARD_SKINS !== "undefined") {
+		var sLabel = document.createElement("div"); sLabel.className = "appearance-sub"; sLabel.textContent = "Board skin";
+		body.appendChild(sLabel);
+		var skinsContainer = document.createElement("div"); skinsContainer.id = "avatar_modal_skins";
+		body.appendChild(skinsContainer);
+		renderAvatarModalSkins();
+	}
 	modal.removeAttribute("hidden");
 }
 
