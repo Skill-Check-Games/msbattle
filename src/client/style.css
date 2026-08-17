@@ -3519,13 +3519,10 @@ body[data-board-skin="gold"] .board-scroll::after {
 .shop-status { margin-bottom: 1.25rem; }
 .shop-status-success { border-color: rgba(74, 222, 128, 0.4); }
 .shop-status-error { border-color: rgba(248, 113, 113, 0.4); }
-.shop-fake-toggle {
-	display: flex; align-items: center; gap: 0.5rem; width: fit-content;
-	margin-bottom: 1.1rem; padding: 0.6rem 0.85rem; border-radius: 10px;
-	border: 1px solid rgba(250, 204, 21, 0.35); background: rgba(250, 204, 21, 0.08);
-	font-size: 0.85rem; color: var(--text); cursor: pointer;
-}
-.shop-fake-toggle input { cursor: pointer; }
+.shop-title-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.35rem; }
+.shop-title-row .section-page-title { margin: 0; }
+.shop-fake-toggle { display: flex; align-items: center; gap: 0.55rem; }
+.shop-fake-toggle-label { font-size: 0.85rem; font-weight: 600; color: var(--muted); }
 
 .player-controls {
 	display: flex;

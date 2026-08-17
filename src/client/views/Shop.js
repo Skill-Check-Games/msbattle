@@ -40,7 +40,7 @@ function markOwnedLocally(itemId) {
 
 function buyShopItemFake(item, btn, originalLabel) {
 	btn.disabled = true;
-	btn.textContent = "Activating…";
+	btn.textContent = "Starting checkout…"; // same in-flight text as a real purchase — see buildShopTile
 	fetch("/api/shop/fake-grant", {
 		method: "POST",
 		headers: Object.assign({ "Content-Type": "application/json" }, shopHeaders()),
@@ -103,7 +103,9 @@ function buildShopTile(item) {
 	} else {
 		var buyBtn = document.createElement("button");
 		buyBtn.type = "button"; buyBtn.className = "btn btn-primary shop-tile-btn";
-		buyBtn.textContent = (fakeShopMode && account.isAdmin) ? "Activate (fake)" : "Buy — " + shopPriceLabel(item.id);
+		// Deliberately identical whether fakeShopMode is on or not — the shop should look exactly the
+		// same either way, only what happens on click differs (see buyShopItem).
+		buyBtn.textContent = "Buy — " + shopPriceLabel(item.id);
 		buyBtn.addEventListener("click", function() { buyShopItem(item, buyBtn); });
 		tile.appendChild(buyBtn);
 	}
@@ -115,25 +117,34 @@ function renderShop() {
 	if (!view || typeof ShopCatalog === "undefined") return;
 	view.innerHTML = "";
 
+	var titleRow = document.createElement("div"); titleRow.className = "shop-title-row";
 	var title = document.createElement("h1"); title.className = "section-page-title"; title.textContent = "Shop";
-	view.appendChild(title);
+	titleRow.appendChild(title);
+
+	// Admin-only escape hatch for demoing/testing the shop (works in prod too) without a real charge —
+	// the server independently re-checks is_admin on every /api/shop/fake-grant call, so this toggle
+	// is just the client-side switch, not itself a trust boundary. Deliberately doesn't change the
+	// shop's appearance beyond itself (see buildShopTile) — flipping it should be invisible to anyone
+	// glancing at the page, only observable in what actually happens on a Buy click.
+	if (account && account.isAdmin) {
+		var fakeRow = document.createElement("div"); fakeRow.className = "shop-fake-toggle";
+		var fakeTxt = document.createElement("span"); fakeTxt.className = "shop-fake-toggle-label";
+		fakeTxt.textContent = "Fake shop";
+		fakeRow.appendChild(fakeTxt);
+		var sw = document.createElement("button");
+		sw.type = "button";
+		sw.className = "toggle-switch" + (fakeShopMode ? " on" : "");
+		sw.setAttribute("aria-pressed", fakeShopMode ? "true" : "false");
+		sw.setAttribute("aria-label", "Fake shop: activate items instantly, skip checkout (admin only)");
+		sw.addEventListener("click", function() { fakeShopMode = !fakeShopMode; renderShop(); });
+		fakeRow.appendChild(sw);
+		titleRow.appendChild(fakeRow);
+	}
+	view.appendChild(titleRow);
+
 	var sub = document.createElement("p"); sub.className = "section-page-sub";
 	sub.textContent = "Cosmetics only — avatars and board skins never change how the game plays.";
 	view.appendChild(sub);
-
-	// Admin-only escape hatch for demoing/testing the shop (works in prod too) without a real charge —
-	// the server independently re-checks is_admin on every /api/shop/fake-grant call, so this checkbox
-	// is just the client-side switch, not itself a trust boundary.
-	if (account && account.isAdmin) {
-		var fakeRow = document.createElement("label"); fakeRow.className = "shop-fake-toggle";
-		var cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = fakeShopMode;
-		cb.addEventListener("change", function() { fakeShopMode = cb.checked; renderShop(); });
-		fakeRow.appendChild(cb);
-		var fakeTxt = document.createElement("span");
-		fakeTxt.textContent = "Fake shop — activate items instantly, skip checkout (admin only)";
-		fakeRow.appendChild(fakeTxt);
-		view.appendChild(fakeRow);
-	}
 
 	var status = document.createElement("div"); status.id = "shop_status"; status.style.display = "none";
 	view.appendChild(status);
