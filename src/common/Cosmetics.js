@@ -37,7 +37,9 @@
 				unknownTop: "#d4a017", unknownBottom: "#8b6914", unknownEdge: "#5c4409",
 				unknownHilite: "rgba(255,223,128,0.35)",
 				flagCloth: "#facc15", flagPole: "#f5e6c8",
-				font: "Georgia, 'Times New Roman', serif", glow: false
+				// Same font as Classic too, for the same reason as the number colours above — digit
+				// shapes stay consistent across skins so recognition speed doesn't drop.
+				font: "Inter, system-ui, sans-serif", glow: false
 			}
 		},
 		BOARD_SKIN_LIST: ["classic", "tactical", "gold"],
