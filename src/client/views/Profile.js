@@ -39,7 +39,13 @@ function shopPriceLabel(id) {
 	var item = typeof ShopCatalog !== "undefined" && ShopCatalog.byId(id);
 	return item ? "$" + (item.priceCents / 100).toFixed(2) : "";
 }
-function goToShop() { if (typeof navigate === "function") navigate("/shop"); }
+function goToShop() {
+	// Close the avatar-editor modal first, if open — renderAppearance()'s locked swatches call this
+	// from inside it, and navigating underneath a still-open modal just hides the shop page it went to.
+	var avatarModal = document.getElementById("avatar_modal");
+	if (avatarModal) avatarModal.setAttribute("hidden", "");
+	if (typeof navigate === "function") navigate("/shop");
+}
 
 // Board-skin picker (local, like keybindings). Each option shows a tiny swatch built from the
 // skin's palette; clicking an OWNED option applies it live via setBoardSkin (BoardRender.js).
