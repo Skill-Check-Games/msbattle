@@ -29,7 +29,10 @@
 			gold: {
 				label: "Gold", blurb: "Black-and-gold prestige tiles for the elite.",
 				mine: "#facc15",
-				numbers: { 1: "#eab308", 2: "#4ade80", 3: "#f87171", 4: "#c084fc", 5: "#fb923c", 6: "#22d3ee", 7: "#f9a8d4", 8: "#fde68a" },
+				// Same number colours as Classic, deliberately — a skin should reskin the board's chrome,
+				// not retrain a player's colour-to-value muscle memory (an earlier version had custom
+				// warm tones here and it read as harder to play at speed).
+				numbers: { 1: "#60a5fa", 2: "#4ade80", 3: "#f87171", 4: "#c084fc", 5: "#fbbf24", 6: "#22d3ee", 7: "#f9a8d4", 8: "#e2e8f0" },
 				knownBg: "#1a140a", knownEdge: "#0d0904",
 				unknownTop: "#d4a017", unknownBottom: "#8b6914", unknownEdge: "#5c4409",
 				unknownHilite: "rgba(255,223,128,0.35)",
