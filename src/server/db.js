@@ -729,10 +729,13 @@ function ownsItem(userId, kind, itemId) {
 function grantItem(userId, kind, itemId, meta) {
 	meta = meta || {};
 	try {
+		// undefined-check, not `||` — priceCents:0 is a legitimate value (admin fake-grants), and
+		// `meta.priceCents || null` would collapse it to null same as an actually-missing price.
+		var priceCents = meta.priceCents === undefined ? null : meta.priceCents;
 		var info = db.prepare(
 			"INSERT OR IGNORE INTO shop_purchases (user_id, kind, item_id, price_cents, currency, stripe_session_id, stripe_payment_intent, granted_at) " +
 			"VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
-		).run(userId, kind, itemId, meta.priceCents || null, meta.currency || null, meta.stripeSessionId || null, meta.stripePaymentIntent || null, Date.now());
+		).run(userId, kind, itemId, priceCents, meta.currency || null, meta.stripeSessionId || null, meta.stripePaymentIntent || null, Date.now());
 		return info.changes > 0;
 	} catch (e) { console.error("grantItem failed", e); return false; }
 }

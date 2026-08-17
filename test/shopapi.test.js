@@ -22,12 +22,15 @@ var STRIPE_PORT = 13821;
 // the same file, same as test/marathonlives.test.js's "seed the live DB from outside" pattern. A
 // same-process require("../src/server/db") would silently open a DIFFERENT (default-path) database.
 var STRIPE_DB_PATH = path.join(os.tmpdir(), "ms-test-" + process.pid + "-" + STRIPE_PORT + ".db");
-function dbCall(script) {
+var PLAIN_PORT = 13820;
+var PLAIN_DB_PATH = path.join(os.tmpdir(), "ms-test-" + process.pid + "-" + PLAIN_PORT + ".db");
+function dbCallAt(dbPath, script) {
 	var out = execFileSync("node", ["-e", "var db=require('./src/server/db');" + script], {
-		cwd: helpers.ROOT, env: Object.assign({}, process.env, { RANKED_DB: STRIPE_DB_PATH })
+		cwd: helpers.ROOT, env: Object.assign({}, process.env, { RANKED_DB: dbPath })
 	});
 	return JSON.parse(out.toString().trim());
 }
+function dbCall(script) { return dbCallAt(STRIPE_DB_PATH, script); }
 
 function once(socket, event, ms) {
 	return new Promise(function(resolve, reject) {
@@ -45,11 +48,17 @@ function once(socket, event, ms) {
 var plainServer;
 test.before(async function() {
 	plainServer = await helpers.startServer({
-		port: 13820,
+		port: PLAIN_PORT,
 		env: { STRIPE_SECRET_KEY: "", STRIPE_WEBHOOK_SECRET: "", stripe_secret_key: "", stripe_webhook_secret: "" }
 	});
 });
 test.after(function() { if (plainServer) plainServer.stop(); });
+
+async function devUserToken(server, name) {
+	var r = await fetch(server.base + "/auth/dev?name=" + encodeURIComponent(name), { redirect: "manual" });
+	var loc = r.headers.get("location");
+	return loc.split("#token=")[1];
+}
 
 test("checkout is a clean 503 when Stripe isn't configured", async function() {
 	var r = await fetch(plainServer.base + "/api/shop/checkout", {
@@ -161,4 +170,59 @@ test("webhook with a valid signature grants the item, and a redelivered event do
 	assert.strictEqual(r2.status, 200);
 	var owned = dbCall("console.log(JSON.stringify(db.listOwnedItemIds(" + userId + ")))");
 	assert.deepStrictEqual(owned.filter(function(id) { return id === "tactical"; }), ["tactical"]);
+});
+
+// --- Admin fake-grant (no Stripe interaction — bypasses payment entirely) ----------------------
+
+test("fake-grant with no session token -> 401 unauthenticated", async function() {
+	var r = await fetch(stripeServer.base + "/api/shop/fake-grant", {
+		method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ itemId: "img:scout-dog" })
+	});
+	assert.strictEqual(r.status, 401);
+});
+
+test("fake-grant as a non-admin -> 403 forbidden", async function() {
+	var token = await devUserToken(stripeServer, "NotAnAdmin");
+	var r = await fetch(stripeServer.base + "/api/shop/fake-grant", {
+		method: "POST", headers: { "Content-Type": "application/json", "X-Session-Token": token }, body: JSON.stringify({ itemId: "img:scout-dog" })
+	});
+	assert.strictEqual(r.status, 403);
+	assert.strictEqual((await r.json()).error, "forbidden");
+});
+
+test("fake-grant as an admin activates the item instantly, recorded at $0 with no Stripe call", async function() {
+	var token = await devUserToken(stripeServer, "ShopAdmin");
+	var userId = dbCall("console.log(JSON.stringify(db.getUserByToken('" + token + "').id))");
+	dbCall("db.setUserAdmin(" + userId + ", true); console.log('null')");
+	assert.strictEqual(dbCall("console.log(JSON.stringify(db.ownsItem(" + userId + ", 'skin', 'gold')))"), false);
+
+	var r = await fetch(stripeServer.base + "/api/shop/fake-grant", {
+		method: "POST", headers: { "Content-Type": "application/json", "X-Session-Token": token }, body: JSON.stringify({ itemId: "gold" })
+	});
+	assert.strictEqual(r.status, 200);
+	assert.deepStrictEqual(await r.json(), { ok: true, itemId: "gold" });
+	assert.strictEqual(dbCall("console.log(JSON.stringify(db.ownsItem(" + userId + ", 'skin', 'gold')))"), true);
+
+	// Raw row check (db.js exposes no accessor for price/session-id) — confirms it's marked as a $0
+	// admin freebie, not accidentally recorded as a real Stripe purchase.
+	var row = dbCall(
+		"var sqlite=require('node:sqlite'); var raw=new sqlite.DatabaseSync(process.env.RANKED_DB);" +
+		"var r=raw.prepare('SELECT price_cents, stripe_session_id FROM shop_purchases WHERE user_id=? AND kind=? AND item_id=?').get(" +
+		userId + ",'skin','gold');" +
+		"console.log(JSON.stringify(r));"
+	);
+	assert.strictEqual(row.price_cents, 0);
+	assert.strictEqual(row.stripe_session_id, "fake-shop:admin");
+});
+
+test("fake-grant works even when Stripe is completely unconfigured", async function() {
+	var token = await devUserToken(plainServer, "PlainAdmin");
+	var userId = dbCallAt(PLAIN_DB_PATH, "console.log(JSON.stringify(db.getUserByToken('" + token + "').id))");
+	dbCallAt(PLAIN_DB_PATH, "db.setUserAdmin(" + userId + ", true); console.log('null')");
+
+	var r = await fetch(plainServer.base + "/api/shop/fake-grant", {
+		method: "POST", headers: { "Content-Type": "application/json", "X-Session-Token": token }, body: JSON.stringify({ itemId: "img:scout-dog" })
+	});
+	assert.strictEqual(r.status, 200);
+	assert.strictEqual(dbCallAt(PLAIN_DB_PATH, "console.log(JSON.stringify(db.ownsItem(" + userId + ", 'avatar', 'img:scout-dog')))"), true);
 });

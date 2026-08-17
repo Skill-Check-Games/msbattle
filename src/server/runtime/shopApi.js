@@ -162,10 +162,31 @@ function serveWebhook(req, res) {
 	});
 }
 
+// Admin-only bypass: grants an item immediately with no Stripe interaction at all, so admins can
+// demo/test the shop (in prod included) without spending real money or needing Stripe configured
+// locally. Re-checks is_admin from the DB — never trusts a client claim — same pattern as
+// session.js's admin_reset_puzzles. Recorded with price_cents 0 and a distinguishing
+// stripe_session_id so these rows are identifiable later if anyone audits shop_purchases.
+function serveFakeGrant(req, res) {
+	var user = resolveUser(req);
+	if (!user) { send(res, 401, { error: "unauthenticated" }); return; }
+	if (!user.is_admin) { send(res, 403, { error: "forbidden" }); return; }
+
+	readJsonBody(req, function(err, body) {
+		if (err) { send(res, 400, { error: "bad_json" }); return; }
+		var itemId = body && typeof body.itemId === "string" ? body.itemId : "";
+		var item = ShopCatalog.byId(itemId);
+		if (!item) { send(res, 404, { error: "unknown_item" }); return; }
+		db.grantItem(user.id, item.kind, item.id, { priceCents: 0, currency: item.currency, stripeSessionId: "fake-shop:admin" });
+		send(res, 200, { ok: true, itemId: item.id });
+	});
+}
+
 function handleShopRoute(req, res, url) {
 	if (url.pathname === "/api/shop/checkout" && req.method === "POST") { serveCheckout(req, res); return true; }
 	if (url.pathname === "/api/shop/session-status" && req.method === "GET") { serveSessionStatus(req, res, url); return true; }
 	if (url.pathname === "/api/shop/webhook" && req.method === "POST") { serveWebhook(req, res); return true; }
+	if (url.pathname === "/api/shop/fake-grant" && req.method === "POST") { serveFakeGrant(req, res); return true; }
 	return false;
 }
 

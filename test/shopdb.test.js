@@ -7,10 +7,13 @@ const assert = require("node:assert");
 const os = require("node:os");
 const path = require("node:path");
 const fs = require("node:fs");
+const sqlite = require("node:sqlite");
 
 let db;
+let dbPath;
 before(() => {
-	process.env.RANKED_DB = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "ms-shopdb-")), "test.db");
+	dbPath = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "ms-shopdb-")), "test.db");
+	process.env.RANKED_DB = dbPath;
 	db = require("../src/server/db");
 });
 
@@ -31,6 +34,16 @@ test("listOwnedItemIds returns every owned item for a user, independent of other
 
 	assert.deepStrictEqual(db.listOwnedItemIds(u1.id).sort(), ["img:scout-dog", "tactical"]);
 	assert.deepStrictEqual(db.listOwnedItemIds(u2.id), ["img:sentry-fox"]);
+});
+
+test("grantItem stores a $0 price as 0, not null (admin fake-grants pass priceCents: 0)", () => {
+	const u = db.createGuest();
+	assert.strictEqual(db.grantItem(u.id, "skin", "gold", { priceCents: 0, currency: "usd", stripeSessionId: "fake-shop:admin" }), true);
+	const raw = new sqlite.DatabaseSync(dbPath);
+	const row = raw.prepare("SELECT price_cents, stripe_session_id FROM shop_purchases WHERE user_id = ? AND kind = ? AND item_id = ?").get(u.id, "skin", "gold");
+	raw.close();
+	assert.strictEqual(row.price_cents, 0, "0 must survive as 0, not collapse to null via `|| null`");
+	assert.strictEqual(row.stripe_session_id, "fake-shop:admin");
 });
 
 test("markStripeEventProcessed records an eventId exactly once", () => {

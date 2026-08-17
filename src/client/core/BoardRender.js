@@ -51,16 +51,13 @@ function applyBoardSkin(id) {
 	if (document.body) document.body.setAttribute("data-board-skin", id);
 }
 
-// User picked a skin (from the Settings picker or the avatar-editor modal): persist, apply, tell
-// the server (so opponents see it), repaint the live board, and refresh BOTH pickers' active state
-// — whichever one the click came from re-renders naturally, but the other stays visible too (e.g.
-// the modal parked open while Settings is behind it) and would otherwise show a stale selection.
+// User picked a skin in the avatar-editor modal: persist, apply, tell the server (so opponents
+// see it), repaint the live board, and refresh the picker's own active state.
 function setBoardSkin(id) {
 	applyBoardSkin(id);
 	try { localStorage.setItem("ms_board_skin", localBoardSkin); } catch (e) {}
 	if (typeof socket !== "undefined" && socket) socket.emit("set_skin", { skin: localBoardSkin });
 	if (typeof myState !== "undefined" && myState && typeof redrawOwnBoardWithFocus === "function") redrawOwnBoardWithFocus();
-	if (typeof renderBoardSkins === "function") renderBoardSkins();
 	if (typeof renderAvatarModalSkins === "function") renderAvatarModalSkins();
 	// Home-page previews (mode-board thumbnails + the daily-puzzle hero) render in the player's own
 	// skin now, not a fixed "classic" — both are cheap no-ops if their slots aren't on screen.

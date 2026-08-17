@@ -49,10 +49,10 @@ function goToShop() {
 
 // The skin-option button grid: one button per BOARD_SKIN_LIST entry, each showing a tiny palette
 // swatch (buildSkinPreview), label/blurb, and — for a purchasable-but-unowned skin (currently just
-// "tactical" — see ShopCatalog.js) — a locked/priced state instead of being hidden, so the picker
-// doubles as shop discovery. Clicking a locked one goes to the Shop instead of selecting it.
-// Shared by the Settings page card (renderBoardSkins) and the avatar-editor modal (openAvatarEditor)
-// so both pickers stay identical and in sync.
+// "tactical"/"gold" — see ShopCatalog.js) — a locked/priced state instead of being hidden, so the
+// picker doubles as shop discovery. Clicking a locked one goes to the Shop instead of selecting it.
+// The only picker for it lives in the avatar-editor modal (renderAvatarModalSkins, below) — there
+// used to be a second copy on the Settings page too, dropped as redundant once the modal covered it.
 function buildSkinOptionsGrid() {
 	var grid = document.createElement("div");
 	grid.className = "skin-options";
@@ -82,25 +82,7 @@ function buildSkinOptionsGrid() {
 	return grid;
 }
 
-// Board-skin picker (local, like keybindings) on the Settings page.
-function renderBoardSkins() {
-	var card = document.getElementById("skins_card");
-	if (!card || typeof BOARD_SKINS === "undefined") return;
-	card.style.display = "";
-	card.innerHTML = "";
-	var h = document.createElement("h2");
-	h.className = "controls-title";
-	h.textContent = "Board skin";
-	card.appendChild(h);
-	var sub = document.createElement("p");
-	sub.className = "section-stub-note";
-	sub.style.marginTop = "0";
-	sub.textContent = "Choose how your board looks. Locked skins are in the Shop.";
-	card.appendChild(sub);
-	card.appendChild(buildSkinOptionsGrid());
-}
-
-// Same picker, inside the avatar-editor modal (#avatar_modal_skins) — re-render-only, so it can be
+// The picker, inside the avatar-editor modal (#avatar_modal_skins) — re-render-only, so it can be
 // called both when the modal (re)opens and whenever the skin changes elsewhere (setBoardSkin calls
 // this too, so a selection made in the modal itself updates its own "active" state). A no-op if the
 // modal hasn't been built yet (container isn't in the DOM) — harmless to call while hidden too.

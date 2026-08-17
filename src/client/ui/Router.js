@@ -415,14 +415,14 @@ function showProfileView() {
 	renderProfile();
 }
 
-// Settings = local, on-device preferences (board skin + controls); separate from the Profile stats page.
+// Settings = local, on-device preferences (controls etc.); separate from the Profile stats page.
+// Board skin picking lives in the avatar-editor modal (openAvatarEditor/Profile.js) instead.
 function showSettingsView() {
 	hideAllViews();
 	document.getElementById("settings_view").style.display = "";
 	setSiteNavActive("settings");
 	if (typeof renderGameplaySettings === "function") renderGameplaySettings();
 	if (typeof renderAudioSettings === "function") renderAudioSettings();
-	if (typeof renderBoardSkins === "function") renderBoardSkins();
 	if (typeof renderKeybindings === "function") renderKeybindings();
 }
 

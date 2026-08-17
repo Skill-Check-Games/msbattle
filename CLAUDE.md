@@ -575,9 +575,10 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   `set_skin` handler (session.js) shape-validates + (for a purchasable id) checks `db.ownsItem` before
   storing it (falling back to `"classic"` + emitting `skin_rejected` otherwise) and updates the live
   `game.skin` + rebroadcasts, `createPlayerGame` seeds `game.skin = skins[pid] || null`, `gameForBroadcast`
-  ships `skin`, and disconnect clears it. The picker is on the **Settings** page (`renderBoardSkins` →
-  `#skins_card`) — no more admin gate; every signed-in player sees every skin, purchasable-and-unowned
-  ones rendered locked (dimmed, priced, clicking routes to `/shop`) via `shopItemUnlocked("skin", id)`.
+  ships `skin`, and disconnect clears it. The picker lives in the avatar-editor modal
+  (`renderAvatarModalSkins` → `#avatar_modal_skins`, `openAvatarEditor`/Profile.js — there's no longer a
+  separate Settings-page copy) — no admin gate; every signed-in player sees every skin, purchasable-and-
+  unowned ones rendered locked (dimmed, priced, clicking routes to `/shop`) via `shopItemUnlocked("skin", id)`.
   New **free** skins = just a `BOARD_SKINS` entry (+ optional CSS frame); a new **paid** skin also needs a
   `ShopCatalog.ITEMS` entry (see Shop below). Image texture packs extend the same hook.
 - **Avatars + country** — account-level cosmetic identity, mirroring the skin pattern. The **avatar** is
@@ -837,11 +838,12 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   tabs when `gameCount>1`. Steady-state redraws are skipped unless a player's applied-event count changed.
   `teardownReplay` (called from `hideAllViews`) cancels the rAF on navigation. Entry point: the **recent-
   games rows** on the profile that have a `replay_id` link to `/replay?id=N` (see Match history above).
-- **Settings page** (`/settings`, `#settings_view`, `showSettingsView`) — local, on-device preferences,
-  split out from Profile: the **Board skin** picker (`#skins_card` — every skin is shown, purchasable-
-  and-unowned ones locked/priced, see Shop below) and **Controls** / keybindings (`#controls_card`).
-  `showSettingsView` calls `renderBoardSkins` + `renderKeybindings` (Profile no longer does). Its own nav
-  link (`data-route="settings"`).
+- **Settings page** (`/settings`, `#settings_view`, `showSettingsView`) — local, on-device preferences:
+  Gameplay (`#gameplay_card`), Audio (`#audio_card`), and **Controls** / keybindings (`#controls_card`).
+  `showSettingsView` calls `renderGameplaySettings`/`renderAudioSettings`/`renderKeybindings`. Board skin
+  used to have its own card here too; it was dropped once the avatar-editor modal covered the same
+  picker, so skin-picking now lives only on the Profile page. Settings has its own nav link
+  (`data-route="settings"`).
 - **Shop** (`/shop`, `#shop_view`, `showShopView` → `renderShop` in `Shop.js`) — real-money cosmetic
   purchases via **Stripe Checkout** (hosted page; the client never loads Stripe.js, it only calls our own
   `/api/shop/*`). **Catalog**: `src/common/ShopCatalog.js` (common, `require`'d server-side + loaded as a
@@ -867,12 +869,20 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   verification needs the exact bytes, so this route has its own reader and can't reuse the string-based
   JSON reader the checkout endpoint uses — then grants from the session's `metadata.{userId,kind,itemId}`,
   deduped through `processed_stripe_events`/`markStripeEventProcessed` against Stripe's at-least-once
-  redelivery). Env: `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET` (`.env.example`; a restricted key is
-  recommended over a full secret key). **No refund/chargeback revocation** and **no grandfathering** of
-  pre-shop `tactical` usage — deliberate launch scope, not an oversight. **Client UI**: `Shop.js` renders
-  tiles grouped by kind (Owned / Buy — $X.XX / Sign in to buy) and handles the `?purchase=success|cancel`
-  return trip; `Profile.js`'s `renderAppearance`/`renderBoardSkins` share `shopItemUnlocked(kind, id)` +
-  `goToShop()` + `buildSkinPreview(id)` (also reused by the Shop tile) to render unowned purchasable items
+  redelivery); `POST /api/shop/fake-grant` (**admin-only, works in prod too** — re-checks `is_admin` from
+  the DB like `session.js`'s `admin_reset_puzzles`, then `grantItem`s with `priceCents: 0` and
+  `stripeSessionId: "fake-shop:admin"` so these rows are identifiable later — no Stripe interaction at
+  all, so it works even with Stripe unconfigured). Env: `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`
+  (`.env.example`; a restricted key is recommended over a full secret key). **No refund/chargeback
+  revocation** and **no grandfathering** of pre-shop `tactical` usage — deliberate launch scope, not an
+  oversight. **Client UI**: `Shop.js` renders tiles grouped by kind (Owned / Buy — $X.XX / Sign in to buy)
+  and handles the `?purchase=success|cancel` return trip; an admin sees a **"Fake shop" checkbox** at the
+  top of the page (`account.isAdmin`, in-memory `fakeShopMode` — never persisted) that, while on, routes
+  every Buy click to `/api/shop/fake-grant` instead of Checkout, activating instantly with no payment (the
+  button relabels to "Activate (fake)" so it's never ambiguous which mode is live; the server independently
+  re-checks admin on every call, so the checkbox is a UX switch, not a trust boundary). `Profile.js`'s
+  `renderAppearance`/`renderAvatarModalSkins` share `shopItemUnlocked(kind, id)`
+  + `goToShop()` + `buildSkinPreview(id)` (also reused by the Shop tile) to render unowned purchasable items
   locked (dimmed, priced, clicking navigates to `/shop`) instead of hidden or freely selectable.
 - **Help modal** (`#help_modal`, `wireHelpModal` in Main.js). The navbar **Help** item is a `<button>`
   (not an `<a>`, so the router's link interceptor ignores it) that opens a concise modal — rules, game

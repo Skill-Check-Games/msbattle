@@ -1526,14 +1526,13 @@ socket.on("name_accepted", applyNameAccepted);
 socket.on("owned_items", function(data) {
 	account = account || {};
 	account.ownedItems = (data && data.items) || [];
-	if (typeof renderBoardSkins === "function") renderBoardSkins();
 	if (typeof renderAvatarModalSkins === "function") renderAvatarModalSkins();
 	if (typeof renderShop === "function") renderShop();
 });
 socket.on("skin_rejected", function() {
 	if (typeof applyBoardSkin === "function") applyBoardSkin("classic");
 	try { localStorage.setItem("ms_board_skin", "classic"); } catch (e) {}
-	if (typeof renderBoardSkins === "function") renderBoardSkins();
+	if (typeof renderAvatarModalSkins === "function") renderAvatarModalSkins();
 });
 socket.on("avatar_rejected", function() {
 	if (account) account.avatarColor = null;
