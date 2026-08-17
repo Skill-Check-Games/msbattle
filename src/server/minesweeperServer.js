@@ -1,3 +1,9 @@
+// Load a local .env if present (no-op in production, where env vars are set directly). Must run
+// BEFORE any require() below — several modules (oauth.js, shopApi.js) read process.env for their
+// config constants at module-load time, so loading .env any later would leave them seeing an
+// incomplete environment regardless of what's actually in the file.
+try { process.loadEnvFile(); } catch (e) { /* no .env file — fine */ }
+
 var http = require("http")
   , path = require("path")
   , crypto = require("node:crypto")
@@ -38,9 +44,6 @@ var http = require("http")
 
 var obfuscateBoard = gameUtil.obfuscateBoard, gameForBroadcast = gameUtil.gameForBroadcast, isBot = gameUtil.isBot,
     humanCount = gameUtil.humanCount, botCount = gameUtil.botCount, getRoomBotNames = gameUtil.getRoomBotNames, updateDraw = gameUtil.updateDraw;
-
-// Load a local .env if present (no-op in production, where env vars are set directly).
-try { process.loadEnvFile(); } catch (e) { /* no .env file — fine */ }
 
 
 var COUNT_DOWN_TIME = 3; // digits shown to the client ("3, 2, 1") — NOT the server's actual wait time, see below

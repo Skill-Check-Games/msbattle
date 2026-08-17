@@ -37,8 +37,18 @@ function once(socket, event, ms) {
 }
 
 // --- Unconfigured server (no Stripe keys — the default local/CI state) ------------------------
+// Explicitly blanked rather than just omitted: helpers.startServer spawns from the repo root, so
+// without this a developer's own local .env (real sandbox/test keys, for manual browser testing)
+// would leak into the child process and silently configure Stripe here too — loadEnvFile() never
+// overrides an already-set var, so setting these to "" pins this server to the unconfigured path
+// regardless of what's sitting in .env on disk.
 var plainServer;
-test.before(async function() { plainServer = await helpers.startServer({ port: 13820 }); });
+test.before(async function() {
+	plainServer = await helpers.startServer({
+		port: 13820,
+		env: { STRIPE_SECRET_KEY: "", STRIPE_WEBHOOK_SECRET: "", stripe_secret_key: "", stripe_webhook_secret: "" }
+	});
+});
 test.after(function() { if (plainServer) plainServer.stop(); });
 
 test("checkout is a clean 503 when Stripe isn't configured", async function() {
