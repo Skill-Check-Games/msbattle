@@ -13,6 +13,7 @@
 (function() {
 	var AVATAR_PRICE_CENTS = 199;
 	var TACTICAL_SKIN_PRICE_CENTS = 499;
+	var GOLD_SKIN_PRICE_CENTS = 599;
 
 	function avatarLabel(id) {
 		return id.split("-").map(function(w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(" ");
@@ -28,6 +29,11 @@
 			id: "tactical", kind: "skin",
 			label: Cosmetics.BOARD_SKINS.tactical.label,
 			priceCents: TACTICAL_SKIN_PRICE_CENTS, currency: "usd"
+		});
+		items.push({
+			id: "gold", kind: "skin",
+			label: Cosmetics.BOARD_SKINS.gold.label,
+			priceCents: GOLD_SKIN_PRICE_CENTS, currency: "usd"
 		});
 
 		// Boot-time integrity check: every catalog id must be a real cosmetic id, so a typo or a

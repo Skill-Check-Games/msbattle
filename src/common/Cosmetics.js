@@ -25,9 +25,19 @@
 				unknownHilite: "rgba(0,232,200,0.20)",
 				flagCloth: "#ff4d4d", flagPole: "#80fff4",
 				font: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace", glow: true
+			},
+			gold: {
+				label: "Gold", blurb: "Black-and-gold prestige tiles for the elite.",
+				mine: "#facc15",
+				numbers: { 1: "#eab308", 2: "#4ade80", 3: "#f87171", 4: "#c084fc", 5: "#fb923c", 6: "#22d3ee", 7: "#f9a8d4", 8: "#fde68a" },
+				knownBg: "#1a140a", knownEdge: "#0d0904",
+				unknownTop: "#d4a017", unknownBottom: "#8b6914", unknownEdge: "#5c4409",
+				unknownHilite: "rgba(255,223,128,0.35)",
+				flagCloth: "#facc15", flagPole: "#f5e6c8",
+				font: "Georgia, 'Times New Roman', serif", glow: false
 			}
 		},
-		BOARD_SKIN_LIST: ["classic", "tactical"],
+		BOARD_SKIN_LIST: ["classic", "tactical", "gold"],
 		// Avatar cloth colour — the in-game flag. Just the classic red flag now (the other colours were dropped).
 		AVATAR_COLORS: ["#ef4444"],
 		DEFAULT_AVATAR_COLOR: "#ef4444",

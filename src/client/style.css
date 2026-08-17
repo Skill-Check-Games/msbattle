@@ -3437,6 +3437,33 @@ body[data-board-skin="tactical"] .board-scroll::after {
 	background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0, 232, 200, 0.045) 3px, rgba(0, 232, 200, 0.045) 4px);
 }
 
+/* ── Board skin: Gold (black-and-gold prestige) ───────────────────────────────
+   A dark bezel with a burnished-gold gradient border + warm inset glow — no
+   scanlines (that's Tactical's CRT signature), the shine here comes from the
+   metallic border + a soft vignette instead. */
+body[data-board-skin="gold"] .player-board {
+	background: linear-gradient(145deg, #241b0a 0%, #120d05 50%, #1a1408 100%);
+	border-color: #4a3512;
+	box-shadow: 0 0 0 1px rgba(250, 204, 21, 0.14), 0 4px 40px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 223, 128, 0.06);
+}
+body[data-board-skin="gold"] .board-scroll {
+	position: relative;
+	padding: 10px;
+	background: #0d0904;
+	border-radius: 6px;
+	box-shadow: inset 0 0 50px rgba(250, 204, 21, 0.05), inset 0 0 0 1px rgba(250, 204, 21, 0.22), 0 0 26px rgba(250, 204, 21, 0.10);
+}
+/* Soft warm vignette drawn over the board (Gold's counterpart to Tactical's scanlines). */
+body[data-board-skin="gold"] .board-scroll::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	border-radius: 6px;
+	z-index: 2;
+	background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.35) 100%);
+}
+
 /* ── Board-skin picker (Profile) ──────────────────────────────────────────── */
 /* Generic on/off row for Settings (e.g. auto-fullscreen) — a label + a pill switch. */
 .setting-row {

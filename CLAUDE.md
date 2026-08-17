@@ -559,11 +559,13 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   palette (`setPaletteVars`) for the synchronous paint then restores `localBoardSkin` — so the draw helpers
   stay unchanged. `localBoardSkin` is the local user's pick (their own board + UI previews + the
   `body[data-board-skin]` CSS frame); opponent draws pass `game.skin || "classic"` (bots/unknown →
-  classic, never the local skin). `drawNumber` glows each digit when `NUMBER_GLOW` is on. Two skins ship:
-  **classic** (blue, free) and **tactical** (phosphor-CRT: dark screen, teal cells, neon glowing monospace
-  digits; a **paid shop item**, see Shop below); the tactical **frame** is CSS under
-  `body[data-board-skin="tactical"]` (`.player-board` bezel + `.board-scroll` dark screen, inset cyan glow,
-  scanline `::after`) so it only frames YOUR board.
+  classic, never the local skin). `drawNumber` glows each digit when `NUMBER_GLOW` is on. Three skins ship:
+  **classic** (blue, free), **tactical** (phosphor-CRT: dark screen, teal cells, neon glowing monospace
+  digits; a **paid shop item**, see Shop below), and **gold** (black-and-gold prestige: metallic gold
+  unrevealed cells, warm jewel-tone numbers, serif font; also **paid**). Each paid skin's **frame** is CSS
+  under `body[data-board-skin="<id>"]` (`.player-board` bezel + `.board-scroll` inset glow +
+  a skin-specific `::after` overlay — scanlines for tactical, a soft vignette for gold) so it only frames
+  YOUR board.
   **Sync:** `setBoardSkin(id)` persists to `localStorage["ms_board_skin"]`, applies, and emits `set_skin`.
   The client's *initial* emit happens from `applyAuthenticated` (Auth.js), not the earlier `applyConnected`
   — `set_skin` is ownership-gated server-side (see Shop below) and `accounts[playerID]` doesn't exist yet
@@ -838,8 +840,9 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   purchases via **Stripe Checkout** (hosted page; the client never loads Stripe.js, it only calls our own
   `/api/shop/*`). **Catalog**: `src/common/ShopCatalog.js` (common, `require`'d server-side + loaded as a
   `<script>` client-side) hand-authors `ITEMS` — currently every `AVATAR_IMAGES` preset at $1.99 (`id`s are
-  literally the `"img:<id>"` wire value `set_avatar` already uses) and the `tactical` skin at $4.99 (`id`
-  is literally `set_skin`'s wire value) — plus a boot-time check that every catalog id round-trips against
+  literally the `"img:<id>"` wire value `set_avatar` already uses), the `tactical` skin at $4.99, and the
+  `gold` skin at $5.99 (skin `id`s are literally `set_skin`'s wire value) — plus a boot-time check that
+  every catalog id round-trips against
   `Cosmetics.js`. Free/default values (`anon`, `mine`, the red flag colour, `classic`) are simply absent
   from `ITEMS`; `ShopCatalog.isPurchasable(kind, id)` is how every gate (client picker + server handler)
   decides whether ownership even needs checking. **Ownership**: `db.js`'s `shop_purchases` table
