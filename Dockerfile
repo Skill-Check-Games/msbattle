@@ -14,8 +14,8 @@ COPY . .
 
 # Concatenates + minifies the client scripts into bundle.js (see scripts/build-client.js /
 # staticServer.js). esbuild is a real (non-dev) dependency specifically so this works with the
-# plain --omit=dev install above — playwright (devDependencies-only; used solely by the manual,
-# local scripts/build-mode-previews.js, whose output is committed) never needs to be installed here.
+# plain --omit=dev install above — playwright (devDependencies-only, used for manual/local UI
+# verification) never needs to be installed here.
 RUN npm run build
 
 ENV PORT=8080

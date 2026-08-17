@@ -885,7 +885,10 @@ function renderDashIdentity() {
 // open area is given as a single `revealStart` cell — the renderer cascades from there exactly like a
 // real click. Sprint is a sparse, wide-open field; Standard a tight opening in a denser minefield;
 // Custom a medium board. Puzzles is a crafted deduction position with no 0-cell to cascade from, so it
-// lists its revealed cells explicitly. Rendered once per load and frozen (pointer-events: none).
+// lists its revealed cells explicitly. Rendered in the player's chosen board skin (renderModeBoardPreviews
+// re-runs on skin change — see setBoardSkin) and frozen (pointer-events: none, no click/reveal wiring
+// beyond what buildLearnPuzzle sets up for its own canvas — it draws once synchronously per call, no
+// requestAnimationFrame loop, so a still preview never keeps a frame ticking in the background).
 var DASH_MODE_BOARDS = {
 	sprint: {
 		rows: 6, cols: 10,
@@ -914,22 +917,21 @@ var DASH_MODE_BOARDS = {
 		flagged: []
 	}
 };
-// Defensive fallback only — index.html embeds a pre-rendered <img> in each #dash_board_* slot (see
-// scripts/build-mode-previews.js), so normally this never runs at all: the "slot.firstChild" guard
-// below sees the <img> and no-ops immediately. This only actually builds a live canvas if that file
-// is ever missing.
+// Called on lobby show and again from setBoardSkin() whenever the player's skin changes, so these
+// stay in sync with the rest of the site instead of being frozen at "classic" forever.
 function renderModeBoardPreviews() {
 	if (typeof buildLearnPuzzle !== "function") return;
 	Object.keys(DASH_MODE_BOARDS).forEach(function(key) {
 		var slot = document.getElementById("dash_board_" + key);
-		if (!slot || slot.firstChild) return;
+		if (!slot) return;
 		var b = DASH_MODE_BOARDS[key];
 		var el = buildLearnPuzzle({
 			title: "", rows: b.rows, cols: b.cols, mines: b.mines,
 			revealed: b.revealed, revealStart: b.revealStart, flagged: b.flagged,
-			skin: "classic" // home-page previews always show the default skin, not the player's pick
+			skin: (typeof localBoardSkin !== "undefined" && localBoardSkin) || "classic"
 		}, false, function() {});
 		el.classList.add("dash-board-preview");
+		slot.innerHTML = "";
 		slot.appendChild(el);
 	});
 }
@@ -969,10 +971,12 @@ function renderLobbyDailyBoard() {
 	// before the socket round trip even starts. Both describe the same public, day-shared puzzle
 	// (no personalization), so there's nothing to reconcile beyond "whichever is available" — the
 	// boardKey dedupe below keeps the canvas from being rebuilt when the authoritative copy arrives
-	// a moment later with identical data.
+	// a moment later with identical data (the skin is folded into the key too, so a skin change —
+	// setBoardSkin calls this again — still forces a rebuild).
 	var inline = (typeof window.__DAILY__ !== "undefined") ? window.__DAILY__ : null;
 	var board = (account && account.dailyBoard) || inline;
 	var date = (account && account.dailyDate) || (inline && inline.date);
+	var skin = (typeof localBoardSkin !== "undefined" && localBoardSkin) || "classic";
 	if (!board) {
 		container.innerHTML = '<div class="lobby-daily-board-empty">No puzzle available today.</div>';
 		if (dateEl) dateEl.textContent = "";
@@ -980,8 +984,9 @@ function renderLobbyDailyBoard() {
 	}
 	if (dateEl) dateEl.textContent = date || "";
 	if (typeof hideSkeleton === "function") hideSkeleton("dash_daily_skel");
-	if (container.dataset.boardKey === board.rows + "x" + board.cols + "@" + date) return;
-	container.dataset.boardKey = board.rows + "x" + board.cols + "@" + date;
+	var boardKey = board.rows + "x" + board.cols + "@" + date + "#" + skin;
+	if (container.dataset.boardKey === boardKey) return;
+	container.dataset.boardKey = boardKey;
 	container.innerHTML = "";
 	var pseudo = {
 		title: "",
@@ -989,7 +994,7 @@ function renderLobbyDailyBoard() {
 		cols: board.cols,
 		mines: board.mines,
 		revealed: board.revealed,
-		skin: "classic" // daily-puzzle hero on the home page always uses the default skin
+		skin: skin
 	};
 	var puzzleEl = buildLearnPuzzle(pseudo, false, function() {});
 	puzzleEl.classList.add("lobby-daily-preview");

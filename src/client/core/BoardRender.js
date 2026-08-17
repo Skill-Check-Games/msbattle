@@ -62,6 +62,10 @@ function setBoardSkin(id) {
 	if (typeof myState !== "undefined" && myState && typeof redrawOwnBoardWithFocus === "function") redrawOwnBoardWithFocus();
 	if (typeof renderBoardSkins === "function") renderBoardSkins();
 	if (typeof renderAvatarModalSkins === "function") renderAvatarModalSkins();
+	// Home-page previews (mode-board thumbnails + the daily-puzzle hero) render in the player's own
+	// skin now, not a fixed "classic" — both are cheap no-ops if their slots aren't on screen.
+	if (typeof renderModeBoardPreviews === "function") renderModeBoardPreviews();
+	if (typeof renderLobbyDailyBoard === "function") renderLobbyDailyBoard();
 }
 
 applyBoardSkin((function () { try { return localStorage.getItem("ms_board_skin"); } catch (e) { return null; } })() || "classic");

@@ -607,10 +607,16 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   `openAvatarEditor` (a `.cr-modal` reusing `renderAppearance` + a live preview); `setAvatarColor`/
   `setCountry` call `refreshAvatarDisplays` to repaint the profile header, home identity, and modal preview.
   (Derived from a Figma "futuristic board" export, translated into this canvas palette + CSS frame.)
-  **Home-page previews always show classic:** `buildLearnPuzzle` takes a `spec.skin` (→ `learnBoardView`
-  → `BoardView.skin`); the dashboard mode previews (`renderModeBoardPreviews`) and the daily-puzzle hero
-  (`renderLobbyDailyBoard`) pass `skin: "classic"` so the front page stays on-brand regardless of the
-  player's pick. Other `buildLearnPuzzle` boards (Learn, Help, admin) omit it and follow `localBoardSkin`.
+  **Home-page previews render live, in the player's own skin:** `buildLearnPuzzle` takes a `spec.skin`
+  (→ `learnBoardView` → `BoardView.skin`); the dashboard mode previews (`renderModeBoardPreviews`) and the
+  daily-puzzle hero (`renderLobbyDailyBoard`) pass `localBoardSkin`, and `setBoardSkin` (BoardRender.js)
+  calls both again on every skin change so neither goes stale. (An earlier version pre-rendered these 4
+  mode-preview boards to static PNGs at build time, fixed to "classic", and embedded them as plain `<img>`
+  tags for a JS-free first paint; that traded skin-consistency for a marginal paint-time win, so it was
+  dropped once skins became a purchasable, player-visible choice — `buildLearnPuzzle`/`BoardView.draw()`
+  only ever paint synchronously with no `requestAnimationFrame` loop of their own, so these "just a still
+  frame" previews were never actually expensive to render live.) Other `buildLearnPuzzle` boards (Learn,
+  Help, admin) also just follow `localBoardSkin` directly.
 - `Animations.js` — the cellAnims queue + RAF loop + per-frame board paint.
 - `Input.js` — pointer/touch/keyboard handlers, local reveal/chord mirrors. Keyboard
   actions are resolved through `keybindings.actionFor()`. A chord that **detonates** clears every

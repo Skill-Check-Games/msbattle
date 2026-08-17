@@ -128,10 +128,11 @@
 				<div class="dash-main">
 					<div class="dash-modes">
 						<a class="dash-row dash-row-sprint home-card-ranked" href="/ranked/sprint" data-style="sprint" aria-label="Play Sprint">
-							<!-- Pre-rendered by scripts/build-mode-previews.js (a real headless-browser screenshot
-							     of the exact same buildLearnPuzzle output, so this needs no client JS at all to
-							     show) — renderModeBoardPreviews() only rebuilds it if this img is ever missing. -->
-							<span class="dash-row-board" id="dash_board_sprint" aria-hidden="true"><img src="/mode-preview-sprint.png" width="153" height="92" alt=""></span>
+							<!-- Filled by renderModeBoardPreviews() (Profile.js) with a live buildLearnPuzzle
+							     canvas in the player's chosen board skin — see .dash-row-board's reserved
+							     min-height below, so this empty slot doesn't shift layout while the deferred
+							     bundle loads. -->
+							<span class="dash-row-board" id="dash_board_sprint" aria-hidden="true"></span>
 							<span class="dash-row-info">
 								<h4 class="dash-row-title">Sprint</h4>
 								<p class="dash-row-sub">10% mines</p>
@@ -144,7 +145,7 @@
 							</span>
 						</a>
 						<a class="dash-row dash-row-standard home-card-ranked" href="/ranked/standard" data-style="standard" aria-label="Play Standard">
-							<span class="dash-row-board" id="dash_board_standard" aria-hidden="true"><img src="/mode-preview-standard.png" width="138" height="92" alt=""></span>
+							<span class="dash-row-board" id="dash_board_standard" aria-hidden="true"></span>
 							<span class="dash-row-info">
 								<h4 class="dash-row-title">Standard</h4>
 								<p class="dash-row-sub">20% mines</p>
@@ -157,7 +158,7 @@
 							</span>
 						</a>
 						<a class="dash-row dash-row-puzzles" href="/puzzles" data-style="puzzles" aria-label="Open Puzzles">
-							<span class="dash-row-board" id="dash_board_puzzles" aria-hidden="true"><img src="/mode-preview-puzzles.png" width="92" height="92" alt=""></span>
+							<span class="dash-row-board" id="dash_board_puzzles" aria-hidden="true"></span>
 							<span class="dash-row-info">
 								<h4 class="dash-row-title">Puzzles</h4>
 								<p class="dash-row-sub">Solo · rated, streak &amp; storm</p>
@@ -170,7 +171,7 @@
 							</span>
 						</a>
 						<a class="dash-row dash-row-solo" href="/solo" data-style="solo" aria-label="Open Practice">
-							<span class="dash-row-board" id="dash_board_solo" aria-hidden="true"><img src="/mode-preview-solo.png" width="138" height="92" alt=""></span>
+							<span class="dash-row-board" id="dash_board_solo" aria-hidden="true"></span>
 							<span class="dash-row-info">
 								<h4 class="dash-row-title">Practice</h4>
 								<p class="dash-row-sub">Practice to improve your times</p>
