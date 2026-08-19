@@ -396,10 +396,6 @@ function showRankedResult(data) {
 
 	if (isDuo) {
 		var opp = standings.find(function(s) { return s.id !== id; });
-		var eyebrow = document.createElement("div");
-		eyebrow.className = "ranked-result-eyebrow";
-		eyebrow.textContent = "Opponent";
-		context.appendChild(eyebrow);
 		if (opp) {
 			var oppLine = document.createElement("div");
 			oppLine.className = "ranked-result-opp-line";
@@ -481,7 +477,7 @@ function rrTimeChip(label, entry, mine) {
 	var v = document.createElement("div");
 	var finished = entry.finished && typeof entry.finishMs === "number";
 	v.className = "ranked-result-time-val " + (finished ? (mine ? "you" : "opp") : "dnf");
-	v.textContent = finished ? formatClearTime(entry.finishMs) : "DNF";
+	v.textContent = finished ? formatClearTime(entry.finishMs) : (Math.round((entry.progress || 0) * 100) + "% cleared");
 	chip.appendChild(v);
 	return chip;
 }
@@ -504,7 +500,7 @@ function rrStandingsRow(s) {
 	var time = document.createElement("div");
 	var finished = s.finished && typeof s.finishMs === "number";
 	time.className = "ranked-result-row-time" + (finished ? "" : " dnf");
-	time.textContent = finished ? formatClearTime(s.finishMs) : "DNF";
+	time.textContent = finished ? formatClearTime(s.finishMs) : (Math.round((s.progress || 0) * 100) + "% cleared");
 	row.appendChild(time);
 
 	var delta = document.createElement("div");
