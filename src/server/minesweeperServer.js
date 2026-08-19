@@ -156,7 +156,7 @@ var MAX_BOTS_PER_ROOM = 15;
 //   sprint_*   → cascade-y races, 10% mines, fewer forced deductions.
 //   standard_* → dense boards (20%), favouring deduction over click speed.
 //   tournament → keeps the original 15% as the marquee event.
-var RANKED_RULES = { gameCount: 1, roundSeconds: 120, deathPenalty: 5 };
+var RANKED_RULES = { gameCount: 1, roundSeconds: 300, deathPenalty: 5 };
 var RANKED_BOT_RATING = 1000;
 
 // The Elo math lives in elo.js; give it the rating constants (shared predicates come from gameUtil).

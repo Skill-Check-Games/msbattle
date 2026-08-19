@@ -354,7 +354,7 @@ else is grouped:
   and broadcasts `territory_board` (`state`+`owner`+`scores`+`frozenUntil`); **there is no round clock**
   (`roundSeconds: 0` — and ranked formation now honors an explicit `0` via
   `typeof modeDef.roundSeconds === "number"`, so territory no longer silently inherits the
-  120s default). **The game ends only on elimination** — when just one player still holds any ground
+  300s default). **The game ends only on elimination** — when just one player still holds any ground
   (`maybeEndTerritory` → `tg.alive() <= 1`, "eliminated") — or a player leaves, or a genuine deadlock
   (`tg.deadlocked()`: nobody can expand AND no fort stands to re-open the board, "deadlock"). Clearing
   every safe cell is NOT an end — that's when the invasion war begins. Winner = most cells. **Entry points:** "Create
@@ -505,21 +505,22 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   **identity panel** (rank badge + name + tier via `buildDuelIdentity`/`fillDuelId`, reusing
   `buildRankBadge`/`tierFor`) and a **progress bar**. **In-game shows only the rank tier, never the
   exact rating — including your own** (`fillDuelId`/`setOppIdentity` render `tierFor(...).name` with no
-  number; the exact rating is hidden info during a match). The center `#duel_center` holds a VS badge over
-  a vertical **tug-of-war bar** (your colour rises from the bottom by your share of combined
-  progress), and the **leading** board glows in its side colour — all updated per frame by
-  `updateDuelHud()` in `draw_board`. Driven by a `duo` class on `#game_view` (CSS `.game-view.duo`,
-  `--duel-you`/`--duel-opp`). Active during play, plus the ranked planning/reveal window so you see
-  the opponent the moment you join (custom rooms stay normal in planning so their config shows); the
-  opponent's board is painted covered (`paintOpponentCovered`) until their first real frame, so both
-  boards show through the join + countdown. Both boards are pushed toward the center column so the VS
-  sits exactly between them.
+  number; the exact rating is hidden info during a match). The center `#duel_center` holds a VS badge
+  (it used to also hold a vertical tug-of-war progress indicator, since removed — each board's own
+  progress bar already shows that) — updated per frame by `updateDuelHud()` in `draw_board`. The
+  **leader-glow border** on whichever board was ahead was also removed (both duo and 6-player) as too
+  noisy; only a finished opponent still gets a border treatment (`.opponent_div.finished`). Driven by a
+  `duo` class on `#game_view` (CSS `.game-view.duo`, `--duel-you`/`--duel-opp`). Active during play,
+  plus the ranked planning/reveal window so you see the opponent the moment you join (custom rooms stay
+  normal in planning so their config shows); the opponent's board is painted covered
+  (`paintOpponentCovered`) until their first real frame, so both boards show through the join +
+  countdown. Both boards are pushed toward the center column so the VS sits exactly between them.
   **6-player battle layout** (`isMultiRacing()`, 3-6 racing players): the same TetrisFriends idea
   scaled up — one big own board on the left with your identity panel (`#duel_id_you`) above it, the
   round timer centered up top (shared `#duel_timer`), and **every** opponent's live board tiled in a
   two-column grid on the right (the existing `game1`-`game5` slots), each card showing the player's
-  name + live `%` (`playerLabel`) with the current leader glowing (`updateMultiHud`). Driven by a
-  `multi` class on `#game_view` (CSS `.game-view.multi`); toggled alongside `duo` in `applyDuoClass`.
+  name + live `%` (`playerLabel`) and a finished/done treatment once they clear (`updateMultiHud`).
+  Driven by a `multi` class on `#game_view` (CSS `.game-view.multi`); toggled alongside `duo` in `applyDuoClass`.
   Unlike the duel, opponent canvases keep their small `OPP_CELL` render resolution and are scaled to
   the grid cell by CSS (`width:100%`), so `sizeOpponentCanvases` needs no special case. The fullscreen
   re-center rule excludes `.multi` (like `.duo`) so it keeps its own two-column grid. Tournaments
@@ -1049,8 +1050,8 @@ multi-game-machine fleet, and Postgres/Redis (Phases 2–4). Tickets: `PHASE0_TI
   are a density fraction of the cells, so difficulty stays consistent across sizes.
   Dimensions are passed into `createGame`/`createTemplate`; the solver and bot derive
   them from the board array; the client receives `rows`/`cols` in room state.
-- Ranked uses a fixed ruleset (Best of 5, 2 min rounds by default — Standard's denser 20% board
-  gets 3 min via `roundSeconds: 180`; territory has no clock, 5s mine penalty, medium board,
+- Ranked uses a fixed ruleset (Best of 5, 5 min rounds by default (`RANKED_RULES.roundSeconds`) —
+  Standard's denser 20% board gets 6 min via `roundSeconds: 360`; territory has no clock, 5s mine penalty, medium board,
   10% mines for Sprint / 20% Standard / 15% Tournament), pairwise Elo, tiers, and a leaderboard. Filler bots are tuned to the
   lobby's average rating and trickle into the queue like real players. The tier ladder runs
   0 → 3000 (Bronze I = 0, 200 per sub-tier, Master from 3000); everyone starts/floors at 0 and

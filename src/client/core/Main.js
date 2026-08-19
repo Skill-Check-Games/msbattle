@@ -208,38 +208,23 @@ function setDuelBar(barId, progress) {
 	if (fill) fill.style.width = pct + "%";
 	if (label) label.textContent = pct + "%";
 }
-// Live battle HUD from the current frame: each board's progress bar and the leader glow on the
-// board cards (the center tug-of-war indicator was removed — each board's own bar already shows
-// its progress).
+// Live battle HUD from the current frame: each board's progress bar (the center tug-of-war
+// indicator and the leader glow on the board cards were both removed — each board's own bar
+// already shows its progress).
 function updateDuelHud(meGame, oppGame) {
 	if (!isDuoRacing()) return;
 	var myP = meGame ? (meGame.progress || 0) : 0;
 	var opP = oppGame ? (oppGame.progress || 0) : 0;
 	setDuelBar("duel_bar_you", myP);
 	setDuelBar("duel_bar_opp", opP);
-	var youCard = document.getElementById("player_div");
-	var oppCard = document.querySelector("#all_opponents_div .opponent_div");
-	if (youCard) youCard.classList.toggle("leading", myP > opP + 0.0001);
-	if (oppCard) oppCard.classList.toggle("leading", opP > myP + 0.0001);
 }
-// 6-player battle: glow whichever board is currently in front (you or the top opponent), and
-// mark finished opponents. Opponent slots are filled in sorted order, so slot[i] ↔ opponents[i].
+// 6-player battle: mark finished opponents. Opponent slots are filled in sorted order, so
+// slot[i] ↔ opponents[i].
 function updateMultiHud(meGame, opponents) {
 	if (!isMultiRacing()) return;
-	function prog(g) { return g ? (g.finished ? 1 : (g.progress || 0)) : 0; }
-	var myP = prog(meGame);
-	var bestOpp = 0;
-	for (var k = 0; k < opponents.length; k++) bestOpp = Math.max(bestOpp, prog(opponents[k]));
-	var youLead = myP > 0 && myP >= bestOpp;
-	var youCard = document.getElementById("player_div");
-	if (youCard) youCard.classList.toggle("leading", youLead);
 	var slots = document.querySelectorAll("#all_opponents_div .opponent_div");
 	for (var i = 0; i < slots.length; i++) {
-		var opp = opponents[i];
-		var p = prog(opp);
-		// Boards are fixed by rating, so the leader can sit in any slot — glow whoever's actually ahead.
-		slots[i].classList.toggle("leading", !youLead && p > 0 && p >= bestOpp);
-		slots[i].classList.toggle("finished", !!(opp && opp.finished));
+		slots[i].classList.toggle("finished", !!(opponents[i] && opponents[i].finished));
 	}
 }
 // Battle layouts (1v1 + 6-player): stamp each finished board with its finish place (1st, 2nd, …)
@@ -2360,9 +2345,8 @@ function resetGameUI() {
 	var slots = document.querySelectorAll('[data-slot]');
 	for (var j = 0; j < slots.length; j++) {
 		slots[j].style.display = "none";
-		slots[j].classList.remove("leading", "finished"); // set by updateDuelHud/updateMultiHud, never unset
+		slots[j].classList.remove("finished"); // set by updateMultiHud, never unset
 	}
-	document.getElementById("player_div").classList.remove("leading");
 }
 
 // overlay + countdown moved to Overlay.js
