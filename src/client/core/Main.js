@@ -75,6 +75,12 @@ function applyDuoClass() {
 		if (on && typeof sizePlayerCanvas === "function") requestAnimationFrame(function() {
 			sizePlayerCanvas();
 			if (typeof sizeOpponentCanvases === "function") sizeOpponentCanvases();
+			// sizeBoardCanvas clears a canvas whenever its backing size actually changes (see its own
+			// comment) — this first, pre-layout measurement above is often wrong and gets corrected here,
+			// which can wipe an opponent thumbnail that was already painted covered. Still in the
+			// pre-reveal window (searching, or a formed room's countdown) → repaint it covered right away
+			// instead of leaving it blank/black until the next live draw_board frame happens to arrive.
+			if (pendingLocalRoundReveal && typeof paintOpponentCovered === "function") paintOpponentCovered();
 		});
 	}
 }

@@ -524,6 +524,13 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   the grid cell by CSS (`width:100%`), so `sizeOpponentCanvases` needs no special case. The fullscreen
   re-center rule excludes `.multi` (like `.duo`) so it keeps its own two-column grid. Tournaments
   (larger lobbies) stay on the scoreboard layout with top-2 opponent thumbnails.
+  **Gotcha**: `applyDuoClass` re-measures/resizes opponent canvases a frame later via `requestAnimationFrame`
+  (the `.duo`/`.multi` class needs a frame to actually affect layout before `clientWidth` reads correctly —
+  see its comment). Reassigning a canvas's `width`/`height` attribute always clears it (`sizeBoardCanvas`),
+  so if that deferred pass computes a different cell size than the first, synchronous one, it silently blanks
+  the canvas — any repaint gap there shows as an opponent board flashing black during matchmaking/countdown.
+  That rAF callback repaints via `paintOpponentCovered()` when `pendingLocalRoundReveal` is still true (i.e.
+  still in the pre-reveal window) specifically to close this gap — don't drop that call when touching this code.
   The site footer is hidden whenever a game is on screen via a `body.in-game` class (added by the
   game entry points, removed in `hideAllViews`).
 - `AdminList.js` — shared helpers for the paginated admin views: `renderPager` and the
