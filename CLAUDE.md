@@ -591,8 +591,7 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   them at runtime in `core/Countries.js` (which also lists the flag codes + `countryFlagSrc`); this both
   avoids a maintenance burden and sidesteps content-filter false-positives on long disputed-territory name
   lists. `buildAvatarChip(color, country, px)` (BoardRender) is the reusable element used on the **profile**
-  (header + an Appearance picker: a country `<select>` + colour swatches from `AVATAR_COLORS` as the
-  no-country fallback), the **leaderboard** rows, the **home** dashboard
+  (header + an Appearance picker), the **leaderboard** rows, the **home** dashboard
   identity, the **in-game** HUD (duel identity panels + the `player_name0..5` board tags — `setHudName`
   caches the chip so it isn't rebuilt every `draw_board` frame), and **replays** (format **v3** stores
   per-player avatar+country). **Data flow:** `users.avatar_color`/`country` columns; `db.setAvatarColor`/
@@ -602,12 +601,31 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   carries `avatarColor`/`country`; disconnect clears the maps. Besides `#rrggbb` and `img:<id>`, two procedural
   avatar values are drawn on the canvas in `buildAvatarCanvas`: `"anon"` (a head-and-shoulders **anonymous
   silhouette**) and `"mine"` (the game's iconic spiky **sea-mine** — shaded body + rim light + shine). The
-  flag-pennant colour palette (`AVATAR_COLORS`) is now just the single classic **red** flag. **Guests** with no chosen
+  flag-pennant colour palette (`AVATAR_COLORS`) is the free/default classic **red** flag plus any purchasable
+  colours (currently the black **pirate flag**, see Shop below). **Guests** with no chosen
   avatar default to `"anon"` (`loginSocket` substitutes it when `is_guest` and `avatar_color` is null —
   display-only, not persisted). The home identity avatar is **click-to-edit**: clicking it opens
   `openAvatarEditor` (a `.cr-modal` reusing `renderAppearance` + a live preview); `setAvatarColor`/
   `setCountry` call `refreshAvatarDisplays` to repaint the profile header, home identity, and modal preview.
   (Derived from a Figma "futuristic board" export, translated into this canvas palette + CSS frame.)
+  **Flag picker** (`src/client/ui/FlagPicker.js`, replaces the old `<select>`): `buildFlagPickerTrigger`
+  returns a 52×52 square trigger button showing just the current flag; clicking it opens
+  `openFlagPicker` — a searchable, alphabetized grid of square flag+name cards (`/flags-square/<code>.svg`,
+  a second unmasked asset set alongside the round `/flags/`), positioned as a desktop popover anchored to
+  the trigger (flips above if there's more room there) or a centered mobile sheet under 900px, with a "No
+  flag" cell to clear. Closes on Escape, backdrop click, window resize, or scrolling the page *outside* the
+  panel (scrolling the grid itself is exempted). Ported from Mathias's `FlagPicker.tsx` in the
+  `achtung-royale` codebase (a React component — the UX/positioning logic was translated to plain DOM,
+  not the JSX itself); `Countries.js`'s `Intl.DisplayNames`-based data layer already matched that approach
+  independently, so it needed no changes beyond adding `countryFlagSrcSquare`.
+  **Locked items open a purchase modal, not `/shop`:** clicking an unowned avatar/skin inside the
+  appearance modal calls `openItemPurchaseModal(item)` (Profile.js) instead of navigating away — a small
+  `.cr-modal` stacked on top (`#item_purchase_modal`) showing the item + `buyShopItem` (Shop.js, shared
+  with the real Shop page) as its Buy button, so a real purchase still redirects to Stripe when confirmed,
+  but just browsing locked items no longer closes the appearance modal. `markOwnedLocally` (Shop.js)
+  refreshes `renderAvatarModalAvatars`/`renderAvatarModalSkins` and closes the purchase modal once an item
+  is actually owned (the admin fake-grant path completes synchronously; a real Stripe purchase redirects
+  away before this ever runs).
   **Home-page previews render live, in the player's own skin:** `buildLearnPuzzle` takes a `spec.skin`
   (→ `learnBoardView` → `BoardView.skin`); the dashboard mode previews (`renderModeBoardPreviews`) and the
   daily-puzzle hero (`renderLobbyDailyBoard`) pass `localBoardSkin`, and `setBoardSkin` (BoardRender.js)
@@ -848,7 +866,9 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   purchases via **Stripe Checkout** (hosted page; the client never loads Stripe.js, it only calls our own
   `/api/shop/*`). **Catalog**: `src/common/ShopCatalog.js` (common, `require`'d server-side + loaded as a
   `<script>` client-side) hand-authors `ITEMS` — currently every `AVATAR_IMAGES` preset at $1.99 (`id`s are
-  literally the `"img:<id>"` wire value `set_avatar` already uses), the `tactical` skin at $4.99, and the
+  literally the `"img:<id>"` wire value `set_avatar` already uses), every `AVATAR_COLORS` entry past the
+  free/default one at $1.99 too (currently just the black pirate flag — label is hand-authored since it
+  can't be derived from a hex value), the `tactical` skin at $4.99, and the
   `gold` skin at $5.99 (skin `id`s are literally `set_skin`'s wire value) — plus a boot-time check that
   every catalog id round-trips against
   `Cosmetics.js`. Free/default values (`anon`, `mine`, the red flag colour, `classic`) are simply absent
@@ -1003,6 +1023,14 @@ multi-game-machine fleet, and Postgres/Redis (Phases 2–4). Tickets: `PHASE0_TI
 
 ## Conventions
 
+- **Hover state is border/opacity only — never a lift, pop, or scale.** No `transform: translateY(...)`,
+  `scale(...)`, or added box-shadow "pop" on `:hover` for interactive cards/tiles/buttons/rows
+  (avatar swatches, skin options, learn steps/course cards, lobby mode rows, footer icons, etc.) —
+  just a `border-color`/`opacity`/`background` change, matching the site's otherwise-clean, static
+  visual language. Decorative micro-interactions unrelated to a card/tile hovering (e.g. the logo's
+  tiny hover scale) are the only exception. When adding a new interactive element, default to this
+  and don't reach for a lift effect even if it "feels natural" — it was deliberately removed
+  site-wide.
 - Boards are always no-guess solvable; one shared layout per round with the centre
   pre-revealed.
 - Board size is a per-room preset (small 10×13 / medium 15×20 / large 16×30) and mines

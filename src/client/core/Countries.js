@@ -28,6 +28,9 @@
 	}
 
 	function countryFlagSrc(code) { return code ? "/flags/" + String(code).toLowerCase() + ".svg" : null; }
+	// Square (unmasked) variant — used by the flag-picker grid, where a round flag stretched to fill a
+	// square cell looks distorted. Same 282-code set as /flags, just uncropped.
+	function countryFlagSrcSquare(code) { return code ? "/flags-square/" + String(code).toLowerCase() + ".svg" : null; }
 
 	// [{ code, name }] sorted by localized name — feeds the picker dropdown.
 	function countryList() {
@@ -38,5 +41,6 @@
 	window.COUNTRY_CODES = CODES;
 	window.countryName = countryName;
 	window.countryFlagSrc = countryFlagSrc;
+	window.countryFlagSrcSquare = countryFlagSrcSquare;
 	window.countryList = countryList;
 })();

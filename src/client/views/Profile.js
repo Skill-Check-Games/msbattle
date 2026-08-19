@@ -315,25 +315,20 @@ function renderAppearance() {
 	var wrap = document.createElement("div");
 	wrap.className = "appearance";
 
-	// Country first — its flag becomes the avatar. The colour below is the fallback when no country is set.
-	var cLabel = document.createElement("div"); cLabel.className = "appearance-sub"; cLabel.textContent = "Country"; wrap.appendChild(cLabel);
-	var sel = document.createElement("select"); sel.className = "country-select";
-	var none = document.createElement("option"); none.value = ""; none.textContent = "— None —"; sel.appendChild(none);
-	var cur = (account.country || "").toLowerCase();
-	countryList().forEach(function(c) {
-		var o = document.createElement("option"); o.value = c.code; o.textContent = c.name;
-		if (c.code === cur) o.selected = true;
-		sel.appendChild(o);
-	});
-	sel.addEventListener("change", function() { setCountry(sel.value); });
-	wrap.appendChild(sel);
+	// Flag first — its flag becomes the avatar's pennant when set. The colour swatches below are the
+	// fallback when no flag is set. Uses the searchable flag-picker (FlagPicker.js) instead of a plain
+	// <select>, ported from Mathias's achtung-royale picker.
+	var cLabel = document.createElement("div"); cLabel.className = "appearance-sub"; cLabel.textContent = "Flag"; wrap.appendChild(cLabel);
+	if (typeof buildFlagPickerTrigger === "function") {
+		wrap.appendChild(buildFlagPickerTrigger(account.country || null, function(code) { setCountry(code || ""); }));
+	}
 
 	var aLabel = document.createElement("div"); aLabel.className = "appearance-sub"; aLabel.textContent = "Avatar"; wrap.appendChild(aLabel);
 	var swatchesContainer = document.createElement("div"); swatchesContainer.id = "avatar_modal_avatars";
 	swatchesContainer.appendChild(buildAvatarSwatchesGrid());
 	wrap.appendChild(swatchesContainer);
 	var note = document.createElement("div"); note.className = "appearance-note";
-	note.textContent = "Flag colours are used when no country is set; an image avatar replaces the flag. Locked presets are in the Shop.";
+	note.textContent = "Flag colours are used when no flag is set above; an image avatar replaces the flag colour. Locked presets are in the Shop.";
 	wrap.appendChild(note);
 	return wrap;
 }
