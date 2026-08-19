@@ -5,8 +5,8 @@
 // shipped on the `authenticated` payload / SSR hydration (see session.js buildAccountPayload) and
 // re-synced after a purchase via the refresh_owned_items/owned_items socket round-trip.
 //
-// buildSkinPreview/shopItemUnlocked/shopPriceLabel/goToShop are shared with the Settings pickers —
-// see Profile.js.
+// buildSkinPreview/shopItemUnlocked/shopPriceLabel/openItemPurchaseModal are shared with the
+// avatar-editor modal's picker — see Profile.js.
 
 function shopHeaders() {
 	try {
@@ -36,6 +36,12 @@ function markOwnedLocally(itemId) {
 	// Re-sync the socket-held copy too (used by the live-game avatar/skin pickers), same as after a
 	// real purchase — see the session-status poller below.
 	if (typeof socket !== "undefined") socket.emit("refresh_owned_items");
+	// If the avatar-editor modal's purchase flow is what triggered this (in-place buy, no page
+	// navigation — see openItemPurchaseModal/Profile.js), refresh its pickers and close the little
+	// purchase dialog so the newly-owned item shows unlocked right away. No-ops if that modal isn't open.
+	if (typeof renderAvatarModalAvatars === "function") renderAvatarModalAvatars();
+	if (typeof renderAvatarModalSkins === "function") renderAvatarModalSkins();
+	if (typeof closeItemPurchaseModal === "function") closeItemPurchaseModal();
 }
 
 function buyShopItemFake(item, btn, originalLabel) {

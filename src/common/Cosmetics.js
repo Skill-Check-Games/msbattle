@@ -47,8 +47,10 @@
 			}
 		},
 		BOARD_SKIN_LIST: ["classic", "tactical", "gold"],
-		// Avatar cloth colour — the in-game flag. Just the classic red flag now (the other colours were dropped).
-		AVATAR_COLORS: ["#ef4444"],
+		// Avatar cloth colour — the in-game flag. The first entry (matching DEFAULT_AVATAR_COLOR) is
+		// free/default; any other colour here is a purchasable shop item (see ShopCatalog.js) — e.g.
+		// the pirate flag.
+		AVATAR_COLORS: ["#ef4444", "#111111"],
 		DEFAULT_AVATAR_COLOR: "#ef4444",
 		// The default avatar shown anywhere a player hasn't chosen one — the anonymous silhouette.
 		DEFAULT_AVATAR: "anon",

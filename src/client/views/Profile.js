@@ -39,12 +39,99 @@ function shopPriceLabel(id) {
 	var item = typeof ShopCatalog !== "undefined" && ShopCatalog.byId(id);
 	return item ? "$" + (item.priceCents / 100).toFixed(2) : "";
 }
-function goToShop() {
-	// Close the avatar-editor modal first, if open — renderAppearance()'s locked swatches call this
-	// from inside it, and navigating underneath a still-open modal just hides the shop page it went to.
-	var avatarModal = document.getElementById("avatar_modal");
-	if (avatarModal) avatarModal.setAttribute("hidden", "");
-	if (typeof navigate === "function") navigate("/shop");
+// The avatar swatch grid — its own function (rather than inline in renderAppearance) so it can be
+// rebuilt in place after a purchase, the same way buildSkinOptionsGrid/renderAvatarModalSkins works.
+function buildAvatarSwatchesGrid() {
+	var swatches = document.createElement("div"); swatches.className = "avatar-swatches";
+	var current = (account.avatarColor || DEFAULT_AVATAR).toLowerCase();
+	// Unowned image presets (and colours, e.g. the pirate flag) render locked (dimmed, priced, still
+	// clickable) instead of being hidden, so the picker doubles as a discovery surface for the shop;
+	// clicking one opens the purchase modal instead of selecting it. Free values (anon/mine/the
+	// default flag colour) are never gated — shopItemUnlocked returns true for anything not in the catalog.
+	function swatch(value) {
+		var unlocked = shopItemUnlocked("avatar", value);
+		var b = document.createElement("button"); b.type = "button";
+		b.className = "avatar-swatch" + (value.toLowerCase() === current ? " active" : "") + (unlocked ? "" : " locked");
+		b.dataset.color = value;
+		b.appendChild(buildAvatarCanvas(value, 50));
+		if (!unlocked) {
+			var price = document.createElement("span"); price.className = "shop-lock-badge"; price.textContent = "🔒";
+			b.appendChild(price);
+		}
+		b.addEventListener("click", function() {
+			if (!unlocked) { openItemPurchaseModal(ShopCatalog.byId(value)); return; }
+			setAvatarColor(value);
+		});
+		swatches.appendChild(b);
+	}
+	// Sorted so everything owned from the start (anon, mine, and any free flag colours) comes before
+	// anything purchasable (locked colours like the pirate flag, and the image presets) — sorted by
+	// lock status, not by which array a value came from, since a colour can be free (the default red)
+	// or paid (the pirate flag) same as an image preset can.
+	var allAvatarValues = ["anon", "mine"]
+		.concat(AVATAR_COLORS)
+		.concat(typeof AVATAR_IMAGES !== "undefined" ? Object.keys(AVATAR_IMAGES).map(function(id) { return "img:" + id; }) : []);
+	var unlockedValues = allAvatarValues.filter(function(v) { return shopItemUnlocked("avatar", v); });
+	var lockedValues = allAvatarValues.filter(function(v) { return !shopItemUnlocked("avatar", v); });
+	unlockedValues.concat(lockedValues).forEach(swatch);
+	return swatches;
+}
+
+// Re-render-only counterpart, mirroring renderAvatarModalSkins — refreshes the swatch grid in place
+// (active/locked state) without rebuilding the whole modal. A no-op if the modal isn't open.
+function renderAvatarModalAvatars() {
+	var container = document.getElementById("avatar_modal_avatars");
+	if (!container) return;
+	container.innerHTML = "";
+	container.appendChild(buildAvatarSwatchesGrid());
+}
+
+// Small in-place "buy this?" confirmation opened from inside the avatar-editor modal instead of
+// navigating to /shop — clicking a locked item shouldn't kick the player out of what they were
+// doing just to see its price. Reuses Shop.js's buyShopItem (the same checkout POST + Stripe
+// redirect, or the admin-only fake-grant bypass) so the purchase logic itself isn't duplicated —
+// only a real Stripe payment actually navigates away, same as it would from the Shop page.
+function openItemPurchaseModal(item) {
+	if (!item) return;
+	var modal = document.getElementById("item_purchase_modal");
+	if (!modal) {
+		modal = document.createElement("div");
+		modal.id = "item_purchase_modal";
+		modal.className = "cr-modal";
+		modal.setAttribute("hidden", "");
+		modal.innerHTML =
+			'<div class="cr-backdrop" data-purchase-close></div>' +
+			'<div class="cr-dialog item-purchase-dialog" role="dialog" aria-modal="true" aria-labelledby="item_purchase_title">' +
+				'<div class="cr-dialog-head"><h2 id="item_purchase_title">Buy this item</h2>' +
+				'<button class="cr-close" type="button" data-purchase-close aria-label="Close">×</button></div>' +
+				'<div id="item_purchase_body"></div>' +
+			'</div>';
+		document.body.appendChild(modal);
+		modal.addEventListener("click", function(e) { if (e.target.closest("[data-purchase-close]")) modal.setAttribute("hidden", ""); });
+		document.addEventListener("keydown", function(e) { if (e.key === "Escape" && !modal.hasAttribute("hidden")) modal.setAttribute("hidden", ""); });
+	}
+	var body = modal.querySelector("#item_purchase_body");
+	body.innerHTML = "";
+	var preview = document.createElement("div"); preview.className = "item-purchase-preview";
+	if (item.kind === "avatar" && typeof buildAvatarCanvas === "function") preview.appendChild(buildAvatarCanvas(item.id, 72));
+	else if (item.kind === "skin" && typeof buildSkinPreview === "function") preview.appendChild(buildSkinPreview(item.id));
+	body.appendChild(preview);
+	var name = document.createElement("div"); name.className = "item-purchase-name"; name.textContent = item.label;
+	body.appendChild(name);
+	var buyBtn = document.createElement("button");
+	buyBtn.type = "button"; buyBtn.className = "btn btn-primary item-purchase-btn";
+	buyBtn.textContent = "Buy — " + shopPriceLabel(item.id);
+	buyBtn.addEventListener("click", function() {
+		if (typeof buyShopItem === "function") buyShopItem(item, buyBtn);
+	});
+	body.appendChild(buyBtn);
+	modal.removeAttribute("hidden");
+}
+// Closes the purchase modal — called once an item is actually owned (markOwnedLocally in Shop.js),
+// so a real Stripe purchase never gets here (that's a page redirect) but the admin fake-grant does.
+function closeItemPurchaseModal() {
+	var modal = document.getElementById("item_purchase_modal");
+	if (modal) modal.setAttribute("hidden", "");
 }
 
 // The skin-option button grid: one button per BOARD_SKIN_LIST entry, each showing a tiny palette
@@ -74,7 +161,7 @@ function buildSkinOptionsGrid() {
 		}
 		btn.appendChild(meta);
 		btn.addEventListener("click", function() {
-			if (!unlocked) { goToShop(); return; }
+			if (!unlocked) { openItemPurchaseModal(ShopCatalog.byId(id)); return; }
 			if (typeof setBoardSkin === "function") setBoardSkin(id);
 		});
 		grid.appendChild(btn);
@@ -242,34 +329,9 @@ function renderAppearance() {
 	wrap.appendChild(sel);
 
 	var aLabel = document.createElement("div"); aLabel.className = "appearance-sub"; aLabel.textContent = "Avatar"; wrap.appendChild(aLabel);
-	var swatches = document.createElement("div"); swatches.className = "avatar-swatches";
-	var current = (account.avatarColor || DEFAULT_AVATAR).toLowerCase();
-	// Unowned image presets render locked (dimmed, priced, still clickable) instead of being hidden,
-	// so the picker doubles as a discovery surface for the shop; clicking one goes there instead of
-	// selecting it. Free values (anon/mine/the flag colour) are never gated — shopItemUnlocked
-	// returns true for anything not in the catalog.
-	function swatch(value) {
-		var unlocked = shopItemUnlocked("avatar", value);
-		var b = document.createElement("button"); b.type = "button";
-		b.className = "avatar-swatch" + (value.toLowerCase() === current ? " active" : "") + (unlocked ? "" : " locked");
-		b.dataset.color = value;
-		b.appendChild(buildAvatarCanvas(value, 50));
-		if (!unlocked) {
-			var price = document.createElement("span"); price.className = "shop-lock-badge"; price.textContent = "🔒";
-			b.appendChild(price);
-		}
-		b.addEventListener("click", function() {
-			if (!unlocked) { goToShop(); return; }
-			setAvatarColor(value);
-		});
-		swatches.appendChild(b);
-	}
-	// Preset avatars (anonymous silhouette, the mine, then image presets), then the flag pennant.
-	swatch("anon");
-	swatch("mine");
-	if (typeof AVATAR_IMAGES !== "undefined") Object.keys(AVATAR_IMAGES).forEach(function(id) { swatch("img:" + id); });
-	AVATAR_COLORS.forEach(function(col) { swatch(col); });
-	wrap.appendChild(swatches);
+	var swatchesContainer = document.createElement("div"); swatchesContainer.id = "avatar_modal_avatars";
+	swatchesContainer.appendChild(buildAvatarSwatchesGrid());
+	wrap.appendChild(swatchesContainer);
 	var note = document.createElement("div"); note.className = "appearance-note";
 	note.textContent = "Flag colours are used when no country is set; an image avatar replaces the flag. Locked presets are in the Shop.";
 	wrap.appendChild(note);

@@ -25,6 +25,12 @@
 		Object.keys(Cosmetics.AVATAR_IMAGES).forEach(function(id) {
 			items.push({ id: "img:" + id, kind: "avatar", label: avatarLabel(id), priceCents: AVATAR_PRICE_CENTS, currency: "usd" });
 		});
+		// Every AVATAR_COLORS entry past the first (free/default) one is a purchasable flag colour.
+		// Hardcoded label — fine while there's exactly one extra colour; if more are added, give
+		// AVATAR_COLORS a {hex,label} shape instead of guessing names from hex values here.
+		Cosmetics.AVATAR_COLORS.slice(1).forEach(function(hex) {
+			items.push({ id: hex, kind: "avatar", label: "Pirate Flag", priceCents: AVATAR_PRICE_CENTS, currency: "usd" });
+		});
 		items.push({
 			id: "tactical", kind: "skin",
 			label: Cosmetics.BOARD_SKINS.tactical.label,
@@ -39,9 +45,11 @@
 		// Boot-time integrity check: every catalog id must be a real cosmetic id, so a typo or a
 		// cosmetic later removed from Cosmetics.js can't silently sell (or gate) a nonexistent item.
 		items.forEach(function(item) {
-			if (item.kind === "avatar") {
+			if (item.kind === "avatar" && item.id.indexOf("img:") === 0) {
 				var avatarId = item.id.slice(4);
 				if (!Cosmetics.AVATAR_IMAGES[avatarId]) throw new Error("ShopCatalog: unknown avatar id \"" + avatarId + "\"");
+			} else if (item.kind === "avatar") {
+				if (Cosmetics.AVATAR_COLORS.indexOf(item.id) === -1) throw new Error("ShopCatalog: unknown avatar colour \"" + item.id + "\"");
 			} else if (item.kind === "skin") {
 				if (Cosmetics.BOARD_SKIN_LIST.indexOf(item.id) === -1) throw new Error("ShopCatalog: unknown skin id \"" + item.id + "\"");
 			} else {

@@ -9,9 +9,15 @@ const Cosmetics = require("../src/common/Cosmetics");
 const ShopCatalog = require("../src/common/ShopCatalog");
 
 test("every avatar preset in Cosmetics has a catalog entry, and vice versa", () => {
-	const avatarIds = Object.keys(Cosmetics.AVATAR_IMAGES).map((id) => "img:" + id);
+	const avatarIds = Object.keys(Cosmetics.AVATAR_IMAGES).map((id) => "img:" + id)
+		.concat(Cosmetics.AVATAR_COLORS.slice(1)); // every colour past the free/default one is purchasable
 	const catalogAvatarIds = ShopCatalog.ITEMS.filter((i) => i.kind === "avatar").map((i) => i.id);
 	assert.deepStrictEqual(catalogAvatarIds.sort(), avatarIds.sort());
+});
+
+test("the pirate flag colour is a purchasable avatar item", () => {
+	assert.strictEqual(ShopCatalog.isPurchasable("avatar", "#111111"), true);
+	assert.strictEqual(ShopCatalog.byId("#111111").label, "Pirate Flag");
 });
 
 test("tactical skin is purchasable, classic is not (free/default)", () => {
