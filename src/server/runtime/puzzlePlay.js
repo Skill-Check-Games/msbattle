@@ -463,7 +463,10 @@ function registerSocketHandlers(socket, playerID) {
 		var u = authedUserForPuzzle(); if (!u) return;
 		var date = db.todayUtc();
 		var attempt = db.getDailyAttempt(u.id, date);
-		if (attempt) { socket.emit("puzzle_error", { reason: "daily_already_done" }); return; }
+		// Only a solved attempt locks out the rest of the day — a miss can be retried on the same
+		// puzzle until it's solved (or the day rolls over). recordDailyAttempt below replaces the row
+		// each time, so the final state for the date is whatever the last attempt was.
+		if (attempt && attempt.solved) { socket.emit("puzzle_error", { reason: "daily_already_done" }); return; }
 		var puzzle = db.getOrPickDailyPuzzle(date);
 		if (!puzzle) { socket.emit("puzzle_error", { reason: "no_puzzles" }); return; }
 		delete puzzlePlay[playerID];

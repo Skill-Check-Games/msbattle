@@ -730,17 +730,22 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   group's buttons, and Enter/Space activates the focused one. The board key handler (Input.js) and the
   MatchPanels Enter-to-primary fallback both bail when focus is inside a `.kbd-btn-group`, so they don't
   double-fire or move the board.
-- **Home dashboard aside** (`Lobby.js`/`Profile.js`). The mode rows are Sprint · Standard · **Puzzles**
-  (→ `/puzzles`) · **Solo** (`.dash-row-solo` → `/solo`, replaced the old Custom row; green accent,
-  subtitle "Practice to improve your times"). Like the other mode rows it uses a generated **board
-  preview** (the `solo` key in `DASH_MODE_BOARDS`, a calm wide-open free-play board) so all four rows share
-  the same layout and height. The right aside holds the daily-puzzle hero plus an **Active rooms** card
-  (`.dash-rooms`, `#home_room_list`) that replaced the old "Top players" leaderboard strip:
-  `showLobbyView` emits `list_rooms` (not `get_leaderboard` — the standalone `/leaderboard` page emits
-  its own), the `room_list` handler calls `renderHomeRooms`, which shows open rooms first (a **Join**
-  button when joinable, **Full**/​**In game** tags otherwise), capped at `HOME_ROOMS_MAX` (6) with a
-  "+N more" line, above a **Browse Custom Lobbies** button → `/custom`. (`#leaderboard_list` is gone;
-  `renderLeaderboard` already `.filter(Boolean)`s its now-null home target and only fills the full list.)
+- **Home dashboard aside** (`Lobby.js`/`Profile.js`). The mode rows are just Sprint · Standard ·
+  **Puzzles** (→ `/puzzles`) — the old Practice/Solo row was dropped from the home card entirely (the
+  `/solo` free-play page itself still exists, just isn't linked from here). Each row uses a generated
+  **board preview** (`DASH_MODE_BOARDS` in `Profile.js`) — all three share Standard's 6×9 board
+  dimensions (`renderModeBoardPreviews`) so the rendered previews come out the same size; don't reintroduce
+  mismatched `rows`/`cols` per mode there. The right aside holds only the daily-puzzle hero now — the
+  "Active lobbies" card (`.dash-rooms`, `#home_room_list`, `renderHomeRooms`) was removed as clutter;
+  `/custom` is reached via the nav instead. (`#leaderboard_list` is gone; `renderLeaderboard` already
+  `.filter(Boolean)`s its now-null home target and only fills the full list.)
+- **Daily puzzle retry**: a miss no longer locks the day out — `puzzle_daily_start` (`puzzlePlay.js`)
+  only rejects with `daily_already_done` when the existing `daily_attempts` row for today has
+  `solved=1`; a missed attempt can be retried (same puzzle, `db.recordDailyAttempt`'s `INSERT OR REPLACE`
+  just overwrites the row each time) until it's solved or the UTC day rolls over. The miss outcome panel
+  (`showDailyOutcome` in `PuzzlePlay.js`) shows a **Try again** button next to Back to lobby; the home
+  card's daily hero button does the same (`renderLobbyDailyState` in `Profile.js` — "Try again", not
+  disabled, on a miss).
 - **Leaderboard page** (`/leaderboard`) has **mode filter tabs** (`#leaderboard_tabs`: Overall · Sprint ·
   Standard · Tournament · Territory). `Leaderboard.js` tracks `currentLeaderboardMode` and
   `selectLeaderboardMode(mode)` (highlights the tab, shows a loading row, emits `get_leaderboard {mode}`);

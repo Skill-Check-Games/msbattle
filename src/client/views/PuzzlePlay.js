@@ -531,13 +531,25 @@ function showDailyOutcome(data) {
 
 	var foot = document.createElement("div");
 	foot.className = "result-foot";
-	foot.textContent = "Come back tomorrow for a new puzzle.";
+	foot.textContent = data.solved ? "Come back tomorrow for a new puzzle." : "Give it another go — same puzzle, no limit on attempts.";
 	panel.appendChild(foot);
 
 	var actions = document.createElement("div");
 	actions.className = "result-actions";
+	// A miss can be retried immediately (same daily puzzle) instead of being locked out until
+	// tomorrow — only a solve ends the day. See puzzle_daily_start's server-side gate.
+	if (!data.solved) {
+		var again = document.createElement("button");
+		again.className = "btn btn-primary";
+		again.textContent = "Try again";
+		again.addEventListener("click", function() {
+			hideOverlay();
+			socket.emit("puzzle_daily_start");
+		});
+		actions.appendChild(again);
+	}
 	var back = document.createElement("button");
-	back.className = "btn btn-primary";
+	back.className = data.solved ? "btn btn-primary" : "btn btn-secondary";
 	back.textContent = "Back to lobby";
 	back.addEventListener("click", exitPuzzle);
 	actions.appendChild(back);

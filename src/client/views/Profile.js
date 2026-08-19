@@ -803,7 +803,7 @@ function renderHomeRankChips() {
 	// in Router.js). They currently all resolve together (one account payload), but are kept as
 	// separate elements/ids so each row's reveal is self-contained.
 	if (account && typeof revealStat === "function") {
-		["dash_stat_sprint", "dash_stat_standard", "dash_stat_puzzles", "dash_stat_solo"].forEach(revealStat);
+		["dash_stat_sprint", "dash_stat_standard", "dash_stat_puzzles"].forEach(revealStat);
 	}
 
 	var puzzleRatingEl = document.getElementById("puzzle_rating_value");
@@ -815,27 +815,6 @@ function renderHomeRankChips() {
 		puzzleSolvedEl.textContent = account
 			? (account.puzzlesSolved || 0) + " / " + (account.puzzlesAttempted || 0)
 			: "";
-	}
-	// Solo home row: fastest recorded time across every size/density combo the player has cleared,
-	// so the row shows real progress instead of a static "Practice" label (Sprint/Standard/Puzzles all
-	// show something live; Solo was the one row with nothing).
-	var soloBestEl = document.getElementById("dash_solo_best");
-	var soloBestLabelEl = document.getElementById("dash_solo_best_label");
-	if (soloBestEl) {
-		var bests = account && account.soloBests;
-		var fastest = null;
-		if (bests) {
-			Object.keys(bests).forEach(function(k) {
-				if (fastest == null || bests[k] < fastest) fastest = bests[k];
-			});
-		}
-		if (fastest != null && typeof formatSoloTime === "function") {
-			soloBestEl.textContent = formatSoloTime(fastest);
-			if (soloBestLabelEl) soloBestLabelEl.textContent = "Best time";
-		} else {
-			soloBestEl.textContent = "Practice";
-			if (soloBestLabelEl) soloBestLabelEl.textContent = "";
-		}
 	}
 	var streakBestEl = document.getElementById("puzzle_streak_best");
 	var stormBestEl = document.getElementById("puzzle_storm_best");
@@ -922,15 +901,18 @@ function renderDashIdentity() {
 // Fixed board previews for each mode, in the standard board format the game renderer
 // (buildLearnPuzzle) consumes: lists of [row, col] for `mines` and `flagged` (flags pre-placed). The
 // open area is given as a single `revealStart` cell — the renderer cascades from there exactly like a
-// real click. Sprint is a sparse, wide-open field; Standard a tight opening in a denser minefield;
-// Custom a medium board. Puzzles is a crafted deduction position with no 0-cell to cascade from, so it
-// lists its revealed cells explicitly. Rendered in the player's chosen board skin (renderModeBoardPreviews
-// re-runs on skin change — see setBoardSkin) and frozen (pointer-events: none, no click/reveal wiring
-// beyond what buildLearnPuzzle sets up for its own canvas — it draws once synchronously per call, no
-// requestAnimationFrame loop, so a still preview never keeps a frame ticking in the background).
+// real click. Sprint is a sparse, wide-open field; Standard a tight opening in a denser minefield.
+// Puzzles is a crafted deduction position with no 0-cell to cascade from, so it lists its revealed
+// cells explicitly. All three share Standard's 6x9 dimensions so the rendered previews come out the
+// same size (see .dash-board-preview canvas in style.css, which fixes height but not width — mismatched
+// dimensions used to make some previews render narrower than others). Rendered in the player's chosen
+// board skin (renderModeBoardPreviews re-runs on skin change — see setBoardSkin) and frozen
+// (pointer-events: none, no click/reveal wiring beyond what buildLearnPuzzle sets up for its own
+// canvas — it draws once synchronously per call, no requestAnimationFrame loop, so a still preview
+// never keeps a frame ticking in the background).
 var DASH_MODE_BOARDS = {
 	sprint: {
-		rows: 6, cols: 10,
+		rows: 6, cols: 9,
 		mines: [[0,0],[0,3],[1,1],[3,3],[3,7],[3,8]],
 		revealStart: [3, 5],
 		flagged: [[3,3],[3,7],[3,8]]
@@ -941,16 +923,8 @@ var DASH_MODE_BOARDS = {
 		revealStart: [3, 4],
 		flagged: [[1,6],[2,6],[3,6],[3,7],[5,2]]
 	},
-	solo: {
-		// Relaxed free-play board: a wide-open cascade with a couple of flags placed — the
-		// no-pressure feel of practice, distinct from the racing modes' tighter openings.
-		rows: 6, cols: 9,
-		mines: [[0,0],[0,8],[1,4],[3,1],[3,7],[5,3],[5,5]],
-		revealStart: [3, 4],
-		flagged: [[1,4],[3,7]]
-	},
 	puzzles: {
-		rows: 6, cols: 6,
+		rows: 6, cols: 9,
 		mines: [[0,3],[1,0],[1,2],[2,0],[3,5],[4,3],[5,2]],
 		revealed: [[1,1],[1,3],[1,4],[2,1],[2,2],[2,3],[2,4],[3,1],[3,2],[3,3],[3,4],[4,1],[4,2],[4,4]],
 		flagged: []
@@ -994,9 +968,20 @@ function renderLobbyDailyState() {
 		hero.classList.add("daily-solved");
 		if (btn) { btn.textContent = "Solved — back tomorrow"; btn.disabled = true; }
 	} else {
+		// A miss doesn't lock the day out — retrying is a click away (same puzzle until solved).
 		hero.classList.add("daily-missed");
-		if (btn) { btn.textContent = "Missed — back tomorrow"; btn.disabled = true; }
+		if (btn) { btn.textContent = "Try again"; btn.disabled = false; }
 	}
+}
+
+// "2026-08-18" -> "Aug 18". Parsed as UTC (matching db.todayUtc(), which produced the string) so the
+// displayed date can't drift a day off around midnight depending on the viewer's local timezone.
+function formatDailyDate(isoDate) {
+	var parts = isoDate.split("-");
+	if (parts.length !== 3) return isoDate;
+	var d = new Date(Date.UTC(+parts[0], +parts[1] - 1, +parts[2]));
+	if (isNaN(d.getTime())) return isoDate;
+	return d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 }
 
 // Paints the daily puzzle's starting position into the lobby hero card.
@@ -1021,7 +1006,7 @@ function renderLobbyDailyBoard() {
 		if (dateEl) dateEl.textContent = "";
 		return;
 	}
-	if (dateEl) dateEl.textContent = date || "";
+	if (dateEl) dateEl.textContent = date ? formatDailyDate(date) : "";
 	if (typeof hideSkeleton === "function") hideSkeleton("dash_daily_skel");
 	var boardKey = board.rows + "x" + board.cols + "@" + date + "#" + skin;
 	if (container.dataset.boardKey === boardKey) return;

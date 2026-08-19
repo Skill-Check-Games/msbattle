@@ -738,10 +738,11 @@ socket.on("puzzle_daily_status", function(data) {
 		account.dailyDate = data.date || null;
 		if (typeof renderHomeRankChips === "function") renderHomeRankChips();
 	}
-	// If we're actively on the daily route, decide whether to play or show result.
+	// If we're actively on the daily route, decide whether to play or show result. A solved attempt
+	// locks the day out; a missed one can be retried (same puzzle) until it's solved — see
+	// puzzle_daily_start's server-side gate in puzzlePlay.js.
 	if (location.pathname === "/puzzles/daily") {
-		if (data.attempt) {
-			// Already attempted today — show the result panel without starting a new game.
+		if (data.attempt && data.attempt.solved) {
 			showDailyAlreadyDone(data);
 		} else {
 			socket.emit("puzzle_daily_start");
@@ -1541,7 +1542,6 @@ socket.on("avatar_rejected", function() {
 
 socket.on("room_list", function(data) {
 	renderRoomList(data.rooms || []);
-	if (typeof renderHomeRooms === "function") renderHomeRooms(data.rooms || []);
 });
 
 socket.on("match_history", function(data) {

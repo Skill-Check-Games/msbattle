@@ -224,7 +224,7 @@ function hideSkeleton(id) {
 	var el = document.getElementById(id);
 	if (el) el.classList.add("skel-hide");
 }
-var DASH_SKELETON_IDS = ["dash_you_skel", "dash_daily_skel", "dash_rooms_skel"];
+var DASH_SKELETON_IDS = ["dash_you_skel", "dash_daily_skel"];
 
 // No skeleton for the mode rows' rank/rating corner (see .stat-fade-in in style.css) — it's just
 // absent until the data's ready, then fades in. Idempotent, same reasoning as hideSkeleton above.
@@ -239,12 +239,10 @@ function showLobbyView() {
 	lobbyMessage.style.display = "none";
 	renderHomeRankChips();
 	setSiteNavActive("home");
-	// The home aside now lists active rooms (open + in-progress) instead of the leaderboard.
-	socket.emit("list_rooms");
 	// Safety net for the skeleton loaders: an unreachable/slow server shouldn't shimmer forever —
 	// reveal whatever's underneath (even if it's still a placeholder) after a few seconds regardless.
-	// The normal path (renderDashIdentity / renderLobbyDailyBoard / renderHomeRooms actually landing
-	// real data) already hides these well before this fires in the common case.
+	// The normal path (renderDashIdentity / renderLobbyDailyBoard actually landing real data) already
+	// hides these well before this fires in the common case.
 	setTimeout(function() { DASH_SKELETON_IDS.forEach(hideSkeleton); }, 5000);
 }
 

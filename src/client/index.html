@@ -135,7 +135,7 @@
 							<span class="dash-row-board" id="dash_board_sprint" aria-hidden="true"></span>
 							<span class="dash-row-info">
 								<h4 class="dash-row-title">Sprint</h4>
-								<p class="dash-row-sub">10% mines</p>
+								<p class="dash-row-sub">Quick rounds, fewer mines</p>
 							</span>
 							<span class="dash-row-stat mode-card-rank-tiered stat-fade-in" id="dash_stat_sprint">
 								<span class="mode-card-rank-badge" id="rank_badge_sprint"></span>
@@ -148,7 +148,7 @@
 							<span class="dash-row-board" id="dash_board_standard" aria-hidden="true"></span>
 							<span class="dash-row-info">
 								<h4 class="dash-row-title">Standard</h4>
-								<p class="dash-row-sub">20% mines</p>
+								<p class="dash-row-sub">Bigger boards, more mines</p>
 							</span>
 							<span class="dash-row-stat mode-card-rank-tiered stat-fade-in" id="dash_stat_standard">
 								<span class="mode-card-rank-badge" id="rank_badge_standard"></span>
@@ -167,19 +167,6 @@
 								<span class="dash-row-stat-text">
 									<span class="mode-card-rank-tier" id="puzzle_rating_value">—</span>
 									<span class="mode-card-rank-rating" id="puzzle_solved_count"></span>
-								</span>
-							</span>
-						</a>
-						<a class="dash-row dash-row-solo" href="/solo" data-style="solo" aria-label="Open Practice">
-							<span class="dash-row-board" id="dash_board_solo" aria-hidden="true"></span>
-							<span class="dash-row-info">
-								<h4 class="dash-row-title">Practice</h4>
-								<p class="dash-row-sub">Practice to improve your times</p>
-							</span>
-							<span class="dash-row-stat stat-fade-in" id="dash_stat_solo">
-								<span class="dash-row-stat-text">
-									<span class="mode-card-rank-tier" id="dash_solo_best">—</span>
-									<span class="mode-card-rank-rating" id="dash_solo_best_label"></span>
 								</span>
 							</span>
 						</a>
@@ -212,19 +199,6 @@
 								<button id="open_daily_button" class="btn btn-primary lobby-daily-action">Play today's puzzle</button>
 								<div id="dash_daily_skel" class="skel-shimmer dash-skel-cover"></div>
 							</div>
-						</div>
-
-						<div class="dash-card dash-rooms">
-							<h3 class="dash-card-title">Active lobbies</h3>
-							<!-- Only the room list itself is fetched — the title above and the browse button
-							     below are static and already shown. -->
-							<div class="dash-rooms-body">
-								<ul id="home_room_list" class="dash-rooms-list">
-									<li class="room-empty">Loading…</li>
-								</ul>
-								<div id="dash_rooms_skel" class="skel-shimmer dash-skel-cover"></div>
-							</div>
-							<a href="/custom" class="btn btn-secondary dash-rooms-browse">Browse Custom Lobbies</a>
 						</div>
 					</aside>
 				</div>
