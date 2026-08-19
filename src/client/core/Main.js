@@ -75,11 +75,14 @@ function applyDuoClass() {
 		if (on && typeof sizePlayerCanvas === "function") requestAnimationFrame(function() {
 			sizePlayerCanvas();
 			if (typeof sizeOpponentCanvases === "function") sizeOpponentCanvases();
-			// sizeBoardCanvas clears a canvas whenever its backing size actually changes (see its own
-			// comment) — this first, pre-layout measurement above is often wrong and gets corrected here,
-			// which can wipe an opponent thumbnail that was already painted covered. Still in the
-			// pre-reveal window (searching, or a formed room's countdown) → repaint it covered right away
-			// instead of leaving it blank/black until the next live draw_board frame happens to arrive.
+			// sizeBoardCanvas/sizePlayerCanvas both clear a canvas whenever its backing size actually
+			// changes (see their own comments) — this first, pre-layout measurement above is often wrong
+			// and gets corrected here, which can wipe a board that was already painted. Repaint both sides
+			// right away instead of leaving them blank/black until the next live draw_board frame happens
+			// to arrive. renderPlayerBoard reads current myState either way (covered or mid-round), so it's
+			// safe any time there's a board up; the opponents only need the covered repaint pre-reveal —
+			// once revealed, their next live frame is imminent and re-covering them would be the wrong look.
+			if (typeof myState !== "undefined" && myState && typeof renderPlayerBoard === "function") renderPlayerBoard();
 			if (pendingLocalRoundReveal && typeof paintOpponentCovered === "function") paintOpponentCovered();
 		});
 	}
@@ -2013,6 +2016,11 @@ socket.on("mine_hit", function(data) {
 	startFreezeTick();
 });
 
+// How long the finished board (with its finish-place stamps) stays uncovered before the result
+// modal slides in — series_ended used to show it immediately, which felt like the board was
+// snatched away before you'd even seen the result. The win/lose sound still fires right away for
+// immediate feedback; only the modal itself is held back.
+var RESULT_MODAL_DELAY_MS = 1200;
 socket.on("series_ended", function(data) {
 	setDanger(false);
 	gameProgressText.textContent = "";
@@ -2022,8 +2030,9 @@ socket.on("series_ended", function(data) {
 	var iWon = data.winnerId === id;
 	if (typeof sound !== "undefined") (iWon ? sound.seriesWin : sound.lose)();
 	// Both 1v1 and 6-player show the same flow: the finish-place stamps (1st/2nd/…) are already on
-	// the boards, then the shared ranked result card.
-	showResultModal(data);
+	// the boards — give the player a beat to actually see that before the shared ranked result card
+	// covers it.
+	setTimeout(function() { if (inRoom) showResultModal(data); }, RESULT_MODAL_DELAY_MS);
 	refreshAchievementProgress();
 });
 
