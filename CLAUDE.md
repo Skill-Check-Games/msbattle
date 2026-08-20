@@ -576,7 +576,19 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   (`.mobile-action-bar`/`#mobile_mode_btn` — the same touch control the portrait layout already built,
   just re-shown and shrunk down here rather than duplicated, fixed to the viewport bottom with
   `.game-view.duo`'s own `padding-bottom` reserving the room for it through the same min-height:0 flex
-  chain everything else here uses).
+  chain everything else here uses). `.game-side` is flex-column with `align-items: flex-start` on
+  desktop (deliberate there — the opponent card sits in open space next to the scoreboard, so it
+  shrink-wraps to its own content) — inherited as-is in landscape, that shrink-wrapped the opponent
+  card down to its tiny identity+canvas instead of filling the grid column reserved for it, leaving a
+  dead gap between the two cards that got more obvious the wider the window (barely visible on a real
+  phone's ~800-930px landscape width; glaring on a desktop browser window just resized short, which
+  has no such cap). Landscape overrides it back to `align-items: stretch` and gives `.opponent_div`
+  its own `align-items: center` so its now-wider card doesn't just leave its small canvas pinned to one
+  side. The player's own board has the mirror-image version of that same gap — `fitDesktopCellPx`
+  (`MobileLayout.js`) caps cell size at `min(availW/cols, availH/rows)`, and on a short viewport height
+  is almost always the tighter limit, leaving width to spare next to the board — so `.board-wrap` gets
+  `align-self: center` too (the identity row and the corner badge aren't its flex children, so neither
+  shifts).
   **6-player battle layout** (`isMultiRacing()`, 3-6 racing players): the same TetrisFriends idea
   scaled up — one big own board on the left with your identity panel (`#duel_id_you`) above it, the
   round timer centered up top (shared `#duel_timer`), and **every** opponent's live board tiled in a

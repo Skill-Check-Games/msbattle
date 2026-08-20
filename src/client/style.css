@@ -4138,6 +4138,17 @@ body.touch .find-next-arrow { display: inline-flex; }
 		justify-content: flex-start;
 		min-height: 0;
 	}
+	/* .game-side is flex-column with align-items:flex-start on desktop (deliberately shrink-wrapped
+	   there, since the opponent card sits in open space next to the scoreboard) — inherited as-is
+	   here, it shrink-wraps the opponent card to its own tiny content (avatar + a canvas capped by
+	   max-height below) instead of filling the grid column reserved for it, leaving a dead gap
+	   between the two cards that gets more obvious the wider the column is. Stretch it back out. */
+	.game-view.duo .game-side { align-items: stretch; }
+	.game-view.duo .opponent_div {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+	}
 	/* Trim the neon card's own side padding — it was sized for a symmetric desktop layout with
 	   room to spare; here every pixel it eats is a pixel the board doesn't get. Top/bottom stay
 	   (still needed to clear the identity panel and progress row), and the identity panel's own
@@ -4158,6 +4169,13 @@ body.touch .find-next-arrow { display: inline-flex; }
 		flex-direction: column;
 		flex: 1;
 		min-height: 0;
+		/* The board's cell size is capped by whichever of width/height is tighter (fitDesktopCellPx,
+		   MobileLayout.js) — on a short viewport that's almost always height, leaving width to spare.
+		   Left-aligned (the default, stretched to the card's now-full width), that spare width just
+		   reads as a dead gap next to the board. Center it instead — the identity row above and the
+		   corner badge (position:absolute) aren't flex children of this element, so neither is
+		   affected. */
+		align-self: center;
 	}
 	.game-view.duo .board-scroll {
 		flex: 1;
