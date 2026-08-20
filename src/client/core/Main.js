@@ -152,13 +152,12 @@ function setOppIdentity(i, p) {
 	}
 }
 
-// --- 1v1 duel battle HUD: identity panels (rank badge + name + tier), per-board progress bars,
-// and the center tug-of-war bar + leader glow. ---
+// --- 1v1 duel battle HUD: identity panels (avatar + name + rank badge), per-board progress bars,
+// and the center VS/tug-of-war meter. ---
 function fillDuelId(el, p, isYou) {
 	if (!el) return;
 	el.innerHTML = "";
 	if (!p) return;
-	// Dota-style: a tall avatar portrait, then name on top + tier/rating beneath (no separate rank badge).
 	if (typeof buildAvatarChip === "function") {
 		var chip = buildAvatarChip(p.avatar || DEFAULT_AVATAR, p.country || null, 52);
 		chip.classList.add("duel-id-avatar");
@@ -172,12 +171,23 @@ function fillDuelId(el, p, isYou) {
 	info.appendChild(nm);
 	if (typeof p.rating === "number" && typeof tierFor === "function") {
 		var t = tierFor(p.rating, p.provisional);
-		var rt = document.createElement("div");
+		// A pill: the same hexagon rank badge used on the leaderboard/profile, sized down, next to the
+		// tier name — never the exact rating, which is hidden info in-game (incl. your own), same as
+		// everywhere else.
+		var pill = document.createElement("div");
+		pill.className = "duel-id-tier-pill";
+		pill.style.borderColor = t.color;
+		if (typeof buildRankBadge === "function") {
+			var badge = buildRankBadge(p.rating);
+			badge.classList.add("duel-id-tier-badge");
+			pill.appendChild(badge);
+		}
+		var rt = document.createElement("span");
 		rt.className = "duel-id-rating";
 		rt.style.color = t.color;
-		// In-game we show only the rank tier, never the exact rating (hidden info — incl. your own).
 		rt.textContent = t.name;
-		info.appendChild(rt);
+		pill.appendChild(rt);
+		info.appendChild(pill);
 	}
 	el.appendChild(info);
 }
@@ -202,7 +212,7 @@ function buildDuelIdentity() {
 	fillDuelId(document.getElementById("duel_id_you"), me, true);
 	if (isDuoRacing()) fillDuelId(document.getElementById("duel_id_opp"), opp, false);
 }
-function setDuelBar(barId, progress) {
+function setDuelBar(barId, progress, cellsLeft) {
 	var bar = document.getElementById(barId);
 	if (!bar) return;
 	var pct = Math.round((progress || 0) * 100);
@@ -210,16 +220,31 @@ function setDuelBar(barId, progress) {
 	var label = bar.querySelector(".duel-bar-pct");
 	if (fill) fill.style.width = pct + "%";
 	if (label) label.textContent = pct + "%";
+	var leftEl = document.getElementById(barId === "duel_bar_you" ? "duel_cells_left_you" : "duel_cells_left_opp");
+	if (leftEl && typeof cellsLeft === "number") leftEl.textContent = cellsLeft + (cellsLeft === 1 ? " cell left" : " cells left");
 }
-// Live battle HUD from the current frame: each board's progress bar (the center tug-of-war
-// indicator and the leader glow on the board cards were both removed — each board's own bar
-// already shows its progress).
+// Live battle HUD from the current frame: each board's progress bar, the "cells left" readout
+// beside it, and the center VS meter (a tug-of-war gauge + "X is ahead" callout — see
+// updateDuelMeter). The old leader-glow border treatment stays gone (removed as too noisy — see
+// task history); this meter is a deliberately different, calmer way to show the same "who's ahead"
+// info, called out explicitly in the redesign this HUD is based on.
 function updateDuelHud(meGame, oppGame) {
 	if (!isDuoRacing()) return;
+	var modeEl = document.getElementById("duel_timer_mode");
+	if (modeEl && !modeEl.textContent && currentRankedMode) {
+		// "sprint_duo" -> "Sprint"; set once per match (currentRankedMode doesn't change mid-round) —
+		// the empty-check above skips redoing this lookup on every one of updateDuelHud's frames.
+		var style = currentRankedMode.replace(/_duo$/, "");
+		var label = (typeof styleLabelOf === "function") ? styleLabelOf(style) : style;
+		modeEl.textContent = "RANKED · " + label.toUpperCase();
+	}
 	var myP = meGame ? (meGame.progress || 0) : 0;
 	var opP = oppGame ? (oppGame.progress || 0) : 0;
-	setDuelBar("duel_bar_you", myP);
-	setDuelBar("duel_bar_opp", opP);
+	var myLeft = meGame ? Math.max(0, (meGame.totalSafe || 0) - (meGame.safeCount || 0)) : null;
+	var opLeft = oppGame ? Math.max(0, (oppGame.totalSafe || 0) - (oppGame.safeCount || 0)) : null;
+	setDuelBar("duel_bar_you", myP, myLeft);
+	setDuelBar("duel_bar_opp", opP, opLeft);
+	updateDuelMeter(myP, opP);
 	// Mobile substitute for the desktop opponent board/duel-bar panel (both hidden there — no room).
 	// Mirrors the same two numbers into a compact strip instead of leaving mobile with zero indication
 	// of whether you're winning or losing until the round ends. Name comes from #player_name1, which
@@ -229,6 +254,32 @@ function updateDuelHud(meGame, oppGame) {
 	var oppNameEl = document.getElementById("player_name1");
 	var mobileOppNameEl = document.getElementById("mobile_duel_opp_name");
 	if (mobileOppNameEl) mobileOppNameEl.textContent = (oppNameEl && oppNameEl.textContent) || "Opponent";
+}
+// Center VS meter: a horizontal gauge whose diamond marker slides toward whoever's ahead (50/50 =
+// centered), plus a plain-language "X is ahead" / "Tied up" callout beneath it. Driven off the same
+// progress numbers as the two duel-bars — no separate state to keep in sync.
+function updateDuelMeter(myP, opP) {
+	var marker = document.getElementById("duel_meter_marker");
+	var callout = document.getElementById("duel_meter_callout");
+	if (!marker || !callout) return;
+	var total = myP + opP;
+	// 0.5 = dead centre; >0.5 slides toward "you" (left), <0.5 toward the opponent (right). Halfway
+	// through a 0-0 board this is 0.5/0.5 either way, which correctly centers the marker at the start.
+	var lean = total > 0 ? myP / total : 0.5;
+	marker.style.left = Math.round(lean * 100) + "%";
+	var diff = myP - opP;
+	if (Math.abs(diff) < 0.01) {
+		callout.textContent = "Tied up";
+		callout.style.color = "";
+	} else if (diff > 0) {
+		callout.textContent = "You're ahead";
+		callout.style.color = "var(--duel-you)";
+	} else {
+		var oppNameEl = document.getElementById("player_name1");
+		var oppName = (oppNameEl && oppNameEl.textContent) || "Opponent";
+		callout.textContent = oppName + " is ahead";
+		callout.style.color = "var(--duel-opp)";
+	}
 }
 function setMobileDuelBar(fillId, pctId, progress) {
 	var fill = document.getElementById(fillId);
@@ -2366,6 +2417,8 @@ function resetGameUI() {
 	clearFreeze();
 	var rp = document.getElementById("rotate_prompt");
 	if (rp) rp.classList.remove("dismissed"); // re-nudge for the new game/search, even if dismissed last time
+	var modeEl = document.getElementById("duel_timer_mode");
+	if (modeEl) modeEl.textContent = ""; // let updateDuelHud recompute it fresh for the new match
 	stopRoundTimer();
 	resetBoardAnimations();
 	clearPlaceBadges(); // finish-place stamps (1st/2nd/…) from the last round/match

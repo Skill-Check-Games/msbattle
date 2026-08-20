@@ -532,8 +532,13 @@
 			<div class="game-header">
 				<button id="leave_button" class="btn btn-ghost">← Exit game</button>
 				<!-- Battle layouts (duo/multi) move the big round timer up here, centered in the header —
-				     see .game-view.duo/.multi .game-header in style.css. Hidden (display:none) otherwise. -->
-				<div id="duel_timer" class="duel-timer" aria-hidden="true"></div>
+				     see .game-view.duo/.multi .game-header in style.css. Hidden (display:none) otherwise.
+				     The bordered badge wrapper + mode line are duo-only (see .game-view.duo .duel-timer-badge)
+				     — multi keeps the plain timer, #ranked_tag/#game_progress_text on the right cover its mode. -->
+				<div class="duel-timer-badge">
+					<div id="duel_timer" class="duel-timer" aria-hidden="true"></div>
+					<div id="duel_timer_mode" class="duel-timer-mode"></div>
+				</div>
 				<div class="game-header-right">
 					<div class="game-progress">
 						<span id="ranked_tag" class="ranked-tag" style="display:none">RANKED</span>
@@ -588,7 +593,10 @@
 								<span class="find-next-arrow-glyph" aria-hidden="true">→</span>
 							</button>
 						</div>
-						<div id="duel_bar_you" class="duel-bar"><span class="duel-bar-fill"></span><b class="duel-bar-pct"></b></div>
+						<div class="duel-bar-row">
+							<div id="duel_bar_you" class="duel-bar"><span class="duel-bar-fill"></span><b class="duel-bar-pct"></b></div>
+							<span id="duel_cells_left_you" class="duel-cells-left"></span>
+						</div>
 						<div class="player-controls">
 							<button id="ready_button" class="btn btn-primary">Ready</button>
 							<button id="flag_mode_button" class="flag-mode-button" type="button" aria-pressed="false">
@@ -633,10 +641,19 @@
 						</dialog>
 					</div>
 				</div>
-				<!-- Empty spacer column between the two boards — see .game-view.duo .duel-center in
-				     style.css (keeps the boards symmetrically split by the middle grid track; used to
-				     also hold a tug-of-war progress indicator, since removed). -->
-				<div id="duel_center" class="duel-center" aria-hidden="true"></div>
+				<!-- Center column between the two boards — see .game-view.duo .duel-center in style.css.
+				     The VS badge + gauge only mean anything once a duel's actually forming/playing (duo
+				     class), so this whole block is CSS-hidden outside that, same as the two duel-bars. -->
+				<div id="duel_center" class="duel-center">
+					<div class="duel-vs-badge" aria-hidden="true"></div>
+					<div class="duel-meter">
+						<div class="duel-meter-track">
+							<span id="duel_meter_marker" class="duel-meter-marker" style="left:50%"></span>
+						</div>
+						<div id="duel_meter_callout" class="duel-meter-callout">Tied up</div>
+					</div>
+					<div class="duel-goal-pill">⚡ First to 100% wins</div>
+				</div>
 				<aside class="game-side">
 					<div id="scoreboard_card" class="side-card">
 						<h3 class="side-title">Scoreboard</h3>
@@ -647,7 +664,10 @@
 							<div class="opp-head"><span class="opp-avatar" id="opp_avatar1"></span><span class="opp-id"><p id="player_name1" class="player-name"></p><span class="opp-tier" id="opp_tier1"></span></span></div>
 							<div id="duel_id_opp" class="duel-id"></div>
 							<canvas id="game1" width="250" height="175"></canvas>
-							<div id="duel_bar_opp" class="duel-bar"><span class="duel-bar-fill"></span><b class="duel-bar-pct"></b></div>
+							<div class="duel-bar-row">
+								<span id="duel_cells_left_opp" class="duel-cells-left"></span>
+								<div id="duel_bar_opp" class="duel-bar"><span class="duel-bar-fill"></span><b class="duel-bar-pct"></b></div>
+							</div>
 						</div>
 						<div class="opponent_div" data-slot>
 							<div class="opp-head"><span class="opp-avatar" id="opp_avatar2"></span><span class="opp-id"><p id="player_name2" class="player-name"></p><span class="opp-tier" id="opp_tier2"></span></span></div>

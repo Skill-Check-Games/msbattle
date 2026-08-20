@@ -498,23 +498,39 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   the shared live-game state (`rows`, `cols`, `myState`, `playerCanvas`, the cell-state
   sentinels) the feature modules read as globals, and the top-level DOM/state wiring.
   Loaded last so those globals exist before anything uses them.
-  **1v1 duel layout** (TetrisFriends-style battle): a 2-player racing match (`isDuoRacing()`) gets a
-  side-by-side battle layout while playing — two equal boards facing off across a center VS column.
-  The opponent board (`game1`) is sized to match the player board (`sizeOpponentCanvases()`) instead
-  of the small sidebar thumbnail; the scoreboard/series side-cards are hidden. Each board has an
-  **identity panel** (rank badge + name + tier via `buildDuelIdentity`/`fillDuelId`, reusing
-  `buildRankBadge`/`tierFor`) and a **progress bar**. **In-game shows only the rank tier, never the
-  exact rating — including your own** (`fillDuelId`/`setOppIdentity` render `tierFor(...).name` with no
-  number; the exact rating is hidden info during a match). The center `#duel_center` holds a VS badge
-  (it used to also hold a vertical tug-of-war progress indicator, since removed — each board's own
-  progress bar already shows that) — updated per frame by `updateDuelHud()` in `draw_board`. The
-  **leader-glow border** on whichever board was ahead was also removed (both duo and 6-player) as too
-  noisy; only a finished opponent still gets a border treatment (`.opponent_div.finished`). Driven by a
-  `duo` class on `#game_view` (CSS `.game-view.duo`, `--duel-you`/`--duel-opp`). Active during play,
-  plus the ranked planning/reveal window so you see the opponent the moment you join (custom rooms stay
-  normal in planning so their config shows); the opponent's board is painted covered
-  (`paintOpponentCovered`) until their first real frame, so both boards show through the join +
+  **1v1 duel layout** (neon "arena" battle, redesigned from a set of Figma-style mockups): a 2-player
+  racing match (`isDuoRacing()`) gets a side-by-side battle layout while playing — two equal boards
+  facing off across a center VS column. The opponent board (`game1`) is sized to match the player
+  board (`sizeOpponentCanvases()`) instead of the small sidebar thumbnail; the scoreboard/series
+  side-cards are hidden. Each board card is a glowing framed "arena" (`box-shadow` + `border` in that
+  side's own colour — cyan-blue `--duel-you`, pink-red `--duel-opp`) with an **identity panel**
+  (avatar + name + a pill-bordered rank badge, `buildDuelIdentity`/`fillDuelId`, reusing
+  `buildRankBadge`/`tierFor`) and a **progress row** (bar + "N cells left", `setDuelBar` — cell counts
+  come straight off `totalSafe`/`safeCount` on each side's live game object). **In-game still shows
+  only the rank tier, never the exact rating — including your own** (`fillDuelId` renders
+  `tierFor(...).name` with no number; the mockups this redesign is based on originally showed a raw
+  number too, but that was explicitly dropped in favor of the badge, keeping the existing "hidden
+  info" rule intact). The center `#duel_center` holds a **VS badge** (a rotated square — `::before`
+  supplies the "VS" text unrotated, since the element itself is `transform: rotate(45deg)`), a
+  **tug-of-war meter** (`.duel-meter-track`, a diamond marker slid via `left: %` toward whoever's
+  ahead, plus a "You're ahead"/"X is ahead"/"Tied up" callout) and a "First to 100% wins" pill — all
+  driven by `updateDuelMeter(myP, opP)`, called from `updateDuelHud()` in `draw_board` alongside the
+  two bars. This meter is a deliberately calmer, different way to show "who's ahead" than the
+  **leader-glow border** removed earlier (task history) — both are intentional, not a contradiction to
+  reconcile. The center round timer (`#duel_timer`) sits in a bordered badge with a cyan-to-red
+  gradient border (`.duel-timer-badge`, gradient via the padding-box/border-box double-background
+  trick) and a "RANKED · SPRINT"-style mode line (`.duel-timer-mode`, computed once per match from
+  `currentRankedMode` and left alone after — the empty-string check in `updateDuelHud` guards that);
+  `#ranked_tag`/`#game_progress_text` are hidden for duo specifically since their info moved into that
+  badge. Driven by a `duo` class on `#game_view` (CSS `.game-view.duo`, `--duel-you`/`--duel-opp`).
+  Active during play, plus the ranked planning/reveal window so you see the opponent the moment you
+  join (custom rooms stay normal in planning so their config shows); the opponent's board is painted
+  covered (`paintOpponentCovered`) until their first real frame, so both boards show through the join +
   countdown. Both boards are pushed toward the center column so the VS sits exactly between them.
+  No separate mobile-landscape layout exists for this — past ~700px wide (most phones' landscape
+  width) this same layout already applies and looks right; the portrait fallback is the unrelated
+  `#mobile_duel_progress` compact strip (see the Mobile in-game bullet below), which inherits the same
+  timer-badge/board-glow styling since those are gated on `.game-view.duo`, not a screen-size query.
   **6-player battle layout** (`isMultiRacing()`, 3-6 racing players): the same TetrisFriends idea
   scaled up — one big own board on the left with your identity panel (`#duel_id_you`) above it, the
   round timer centered up top (shared `#duel_timer`), and **every** opponent's live board tiled in a
