@@ -386,6 +386,11 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 	color: #fff;
 	font-weight: 600;
 }
+/* Unbound (freed up by rebinding its key to a different action — see set()'s comment in
+   Keybindings.js): a dashed warning-colored border so a control that's silently stopped working
+   doesn't look identical to a normal, working one. */
+.keybind-key-unbound { border: 1px dashed rgba(248, 113, 113, 0.55); color: #f87171; }
+.keybind-key-unbound:hover { border-color: rgba(248, 113, 113, 0.85); }
 .keybind-reset { margin-top: 0.3rem; }
 
 .profile-stat {
@@ -3531,6 +3536,9 @@ body[data-board-skin="gold"] .board-scroll::after {
 	padding: 0.7rem 0.85rem; border-radius: 11px;
 	background: var(--bg); border: 1px solid var(--border);
 }
+/* .section-card is a plain block container (no gap) — consecutive rows (e.g. Music/Effects on the
+   Settings page) sat flush against each other with no breathing room between them. */
+.setting-row + .setting-row { margin-top: 0.6rem; }
 .setting-row-text { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
 .setting-row-label { font-weight: 700; }
 .setting-row-note { font-size: 0.82rem; color: var(--muted); }

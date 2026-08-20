@@ -912,7 +912,12 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   `showSettingsView` calls `renderGameplaySettings`/`renderAudioSettings`/`renderKeybindings`. Board skin
   used to have its own card here too; it was dropped once the avatar-editor modal covered the same
   picker, so skin-picking now lives only on the Profile page. Settings has its own nav link
-  (`data-route="settings"`).
+  (`data-route="settings"`). Consecutive `.setting-row`s (Music/Effects, say) get spacing via
+  `.setting-row + .setting-row` — `.section-card` itself is a plain block container with no gap, so
+  without it they sat flush against each other. A keybind that `set()` freed up (its key got reassigned
+  to a different action — see the comment there) renders "—" with a dashed red border
+  (`.keybind-key-unbound`) instead of the normal neutral style, so a silently-broken control doesn't
+  look identical to a working one.
 - **Shop** (`/shop`, `#shop_view`, `showShopView` → `renderShop` in `Shop.js`) — real-money cosmetic
   purchases via **Stripe Checkout** (hosted page; the client never loads Stripe.js, it only calls our own
   `/api/shop/*`). **Catalog**: `src/common/ShopCatalog.js` (common, `require`'d server-side + loaded as a

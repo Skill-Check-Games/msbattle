@@ -117,10 +117,14 @@ function renderKeybindings() {
 		label.className = "keybind-label";
 		label.textContent = act.label;
 		row.appendChild(label);
+		var boundKey = keybindings.get(act.id);
 		var keyBtn = document.createElement("button");
 		keyBtn.type = "button";
-		keyBtn.className = "keybind-key";
-		keyBtn.textContent = keybindings.label(keybindings.get(act.id));
+		// An action freed up by rebinding its key elsewhere (see set()'s comment) shows "—" — same
+		// neutral colors as a normal bound key gave no visual sign that this control had silently
+		// stopped working. Flag it instead of leaving it blending in.
+		keyBtn.className = "keybind-key" + (boundKey ? "" : " keybind-key-unbound");
+		keyBtn.textContent = keybindings.label(boundKey);
 		keyBtn.addEventListener("click", function() { captureKey(act.id, keyBtn); });
 		row.appendChild(keyBtn);
 		list.appendChild(row);
