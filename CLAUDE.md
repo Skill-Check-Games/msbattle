@@ -964,13 +964,19 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   + `goToShop()` + `buildSkinPreview(id)` (also reused by the Shop tile) to render unowned purchasable items
   locked (dimmed, priced, clicking navigates to `/shop`) instead of hidden or freely selectable.
 - **Help modal** (`#help_modal`, `wireHelpModal` in Main.js). The navbar **Help** item is a `<button>`
-  (not an `<a>`, so the router's link interceptor ignores it) that opens a concise modal — rules, game
-  modes, and controls — reusing the `.cr-modal`/`.cr-dialog` chrome. On open it fills the control-key
-  chips (`#help_key_reveal`/`flag`/`next`) from the live rebindable bindings via
+  (not an `<a>`, so the router's link interceptor ignores it) that opens a concise modal — rules +
+  controls, reusing the `.cr-modal`/`.cr-dialog` chrome. The "The rules"/"Game modes" section headings
+  were dropped (the modal's own "How to play" title already says what the first section is; the Game
+  modes section — Practice/Ranked/Puzzles/Territory — was redundant with just navigating the site and
+  stale on Territory, which isn't a surfaced player-facing mode) and a **Learn** link was added next to
+  the rules for a guided walkthrough. On open it fills the control-key chips
+  (`#help_key_reveal`/`flag`/`next`) from the live rebindable bindings via
   `keybindings.label(keybindings.get(action))`, so they track the player's actual keys, and renders two
   small **example boards** (`buildLearnPuzzle`, rendered once into `#help_board_numbers`/`#help_board_flags`)
-  showing the same layout first with bare number clues, then with the mines flagged. Closes on the ×,
-  Esc, backdrop, or the Profile link (all carry `data-help-close`; the Profile link also navigates).
+  showing the same layout first with bare number clues, then with the mines flagged. The footer's
+  "rebind your keys" link points at **Settings** (`/settings`, where `#controls_card` actually lives —
+  it used to say Profile, which hasn't hosted keybindings since Controls moved off it). Closes on the ×,
+  Esc, backdrop, or either footer link (all carry `data-help-close`; the links also navigate).
 - **Ranked search.** The racing modes (1v1 + 6-player Sprint/Standard) drop you **straight into the
   battle UI** and slot opponents into the opponent boards as they're found — search and play share one
   screen, so there's no separate waiting room and "Play another" never leaves the page. `findRanked`
