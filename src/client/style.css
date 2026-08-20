@@ -4114,6 +4114,16 @@ body.touch .find-next-arrow { display: inline-flex; }
 		justify-content: flex-start;
 		min-height: 0;
 	}
+	/* Trim the neon card's own side padding — it was sized for a symmetric desktop layout with
+	   room to spare; here every pixel it eats is a pixel the board doesn't get. Top/bottom stay
+	   (still needed to clear the identity panel and progress row), and the identity panel's own
+	   gap above the board shrinks too, per the same "give it back to the board" ask. */
+	.game-view.duo .player-board,
+	.game-view.duo .opponent_div {
+		padding-left: 0.5rem;
+		padding-right: 0.5rem;
+	}
+	.game-view.duo .duel-id { margin-bottom: 0.3rem; }
 	.game-view.duo .player-board {
 		display: flex;
 		flex-direction: column;
@@ -4141,6 +4151,11 @@ body.touch .find-next-arrow { display: inline-flex; }
 		width: 40px;
 		height: 40px;
 		font-size: 0.7rem;
+		/* Just the mark, no card — the border+glow reads fine as a standalone badge on desktop where
+		   it has open space around it, but boxed in here between two panels it's redundant framing. */
+		border: none;
+		box-shadow: none;
+		background: transparent;
 	}
 	.game-view.duo .duel-goal-pill {
 		display: none; /* the room this saves matters more here than the reminder text */

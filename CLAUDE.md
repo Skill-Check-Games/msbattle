@@ -552,7 +552,11 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   landscape, 667×375) is still narrower than 700px, so it's already handled by the portrait/mobile
   breakpoint below (full-bleed board, `#mobile_duel_progress` strip) — which relies on `#leave_button`
   staying visible as its only way to exit. Matching this block against that width range too would hide
-  it there with nothing to replace it.
+  it there with nothing to replace it. The neon card's own side padding and the identity panel's gap
+  above the board both shrink here too — every pixel either one eats is a pixel the board doesn't get
+  on a viewport this tight — and the VS badge drops its border/glow/background (`border`/`box-shadow`/
+  `background: transparent`), since boxed in tight between two panels the framing that reads fine as a
+  standalone desktop badge is just redundant.
   **6-player battle layout** (`isMultiRacing()`, 3-6 racing players): the same TetrisFriends idea
   scaled up — one big own board on the left with your identity panel (`#duel_id_you`) above it, the
   round timer centered up top (shared `#duel_timer`), and **every** opponent's live board tiled in a
