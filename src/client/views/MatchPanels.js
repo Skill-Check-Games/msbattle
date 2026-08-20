@@ -463,7 +463,10 @@ function showRankedResult(data) {
 		fill.style.width = Math.round(newProg.fill * 100) + "%";
 	}, 400);
 	playResultMoment(won, data.ranked, oldRating, newRating);
-	try { again.focus(); } catch (e) {}
+	// preventScroll: the panel now scrolls internally on short viewports (see .board-overlay-panel's
+	// overflow-y:auto) — the default scrollIntoView behavior would otherwise yank it straight to this
+	// button, hiding the win/loss heading above it the instant the panel appears.
+	try { again.focus({ preventScroll: true }); } catch (e) {}
 }
 
 // One "Your time" / "Their time" chip in the 1v1 context row.
@@ -624,5 +627,8 @@ function showTournamentChampionPanel(data) {
 
 	presentPanel(panel, won ? "win" : "lose");
 	playResultMoment(won, data.ranked, resultOldRating, account ? account.ratingTournament : null);
-	try { again.focus(); } catch (e) {}
+	// preventScroll: the panel now scrolls internally on short viewports (see .board-overlay-panel's
+	// overflow-y:auto) — the default scrollIntoView behavior would otherwise yank it straight to this
+	// button, hiding the win/loss heading above it the instant the panel appears.
+	try { again.focus({ preventScroll: true }); } catch (e) {}
 }

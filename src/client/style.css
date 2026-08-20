@@ -2946,6 +2946,11 @@ body.ranked-game .game-grid { padding: 1.25rem 1.5rem 1.5rem; }
 	transform: translate(-50%, -50%);
 	width: min(94vw, 560px);
 	max-height: 90vh;
+	/* max-height alone doesn't stop content from spilling past the box's own rounded border/shadow
+	   once it's taller than that cap — a short landscape viewport (90vh is a lot less headroom there
+	   than on desktop) hits this reliably with the full ranked-result content (hero + rating card +
+	   standings + buttons). Let it scroll internally instead. */
+	overflow-y: auto;
 	font-size: 1rem;
 	/* The 1v1 (duo) layout sets line-height:0 on .board-wrap to tighten the canvas; this modal lives
 	   inside it, so reset to the normal body line-height or the heading/rating/buttons collapse — making
@@ -4123,239 +4128,274 @@ body.touch .find-next-arrow { display: inline-flex; }
 @keyframes duel-timer-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
 
 /* ===== 1v1 duel, landscape phones =====
-   Landscape phones (the rotate-prompt below actively steers players here) are wide enough
-   (>700px) to fall past the portrait mobile breakpoint and land on the plain desktop duel
-   layout above — symmetric boards, Exit/Fullscreen in the header, VS/timer centered between
-   the boards. That reads fine on an actual desktop monitor but wastes a short landscape phone
-   viewport: two equal boards are both too small to read, and the header buttons eat vertical
-   space that matters far more here than on desktop. max-height (not max-width) is what
-   actually distinguishes "phone turned sideways" from "small desktop window" — phones stay
-   short in landscape regardless of width, desktops don't.
-   min-width: 701px keeps this from also matching a SMALL phone turned sideways (e.g. iPhone
-   SE landscape, 667×375) — those stay under the @media (max-width: 700px) breakpoint above,
-   which already gives them their own mobile board layout (full-bleed board, mobile_duel_progress
-   strip) built around #leave_button staying put as the only way out. Applying this block's
-   "hide leave_button" rule there too, on top of that different layout, would remove the one
-   working exit control and put nothing in its place. */
-@media (orientation: landscape) and (max-height: 500px) and (min-width: 701px) {
-	/* Exit/Fullscreen aren't worth the header row's height here, and neither is the header at
-	   all once the timer (previously its one remaining reason to take up a row) moves down to
-	   sit under the meter instead (see .duel-timer-landscape below) — dropping the whole row
-	   hands that height straight back to the boards, which is the whole point of moving it. */
-	.game-view.duo .game-header { display: none; }
+   Landscape phones (>700px wide, unlike a portrait one turned sideways which is short regardless
+   of width — see min-width below) would otherwise fall past the portrait breakpoint and land on
+   the plain desktop duel layout — symmetric boards, Exit/Fullscreen in the header, VS/timer
+   centered between the boards. That reads fine on an actual desktop monitor but wastes a short
+   phone viewport: two equal boards are both too small to read, and the header buttons eat vertical
+   space that matters far more here than on desktop.
+   Driven by a JS-computed class (body.duel-landscape-mode, applyDuelLandscapeClass in Main.js)
+   rather than a plain `@media (orientation: landscape) and (max-height: 500px)` query — that would
+   only ever match a device that's ACTUALLY in landscape, but this same treatment also needs to
+   apply when a portrait phone is being force-rotated into landscape via CSS transform instead of
+   asking the player to physically turn it (see the "forced landscape" block below): the media
+   query can't see that, since a CSS transform doesn't change what orientation/dimensions a media
+   query itself observes, only how the transformed element visually renders. The class is kept in
+   sync with the same real-orientation condition via a matchMedia listener either way, so a genuine
+   landscape phone behaves identically to before this became class-driven.
+   min-width: 701px (checked in JS, not as a breakpoint here — see applyDuelLandscapeClass) keeps
+   this from also matching a SMALL phone turned sideways (e.g. iPhone SE landscape, 667×375) — those
+   stay under the @media (max-width: 700px) breakpoint above, which already gives them their own
+   mobile board layout (full-bleed board, mobile_duel_progress strip) built around #leave_button
+   staying put as the only way out. Applying this block's "hide leave_button" rule there too, on top
+   of that different layout, would remove the one working exit control and put nothing in its place. */
+body.duel-landscape-mode .game-view.duo .game-header { display: none; }
 
-	/* The viewport is genuinely too short to fit a full board at fitDesktopCellPx's legibility
-	   floor (DESKTOP_CELL_MIN, MobileLayout.js) AND every other panel with no scrolling at all —
-	   pin the page to exactly the viewport instead of letting it grow to whatever the board needs,
-	   and give the board's own scroll box (below) the leftover space via a min-height:0 flex chain
-	   (the same pattern the portrait mobile layout already uses for this exact problem). Without
-	   min-height:0 at each link, a flex/grid item's default auto min-size refuses to shrink below
-	   its content, and the whole page scrolls instead of just the board. */
-	.game-view.duo { height: 100dvh; min-height: 0; overflow: hidden; }
-	.game-view.duo .game-grid { min-height: 0; }
+/* The viewport is genuinely too short to fit a full board at fitDesktopCellPx's legibility
+   floor (DESKTOP_CELL_MIN, MobileLayout.js) AND every other panel with no scrolling at all —
+   pin the page to exactly the viewport instead of letting it grow to whatever the board needs,
+   and give the board's own scroll box (below) the leftover space via a min-height:0 flex chain
+   (the same pattern the portrait mobile layout already uses for this exact problem). Without
+   min-height:0 at each link, a flex/grid item's default auto min-size refuses to shrink below
+   its content, and the whole page scrolls instead of just the board. */
+body.duel-landscape-mode .game-view.duo { height: 100dvh; min-height: 0; overflow: hidden; }
+body.duel-landscape-mode .game-view.duo .game-grid { min-height: 0; }
 
-	/* Your board dominates the viewport; the opponent's board, its identity panel, and the
-	   VS/tug-of-war meter share a single narrow column stacked underneath each other — the same
-	   "advantage scale sits with the opponent" grouping the mockup sketch called for. */
-	.game-view.duo .game-grid {
-		grid-template-columns: minmax(0, 2.3fr) minmax(0, 1fr);
-		grid-template-rows: minmax(0, auto) minmax(0, 1fr);
-		grid-template-areas: "left right" "left center";
-		align-items: stretch;
-		gap: 0.5rem 0.65rem;
-	}
-	.game-view.duo .game-left {
-		align-items: stretch;
-		justify-content: flex-start;
-		min-height: 0;
-	}
-	/* .game-side is flex-column with align-items:flex-start on desktop (deliberately shrink-wrapped
-	   there, since the opponent card sits in open space next to the scoreboard) — inherited as-is
-	   here, it shrink-wraps the opponent card to its own tiny content (avatar + a canvas capped by
-	   max-height below) instead of filling the grid column reserved for it, leaving a dead gap
-	   between the two cards that gets more obvious the wider the column is. Stretch it back out. */
-	.game-view.duo .game-side { align-items: stretch; }
-	.game-view.duo .opponent_div {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-	}
-	/* Trim the neon card's own side padding — it was sized for a symmetric desktop layout with
-	   room to spare; here every pixel it eats is a pixel the board doesn't get. Top/bottom stay
-	   (still needed to clear the identity panel and progress row), and the identity panel's own
-	   gap above the board shrinks too, per the same "give it back to the board" ask. */
-	.game-view.duo .player-board,
-	.game-view.duo .opponent_div {
-		padding-left: 0.5rem;
-		padding-right: 0.5rem;
-	}
-	.game-view.duo .duel-id { margin-bottom: 0.3rem; }
-	/* The opponent's identity shares a much narrower card than the player's own, so give it a
-	   smaller avatar and tighter type — without it, the tier pill's text has too little room and
-	   wraps. buildAvatarChip always builds at 52px (Main.js) regardless of context; scale it down
-	   with plain CSS sizing here rather than threading a size parameter through for one breakpoint. */
-	.game-view.duo #duel_id_opp {
-		gap: 0.45rem;
-		min-height: 40px;
-	}
-	.game-view.duo #duel_id_opp .duel-id-avatar,
-	.game-view.duo #duel_id_opp .duel-id-avatar canvas {
-		width: 40px !important;
-		height: 40px !important;
-	}
-	.game-view.duo #duel_id_opp .duel-id-name { font-size: 1rem; }
-	.game-view.duo #duel_id_opp .duel-id-tier-pill { padding: 0.1rem 0.25rem 0.1rem 0.5rem; gap: 0.3rem; }
-	.game-view.duo #duel_id_opp .duel-id-tier-badge.rank-badge { font-size: 4px; }
-	.game-view.duo #duel_id_opp .duel-id-rating { font-size: 0.72rem; }
-	.game-view.duo .player-board {
-		display: flex;
-		flex-direction: column;
-		min-height: 0;
-	}
-	.game-view.duo .board-wrap {
-		display: flex;
-		flex-direction: column;
-		flex: 1;
-		min-height: 0;
-		/* The board's cell size is capped by whichever of width/height is tighter (fitDesktopCellPx,
-		   MobileLayout.js) — on a short viewport that's almost always height, leaving width to spare.
-		   Left-aligned (the default, stretched to the card's now-full width), that spare width just
-		   reads as a dead gap next to the board. Center it instead — the identity row above and the
-		   corner badge (position:absolute) aren't flex children of this element, so neither is
-		   affected. */
-		align-self: center;
-	}
-	.game-view.duo .board-scroll {
-		flex: 1;
-		min-height: 0;
-		overflow: auto;
-		-webkit-overflow-scrolling: touch;
-	}
-	.game-view.duo .duel-center {
-		align-self: start;
-		min-width: 0;
-		padding: 0;
-		gap: 0.5rem;
-	}
-	/* YOU – VS – opponent name, all one row (the sketch's mobile layout), instead of the VS badge
-	   alone on its own centered row (desktop, untouched). */
-	.game-view.duo .duel-meter-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.5rem;
-		width: 100%;
-	}
-	.game-view.duo .duel-meter-label {
-		display: block;
-		font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
-		color: var(--duel-you);
-	}
-	.game-view.duo .duel-meter-label-opp { color: var(--duel-opp); text-align: right; }
-	.game-view.duo .duel-vs-badge {
-		width: 34px;
-		height: 34px;
-		font-size: 0.62rem;
-		flex: 0 0 auto;
-		/* Just the mark, no card — the border+glow reads fine as a standalone badge on desktop where
-		   it has open space around it, but boxed in here between two panels it's redundant framing. */
-		border: none;
-		box-shadow: none;
-		background: transparent;
-	}
-	.game-view.duo .duel-goal-pill {
-		display: none; /* the room this saves matters more here than the reminder text */
-	}
-	/* Boxed timer card below the meter (see .duel-timer-landscape-box), replacing the plain-text
-	   #duel_timer_landscape reused as-is — a smaller echo of the desktop header badge's own border. */
-	.game-view.duo .duel-timer-landscape { display: block; }
-	.game-view.duo .duel-timer-landscape-box {
-		display: block;
-		padding: 0.3rem 0.7rem;
-		border-radius: 10px;
-		border: 1px solid transparent;
-		background:
-			linear-gradient(var(--surface), var(--surface)) padding-box,
-			linear-gradient(90deg, var(--duel-you), var(--duel-opp)) border-box;
-	}
+/* Your board dominates the viewport; the opponent's board, its identity panel, and the
+   VS/tug-of-war meter share a single narrow column stacked underneath each other — the same
+   "advantage scale sits with the opponent" grouping the mockup sketch called for. */
+body.duel-landscape-mode .game-view.duo .game-grid {
+	grid-template-columns: minmax(0, 2.3fr) minmax(0, 1fr);
+	grid-template-rows: minmax(0, auto) minmax(0, 1fr);
+	grid-template-areas: "left right" "left center";
+	align-items: stretch;
+	gap: 0.5rem 0.65rem;
+}
+body.duel-landscape-mode .game-view.duo .game-left {
+	align-items: stretch;
+	justify-content: flex-start;
+	min-height: 0;
+}
+/* .game-side is flex-column with align-items:flex-start on desktop (deliberately shrink-wrapped
+   there, since the opponent card sits in open space next to the scoreboard) — inherited as-is
+   here, it shrink-wraps the opponent card to its own tiny content (avatar + a canvas capped by
+   max-height below) instead of filling the grid column reserved for it, leaving a dead gap
+   between the two cards that gets more obvious the wider the column is. Stretch it back out. */
+body.duel-landscape-mode .game-view.duo .game-side { align-items: stretch; }
+body.duel-landscape-mode .game-view.duo .opponent_div {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+}
+/* Trim the neon card's own side padding — it was sized for a symmetric desktop layout with
+   room to spare; here every pixel it eats is a pixel the board doesn't get. Top/bottom stay
+   (still needed to clear the identity panel and progress row), and the identity panel's own
+   gap above the board shrinks too, per the same "give it back to the board" ask. */
+body.duel-landscape-mode .game-view.duo .player-board,
+body.duel-landscape-mode .game-view.duo .opponent_div {
+	padding-left: 0.5rem;
+	padding-right: 0.5rem;
+}
+body.duel-landscape-mode .game-view.duo .duel-id { margin-bottom: 0.3rem; }
+/* The opponent's identity shares a much narrower card than the player's own, so give it a
+   smaller avatar and tighter type — without it, the tier pill's text has too little room and
+   wraps. buildAvatarChip always builds at 52px (Main.js) regardless of context; scale it down
+   with plain CSS sizing here rather than threading a size parameter through for one breakpoint. */
+body.duel-landscape-mode .game-view.duo #duel_id_opp {
+	gap: 0.45rem;
+	min-height: 40px;
+}
+body.duel-landscape-mode .game-view.duo #duel_id_opp .duel-id-avatar,
+body.duel-landscape-mode .game-view.duo #duel_id_opp .duel-id-avatar canvas {
+	width: 40px !important;
+	height: 40px !important;
+}
+body.duel-landscape-mode .game-view.duo #duel_id_opp .duel-id-name { font-size: 1rem; }
+body.duel-landscape-mode .game-view.duo #duel_id_opp .duel-id-tier-pill { padding: 0.1rem 0.25rem 0.1rem 0.5rem; gap: 0.3rem; }
+body.duel-landscape-mode .game-view.duo #duel_id_opp .duel-id-tier-badge.rank-badge { font-size: 4px; }
+body.duel-landscape-mode .game-view.duo #duel_id_opp .duel-id-rating { font-size: 0.72rem; }
+body.duel-landscape-mode .game-view.duo .player-board {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
+body.duel-landscape-mode .game-view.duo .board-wrap {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+	/* The board's cell size is capped by whichever of width/height is tighter (fitDesktopCellPx,
+	   MobileLayout.js) — on a short viewport that's almost always height, leaving width to spare.
+	   Left-aligned (the default, stretched to the card's now-full width), that spare width just
+	   reads as a dead gap next to the board. Center it instead — the identity row above and the
+	   corner badge (position:absolute) aren't flex children of this element, so neither is
+	   affected. */
+	align-self: center;
+}
+body.duel-landscape-mode .game-view.duo .board-scroll {
+	flex: 1;
+	min-height: 0;
+	overflow: auto;
+	-webkit-overflow-scrolling: touch;
+}
+body.duel-landscape-mode .game-view.duo .duel-center {
+	align-self: start;
+	min-width: 0;
+	padding: 0;
+	gap: 0.5rem;
+}
+/* YOU – VS – opponent name, all one row (the sketch's mobile layout), instead of the VS badge
+   alone on its own centered row (desktop, untouched). */
+body.duel-landscape-mode .game-view.duo .duel-meter-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5rem;
+	width: 100%;
+}
+body.duel-landscape-mode .game-view.duo .duel-meter-label {
+	display: block;
+	font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+	color: var(--duel-you);
+}
+body.duel-landscape-mode .game-view.duo .duel-meter-label-opp { color: var(--duel-opp); text-align: right; }
+body.duel-landscape-mode .game-view.duo .duel-vs-badge {
+	width: 34px;
+	height: 34px;
+	font-size: 0.62rem;
+	flex: 0 0 auto;
+	/* Just the mark, no card — the border+glow reads fine as a standalone badge on desktop where
+	   it has open space around it, but boxed in here between two panels it's redundant framing. */
+	border: none;
+	box-shadow: none;
+	background: transparent;
+}
+body.duel-landscape-mode .game-view.duo .duel-goal-pill {
+	display: none; /* the room this saves matters more here than the reminder text */
+}
+/* Boxed timer card below the meter (see .duel-timer-landscape-box), replacing the plain-text
+   #duel_timer_landscape reused as-is — a smaller echo of the desktop header badge's own border. */
+body.duel-landscape-mode .game-view.duo .duel-timer-landscape { display: block; }
+body.duel-landscape-mode .game-view.duo .duel-timer-landscape-box {
+	display: block;
+	padding: 0.3rem 0.7rem;
+	border-radius: 10px;
+	border: 1px solid transparent;
+	background:
+		linear-gradient(var(--surface), var(--surface)) padding-box,
+		linear-gradient(90deg, var(--duel-you), var(--duel-opp)) border-box;
+}
 
-	/* The opponent canvas needs to shrink to fit this much narrower, shorter column, but width and
-	   height can't be constrained independently (max-width:100% off the column, max-height off the
-	   viewport) — that fights the JS-computed inline width (sizeBoardCanvas, matched 1:1 to the
-	   player board's own cell size) and stretches cells off-square, since the two limits rarely
-	   agree on the same scale factor. Force both dimensions back to auto (!important — inline
-	   styles otherwise always win over a stylesheet) so only the max-* box applies; a canvas has an
-	   intrinsic ratio same as an <img>, so the browser scales it down to fit while preserving it,
-	   same as the rest of the site already relies on for the desktop opponent board. */
-	.game-view.duo .opponent_div canvas {
-		width: auto !important;
-		height: auto !important;
-		max-width: 100%;
-		max-height: 16vh;
-	}
+/* The opponent canvas needs to shrink to fit this much narrower, shorter column, but width and
+   height can't be constrained independently (max-width:100% off the column, max-height off the
+   viewport) — that fights the JS-computed inline width (sizeBoardCanvas, matched 1:1 to the
+   player board's own cell size) and stretches cells off-square, since the two limits rarely
+   agree on the same scale factor. Force both dimensions back to auto (!important — inline
+   styles otherwise always win over a stylesheet) so only the max-* box applies; a canvas has an
+   intrinsic ratio same as an <img>, so the browser scales it down to fit while preserving it,
+   same as the rest of the site already relies on for the desktop opponent board. */
+body.duel-landscape-mode .game-view.duo .opponent_div canvas {
+	width: auto !important;
+	height: auto !important;
+	max-width: 100%;
+	max-height: 16vh;
+}
 
-	/* The board's own scrollbar is real (see board-scroll's min-height:0 flex chain above — a board
-	   with more rows than fit at the legibility floor genuinely needs to pan) but the visible
-	   scrollbar chrome is not; touch/wheel panning still works with it hidden. */
-	.game-view.duo .board-scroll {
-		scrollbar-width: none;
-		-ms-overflow-style: none;
-	}
-	.game-view.duo .board-scroll::-webkit-scrollbar { display: none; width: 0; height: 0; }
+/* The board's own scrollbar is real (see board-scroll's min-height:0 flex chain above — a board
+   with more rows than fit at the legibility floor genuinely needs to pan) but the visible
+   scrollbar chrome is not; touch/wheel panning still works with it hidden. */
+body.duel-landscape-mode .game-view.duo .board-scroll {
+	scrollbar-width: none;
+	-ms-overflow-style: none;
+}
+body.duel-landscape-mode .game-view.duo .board-scroll::-webkit-scrollbar { display: none; width: 0; height: 0; }
 
-	/* Identity + progress share one header row (space-between) instead of stacking — see
-	   .duel-header-row above. Progress itself moves to the compact .duel-bar-corner readout instead
-	   of the desktop bar-row under the board; that row is freed up entirely, not just visually
-	   covered, so the board gets its height back too. */
-	.game-view.duo .duel-bar-row { display: none; }
-	.game-view.duo .duel-header-row {
-		display: flex;
-		align-items: flex-start;
-		justify-content: space-between;
-		gap: 0.5rem;
-	}
-	.game-view.duo .duel-bar-corner {
-		display: flex;
-		flex-direction: column;
-		align-items: flex-end;
-		flex: 0 0 auto;
-	}
+/* Identity + progress share one header row (space-between) instead of stacking — see
+   .duel-header-row above. Progress itself moves to the compact .duel-bar-corner readout instead
+   of the desktop bar-row under the board; that row is freed up entirely, not just visually
+   covered, so the board gets its height back too. */
+body.duel-landscape-mode .game-view.duo .duel-bar-row { display: none; }
+body.duel-landscape-mode .game-view.duo .duel-header-row {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 0.5rem;
+}
+body.duel-landscape-mode .game-view.duo .duel-bar-corner {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-end;
+	flex: 0 0 auto;
+}
 
-	/* Reveal/flag: two explicit buttons pinned to the board's own bottom-right corner (the sketch's
-	   own take on this control) instead of the single toggle the touch action bar uses elsewhere —
-	   see #duel_flag_btn/#duel_reveal_btn (Main.js) for the shared flagMode wiring. The action bar
-	   itself stays hidden here (no body.touch override), same as .player-controls, the desktop
-	   Ready/flag-mode-button row both of these replace. */
-	.game-view.duo .player-board,
-	.game-view.duo .opponent_div { position: relative; }
-	.game-view.duo .duel-mode-toggle {
-		display: flex;
-		gap: 0.4rem;
-		position: absolute;
-		right: 0.6rem;
-		bottom: 0.5rem;
-	}
-	.game-view.duo .duel-mode-btn {
-		display: flex;
-		align-items: center;
-		gap: 0.3rem;
-		padding: 0.35rem 0.65rem;
-		border-radius: 8px;
-		border: 1px solid var(--border);
-		background: rgba(11, 16, 32, 0.75);
-		color: var(--muted);
-		font-size: 0.78rem;
-		font-weight: 700;
-		line-height: 1;
-	}
-	.game-view.duo .duel-mode-btn-icon { font-size: 0.85rem; }
-	.game-view.duo .duel-mode-btn-active {
-		border-color: var(--duel-you);
-		color: var(--text);
-		background: rgba(59, 130, 246, 0.16);
-	}
-	/* Leave the board's bottom-right corner clear for that control. */
-	.game-view.duo .board-scroll { padding-bottom: 2.6rem; }
+/* Reveal/flag: two explicit buttons pinned to the board's own bottom-right corner (the sketch's
+   own take on this control) instead of the single toggle the touch action bar uses elsewhere —
+   see #duel_flag_btn/#duel_reveal_btn (Main.js) for the shared flagMode wiring. The action bar
+   itself stays hidden here (no body.touch override), same as .player-controls, the desktop
+   Ready/flag-mode-button row both of these replace. */
+body.duel-landscape-mode .game-view.duo .player-board,
+body.duel-landscape-mode .game-view.duo .opponent_div { position: relative; }
+body.duel-landscape-mode .game-view.duo .duel-mode-toggle {
+	display: flex;
+	gap: 0.4rem;
+	position: absolute;
+	right: 0.6rem;
+	bottom: 0.5rem;
+}
+body.duel-landscape-mode .game-view.duo .duel-mode-btn {
+	display: flex;
+	align-items: center;
+	gap: 0.3rem;
+	padding: 0.35rem 0.65rem;
+	border-radius: 8px;
+	border: 1px solid var(--border);
+	background: rgba(11, 16, 32, 0.75);
+	color: var(--muted);
+	font-size: 0.78rem;
+	font-weight: 700;
+	line-height: 1;
+}
+body.duel-landscape-mode .game-view.duo .duel-mode-btn-icon { font-size: 0.85rem; }
+body.duel-landscape-mode .game-view.duo .duel-mode-btn-active {
+	border-color: var(--duel-you);
+	color: var(--text);
+	background: rgba(59, 130, 246, 0.16);
+}
+/* Leave the board's bottom-right corner clear for that control. */
+body.duel-landscape-mode .game-view.duo .board-scroll { padding-bottom: 2.6rem; }
+
+/* ===== Forced landscape (portrait phone, CSS-rotated) =====
+   screen.orientation.lock('landscape') (Fullscreen.js, tried right after entering fullscreen) does
+   the real, correct version of this on browsers that support it while fullscreen — genuinely
+   reorients the device's rendering, so @media (orientation: landscape) picks it up on its own with
+   no extra code. It's unsupported on iOS Safari specifically (no ScreenOrientation.lock() at all,
+   and no arbitrary-element Fullscreen API on iPhone either — both silently no-op there, see
+   Fullscreen.js's comments), which is exactly who this block is for: a CSS-only fallback that
+   rotates the whole game view to render landscape regardless, so a portrait phone that can't be
+   locked still gets the real layout instead of the "please rotate" nudge.
+   #game_view is sized to the SWAPPED viewport dimensions (100vh × 100vw — vh/vw stay the actual,
+   unrotated portrait viewport regardless of this transform) and rotated 90° from its top-left
+   corner, then translated back up by its own (now post-rotation) height to land flush with the
+   real viewport's top-left — the standard "rotate a full-viewport box to fill the opposite
+   orientation" recipe. body.duel-landscape-mode is applied alongside this (see
+   applyDuelLandscapeClass, Main.js) so the exact same landscape rules above apply to the now
+   landscape-shaped (but physically portrait) box.
+   Rendering (local coordinates → screen) falls straight out of the transform cascade — nothing
+   extra needed. The one thing that DOESN'T: hit-testing a tap (screen coordinates → local), which
+   cellFromCanvas (Input.js) special-cases via this same body.duel-force-rotate class — see its
+   comment for the inverse-rotation math. Everything else that reads a tap position (long-press
+   tracking, the move-tolerance check) only ever compares two raw client points against each other,
+   which is rotation-invariant and needed no changes. */
+body.duel-force-rotate #game_view {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100vh;
+	height: 100vw;
+	transform-origin: top left;
+	transform: rotate(90deg) translateY(-100%);
+	z-index: 40;
+	background: var(--bg);
 }
 
 /* ===== 6-player battle layout (TetrisFriends-style) =====
@@ -6639,6 +6679,11 @@ body.game-fullscreen .game-view:not(.territory):not(.puzzle):not(.solo):not(.duo
 		background: var(--bg);
 	}
 	body.in-game .rotate-prompt.dismissed { display: none; }
+	/* The 1v1 duel renders landscape regardless of physical orientation now (real orientation lock
+	   where supported, this CSS rotation where it isn't — see body.duel-force-rotate) instead of
+	   asking the player to turn the phone, so the nudge has nothing left to do there specifically.
+	   Solo/puzzle/other modes still don't have that fallback built, so they keep the prompt. */
+	body.in-game.duel-force-rotate .rotate-prompt { display: none; }
 }
 .rotate-prompt-icon {
 	font-size: 3rem;

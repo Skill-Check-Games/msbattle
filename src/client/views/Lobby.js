@@ -8,11 +8,17 @@
 
 function findRanked(mode) {
 	autoEnterGameFullscreen();
-	currentRankedMode = mode;
-	socket.emit("find_ranked", { mode: mode });
 	// Racing modes (1v1 + 6P Sprint/Standard) drop straight into the battle UI and slot opponents
 	// into the opponent boards as they're found; territory/tournament use the roster overlay.
-	if (typeof isRaceRankedMode === "function" && isRaceRankedMode(mode)) startBattleSearch(mode);
+	var isRace = typeof isRaceRankedMode === "function" && isRaceRankedMode(mode);
+	// The 1v1 duel specifically forces fullscreen on mobile even without the opt-in — see
+	// enterDuelMobileFullscreen's comment (Fullscreen.js) for why just this mode is worth it. Racing
+	// only (not territory_duo, which is also "_duo" but a different layout that isn't built around
+	// reclaiming this space) and 1v1 only (mode.replace(/_duo$/, mode) === mode would be six-player).
+	if (isRace && /_duo$/.test(mode) && typeof enterDuelMobileFullscreen === "function") enterDuelMobileFullscreen();
+	currentRankedMode = mode;
+	socket.emit("find_ranked", { mode: mode });
+	if (isRace) startBattleSearch(mode);
 	else setRankedSearching(true, mode);
 }
 var rankedSearchInfo = null;

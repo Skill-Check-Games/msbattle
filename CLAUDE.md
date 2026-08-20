@@ -635,11 +635,13 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   `@media (max-width: 900px) and (orientation: portrait)`, shown only while `body.in-game` — not a true
   OS orientation lock, which is unreliable outside fullscreen across browsers, so a "Continue anyway"
   button (`#rotate_prompt_dismiss`) adds a `.dismissed` class rather than trapping anyone whose device
-  won't rotate; `resetGameUI` clears that class so the nudge reappears for the next game/search), and a
-  **compact 1v1 progress strip** (`#mobile_duel_progress`, duo only — `updateDuelHud` mirrors the same
-  you/opponent progress numbers into it via `setMobileDuelBar`, with the opponent's name read straight
-  from `#player_name1`) so a portrait player isn't racing with zero indication of whether they're
-  winning until the round ends.
+  won't rotate; `resetGameUI` clears that class so the nudge reappears for the next game/search) for
+  solo/puzzle/6-player, and a **compact 1v1 progress strip** (`#mobile_duel_progress`, duo only —
+  `updateDuelHud` mirrors the same you/opponent progress numbers into it via `setMobileDuelBar`, with
+  the opponent's name read straight from `#player_name1`) so a portrait player isn't racing with zero
+  indication of whether they're winning until the round ends. **The 1v1 duel specifically doesn't use
+  the rotate nudge at all** — see "Forcing landscape for the 1v1 duel" below; it renders the real
+  landscape layout regardless of physical orientation instead of asking the player to turn the phone.
 - `AdminList.js` — shared helpers for the paginated admin views: `renderPager` and the
   `applyQueryString` URL-filter-state write (All Puzzles / Bots / Patterns / Starting positions).
 - `style.css` — all styles.
@@ -786,6 +788,37 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   game" button (and search-cancel) pass `toHome=true` → always returns to the home screen** (`navigate("/")`);
   the **navigate-away path** (clicking a nav link mid-game, via the Router) calls `leaveRoom()` with no
   flag so `teardownRoomUI` re-applies the already-changed target URL instead of forcing home.
+  **Forcing landscape for the 1v1 duel** (mobile only): the fullscreen opt-in above is off by default
+  everywhere (`enterGameFullscreen()` skips mobile viewports outright unless called with `force=true`),
+  but the duel's landscape layout is built specifically around reclaiming the space the browser's own
+  chrome (address bar, home indicator) would otherwise eat, so `findRanked` (Lobby.js) calls
+  `enterDuelMobileFullscreen()` (Fullscreen.js) for 1v1 racing modes specifically, bypassing that
+  opt-in — gated on touch + a phone-sized `screen.width/height` (not viewport width, which can't tell
+  a phone already turned sideways from a small desktop window) rather than `isMobileViewport()`.
+  Once fullscreen resolves, `tryLockLandscape()` attempts `screen.orientation.lock("landscape")` — the
+  real, correct fix where it's supported: it genuinely reorients the device's own rendering, so
+  `@media (orientation: landscape)` just picks it up with no extra code. **It's unsupported on iOS
+  Safari specifically** (no `ScreenOrientation.lock()` at all, and — separately — no arbitrary-element
+  Fullscreen API on iPhone either, only iPad; both silently no-op there per the existing try/catch
+  pattern). For exactly that gap, `body.duel-force-rotate` (style.css, driven by `applyDuelLandscapeClass`
+  in Main.js) is a CSS-only fallback: rotates `#game_view` 90° via `transform: rotate(90deg) translateY(-100%)`
+  off a `width:100vh;height:100vw` box, so a portrait phone that can't be orientation-locked still
+  renders the real landscape layout instead of the rotate-prompt nudge. This is why the landscape duel
+  layout is driven by a plain class (`body.duel-landscape-mode`) rather than a `@media (orientation:
+  landscape)` query directly (see the big comment above that class in style.css) — a CSS transform
+  doesn't change what a media query itself observes, only how the transformed element renders, so the
+  query alone could never see the force-rotated case. Rendering (local coords → screen) falls straight
+  out of the transform cascade with no extra work; the one thing that doesn't is hit-testing a tap
+  (screen coords → local), which `cellFromCanvas` (Input.js) special-cases with the matching
+  inverse-rotation math when `body.duel-force-rotate` is set (verified self-consistent — center taps
+  hit the center cell, all four on-screen corners map to the four expected board corners with
+  monotonic progression between them — but **the actual physical rotation direction (which way a real
+  phone needs to be turned for the content to read upright) hasn't been validated against a real
+  device**, only Chromium's touch/geometry emulation; if it renders upside-down in practice, flip the
+  rotation sign here and in `cellFromCanvas`'s formula together). `clearBattleLayoutClasses()` clears
+  both classes alongside `.duo`/`.multi` — folded into `teardownRoomUI` specifically (not left to
+  whichever next game type happens to call it, e.g. `applyPuzzleBoard`) since `#game_view` is shared
+  across every mode and a leftover `duel-force-rotate` would otherwise rotate whatever opens next.
 - `MobileLayout.js`, `Sound.js`, `Overlay.js`, `RoundTimer.js`,
   `DangerWarning.js`, `BoardDecoder.js`, `Router.js`, `Auth.js`,
   `Ranking.js`, `Leaderboard.js`, `Profile.js`, `Lobby.js`,

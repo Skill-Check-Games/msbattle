@@ -34,17 +34,60 @@ function autoEnterGameFullscreen() {
 	if (autoFullscreenEnabled()) enterGameFullscreen();
 }
 
-function enterGameFullscreen() {
+// The 1v1 duel's landscape layout is built around reclaiming every bit of vertical space (see
+// .game-view.duo's landscape media query, style.css) — the browser's own chrome (address bar, home
+// indicator) eats exactly the height that layout is fighting for, so unlike everywhere else on
+// mobile, going fullscreen there is worth the jump even without the opt-in. Must be called from the
+// same synchronous click handler that commits to the match (findRanked) — requestFullscreen() needs
+// that transient user gesture, same constraint as enterGameFullscreen() itself.
+//
+// isMobileViewport() alone isn't the right check here — it's narrow-width (<=700px), true for a
+// portrait phone but false for the SAME phone already turned sideways (700-930px wide), which is
+// exactly the case this exists for. Touch/coarse-pointer (touchInput, Main.js — set at script load,
+// this only ever runs later off a click) catches a phone in either orientation; the width check
+// stays as a fallback for a touch laptop/tablet that's narrow but not really "a phone".
+function enterDuelMobileFullscreen() {
+	var isTouch = (typeof touchInput !== "undefined") && touchInput;
+	// screen.width/height are the device's actual resolution (unaffected by the current browser
+	// window size), so a touch laptop or tablet in a wide window still reads correctly as "not a
+	// phone" here — a phone's short edge is comfortably under this even accounting for cases like
+	// desktop mode / an external display reporting an unusual size.
+	var phoneSized = typeof screen !== "undefined" && Math.min(screen.width || 0, screen.height || 0) <= 500;
+	if ((isTouch && phoneSized) || isMobileViewport()) enterGameFullscreen(true);
+}
+
+// `force` bypasses the mobile skip below — used only for the 1v1 duel (enterDuelMobileFullscreen),
+// where the landscape layout is built specifically to use the reclaimed space (no browser chrome,
+// no address bar) rather than just "windowed but bigger". Every other mobile entry point (solo,
+// casual rooms, 6-player, …) keeps the plain windowed-on-mobile behavior below.
+function enterGameFullscreen(force) {
 	try {
-		if (isMobileViewport()) return; // skip fullscreen on mobile — play windowed
+		if (isMobileViewport() && !force) return; // skip fullscreen on mobile — play windowed
 		if (isInFullscreen()) return; // already fullscreen — nothing to do
 		var el = document.documentElement;
 		var req = el.requestFullscreen || el.webkitRequestFullscreen
 			|| el.mozRequestFullScreen || el.msRequestFullscreen;
 		if (!req) return; // unsupported (e.g. iOS Safari) — play windowed
 		var r = req.call(el);
-		if (r && typeof r.catch === "function") r.catch(function() {});
+		if (r && typeof r.catch === "function") {
+			r.then(function() { tryLockLandscape(); }).catch(function() {});
+		} else {
+			tryLockLandscape();
+		}
 	} catch (e) { /* blocked or unsupported — ignore, stay windowed */ }
+}
+
+// Screen Orientation API: only actually locks anything while fullscreen (browsers reject it
+// otherwise), and only on browsers that implement it at all — notably not iOS Safari, which has
+// never shipped ScreenOrientation.lock(). Failing there is expected and silent; #rotate_prompt is
+// still around as the fallback nudge for whoever it doesn't work for.
+function tryLockLandscape() {
+	try {
+		if (screen.orientation && typeof screen.orientation.lock === "function") {
+			var p = screen.orientation.lock("landscape");
+			if (p && typeof p.catch === "function") p.catch(function() {});
+		}
+	} catch (e) { /* unsupported — ignore */ }
 }
 
 function exitGameFullscreen() {

@@ -14,8 +14,26 @@
 // flows through here.
 function cellFromCanvas(canvas, R, C, clientX, clientY) {
 	var rect = canvas.getBoundingClientRect();
-	var c = Math.floor((clientX - rect.left) / rect.width * C);
-	var r = Math.floor((clientY - rect.top) / rect.height * R);
+	var bx = clientX - rect.left, by = clientY - rect.top; // local point within the ON-SCREEN box
+	var boxW = rect.width, boxH = rect.height;
+	// body.duel-force-rotate (style.css) rotates an ANCESTOR (#game_view) 90° to render the landscape
+	// duel on a portrait phone that can't be orientation-locked — see its comment for why. Rendering
+	// falls straight out of the transform cascade with no extra work, but hit-testing runs backwards
+	// (screen point -> local point), and getBoundingClientRect() only ever reports the POST-rotation
+	// box — bx/by above are local to THAT box, not to the canvas's own pre-rotation layout, so
+	// dividing by it directly would read columns where rows are and vice versa. Map back to
+	// pre-rotation local coordinates first. offsetWidth/Height are unaffected by the transform (it's
+	// applied above this element, not to it), so they're exactly the pre-rotation box this needs: for
+	// a 90° clockwise rotation, a point at rotated-local (bx, by) was at pre-rotation local
+	// (by, preRotationHeight - bx) — i.e. swap the axes, then flip the one that's now inverted.
+	if (document.body.classList.contains("duel-force-rotate")) {
+		var preW = canvas.offsetWidth, preH = canvas.offsetHeight;
+		var ox = by, oy = preH - bx;
+		bx = ox; by = oy;
+		boxW = preW; boxH = preH;
+	}
+	var c = Math.floor(bx / boxW * C);
+	var r = Math.floor(by / boxH * R);
 	if (r < 0 || r >= R || c < 0 || c >= C) return null;
 	return { r: r, c: c };
 }

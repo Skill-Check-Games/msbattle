@@ -53,6 +53,12 @@ function isBattleRacing() { return isDuoRacing() || isMultiRacing(); }
 // this instead of hand-rolling classList.remove("duo") — a single source of truth so a future entry
 // point can't reintroduce the bug by forgetting the sibling class.
 function clearBattleLayoutClasses() {
+	// duel-landscape-mode/duel-force-rotate (style.css) only ever mean anything while gameView has
+	// .duo — clear them in lockstep so leaving a force-rotated duel on a portrait phone doesn't leave
+	// the page stuck sideways behind it (applyDuelLandscapeClass's own inDuoBattle check would catch
+	// this on the next resize/orientationchange anyway, but nothing guarantees one fires right away).
+	document.body.classList.remove("duel-landscape-mode");
+	document.body.classList.remove("duel-force-rotate");
 	if (typeof gameView === "undefined" || !gameView) return;
 	gameView.classList.remove("duo");
 	gameView.classList.remove("multi");
@@ -86,7 +92,40 @@ function applyDuoClass() {
 			if (pendingLocalRoundReveal && typeof paintOpponentCovered === "function") paintOpponentCovered();
 		});
 	}
+	applyDuelLandscapeClass();
 }
+// Drives body.duel-landscape-mode (style.css) — the class the whole landscape-duel layout hangs off,
+// in place of a plain @media query, specifically so it can ALSO apply when force-rotating a portrait
+// phone (body.duel-force-rotate below), which a media query has no way to see (a CSS transform
+// doesn't change what orientation/dimensions media queries themselves observe). See the big comment
+// above body.duel-landscape-mode in style.css for the full picture.
+var duelLandscapeMQL = window.matchMedia
+	? window.matchMedia("(orientation: landscape) and (max-height: 500px) and (min-width: 701px)") : null;
+// Same "is this actually a phone" signal enterDuelMobileFullscreen (Fullscreen.js) uses — screen.width/
+// height are the device's real resolution, unaffected by the current browser window size, so this
+// doesn't misfire for a touch laptop/tablet just because its window happens to be narrow.
+function phoneSizedDevice() {
+	var isTouch = (typeof touchInput !== "undefined") && touchInput;
+	var phoneSized = typeof screen !== "undefined" && Math.min(screen.width || 0, screen.height || 0) <= 500;
+	return isTouch && phoneSized;
+}
+function applyDuelLandscapeClass() {
+	var inDuoBattle = !!(typeof gameView !== "undefined" && gameView && gameView.classList.contains("duo"));
+	var realLandscape = !!(duelLandscapeMQL && duelLandscapeMQL.matches);
+	// Only a phone genuinely stuck in portrait needs the CSS rotation fallback — a real landscape
+	// phone (realLandscape already true) needs none of it, and outside a duel there's nothing here
+	// to force in the first place (this runs on every resize/orientationchange, not just in-battle).
+	var stillPortrait = !!(window.matchMedia && window.matchMedia("(orientation: portrait)").matches);
+	var forceRotate = inDuoBattle && !realLandscape && stillPortrait && phoneSizedDevice();
+	document.body.classList.toggle("duel-landscape-mode", inDuoBattle && (realLandscape || forceRotate));
+	document.body.classList.toggle("duel-force-rotate", forceRotate);
+}
+if (duelLandscapeMQL) {
+	if (typeof duelLandscapeMQL.addEventListener === "function") duelLandscapeMQL.addEventListener("change", applyDuelLandscapeClass);
+	else if (typeof duelLandscapeMQL.addListener === "function") duelLandscapeMQL.addListener(applyDuelLandscapeClass);
+}
+window.addEventListener("resize", applyDuelLandscapeClass);
+window.addEventListener("orientationchange", applyDuelLandscapeClass);
 // In the battle layouts each board's name header doubles as its progress readout ("Alice · 47%").
 function playerLabel(name, progress) {
 	if (!isBattleRacing()) return name || "";
@@ -1316,7 +1355,11 @@ document.getElementById("puzzle_hint_btn").addEventListener("click", function() 
 function focusButtonGroup(container) {
 	if (!container) return;
 	var btn = container.querySelector(".btn-primary:not([disabled])") || container.querySelector("button:not([disabled])");
-	if (btn) try { btn.focus(); } catch (e) {}
+	// preventScroll: this runs the instant a result panel is presented (presentPanel), before its
+	// content (rating count-up etc.) has even settled — an unguarded focus() here scrolls straight to
+	// the button, which on a panel taller than a short viewport (.board-overlay-panel's overflow-y:auto)
+	// hides the win/loss heading above it before the player's even seen it.
+	if (btn) try { btn.focus({ preventScroll: true }); } catch (e) {}
 }
 document.addEventListener("keydown", function(e) {
 	var el = document.activeElement;
@@ -1763,6 +1806,13 @@ function teardownRoomUI(toHome) {
 	if (typeof territoryReset === "function") territoryReset();
 	if (typeof clearPlaceBadges === "function") clearPlaceBadges();
 	if (typeof music !== "undefined") music.pause(); // stop the music only when truly leaving the game
+	// #game_view is shared across every game type (solo/puzzle/racing/territory/…), so a leftover
+	// .duo (and, worse, duel-force-rotate — style.css's CSS-rotation fallback for a portrait phone
+	// that can't be orientation-locked) would carry into whatever's opened next until THAT flow
+	// happens to clear it too (today: only applyPuzzleBoard and its solo counterpart do). Clear right
+	// away instead of leaving that to chance — leaving a force-rotated duel should never risk the
+	// next thing you open rendering sideways.
+	if (typeof clearBattleLayoutClasses === "function") clearBattleLayoutClasses();
 	inRoom = false;
 	currentRoom = null;
 	iAmEliminated = null;
