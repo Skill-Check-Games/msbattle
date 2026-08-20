@@ -522,7 +522,12 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   trick) and a "RANKED · SPRINT"-style mode line (`.duel-timer-mode`, computed once per match from
   `currentRankedMode` and left alone after — the empty-string check in `updateDuelHud` guards that);
   `#ranked_tag`/`#game_progress_text` are hidden for duo specifically since their info moved into that
-  badge. Driven by a `duo` class on `#game_view` (CSS `.game-view.duo`, `--duel-you`/`--duel-opp`).
+  badge. Both `#duel_timer` (`min-width: 5ch`) and `.duel-timer-mode` (`min-width: 140px`, sized for
+  the longest real label, "RANKED · TERRITORY") reserve their width even while empty — the mode line
+  in particular starts empty and is far wider than the timer digits once populated, so without its own
+  reserve the badge (sized to fit its widest child) visibly widens and shifts the whole header the
+  instant the first live frame arrives and fills it in. Driven by a `duo` class on `#game_view` (CSS
+  `.game-view.duo`, `--duel-you`/`--duel-opp`).
   Active during play, plus the ranked planning/reveal window so you see the opponent the moment you
   join (custom rooms stay normal in planning so their config shows); the opponent's board is painted
   covered (`paintOpponentCovered`) until their first real frame, so both boards show through the join +

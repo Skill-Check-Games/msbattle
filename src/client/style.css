@@ -4062,6 +4062,13 @@ body.touch .find-next-arrow { display: inline-flex; }
 	display: block;
 	font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em;
 	color: var(--muted);
+	text-align: center;
+	/* Reserves width for the longest real label ("RANKED · TERRITORY", ~130px at this size) even
+	   while empty (it's only filled in once the first live frame arrives, updateDuelHud in Main.js)
+	   so the badge doesn't visibly widen out from under #duel_timer's own reserved 5ch and shift
+	   the whole header — the same min-width guard that element already has below, just sized for
+	   text instead of digits. */
+	min-width: 140px;
 }
 /* Reserves its width even when empty (min-width) so the header's other items don't shift when the
    clock first appears, and shows nothing before it starts. */
