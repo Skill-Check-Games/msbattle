@@ -3959,6 +3959,23 @@ body.touch .find-next-arrow { display: inline-flex; }
 }
 .game-view.duo #duel_bar_opp .duel-bar-pct { right: auto; left: 0.55rem; }
 
+/* Landscape-phone progress readout — a separate, purpose-built element (not a repositioned
+   #duel_bar_you/#duel_bar_opp) so its compact top-right treatment doesn't fight the desktop bar's
+   own layout. Hidden everywhere except the landscape media query further down, which also hides
+   .duel-bar-row so there's exactly one visible copy of each side's progress at a time. */
+.duel-bar-corner { display: none; }
+.duel-bar-corner-pct { font-size: 0.75rem; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+.duel-bar-corner-track {
+	width: 46px; height: 0.4rem; border-radius: 3px;
+	background: rgba(255, 255, 255, 0.08); overflow: hidden;
+}
+.duel-bar-corner-fill {
+	display: block; height: 100%; width: 0;
+	background: linear-gradient(90deg, var(--duel-you), #7db8ff);
+	transition: width 0.3s ease;
+}
+.duel-bar-corner-opp .duel-bar-corner-fill { background: linear-gradient(90deg, var(--duel-opp), #fda4af); }
+
 /* Center column: VS badge + tug-of-war meter + "first to 100%" goal pill, replacing the old empty
    spacer (which briefly held, then dropped, a tug-of-war bar of its own — this is a deliberately
    different, calmer take on "who's ahead" than the leader-glow border this HUD used to have too,
@@ -4162,12 +4179,67 @@ body.touch .find-next-arrow { display: inline-flex; }
 	}
 	.game-view.duo .duel-timer-landscape { display: block; }
 
-	/* The opponent canvas already shrinks to its (now much narrower) column via max-width:100%, but
-	   height:auto only follows that width — on a board with many rows the resulting height can still
-	   be taller than this whole column has room for, next to its identity panel and the meter/timer
-	   stacked below it. Cap the height too so the browser picks the more restrictive of the two,
-	   same aspect-ratio-preserving resolution as an <img> with both max-width and max-height set. */
-	.game-view.duo .opponent_div canvas { max-height: 16vh; width: auto; }
+	/* The opponent canvas needs to shrink to fit this much narrower, shorter column, but width and
+	   height can't be constrained independently (max-width:100% off the column, max-height off the
+	   viewport) — that fights the JS-computed inline width (sizeBoardCanvas, matched 1:1 to the
+	   player board's own cell size) and stretches cells off-square, since the two limits rarely
+	   agree on the same scale factor. Force both dimensions back to auto (!important — inline
+	   styles otherwise always win over a stylesheet) so only the max-* box applies; a canvas has an
+	   intrinsic ratio same as an <img>, so the browser scales it down to fit while preserving it,
+	   same as the rest of the site already relies on for the desktop opponent board. */
+	.game-view.duo .opponent_div canvas {
+		width: auto !important;
+		height: auto !important;
+		max-width: 100%;
+		max-height: 16vh;
+	}
+
+	/* The board's own scrollbar is real (see board-scroll's min-height:0 flex chain above — a board
+	   with more rows than fit at the legibility floor genuinely needs to pan) but the visible
+	   scrollbar chrome is not; touch/wheel panning still works with it hidden. */
+	.game-view.duo .board-scroll {
+		scrollbar-width: none;
+		-ms-overflow-style: none;
+	}
+	.game-view.duo .board-scroll::-webkit-scrollbar { display: none; width: 0; height: 0; }
+
+	/* Progress moves to a compact top-right corner badge (own element — see .duel-bar-corner above)
+	   instead of the desktop bar-row under the board; that row is freed up entirely, not just visually
+	   covered, so the board gets its height back too. */
+	.game-view.duo .duel-bar-row { display: none; }
+	.game-view.duo .player-board,
+	.game-view.duo .opponent_div { position: relative; }
+	.game-view.duo .duel-bar-corner {
+		display: flex;
+		align-items: center;
+		gap: 0.35rem;
+		position: absolute;
+		top: 0.6rem;
+		right: 0.6rem;
+	}
+
+	/* Reveal/flag toggle: the same touch action bar the portrait layout already uses (built once,
+	   shown/positioned differently per layout instead of a separate control), pinned to the very
+	   bottom of the viewport, sized down a good deal from its portrait dimensions — full-height there
+	   because the phone has a whole screen's worth of room below the board; here it's competing with
+	   the boards for a viewport that's already short. .game-view.duo .player-controls (the desktop
+	   Ready/flag-mode-button row this replaces) is already hidden unconditionally, all breakpoints. */
+	body.touch .game-view.duo .mobile-action-bar { display: flex; }
+	body.in-game .game-view.duo .mobile-action-bar {
+		position: fixed;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		z-index: 50;
+		background: var(--bg);
+		padding: 0.3rem 0.6rem calc(0.3rem + env(safe-area-inset-bottom, 0));
+	}
+	.game-view.duo .mobile-mode-btn { height: 34px; font-size: 0.85rem; }
+	.game-view.duo .mobile-mode-hint { display: none; }
+	/* Reserve room for that fixed bar so it doesn't sit over the last few rows of the board — this
+	   flows through the same min-height:0 flex chain as everything else here (game-grid shrinks,
+	   board-scroll's flex:1 fills whatever's left) rather than needing board-specific padding. */
+	body.touch .game-view.duo { padding-bottom: 46px; }
 }
 
 /* ===== 6-player battle layout (TetrisFriends-style) =====

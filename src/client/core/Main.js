@@ -222,6 +222,15 @@ function setDuelBar(barId, progress, cellsLeft) {
 	if (label) label.textContent = pct + "%";
 	var leftEl = document.getElementById(barId === "duel_bar_you" ? "duel_cells_left_you" : "duel_cells_left_opp");
 	if (leftEl && typeof cellsLeft === "number") leftEl.textContent = cellsLeft + (cellsLeft === 1 ? " cell left" : " cells left");
+	// Landscape phones show progress as a compact corner badge instead (own element, own layout —
+	// see .duel-bar-corner in style.css) rather than repositioning this same bar with CSS overrides.
+	var corner = document.getElementById(barId + "_corner");
+	if (corner) {
+		var cfill = corner.querySelector(".duel-bar-corner-fill");
+		var cpct = corner.querySelector(".duel-bar-corner-pct");
+		if (cfill) cfill.style.width = pct + "%";
+		if (cpct) cpct.textContent = pct + "%";
+	}
 }
 // Live battle HUD from the current frame: each board's progress bar, the "cells left" readout
 // beside it, and the center VS meter (a tug-of-war gauge + "X is ahead" callout — see

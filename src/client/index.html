@@ -577,6 +577,13 @@
 					<div id="player_div" class="player-board">
 						<p id="player_name0" class="player-name"></p>
 						<div id="duel_id_you" class="duel-id"></div>
+						<!-- Landscape-phone only: a compact top-right progress readout, separate from
+						     #duel_bar_you (bottom, desktop) — mirrored into by setDuelBar (Main.js). Hidden
+						     elsewhere; see .duel-bar-corner in style.css. -->
+						<div id="duel_bar_you_corner" class="duel-bar-corner" aria-hidden="true">
+							<b id="duel_bar_you_corner_pct" class="duel-bar-corner-pct"></b>
+							<div class="duel-bar-corner-track"><span class="duel-bar-corner-fill"></span></div>
+						</div>
 						<div class="board-wrap">
 							<div id="board_scroll" class="board-scroll">
 								<canvas id="game0" width="500" height="350"></canvas>
@@ -668,6 +675,11 @@
 						<div class="opponent_div" data-slot>
 							<div class="opp-head"><span class="opp-avatar" id="opp_avatar1"></span><span class="opp-id"><p id="player_name1" class="player-name"></p><span class="opp-tier" id="opp_tier1"></span></span></div>
 							<div id="duel_id_opp" class="duel-id"></div>
+							<!-- Landscape-phone only counterpart to #duel_bar_you_corner above. -->
+							<div id="duel_bar_opp_corner" class="duel-bar-corner duel-bar-corner-opp" aria-hidden="true">
+								<b id="duel_bar_opp_corner_pct" class="duel-bar-corner-pct"></b>
+								<div class="duel-bar-corner-track"><span class="duel-bar-corner-fill"></span></div>
+							</div>
 							<canvas id="game1" width="250" height="175"></canvas>
 							<div class="duel-bar-row">
 								<span id="duel_cells_left_opp" class="duel-cells-left"></span>
