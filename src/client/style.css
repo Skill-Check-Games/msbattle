@@ -3913,7 +3913,7 @@ body.touch .find-next-arrow { display: inline-flex; }
 .game-view.duo #duel_id_opp { flex-direction: row-reverse; text-align: right; }
 .duel-id-info { display: flex; flex-direction: column; gap: 0.35rem; align-items: flex-start; }
 .game-view.duo #duel_id_opp .duel-id-info { align-items: flex-end; }
-.duel-id-name { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.01em; color: var(--text); }
+.duel-id-name { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.01em; color: var(--text); white-space: nowrap; }
 /* Rank-badge + tier name, pill-bordered in the tier's own colour (set inline — see fillDuelId).
    Exact rating stays hidden in-game same as everywhere else; this is tier only. */
 .duel-id-tier-pill {
@@ -3923,7 +3923,7 @@ body.touch .find-next-arrow { display: inline-flex; }
 }
 .game-view.duo #duel_id_opp .duel-id-tier-pill { flex-direction: row-reverse; padding: 0.15rem 0.3rem 0.15rem 0.6rem; }
 .duel-id-tier-badge.rank-badge { flex: 0 0 auto; font-size: 5px; }
-.duel-id-rating { font-size: 0.8rem; font-weight: 700; }
+.duel-id-rating { font-size: 0.8rem; font-weight: 700; white-space: nowrap; }
 
 /* Per-board progress: the bar + a "cells left" readout beside it. */
 .duel-bar-row { display: flex; align-items: center; gap: 0.7rem; margin-top: 0.85rem; }
@@ -3959,12 +3959,22 @@ body.touch .find-next-arrow { display: inline-flex; }
 }
 .game-view.duo #duel_bar_opp .duel-bar-pct { right: auto; left: 0.55rem; }
 
+/* Identity + progress share one header row in landscape (space-between) instead of stacking —
+   a plain pass-through everywhere else so it's a no-op for the desktop layout. */
+.duel-header-row { display: contents; }
+
+/* Landscape-only Flag/Reveal buttons pinned to the board's corner — hidden everywhere else (desktop
+   keeps .flag-mode-button in .player-controls, portrait keeps .mobile-action-bar). */
+.duel-mode-toggle { display: none; }
+
 /* Landscape-phone progress readout — a separate, purpose-built element (not a repositioned
-   #duel_bar_you/#duel_bar_opp) so its compact top-right treatment doesn't fight the desktop bar's
-   own layout. Hidden everywhere except the landscape media query further down, which also hides
-   .duel-bar-row so there's exactly one visible copy of each side's progress at a time. */
+   #duel_bar_you/#duel_bar_opp) so its compact treatment doesn't fight the desktop bar's own layout.
+   Hidden everywhere except the landscape media query further down, which also hides .duel-bar-row
+   so there's exactly one visible copy of each side's progress at a time. Two rows itself — pct+bar,
+   then "N cells left" below it right-aligned — matching the sketch's mobile layout. */
 .duel-bar-corner { display: none; }
-.duel-bar-corner-pct { font-size: 0.75rem; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+.duel-bar-corner-row { display: flex; align-items: center; gap: 0.35rem; }
+.duel-bar-corner-pct { font-size: 0.85rem; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
 .duel-bar-corner-track {
 	width: 46px; height: 0.4rem; border-radius: 3px;
 	background: rgba(255, 255, 255, 0.08); overflow: hidden;
@@ -3975,6 +3985,7 @@ body.touch .find-next-arrow { display: inline-flex; }
 	transition: width 0.3s ease;
 }
 .duel-bar-corner-opp .duel-bar-corner-fill { background: linear-gradient(90deg, var(--duel-opp), #fda4af); }
+.duel-bar-corner-left { display: block; margin-top: 0.15rem; font-size: 0.68rem; color: var(--muted); text-align: right; white-space: nowrap; }
 
 /* Center column: VS badge + tug-of-war meter + "first to 100%" goal pill, replacing the old empty
    spacer (which briefly held, then dropped, a tug-of-war bar of its own — this is a deliberately
@@ -3991,6 +4002,11 @@ body.touch .find-next-arrow { display: inline-flex; }
 	min-width: 130px;
 	padding: 0 0.4rem;
 }
+/* YOU / opponent-name labels flanking the VS mark — a no-op wrapper on desktop (the VS badge stays
+   alone on its own centered row there); in landscape becomes a single YOU–VS–opponent row instead,
+   matching the sketch's mobile layout (see the media query below). */
+.duel-meter-header { display: contents; }
+.duel-meter-label { display: none; }
 .duel-vs-badge {
 	width: 64px; height: 64px;
 	display: flex; align-items: center; justify-content: center;
@@ -4039,6 +4055,21 @@ body.touch .find-next-arrow { display: inline-flex; }
 }
 .duel-timer-landscape.round-timer-warning { color: var(--energy-streak); }
 .duel-timer-landscape.round-timer-urgent { color: var(--danger); animation: duel-timer-pulse 0.7s ease-in-out infinite; }
+
+/* Bordered card around the landscape timer + its mode line (the sketch's mobile layout gives the
+   timer its own boxed card below the meter, not just floating text) — a smaller, centered echo of
+   .duel-timer-badge's own border treatment, which can't be reused directly since that element lives
+   in the header this whole layout hides. */
+.duel-timer-landscape-box { display: none; }
+.duel-timer-landscape-row { display: flex; align-items: center; justify-content: center; gap: 0.4rem; }
+.duel-timer-landscape-icon { font-size: 0.95rem; line-height: 1; }
+.duel-timer-landscape-mode {
+	display: block;
+	margin-top: 0.15rem;
+	font-size: 0.62rem; font-weight: 700; letter-spacing: 0.05em;
+	color: var(--muted);
+	text-align: center;
+}
 
 /* Big round timer, centered in the game header (a grid column between Exit game and the
    progress+fullscreen group — see .game-view.duo/.multi .game-header above). The bordered badge
@@ -4159,6 +4190,23 @@ body.touch .find-next-arrow { display: inline-flex; }
 		padding-right: 0.5rem;
 	}
 	.game-view.duo .duel-id { margin-bottom: 0.3rem; }
+	/* The opponent's identity shares a much narrower card than the player's own, so give it a
+	   smaller avatar and tighter type — without it, the tier pill's text has too little room and
+	   wraps. buildAvatarChip always builds at 52px (Main.js) regardless of context; scale it down
+	   with plain CSS sizing here rather than threading a size parameter through for one breakpoint. */
+	.game-view.duo #duel_id_opp {
+		gap: 0.45rem;
+		min-height: 40px;
+	}
+	.game-view.duo #duel_id_opp .duel-id-avatar,
+	.game-view.duo #duel_id_opp .duel-id-avatar canvas {
+		width: 40px !important;
+		height: 40px !important;
+	}
+	.game-view.duo #duel_id_opp .duel-id-name { font-size: 1rem; }
+	.game-view.duo #duel_id_opp .duel-id-tier-pill { padding: 0.1rem 0.25rem 0.1rem 0.5rem; gap: 0.3rem; }
+	.game-view.duo #duel_id_opp .duel-id-tier-badge.rank-badge { font-size: 4px; }
+	.game-view.duo #duel_id_opp .duel-id-rating { font-size: 0.72rem; }
 	.game-view.duo .player-board {
 		display: flex;
 		flex-direction: column;
@@ -4187,12 +4235,28 @@ body.touch .find-next-arrow { display: inline-flex; }
 		align-self: start;
 		min-width: 0;
 		padding: 0;
-		gap: 0.6rem;
+		gap: 0.5rem;
 	}
+	/* YOU – VS – opponent name, all one row (the sketch's mobile layout), instead of the VS badge
+	   alone on its own centered row (desktop, untouched). */
+	.game-view.duo .duel-meter-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem;
+		width: 100%;
+	}
+	.game-view.duo .duel-meter-label {
+		display: block;
+		font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+		color: var(--duel-you);
+	}
+	.game-view.duo .duel-meter-label-opp { color: var(--duel-opp); text-align: right; }
 	.game-view.duo .duel-vs-badge {
-		width: 40px;
-		height: 40px;
-		font-size: 0.7rem;
+		width: 34px;
+		height: 34px;
+		font-size: 0.62rem;
+		flex: 0 0 auto;
 		/* Just the mark, no card — the border+glow reads fine as a standalone badge on desktop where
 		   it has open space around it, but boxed in here between two panels it's redundant framing. */
 		border: none;
@@ -4202,7 +4266,18 @@ body.touch .find-next-arrow { display: inline-flex; }
 	.game-view.duo .duel-goal-pill {
 		display: none; /* the room this saves matters more here than the reminder text */
 	}
+	/* Boxed timer card below the meter (see .duel-timer-landscape-box), replacing the plain-text
+	   #duel_timer_landscape reused as-is — a smaller echo of the desktop header badge's own border. */
 	.game-view.duo .duel-timer-landscape { display: block; }
+	.game-view.duo .duel-timer-landscape-box {
+		display: block;
+		padding: 0.3rem 0.7rem;
+		border-radius: 10px;
+		border: 1px solid transparent;
+		background:
+			linear-gradient(var(--surface), var(--surface)) padding-box,
+			linear-gradient(90deg, var(--duel-you), var(--duel-opp)) border-box;
+	}
 
 	/* The opponent canvas needs to shrink to fit this much narrower, shorter column, but width and
 	   height can't be constrained independently (max-width:100% off the column, max-height off the
@@ -4228,43 +4303,59 @@ body.touch .find-next-arrow { display: inline-flex; }
 	}
 	.game-view.duo .board-scroll::-webkit-scrollbar { display: none; width: 0; height: 0; }
 
-	/* Progress moves to a compact top-right corner badge (own element — see .duel-bar-corner above)
-	   instead of the desktop bar-row under the board; that row is freed up entirely, not just visually
+	/* Identity + progress share one header row (space-between) instead of stacking — see
+	   .duel-header-row above. Progress itself moves to the compact .duel-bar-corner readout instead
+	   of the desktop bar-row under the board; that row is freed up entirely, not just visually
 	   covered, so the board gets its height back too. */
 	.game-view.duo .duel-bar-row { display: none; }
-	.game-view.duo .player-board,
-	.game-view.duo .opponent_div { position: relative; }
+	.game-view.duo .duel-header-row {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 0.5rem;
+	}
 	.game-view.duo .duel-bar-corner {
 		display: flex;
-		align-items: center;
-		gap: 0.35rem;
-		position: absolute;
-		top: 0.6rem;
-		right: 0.6rem;
+		flex-direction: column;
+		align-items: flex-end;
+		flex: 0 0 auto;
 	}
 
-	/* Reveal/flag toggle: the same touch action bar the portrait layout already uses (built once,
-	   shown/positioned differently per layout instead of a separate control), pinned to the very
-	   bottom of the viewport, sized down a good deal from its portrait dimensions — full-height there
-	   because the phone has a whole screen's worth of room below the board; here it's competing with
-	   the boards for a viewport that's already short. .game-view.duo .player-controls (the desktop
-	   Ready/flag-mode-button row this replaces) is already hidden unconditionally, all breakpoints. */
-	body.touch .game-view.duo .mobile-action-bar { display: flex; }
-	body.in-game .game-view.duo .mobile-action-bar {
-		position: fixed;
-		bottom: 0;
-		left: 0;
-		right: 0;
-		z-index: 50;
-		background: var(--bg);
-		padding: 0.3rem 0.6rem calc(0.3rem + env(safe-area-inset-bottom, 0));
+	/* Reveal/flag: two explicit buttons pinned to the board's own bottom-right corner (the sketch's
+	   own take on this control) instead of the single toggle the touch action bar uses elsewhere —
+	   see #duel_flag_btn/#duel_reveal_btn (Main.js) for the shared flagMode wiring. The action bar
+	   itself stays hidden here (no body.touch override), same as .player-controls, the desktop
+	   Ready/flag-mode-button row both of these replace. */
+	.game-view.duo .player-board,
+	.game-view.duo .opponent_div { position: relative; }
+	.game-view.duo .duel-mode-toggle {
+		display: flex;
+		gap: 0.4rem;
+		position: absolute;
+		right: 0.6rem;
+		bottom: 0.5rem;
 	}
-	.game-view.duo .mobile-mode-btn { height: 34px; font-size: 0.85rem; }
-	.game-view.duo .mobile-mode-hint { display: none; }
-	/* Reserve room for that fixed bar so it doesn't sit over the last few rows of the board — this
-	   flows through the same min-height:0 flex chain as everything else here (game-grid shrinks,
-	   board-scroll's flex:1 fills whatever's left) rather than needing board-specific padding. */
-	body.touch .game-view.duo { padding-bottom: 46px; }
+	.game-view.duo .duel-mode-btn {
+		display: flex;
+		align-items: center;
+		gap: 0.3rem;
+		padding: 0.35rem 0.65rem;
+		border-radius: 8px;
+		border: 1px solid var(--border);
+		background: rgba(11, 16, 32, 0.75);
+		color: var(--muted);
+		font-size: 0.78rem;
+		font-weight: 700;
+		line-height: 1;
+	}
+	.game-view.duo .duel-mode-btn-icon { font-size: 0.85rem; }
+	.game-view.duo .duel-mode-btn-active {
+		border-color: var(--duel-you);
+		color: var(--text);
+		background: rgba(59, 130, 246, 0.16);
+	}
+	/* Leave the board's bottom-right corner clear for that control. */
+	.game-view.duo .board-scroll { padding-bottom: 2.6rem; }
 }
 
 /* ===== 6-player battle layout (TetrisFriends-style) =====

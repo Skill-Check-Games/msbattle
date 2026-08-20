@@ -566,17 +566,36 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   and the identity panel's gap above the board both shrink here too — every pixel either one eats is a
   pixel the board doesn't get on a viewport this tight — and the VS badge drops its border/glow/background
   (`border`/`box-shadow`/`background: transparent`), since boxed in tight between two panels the framing
-  that reads fine as a standalone desktop badge is just redundant. Progress moves off the bottom
-  (`.duel-bar-row`, hidden outright — not just visually covered, so its space goes back to the board)
-  to a compact top-right corner badge instead (`.duel-bar-corner`, its own separate element per side —
-  `#duel_bar_you_corner`/`#duel_bar_opp_corner` — mirrored into by `setDuelBar` alongside the bar it's
-  replacing, same "own element, own layout" idea as `#duel_timer_landscape`: a deliberate choice **not**
-  to reposition the existing bar with more CSS overrides, since that's exactly the kind of layering that
-  produced the canvas aspect-ratio bug above). The reveal/flag toggle reappears at the very bottom
-  (`.mobile-action-bar`/`#mobile_mode_btn` — the same touch control the portrait layout already built,
-  just re-shown and shrunk down here rather than duplicated, fixed to the viewport bottom with
-  `.game-view.duo`'s own `padding-bottom` reserving the room for it through the same min-height:0 flex
-  chain everything else here uses). `.game-side` is flex-column with `align-items: flex-start` on
+  that reads fine as a standalone desktop badge is just redundant. This whole layout is built to match a
+  provided mobile sketch as closely as possible (`layout-mobile.png`/`layout-desktop.png`, repo root),
+  not just "the desktop layout, shrunk" — several pieces below exist specifically because the sketch's
+  mobile treatment differs from its own desktop one, not only from pre-redesign defaults.
+  Identity and progress share one header row per card instead of stacking (`.duel-header-row`,
+  `display:contents` — a no-op — everywhere but here, wrapping `#duel_id_you`/`#duel_id_opp` and the
+  progress readout next to them with `justify-content:space-between`). Progress itself moves off the
+  bottom (`.duel-bar-row`, hidden outright — not just visually covered, so its space goes back to the
+  board) to that header row's compact right side instead (`.duel-bar-corner`, its own separate element
+  per side — `#duel_bar_you_corner`/`#duel_bar_opp_corner`, pct+bar then "N cells left" below it —
+  mirrored into by `setDuelBar` alongside the bar it's replacing, same "own element, own layout" idea as
+  `#duel_timer_landscape`: a deliberate choice **not** to reposition the existing bar with more CSS
+  overrides, since that's exactly the kind of layering that produced the canvas aspect-ratio bug above).
+  The opponent's card is much narrower than the player's own, so its identity additionally gets a smaller
+  avatar/type (`buildAvatarChip` always builds at a fixed 52px regardless of context — sized down here
+  with plain CSS instead of threading a size parameter through Main.js for one breakpoint) and
+  `white-space: nowrap` on the name/tier text (`.duel-id-name`/`.duel-id-rating`, applied globally, not
+  landscape-scoped — a narrow flex row wrapping the tier pill's text mid-word is never a look worth
+  keeping anywhere). The VS mark gains "YOU"/opponent-name labels flanking it, all one row
+  (`.duel-meter-header`, another `display:contents` no-op wrapper — desktop keeps the VS badge alone on
+  its own centered row, unchanged), and the timer gets a bordered card of its own below the meter
+  (`#duel_timer_landscape_box`, mirroring `#duel_timer_mode`'s text into `#duel_timer_landscape_mode`
+  too — same gradient-border trick as `.duel-timer-badge`, which can't be reused directly since it lives
+  in the header this layout hides) rather than floating as plain text. The reveal/flag toggle is two
+  explicit buttons (`#duel_flag_btn`/`#duel_reveal_btn`, `.duel-mode-toggle`) pinned to the player
+  board's own bottom-right corner — the sketch's own take on this control — instead of the single
+  touch-toggle action bar the portrait layout uses; both just set the same shared `flagMode` state
+  directly (`updateFlagModeButton` in Main.js keeps all of desktop's pill, the mobile action bar, and
+  these two in sync off one variable, no separate input logic). `.game-side` is flex-column with
+  `align-items: flex-start` on
   desktop (deliberate there — the opponent card sits in open space next to the scoreboard, so it
   shrink-wraps to its own content) — inherited as-is in landscape, that shrink-wrapped the opponent
   card down to its tiny identity+canvas instead of filling the grid column reserved for it, leaving a

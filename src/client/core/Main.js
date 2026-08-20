@@ -230,6 +230,8 @@ function setDuelBar(barId, progress, cellsLeft) {
 		var cpct = corner.querySelector(".duel-bar-corner-pct");
 		if (cfill) cfill.style.width = pct + "%";
 		if (cpct) cpct.textContent = pct + "%";
+		var cleft = corner.querySelector(".duel-bar-corner-left");
+		if (cleft && typeof cellsLeft === "number") cleft.textContent = cellsLeft + (cellsLeft === 1 ? " cell left" : " cells left");
 	}
 }
 // Live battle HUD from the current frame: each board's progress bar, the "cells left" readout
@@ -245,7 +247,12 @@ function updateDuelHud(meGame, oppGame) {
 		// the empty-check above skips redoing this lookup on every one of updateDuelHud's frames.
 		var style = currentRankedMode.replace(/_duo$/, "");
 		var label = (typeof styleLabelOf === "function") ? styleLabelOf(style) : style;
-		modeEl.textContent = "RANKED · " + label.toUpperCase();
+		var modeText = "RANKED · " + label.toUpperCase();
+		modeEl.textContent = modeText;
+		// Landscape's boxed timer (its own element — see #duel_timer_landscape_box) mirrors the same
+		// mode line, same idea as #duel_timer_landscape mirroring #duel_timer's digits.
+		var modeElLandscape = document.getElementById("duel_timer_landscape_mode");
+		if (modeElLandscape) modeElLandscape.textContent = modeText;
 	}
 	var myP = meGame ? (meGame.progress || 0) : 0;
 	var opP = oppGame ? (oppGame.progress || 0) : 0;
@@ -263,6 +270,10 @@ function updateDuelHud(meGame, oppGame) {
 	var oppNameEl = document.getElementById("player_name1");
 	var mobileOppNameEl = document.getElementById("mobile_duel_opp_name");
 	if (mobileOppNameEl) mobileOppNameEl.textContent = (oppNameEl && oppNameEl.textContent) || "Opponent";
+	// Landscape's YOU/opponent labels flanking the VS mark (see .duel-meter-header) — same name lookup
+	// the mobile strip above and updateDuelMeter's callout both already use.
+	var meterLabelOpp = document.getElementById("duel_meter_label_opp");
+	if (meterLabelOpp) meterLabelOpp.textContent = (oppNameEl && oppNameEl.textContent) || "Opponent";
 }
 // Center VS meter: a horizontal gauge whose diamond marker slides toward whoever's ahead (50/50 =
 // centered), plus a plain-language "X is ahead" / "Tied up" callout beneath it. Driven off the same
@@ -424,6 +435,10 @@ var flagModeLabel = flagModeButton.querySelector(".flag-mode-label");
 var mobileModeButton = document.getElementById("mobile_mode_btn");
 var mobileModeLabel = mobileModeButton ? mobileModeButton.querySelector(".mobile-mode-label") : null;
 var mobileModeIcon = mobileModeButton ? mobileModeButton.querySelector(".mobile-mode-icon") : null;
+// Landscape's own take on this control: two explicit Flag/Reveal buttons (the sketch's mobile layout)
+// instead of one toggle — same shared flagMode state, just set directly rather than flipped.
+var duelFlagBtn = document.getElementById("duel_flag_btn");
+var duelRevealBtn = document.getElementById("duel_reveal_btn");
 
 function updateFlagModeButton() {
 	flagModeButton.setAttribute("aria-pressed", flagMode ? "true" : "false");
@@ -433,6 +448,14 @@ function updateFlagModeButton() {
 		mobileModeButton.classList.toggle("flag-active", flagMode);
 		if (mobileModeLabel) mobileModeLabel.textContent = flagMode ? "Flag" : "Reveal";
 		if (mobileModeIcon) mobileModeIcon.textContent = flagMode ? "🚩" : "⛏️";
+	}
+	if (duelFlagBtn) {
+		duelFlagBtn.classList.toggle("duel-mode-btn-active", flagMode);
+		duelFlagBtn.setAttribute("aria-pressed", flagMode ? "true" : "false");
+	}
+	if (duelRevealBtn) {
+		duelRevealBtn.classList.toggle("duel-mode-btn-active", !flagMode);
+		duelRevealBtn.setAttribute("aria-pressed", flagMode ? "false" : "true");
 	}
 }
 function toggleFlagMode() {
@@ -444,6 +467,8 @@ updateFlagModeButton();
 
 flagModeButton.addEventListener("click", toggleFlagMode);
 if (mobileModeButton) mobileModeButton.addEventListener("click", toggleFlagMode);
+if (duelFlagBtn) duelFlagBtn.addEventListener("click", function() { if (!flagMode) toggleFlagMode(); });
+if (duelRevealBtn) duelRevealBtn.addEventListener("click", function() { if (flagMode) toggleFlagMode(); });
 
 playerCanvas.onclick = function(event) {
 	if (Date.now() - lastTouchAt < 500) return;
