@@ -534,10 +534,14 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   2-row grid (`grid-template-areas: "left right" "left center"`) — own board spans both rows at
   `minmax(0,2.3fr)`, the opponent board sits above the VS/meter/timer group in a shared `minmax(0,1fr)`
   column (both keyed off the same `left`/`right`/`center` grid-area names the base duo rule assigns, so
-  no DOM reordering is needed to relocate them). `#leave_button`/`.game-header-right` (Exit, fullscreen)
-  are hidden — no room, and `.duel-timer-badge` moves to the header's right edge, over the opponent
-  column, so the timer and tug-of-war meter both read as attached to the opponent's (smaller) side per
-  the sketch. `DESKTOP_CELL_MIN` (`MobileLayout.js`, 22px) means a board with many rows can still be
+  no DOM reordering is needed to relocate them). The whole `.game-header` (Exit, fullscreen, the
+  `#duel_timer` badge) is hidden outright — that height goes straight back to the boards, which was the
+  point of dropping it — and the timer gets a second home instead: `#duel_timer_landscape`, a plain
+  element sitting right after the goal pill inside `#duel_center`, mirrored by `updateRoundTimer`
+  (`RoundTimer.js`) alongside `#duel_timer` itself (a third copy of the same handful of lines the header
+  and 6-player timers already shared — see its comment). So in landscape the timer and the tug-of-war
+  meter both read as attached to the opponent's (smaller) side, per the sketch, instead of centered up
+  top. `DESKTOP_CELL_MIN` (`MobileLayout.js`, 22px) means a board with many rows can still be
   taller than a short landscape viewport has room for even after all that; rather than let the page
   itself scroll (carrying the opponent panel/meter off-screen), `.board-scroll` gets the same
   `flex:1; min-height:0; overflow:auto` chain the portrait mobile layout already uses so only the board

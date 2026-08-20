@@ -51,6 +51,8 @@ function stopRoundTimer() {
 	// Clear the big center duel timer too (empty → shows the "VS" fallback).
 	var dt = document.getElementById("duel_timer");
 	if (dt) { dt.textContent = ""; dt.classList.remove("round-timer-urgent", "round-timer-warning"); }
+	var dtl = document.getElementById("duel_timer_landscape");
+	if (dtl) { dtl.textContent = ""; dtl.classList.remove("round-timer-urgent", "round-timer-warning"); }
 }
 
 function updateRoundTimer() {
@@ -67,6 +69,13 @@ function updateRoundTimer() {
 		dt.textContent = formatRoundTime(remaining);
 		dt.classList.toggle("round-timer-urgent", urgent);
 		dt.classList.toggle("round-timer-warning", warning);
+	}
+	// And into its landscape-phone stand-in (the header — #duel_timer's home — is hidden there).
+	var dtl = document.getElementById("duel_timer_landscape");
+	if (dtl) {
+		dtl.textContent = formatRoundTime(remaining);
+		dtl.classList.toggle("round-timer-urgent", urgent);
+		dtl.classList.toggle("round-timer-warning", warning);
 	}
 	if (remaining <= 0) { clearInterval(roundTickHandle); roundTickHandle = null; }
 }

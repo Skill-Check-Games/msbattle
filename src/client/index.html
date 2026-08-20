@@ -653,6 +653,11 @@
 						<div id="duel_meter_callout" class="duel-meter-callout">Tied up</div>
 					</div>
 					<div class="duel-goal-pill">⚡ First to 100% wins</div>
+					<!-- Landscape-phone only: the header (and its #duel_timer) is hidden there to give the
+					     boards more height, so the timer needs a second home near the meter instead —
+					     mirrored into this element by RoundTimer.js alongside #duel_timer. Hidden elsewhere
+					     (see .duel-timer-landscape in style.css). -->
+					<div id="duel_timer_landscape" class="duel-timer-landscape" aria-hidden="true"></div>
 				</div>
 				<aside class="game-side">
 					<div id="scoreboard_card" class="side-card">

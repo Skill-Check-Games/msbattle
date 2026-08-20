@@ -4007,6 +4007,22 @@ body.touch .find-next-arrow { display: inline-flex; }
 	white-space: nowrap;
 }
 
+/* Landscape-phone stand-in for #duel_timer (mirrored into by RoundTimer.js) — hidden everywhere
+   else; the landscape media query below both shows it and hides the header #duel_timer lives in. */
+.duel-timer-landscape {
+	display: none;
+	font-family: var(--font-display);
+	font-variant-numeric: tabular-nums;
+	font-feature-settings: "tnum" 1;
+	font-size: 1.1rem;
+	font-weight: 800;
+	letter-spacing: 0.02em;
+	color: var(--text);
+	line-height: 1;
+}
+.duel-timer-landscape.round-timer-warning { color: var(--energy-streak); }
+.duel-timer-landscape.round-timer-urgent { color: var(--danger); animation: duel-timer-pulse 0.7s ease-in-out infinite; }
+
 /* Big round timer, centered in the game header (a grid column between Exit game and the
    progress+fullscreen group — see .game-view.duo/.multi .game-header above). The bordered badge
    wrapper is duo-only — the plain #duel_timer (no badge) still serves the 6-player layout. */
@@ -4067,22 +4083,11 @@ body.touch .find-next-arrow { display: inline-flex; }
    "hide leave_button" rule there too, on top of that different layout, would remove the one
    working exit control and put nothing in its place. */
 @media (orientation: landscape) and (max-height: 500px) and (min-width: 701px) {
-	/* Exit/Fullscreen aren't worth the header row's height here; the timer stays but moves to
-	   the header's right edge, over the opponent's (now narrower) column below — see the
-	   grid-area reshuffle further down for why that's "near the opponent board". */
-	.game-view.duo .game-header {
-		grid-template-columns: minmax(0, 2.3fr) minmax(0, 1fr);
-		padding-top: 0.3rem;
-		margin-bottom: 0.35rem;
-	}
-	.game-view.duo .game-header #leave_button,
-	.game-view.duo .game-header-right {
-		display: none;
-	}
-	.game-view.duo .duel-timer-badge {
-		grid-column: 2;
-		justify-self: end;
-	}
+	/* Exit/Fullscreen aren't worth the header row's height here, and neither is the header at
+	   all once the timer (previously its one remaining reason to take up a row) moves down to
+	   sit under the meter instead (see .duel-timer-landscape below) — dropping the whole row
+	   hands that height straight back to the boards, which is the whole point of moving it. */
+	.game-view.duo .game-header { display: none; }
 
 	/* The viewport is genuinely too short to fit a full board at fitDesktopCellPx's legibility
 	   floor (DESKTOP_CELL_MIN, MobileLayout.js) AND every other panel with no scrolling at all —
@@ -4140,6 +4145,7 @@ body.touch .find-next-arrow { display: inline-flex; }
 	.game-view.duo .duel-goal-pill {
 		display: none; /* the room this saves matters more here than the reminder text */
 	}
+	.game-view.duo .duel-timer-landscape { display: block; }
 
 	/* The opponent canvas already shrinks to its (now much narrower) column via max-width:100%, but
 	   height:auto only follows that width — on a board with many rows the resulting height can still
