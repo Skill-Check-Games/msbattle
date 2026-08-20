@@ -831,6 +831,40 @@ function exitToCourseList() {
 	renderLearn();
 }
 
+// Finishing the last lesson used to hand off to a full-screen "course complete" card (trophy, a
+// congrats line, Start next course / All courses / Review this course). That's a lot of ceremony
+// for what's really just a status update — it now fires a toast (matching the achievement-unlock
+// one) and drops the player straight back at the course list, where the finished card already
+// reads "✓ Done" and re-entering it starts a review from lesson 1 (firstIncompleteLesson falls
+// back to 0 once every lesson is complete) — no separate "Review this course" button needed.
+function finishCourse(course) {
+	if (!learnState.completedAt[course.id]) learnState.completedAt[course.id] = Date.now();
+	learnState.currentLesson = course.lessons.length - 1;
+	saveLearnState();
+	showCourseCompleteToast(course);
+	exitToCourseList();
+}
+
+function showCourseCompleteToast(course) {
+	var stack = document.getElementById("toast_stack");
+	if (!stack) { stack = document.createElement("div"); stack.id = "toast_stack"; stack.className = "toast-stack"; document.body.appendChild(stack); }
+	var t = document.createElement("div");
+	t.className = "ach-toast";
+	var icon = document.createElement("span"); icon.className = "ach-toast-icon"; icon.textContent = "🏆";
+	var txt = document.createElement("div"); txt.className = "ach-toast-text";
+	var label = document.createElement("div"); label.className = "ach-toast-label"; label.textContent = "Course complete";
+	var name = document.createElement("div"); name.className = "ach-toast-name"; name.textContent = course.title;
+	txt.appendChild(label); txt.appendChild(name);
+	t.appendChild(icon); t.appendChild(txt);
+	stack.appendChild(t);
+	if (typeof sound !== "undefined" && sound && sound.beep) { try { sound.beep(1175); } catch (e) {} }
+	requestAnimationFrame(function() { t.classList.add("ach-toast-in"); });
+	setTimeout(function() {
+		t.classList.remove("ach-toast-in"); t.classList.add("ach-toast-out");
+		setTimeout(function() { if (t.parentNode) t.parentNode.removeChild(t); }, 450);
+	}, 5000);
+}
+
 function renderLearn() {
 	var home = document.getElementById("learn_home");
 	var course = document.getElementById("learn_course");
@@ -915,58 +949,15 @@ function renderLearnHome() {
 
 function renderLearnCourse(course) {
 	var titleEl = document.getElementById("learn_course_title");
-	var subEl = document.getElementById("learn_course_sub");
 	var container = document.getElementById("learn_lesson_container");
 	var stepper = document.getElementById("learn_stepper");
 	var navEl = document.getElementById("learn_nav");
-	var doneCard = document.getElementById("learn_complete");
-	if (!container || !stepper || !navEl || !doneCard) return;
+	if (!container || !stepper || !navEl) return;
 
 	titleEl.textContent = course.title;
-	subEl.textContent = course.sub;
 
 	var completed = learnState.completed[course.id];
 	var lessons = course.lessons;
-
-	// Course-complete screen takes over when currentLesson is past the end.
-	if (courseIsComplete(course.id) && learnState.currentLesson >= lessons.length) {
-		container.innerHTML = "";
-		stepper.innerHTML = "";
-		navEl.innerHTML = "";
-		doneCard.style.display = "";
-		document.getElementById("learn_complete_title").textContent = course.title + " — complete!";
-		document.getElementById("learn_complete_body").textContent = "You've finished every lesson in this course.";
-		var actions = document.getElementById("learn_complete_actions");
-		actions.innerHTML = "";
-		var courseIdx = LEARN_COURSES.indexOf(course);
-		var nextCourse = LEARN_COURSES[courseIdx + 1];
-		if (nextCourse) {
-			var nextBtn = document.createElement("button");
-			nextBtn.type = "button";
-			nextBtn.className = "btn btn-primary";
-			nextBtn.textContent = "Start " + nextCourse.title + " →";
-			nextBtn.addEventListener("click", function() { enterCourse(nextCourse.id); });
-			actions.appendChild(nextBtn);
-		}
-		var backBtn = document.createElement("button");
-		backBtn.type = "button";
-		backBtn.className = "btn btn-secondary";
-		backBtn.textContent = "All courses";
-		backBtn.addEventListener("click", exitToCourseList);
-		actions.appendChild(backBtn);
-		var reviewBtn = document.createElement("button");
-		reviewBtn.type = "button";
-		reviewBtn.className = "btn btn-ghost";
-		reviewBtn.textContent = "Review this course";
-		reviewBtn.addEventListener("click", function() {
-			learnState.currentLesson = 0;
-			saveLearnState();
-			renderLearn();
-		});
-		actions.appendChild(reviewBtn);
-		return;
-	}
-	doneCard.style.display = "none";
 
 	function renderStepper() {
 		stepper.innerHTML = "";
@@ -1026,11 +1017,10 @@ function renderLearnCourse(course) {
 		next.addEventListener("click", function() {
 			if (next.disabled) return;
 			if (isLast) {
-				learnState.currentLesson = lessons.length;
-				if (!learnState.completedAt[course.id]) learnState.completedAt[course.id] = Date.now();
-			} else {
-				learnState.currentLesson++;
+				finishCourse(course);
+				return;
 			}
+			learnState.currentLesson++;
 			saveLearnState();
 			renderLearn();
 		});
@@ -1066,11 +1056,11 @@ function renderLearnCourse(course) {
 			// their solved puzzles, advancing only when they click Next lesson themselves.
 			if (learnState.currentLesson < lessons.length - 1) {
 				learnState.currentLesson++;
+				saveLearnState();
+				renderLearn();
 			} else {
-				learnState.currentLesson = lessons.length;
+				finishCourse(course);
 			}
-			saveLearnState();
-			renderLearn();
 		} else {
 			saveLearnState();
 			renderStepper();
@@ -1156,7 +1146,7 @@ function buildLearnLesson(lesson, idx, total, onLessonComplete) {
 		(function(pi) {
 			body.appendChild(buildLearnPuzzle(lesson.puzzles[pi], !!lesson.guess, function() {
 				markSolved(pi);
-			}));
+			}, undefined, undefined, true));
 		})(p);
 	}
 	card.appendChild(body);
@@ -1369,7 +1359,7 @@ function buildMentorLesson(lesson, idx, total, onLessonComplete) {
 			return;
 		}
 		var puzzle = Object.assign({ title: lesson.title }, step.board, { requirements: step.requirements });
-		var puzzleEl = buildLearnPuzzle(puzzle, !!step.guess, onStepSolved, onStepFailed, onStepMistake);
+		var puzzleEl = buildLearnPuzzle(puzzle, !!step.guess, onStepSolved, onStepFailed, onStepMistake, true);
 		boardCol.appendChild(puzzleEl);
 		// Same reasoning as Continue/Try-again calling .focus() on themselves above: land keyboard
 		// focus on the next thing to interact with, rather than leaving it on a button (Try again,
@@ -1686,7 +1676,7 @@ function buildLearnDemo(demo) {
 // entirely — the objective becomes clicking a mine on purpose (the very first thing the "Rules of
 // the game" course does, so the player sees what a mine actually looks like before being told to
 // avoid it) — no onFailed/onMistake/gameOver on that hit, it's the win condition.
-function buildLearnPuzzle(puzzle, isGuess, onSolved, onFailed, onMistake) {
+function buildLearnPuzzle(puzzle, isGuess, onSolved, onFailed, onMistake, hideKbdHint) {
 	var wrap = document.createElement("div");
 	wrap.className = "learn-puzzle";
 	var title = document.createElement("span");
@@ -1723,11 +1713,17 @@ function buildLearnPuzzle(puzzle, isGuess, onSolved, onFailed, onMistake) {
 	boardWrap.appendChild(canvas);
 	wrap.appendChild(boardWrap);
 
-	var kbdHint = document.createElement("div");
-	kbdHint.className = "learn-kbd-hint";
-	kbdHint.textContent = "Keyboard: arrows to move, " + keybindings.label(keybindings.get("reveal")) + " to reveal, " +
-		keybindings.label(keybindings.get("flag")) + " to flag.";
-	wrap.appendChild(kbdHint);
+	// Skipped inside a guided lesson (hideKbdHint) — the mentor bubble already tells the player what
+	// to click, and a generic keyboard-controls hint alongside that mouse-first instruction just reads
+	// as boilerplate noise. Still shown for every other use of this board (home dashboard previews,
+	// admin puzzle previews, the daily-puzzle card), where there's no mentor telling you what to do.
+	if (!hideKbdHint) {
+		var kbdHint = document.createElement("div");
+		kbdHint.className = "learn-kbd-hint";
+		kbdHint.textContent = "Keyboard: arrows to move, " + keybindings.label(keybindings.get("reveal")) + " to reveal, " +
+			keybindings.label(keybindings.get("flag")) + " to flag.";
+		wrap.appendChild(kbdHint);
+	}
 
 	// highlightedCells can be either:
 	//   * an array of [r,c] (single gold-outlined group, the simple case), or
@@ -1756,6 +1752,13 @@ function buildLearnPuzzle(puzzle, isGuess, onSolved, onFailed, onMistake) {
 	// stroke over the focused cell, using the same roundRectPath geometry drawCell itself uses.
 	var focusR = Math.floor(R / 2), focusC = Math.floor(C / 2);
 	var hasFocus = false;
+	// True only once the player actually presses an arrow key (set in moveCursor below) — the mentor
+	// flow calls canvas.focus() on every step load/retry purely for accessibility (so a keyboard user
+	// isn't dropped back to <body>), which used to also paint this cursor ring at the board's centre
+	// cell regardless — a yellow box a mouse-only player never asked for, sitting on some arbitrary
+	// cell with no relation to the puzzle's actual answer. Gating on real keyboard use means it only
+	// appears for players who are actually navigating with the keyboard.
+	var keyboardEngaged = false;
 
 	// The board renders itself; the highlight overlay reads the live `highlightedCells`.
 	var bv;
@@ -1772,7 +1775,7 @@ function buildLearnPuzzle(puzzle, isGuess, onSolved, onFailed, onMistake) {
 			}
 		});
 		bv.overlay(function(ctx, sw, sh) {
-			if (!hasFocus) return;
+			if (!hasFocus || !keyboardEngaged) return;
 			var x = focusC * sw, y = focusR * sh;
 			var gap = Math.max(1, Math.round(Math.min(sw, sh) * 0.08));
 			ctx.save();
@@ -1962,6 +1965,7 @@ function buildLearnPuzzle(puzzle, isGuess, onSolved, onFailed, onMistake) {
 	// move on — leaving it unimplemented here means the dispatcher lets Tab behave natively.
 	var boardController = {
 		moveCursor: function(dr, dc) {
+			keyboardEngaged = true;
 			var nr = Math.max(0, Math.min(R - 1, focusR + dr));
 			var nc = Math.max(0, Math.min(C - 1, focusC + dc));
 			if (nr === focusR && nc === focusC) return false;
@@ -1970,8 +1974,8 @@ function buildLearnPuzzle(puzzle, isGuess, onSolved, onFailed, onMistake) {
 			renderAll();
 			return true;
 		},
-		reveal: function() { onLeftClick(focusR, focusC); },
-		flag: function() { onRightClick(focusR, focusC); }
+		reveal: function() { keyboardEngaged = true; onLeftClick(focusR, focusC); },
+		flag: function() { keyboardEngaged = true; onRightClick(focusR, focusC); }
 	};
 	canvas.addEventListener("focus", function() { hasFocus = true; focusBoard(boardController); renderAll(); });
 	canvas.addEventListener("blur", function() { hasFocus = false; blurBoard(boardController); renderAll(); });
