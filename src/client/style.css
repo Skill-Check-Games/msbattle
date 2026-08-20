@@ -276,7 +276,6 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 
 .profile-summary-text { display: flex; flex-direction: column; gap: 0.15rem; }
 .profile-summary-name { font-size: 1.25rem; font-weight: 800; }
-.profile-summary-rating { color: var(--muted); font-variant-numeric: tabular-nums; }
 
 .solo-stats {
 	display: grid;
@@ -425,25 +424,11 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 	background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border);
 }
 .profile-ladder-badge { font-size: 11px; flex: 0 0 auto; }
+.profile-puzzle-dot { width: 34px; height: 34px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.25); }
 .profile-ladder-info { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
 .profile-ladder-mode { font-weight: 700; font-size: 0.95rem; }
 .profile-ladder-tier { font-size: 0.78rem; font-weight: 600; }
 .profile-ladder-rating { font-size: 1.2rem; font-weight: 800; font-variant-numeric: tabular-nums; }
-
-.profile-bests {
-	display: grid; grid-template-columns: auto repeat(3, 1fr); gap: 0.35rem;
-	max-width: 360px;
-}
-.profile-bests-head, .profile-bests-rowhead {
-	font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted);
-	display: flex; align-items: center;
-}
-.profile-bests-head { justify-content: center; }
-.profile-bests-val {
-	text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; font-size: 0.86rem;
-	padding: 0.35rem 0.2rem; border-radius: 7px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border);
-}
-.profile-bests-empty { color: var(--muted); font-weight: 400; }
 
 /* --- Rating history chart --- */
 .rating-chart-tabs { margin: 0.2rem 0 0.8rem; }
@@ -674,6 +659,11 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 .ach-prog { height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.08); overflow: hidden; margin: 0.45rem 0 0.25rem; }
 .ach-prog-bar { display: block; height: 100%; background: var(--accent); border-radius: 2px; } /* partial = blue */
 .ach-complete .ach-prog-bar { background: var(--success, #4ade80); } /* all tiers done = green */
+/* Progress toward the FIRST tier still fills this bar even at 0 tiers reached (e.g. 362/600 rating
+   toward the first Ascendant threshold is a real, nonzero fraction) — left at the default blue, that
+   read as inconsistent with the tile's own dimmed/grey "locked" treatment (blue implies "you've
+   unlocked something here", which isn't true yet). Mute it to match. */
+.ach-locked .ach-prog-bar { background: var(--muted); }
 .ach-prog-text { font-size: 0.72rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 
 /* Reserved-width auth slot (see the CLS-fix comment in index.html / Auth.js): whichever child is
@@ -900,8 +890,17 @@ main:has(.game-view.territory) { max-width: none; }
 .lb-tab:hover { color: var(--text); border-color: var(--muted); }
 .lb-tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 
-/* Profile tabs — Overview / Matches / Achievements */
-.profile-tabs { margin-bottom: 1.25rem; }
+/* Profile tabs — Overview / Matches / Achievements. Underlined text instead of the filled pill
+   .lb-tab uses elsewhere (leaderboard/rating-chart mode filters) — a visibly different tab style
+   for what's structurally a different thing (page sections, not a data filter). */
+.profile-tabs { display: flex; gap: 1.4rem; margin-bottom: 1.25rem; border-bottom: 1px solid var(--border); }
+.profile-tabs .lb-tab {
+	padding: 0.55rem 0.1rem; border-radius: 0; background: none;
+	border: none; border-bottom: 2px solid transparent;
+	color: var(--muted); font-size: 0.92rem;
+}
+.profile-tabs .lb-tab:hover { color: var(--text); border-color: var(--muted); }
+.profile-tabs .lb-tab.active { background: none; color: var(--text); border-color: var(--accent); }
 
 .leaderboard-list {
 	list-style: none;

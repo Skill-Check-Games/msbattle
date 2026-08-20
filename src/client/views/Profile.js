@@ -236,8 +236,12 @@ function renderProfile() {
 	buildProfileTabs();
 	if (tabsBar) tabsBar.style.display = "";
 	card.innerHTML = "";
+	profileStats = {}; // cleared up front — avoids showing a previous account's stale history aggregates
+	// (e.g. Best daily streak below) for the moment before get_match_history's fresh reply lands.
 
-	// --- Identity: avatar + country flag, overall rank badge + name + tier/rating + member since ---
+	// --- Identity: avatar + country flag, name + member since. No single "overall" rank badge here
+	// any more — Sprint and Standard are both shown as their own ladder cards below, and a combined
+	// "best across modes" headline was redundant with (and inconsistent with) those. ---
 	var summary = document.createElement("div");
 	summary.className = "profile-summary";
 	if (typeof buildAvatarChip === "function") {
@@ -245,20 +249,12 @@ function renderProfile() {
 		chip.classList.add("profile-avatar");
 		summary.appendChild(chip);
 	}
-	var overall = overallRating(account); // best across modes — the headline rank
-	summary.appendChild(buildRankBadge(overall));
 	var text = document.createElement("div");
 	text.className = "profile-summary-text";
 	var nameLine = document.createElement("div");
 	nameLine.className = "profile-summary-name";
 	nameLine.textContent = myName || (account.name || "You");
 	text.appendChild(nameLine);
-	var ratingLine = document.createElement("div");
-	ratingLine.className = "profile-summary-rating";
-	var t = tierFor(overall, account.provisional);
-	ratingLine.textContent = t.name + " · " + overall;
-	ratingLine.style.color = t.color;
-	text.appendChild(ratingLine);
 	if (account.createdAt) {
 		var since = document.createElement("div");
 		since.className = "profile-summary-since";
@@ -270,38 +266,40 @@ function renderProfile() {
 
 	// --- Lifetime stats ---
 	var played = account.played || 0, wins = account.wins || 0;
-	var winRate = played > 0 ? Math.round((wins / played) * 100) + "%" : "—";
+	var winRate = played > 0 ? Math.round((wins / played) * 100) + "%" : "0%";
 	var stats = document.createElement("div");
 	stats.className = "profile-stats";
 	stats.appendChild(profileStat("Played", String(played)));
 	stats.appendChild(profileStat("Wins", String(wins)));
 	stats.appendChild(profileStat("Win rate", winRate));
-	stats.appendChild(profileStat("Daily streak", "🔥 " + (account.dailyStreak || 0)));
+	// Best daily streak, not the current one — profileStats.dailyStreakBest fills in once
+	// get_match_history's aggregates arrive (renderAchievements re-renders on the same event; this
+	// falls back to the live streak in the meantime, same "shows instantly, corrects itself" pattern).
+	var dailyBest = Math.max((profileStats && profileStats.dailyStreakBest) || 0, account.dailyStreak || 0);
+	stats.appendChild(profileStat("Best daily streak", "🔥 " + dailyBest));
 	card.appendChild(stats);
 
-	// --- Ranked ladders (one card per mode) ---
+	// --- Ranked ladders (one card per mode; Standard first — it's the denser, "main" ruleset) ---
 	card.appendChild(profileSectionTitle("Ranked ladders"));
 	var ladders = document.createElement("div");
 	ladders.className = "profile-ladders";
-	ladders.appendChild(profileLadderCard("Sprint", account.ratingSprint || 0));
 	ladders.appendChild(profileLadderCard("Standard", account.ratingStandard || 0));
+	ladders.appendChild(profileLadderCard("Sprint", account.ratingSprint || 0));
 	card.appendChild(ladders);
 
-	// --- Puzzles ---
+	// --- Puzzles: same ladder-card treatment as ranked, plus the supporting stats beneath it ---
 	card.appendChild(profileSectionTitle("Puzzles"));
+	var pzLadders = document.createElement("div");
+	pzLadders.className = "profile-ladders";
+	pzLadders.appendChild(profilePuzzleLadderCard(account.puzzlePoints || 0));
+	card.appendChild(pzLadders);
 	var pz = document.createElement("div");
 	pz.className = "profile-stats";
-	if (typeof puzzleLadderLabel === "function") pz.appendChild(profileStat("Ladder", puzzleLadderLabel(account.puzzlePoints || 0)));
 	pz.appendChild(profileStat("Solved", (account.puzzlesSolved || 0) + " / " + (account.puzzlesAttempted || 0)));
 	pz.appendChild(profileStat("Best streak", String(account.streakBest || 0)));
-	pz.appendChild(profileStat("Best storm", String(account.stormBest || 0)));
+	pz.appendChild(profileStat("Best Time Trial", String(account.stormBest || 0)));
 	card.appendChild(pz);
 
-	// --- Free-play best times (per board size × mine density) ---
-	card.appendChild(profileSectionTitle("Free-play best times"));
-	card.appendChild(profileBestsGrid(account.soloBests || {}));
-
-	profileStats = {}; // cleared until this account's history aggregates arrive (avoids cross-account staleness)
 	renderAchievements();
 	// Rating graph + recent games (incl. replay links) + achievement aggregates come from
 	// get_match_history → renderMatchHistory.
@@ -365,20 +363,12 @@ function renderPublicProfileData(profile) {
 		chip.classList.add("profile-avatar");
 		summary.appendChild(chip);
 	}
-	var overall = Math.max(profile.ratingSprint || 0, profile.ratingStandard || 0, profile.ratingTournament || 0, profile.ratingTerritory || 0);
-	summary.appendChild(buildRankBadge(overall));
 	var text = document.createElement("div");
 	text.className = "profile-summary-text";
 	var nameLine = document.createElement("div");
 	nameLine.className = "profile-summary-name";
 	nameLine.textContent = profile.name || "Player";
 	text.appendChild(nameLine);
-	var ratingLine = document.createElement("div");
-	ratingLine.className = "profile-summary-rating";
-	var t = tierFor(overall, profile.provisional);
-	ratingLine.textContent = t.name + " · " + overall;
-	ratingLine.style.color = t.color;
-	text.appendChild(ratingLine);
 	if (profile.createdAt) {
 		var since = document.createElement("div");
 		since.className = "profile-summary-since";
@@ -389,7 +379,7 @@ function renderPublicProfileData(profile) {
 	card.appendChild(summary);
 
 	var played = profile.played || 0, wins = profile.wins || 0;
-	var winRate = played > 0 ? Math.round((wins / played) * 100) + "%" : "—";
+	var winRate = played > 0 ? Math.round((wins / played) * 100) + "%" : "0%";
 	var stats = document.createElement("div");
 	stats.className = "profile-stats";
 	stats.appendChild(profileStat("Played", String(played)));
@@ -400,21 +390,21 @@ function renderPublicProfileData(profile) {
 	card.appendChild(profileSectionTitle("Ranked ladders"));
 	var ladders = document.createElement("div");
 	ladders.className = "profile-ladders";
-	ladders.appendChild(profileLadderCard("Sprint", profile.ratingSprint || 0));
 	ladders.appendChild(profileLadderCard("Standard", profile.ratingStandard || 0));
+	ladders.appendChild(profileLadderCard("Sprint", profile.ratingSprint || 0));
 	card.appendChild(ladders);
 
 	card.appendChild(profileSectionTitle("Puzzles"));
+	var pzLadders = document.createElement("div");
+	pzLadders.className = "profile-ladders";
+	pzLadders.appendChild(profilePuzzleLadderCard(profile.puzzlePoints || 0));
+	card.appendChild(pzLadders);
 	var pz = document.createElement("div");
 	pz.className = "profile-stats";
-	if (typeof puzzleLadderLabel === "function") pz.appendChild(profileStat("Ladder", puzzleLadderLabel(profile.puzzlePoints || 0)));
 	pz.appendChild(profileStat("Solved", (profile.puzzlesSolved || 0) + " / " + (profile.puzzlesAttempted || 0)));
 	pz.appendChild(profileStat("Best streak", String(profile.streakBest || 0)));
-	pz.appendChild(profileStat("Best storm", String(profile.stormBest || 0)));
+	pz.appendChild(profileStat("Best Time Trial", String(profile.stormBest || 0)));
 	card.appendChild(pz);
-
-	card.appendChild(profileSectionTitle("Free-play best times"));
-	card.appendChild(profileBestsGrid(profile.soloBests || {}));
 }
 
 // Avatar (recolored flag) palette + country dropdown. Choices persist via set_avatar / set_country and
@@ -514,7 +504,7 @@ function puzzleLadderHTML(points) {
 
 function formatMemberSince(ms) {
 	var d = new Date(ms);
-	if (isNaN(d.getTime())) return "—";
+	if (isNaN(d.getTime())) return "Unknown";
 	return d.toLocaleString(undefined, { month: "short", year: "numeric" });
 }
 
@@ -542,38 +532,32 @@ function profileLadderCard(label, rating) {
 	return c;
 }
 
-// Free-play best-time matrix: board size (cols) × mine density (rows). soloBests is
-// keyed "<size>_<density%>" (see Solo.js soloComboKey).
-var PROFILE_SIZES = [["small", "Small"], ["medium", "Medium"], ["large", "Large"]];
-var PROFILE_DENS = [[10, "Low"], [15, "Med"], [20, "High"]];
-function profileBestsCell(textStr, cls) {
-	var c = document.createElement("div"); c.className = cls; c.textContent = textStr; return c;
+// Puzzle Ladder's standing, same card as the ranked ladders above ("puzzles shown like ranked") —
+// a tier-coloured dot standing in for the hexagon rank badge (the Puzzle Ladder's Wood..Legend tiers
+// are a different system from the Bronze..Master ranked ones buildRankBadge draws, so it isn't
+// reusable here), mode name, tier name, and level in the number slot instead of a rating.
+function profilePuzzleLadderCard(points) {
+	var c = document.createElement("div");
+	c.className = "profile-ladder";
+	var l = (typeof puzzleLadder === "function") ? puzzleLadder(points || 0) : null;
+	var dot = document.createElement("div");
+	dot.className = "profile-ladder-badge profile-puzzle-dot";
+	dot.style.background = l ? l.tierColor : "var(--muted)";
+	c.appendChild(dot);
+	var info = document.createElement("div");
+	info.className = "profile-ladder-info";
+	var nm = document.createElement("div"); nm.className = "profile-ladder-mode"; nm.textContent = "Puzzle Ladder"; info.appendChild(nm);
+	var tl = document.createElement("div"); tl.className = "profile-ladder-tier";
+	tl.textContent = l ? l.tierName : "Unranked";
+	tl.style.color = l ? l.tierColor : "";
+	info.appendChild(tl);
+	c.appendChild(info);
+	var rt = document.createElement("div"); rt.className = "profile-ladder-rating";
+	rt.textContent = l ? (l.atMax ? "Max" : "Lvl " + l.level) : "";
+	c.appendChild(rt);
+	return c;
 }
-function profileBestsGrid(bests) {
-	var grid = document.createElement("div");
-	grid.className = "profile-bests";
-	grid.appendChild(profileBestsCell("", "profile-bests-head"));
-	PROFILE_SIZES.forEach(function(s) { grid.appendChild(profileBestsCell(s[1], "profile-bests-head")); });
-	var any = false;
-	PROFILE_DENS.forEach(function(d) {
-		grid.appendChild(profileBestsCell(d[1], "profile-bests-rowhead"));
-		PROFILE_SIZES.forEach(function(s) {
-			var ms = bests[s[0] + "_" + d[0]];
-			if (ms != null) any = true;
-			var txt = ms == null ? "—" : (typeof formatSoloTime === "function" ? formatSoloTime(ms) : (Math.round(ms / 100) / 10 + "s"));
-			grid.appendChild(profileBestsCell(txt, "profile-bests-val" + (ms == null ? " profile-bests-empty" : "")));
-		});
-	});
-	if (any) return grid;
-	var wrap = document.createElement("div");
-	wrap.appendChild(grid);
-	var note = document.createElement("p");
-	note.className = "section-stub-note";
-	note.style.margin = "0.5rem 0 0";
-	note.textContent = "No clears yet — set a time in Practice.";
-	wrap.appendChild(note);
-	return wrap;
-}
+
 
 // --- Achievements ---------------------------------------------------------------------------
 // Data-driven catalogue evaluated against a flat metrics bag = the player's account fields merged
@@ -598,18 +582,18 @@ var ACHIEVEMENTS = [
 	// Ranked milestones
 	{ icon: "🏆", name: "Victories", value: function(m) { return m.wins || 0; }, tiers: [1, 10, 50, 250, 1000], desc: function(t) { return "Win " + t + " ranked match" + (t > 1 ? "es" : ""); } },
 	{ icon: "🛡️", name: "Battle-tested", value: function(m) { return m.played || 0; }, tiers: [10, 50, 200, 1000, 5000], desc: function(t) { return "Play " + t + " ranked matches"; } },
-	{ icon: "🎯", name: "Specialist", value: function(m) { return m.maxModeWins || 0; }, tiers: [25, 100], desc: function(t) { return "Win " + t + " matches in a single mode"; } },
+	{ icon: "🎯", name: "Specialist", value: function(m) { return m.maxModeWins || 0; }, tiers: [25, 100, 500], desc: function(t) { return "Win " + t + " matches in a single mode"; } },
 	{ icon: "⚔️", name: "Two-Sport Star", bool: function(m) { return modeWins(m, "sprint") > 0 && modeWins(m, "standard") > 0; }, progress: function(m) { return ((modeWins(m, "sprint") > 0 ? 1 : 0) + (modeWins(m, "standard") > 0 ? 1 : 0)) + " / 2 modes"; }, desc: function() { return "Win in both Sprint and Standard"; } },
 	// Rank — peak-based so they never un-earn
 	{ icon: "📈", name: "Ascendant", value: function(m) { return peakOverallOf(m); }, tiers: [600, 1200, 1800, 2400, 3000], desc: function(t) { return "Reach " + achTierName(t) + " (" + t + ")"; } },
 	{ icon: "🌟", name: "Well-rounded", bool: function(m) { return peakOf(m, "sprint") >= 1200 && peakOf(m, "standard") >= 1200; }, progress: function(m) { return ((peakOf(m, "sprint") >= 1200 ? 1 : 0) + (peakOf(m, "standard") >= 1200 ? 1 : 0)) + " / 2 at Gold"; }, desc: function() { return "Reach Gold in both Sprint and Standard"; } },
 	// Performance
 	{ icon: "🔥", name: "On Fire", value: function(m) { return m.winStreakBest || 0; }, tiers: [3, 5, 10, 20], desc: function(t) { return "Win " + t + " matches in a row"; } },
-	{ icon: "🌀", name: "Grinder", value: function(m) { return m.bestDayWins || 0; }, tiers: [5, 10], desc: function(t) { return "Win " + t + " matches in one day"; } },
-	{ icon: "⚡", name: "Surge", value: function(m) { return m.bestDayGain || 0; }, tiers: [150, 300], desc: function(t) { return "Climb +" + t + " rating in one day"; } },
-	{ icon: "💥", name: "Big Swing", value: function(m) { return m.bigSwing || 0; }, tiers: [40], desc: function(t) { return "Gain +" + t + " from a single match"; } },
-	{ icon: "🤺", name: "Duelist", value: function(m) { return m.wins1v1 || 0; }, tiers: [10, 50, 200], desc: function(t) { return "Win " + t + " 1v1 matches"; } },
-	{ icon: "👑", name: "Free-for-all King", value: function(m) { return m.wins6p || 0; }, tiers: [1, 10], desc: function(t) { return t === 1 ? "Win a 6-player free-for-all" : "Win " + t + " 6-player free-for-alls"; } },
+	{ icon: "🌀", name: "Grinder", value: function(m) { return m.bestDayWins || 0; }, tiers: [5, 10, 20], desc: function(t) { return "Win " + t + " matches in one day"; } },
+	{ icon: "⚡", name: "Surge", value: function(m) { return m.bestDayGain || 0; }, tiers: [150, 300, 500], desc: function(t) { return "Climb +" + t + " rating in one day"; } },
+	{ icon: "💥", name: "Big Swing", value: function(m) { return m.bigSwing || 0; }, tiers: [40, 80, 120], desc: function(t) { return "Gain +" + t + " from a single match"; } },
+	{ icon: "🤺", name: "Duelist", value: function(m) { return m.wins1v1 || 0; }, tiers: [10, 50, 200, 1000], desc: function(t) { return "Win " + t + " 1v1 matches"; } },
+	{ icon: "👑", name: "Free-for-all King", value: function(m) { return m.wins6p || 0; }, tiers: [1, 10, 50], desc: function(t) { return t === 1 ? "Win a 6-player free-for-all" : "Win " + t + " 6-player free-for-alls"; } },
 	// Style challenges — solo + racing only (never puzzles); backed by player_stats clear counters.
 	{ icon: "🧠", name: "No Flags", value: function(m) { return m.noFlagClears || 0; }, tiers: [1, 10, 50], desc: function(t) { return t === 1 ? "Clear a board without placing a flag" : "Clear " + t + " boards without a flag"; } },
 	{ icon: "🎹", name: "Chord Master", value: function(m) { return m.noRevealClears || 0; }, tiers: [1, 10, 50], desc: function(t) { return t === 1 ? "Clear a board without a left-click (chords only)" : "Clear " + t + " boards chord-only"; } },
@@ -625,10 +609,10 @@ var ACHIEVEMENTS = [
 	{ icon: "⛈️", name: "Time Trial Ace", value: function(m) { return m.stormBest || 0; }, tiers: [15, 30, 50, 75], desc: function(t) { return "Solve " + t + " in one Time Trial run"; } },
 	// Daily
 	{ icon: "📅", name: "Daily Devotee", value: function(m) { return Math.max(m.dailyStreakBest || 0, m.dailyStreak || 0); }, tiers: [3, 7, 30, 100], desc: function(t) { return "Reach a " + t + "-day daily streak"; } },
-	{ icon: "🗓️", name: "Daily Regular", value: function(m) { return m.dailiesSolved || 0; }, tiers: [10, 50, 200], desc: function(t) { return "Solve " + t + " daily puzzles"; } },
+	{ icon: "🗓️", name: "Daily Regular", value: function(m) { return m.dailiesSolved || 0; }, tiers: [10, 50, 200, 500], desc: function(t) { return "Solve " + t + " daily puzzles"; } },
 	// Dedication
-	{ icon: "🎂", name: "Veteran", value: function(m) { return m.createdAt ? Math.floor((Date.now() - m.createdAt) / 86400000) : 0; }, tiers: [30, 180, 365], desc: function(t) { return "Be a member for " + t + " days"; } },
-	{ icon: "📆", name: "Regular", value: function(m) { return m.distinctDays || 0; }, tiers: [7, 30, 100], desc: function(t) { return "Play on " + t + " different days"; } },
+	{ icon: "🎂", name: "Veteran", value: function(m) { return m.createdAt ? Math.floor((Date.now() - m.createdAt) / 86400000) : 0; }, tiers: [30, 180, 365, 730], desc: function(t) { return "Be a member for " + t + " days"; } },
+	{ icon: "📆", name: "Regular", value: function(m) { return m.distinctDays || 0; }, tiers: [7, 30, 100, 365], desc: function(t) { return "Play on " + t + " different days"; } },
 	{ icon: "🌐", name: "Tried It All", bool: function(m) { return (m.played || 0) > 0 && (m.puzzlesAttempted || 0) > 0 && m.soloBests && Object.keys(m.soloBests).length > 0; }, progress: function(m) { var n = ((m.played || 0) > 0 ? 1 : 0) + ((m.puzzlesAttempted || 0) > 0 ? 1 : 0) + ((m.soloBests && Object.keys(m.soloBests).length > 0) ? 1 : 0); return n + " / 3"; }, desc: function() { return "Play ranked, puzzles, and free play"; } }
 ];
 
@@ -803,16 +787,34 @@ function renderRatingGraphCard() {
 	}
 	var rows = buckets[ratingChartStyle];
 	var points = [];
-	if (rows.length) points.push({ t: rows[0].created_at, r: rows[0].rating_before }); // seed from the entry rating
+	// Seed point ("before" the first match) used to get an even earlier timestamp than that match's
+	// own — giving it the SAME timestamp (as this used to) makes the seed and the first real point
+	// share an x-coordinate, so the line between them is perfectly vertical: a stray straight-up
+	// stroke at the very start of the chart instead of a diagonal into the first result. Half the gap
+	// to the second match (or one day, if there's only one match total) gives it real breathing room.
+	if (rows.length) {
+		var gap = rows.length > 1 ? (rows[1].created_at - rows[0].created_at) : 86400000;
+		points.push({ t: rows[0].created_at - Math.max(1, gap * 0.5), r: rows[0].rating_before });
+	}
 	rows.forEach(function(p) { points.push({ t: p.created_at, r: p.rating_after }); });
+	// Same fix as the seed point above, generalized: two matches recorded in the same tick (a rapid
+	// best-of-N series, or several rounds persisting in the same synchronous DB write) can carry
+	// identical created_at values, which produces the exact same perfectly-vertical-line artifact
+	// wherever it happens in the series, not just at the start. Force strictly increasing timestamps.
+	for (var pi = 1; pi < points.length; pi++) {
+		if (points[pi].t <= points[pi - 1].t) points[pi].t = points[pi - 1].t + 1;
+	}
 	var wrap = document.createElement("div"); wrap.className = "rating-chart-wrap";
 	wrap.innerHTML = buildRatingChartSVG(points);
 	card.appendChild(wrap);
 }
 
-// A simple responsive SVG line chart of rating over time.
+// A simple responsive SVG line chart of rating over time. Grid lines sit at tier boundaries (every
+// 200 rating, the ladder's sub-tier width — see Ranking.js) instead of generic evenly-spaced values,
+// each labelled and coloured with that tier, so the chart doubles as "how close to the next tier" at
+// a glance instead of just a plain number axis.
 function buildRatingChartSVG(points) {
-	if (points.length < 2) return '<div class="rating-chart-empty">Current rating: ' + (points[0] ? points[0].r : "—") + " — play more matches to chart your progress.</div>";
+	if (points.length < 2) return '<div class="rating-chart-empty">Current rating: ' + (points[0] ? points[0].r : "unrated") + ". Play more matches to chart your progress.</div>";
 	var W = 600, H = 170, L = 42, Rp = 14, Tp = 14, Bp = 22;
 	var rs = points.map(function(p) { return p.r; }), ts = points.map(function(p) { return p.t; });
 	var rMin = Math.min.apply(null, rs), rMax = Math.max.apply(null, rs);
@@ -827,11 +829,17 @@ function buildRatingChartSVG(points) {
 	var area = d + " L " + X(tMax).toFixed(1) + " " + (H - Bp) + " L " + X(tMin).toFixed(1) + " " + (H - Bp) + " Z";
 	var last = points[points.length - 1];
 	var svg = '<svg viewBox="0 0 ' + W + " " + H + '" class="rating-chart">';
-	[rMin, Math.round((rMin + rMax) / 2), rMax].forEach(function(rv) {
+	// Sub-tier boundaries (every SUB_TIER_WIDTH) within [rMin, rMax] — cap the step up (400, 600, …)
+	// if that range spans enough tiers that every-200 would be too dense to read.
+	var step = (typeof SUB_TIER_WIDTH === "number") ? SUB_TIER_WIDTH : 200;
+	while ((rMax - rMin) / step > 8) step += (typeof SUB_TIER_WIDTH === "number") ? SUB_TIER_WIDTH : 200;
+	var first = Math.ceil(rMin / step) * step;
+	for (var rv = first; rv <= rMax; rv += step) {
 		var y = Y(rv).toFixed(1);
-		svg += '<line x1="' + L + '" y1="' + y + '" x2="' + (W - Rp) + '" y2="' + y + '" class="rc-grid"/>';
-		svg += '<text x="' + (L - 6) + '" y="' + (parseFloat(y) + 3.5) + '" class="rc-label" text-anchor="end">' + rv + "</text>";
-	});
+		var band = (typeof tierFor === "function") ? tierFor(rv) : { name: String(rv), color: "var(--muted)" };
+		svg += '<line x1="' + L + '" y1="' + y + '" x2="' + (W - Rp) + '" y2="' + y + '" class="rc-grid" style="stroke:' + band.color + ';stroke-opacity:0.3"/>';
+		svg += '<text x="' + (L - 6) + '" y="' + (parseFloat(y) + 3.5) + '" class="rc-label" text-anchor="end" style="fill:' + band.color + '">' + band.name + "</text>";
+	}
 	svg += '<path d="' + area + '" class="rc-area"/>';
 	svg += '<path d="' + d + '" class="rc-line"/>';
 	svg += '<circle cx="' + X(last.t).toFixed(1) + '" cy="' + Y(last.r).toFixed(1) + '" r="3.5" class="rc-dot"/>';

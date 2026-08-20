@@ -773,42 +773,60 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   `showProfileView` (Router.js) branches on `?id=`: with one, it calls `renderPublicProfile(userId)`
   (Profile.js) instead of the normal `renderProfile()`; that emits `get_public_profile {userId}` and
   renders `renderPublicProfileData` from the `public_profile` reply — a trimmed Overview-only build
-  (identity, lifetime stats, Sprint/Standard ladders, puzzles, free-play bests; no tabs, no
-  achievements/match history/rating graph, no edit-name pencil) reusing the same `profileStat`/
-  `profileLadderCard`/`profileBestsGrid` helpers `renderProfile` uses, just fed from the fetched
-  `profile` object instead of the global `account`. Server-side, `buildPublicProfilePayload`
+  (identity, lifetime stats, ranked ladders, puzzles; no tabs, no achievements/match history/rating
+  graph, no edit-name pencil) reusing the same `profileStat`/`profileLadderCard`/`profilePuzzleLadderCard`
+  helpers `renderProfile` uses, just fed from the fetched `profile` object instead of the global
+  `account`. Server-side, `buildPublicProfilePayload`
   (session.js, beside `buildAccountPayload`) is a curated subset — no token/provider/ownedItems/email;
   puzzle rating stays hidden same as everywhere else, only ladder points are exposed. Returns `null` for
   a missing or guest user. `publicProfilePending` (Profile.js) guards against a stale reply landing after
   the player has already navigated to a different profile or away — the `public_profile` handler
   (Main.js) drops any reply whose `userId` doesn't match.
 - **Profile page** (`Profile.js`, `renderProfile`) is a full stats dashboard, split into three **tabs**
-  (`#profile_tabs`, `PROFILE_TABS`/`selectProfileTab`, reusing the `.lb-tab` pill style; the active tab is
-  remembered in `profileTab` across re-renders, defaulting to Overview; the tab bar is hidden when signed
-  out): **Overview** (`#profile_tab_overview`) — identity (overall rank badge + name + tier/rating +
-  "Member since" from `account.createdAt`, added to the `authenticated` payload), lifetime stats
-  (played/wins/win rate/daily streak), **per-mode ranked ladder cards** (Sprint + Standard only —
-  Tournament/Territory are not surfaced), puzzle stats, and a free-play **best-times matrix** (size ×
-  density from `account.soloBests`); **Matches** (`#profile_tab_matches`) — the rating graph + recent-games
-  list (see Match history below); **Achievements** (`#profile_tab_achievements`). The **Achievements**
-  card (`#achievements_card`, `renderAchievements`): a **data-driven** `ACHIEVEMENTS` catalogue (~25 + a
-  meta **Collector**) evaluated against a flat **metrics bag** = `account` fields merged with the server's
+  (`#profile_tabs`, `PROFILE_TABS`/`selectProfileTab` — an **underlined** style, deliberately different
+  from the `.lb-tab` filled-pill look used for leaderboard/rating-chart mode filters, since these are page
+  sections rather than a data filter; the active tab is remembered in `profileTab` across re-renders,
+  defaulting to Overview; the tab bar is hidden when signed out): **Overview** (`#profile_tab_overview`) —
+  identity (name + "Member since" from `account.createdAt`; no single "overall" rank badge any more —
+  redundant now that Sprint and Standard each get their own ladder card, and inconsistent with the
+  leaderboard dropping its Overall tab too), lifetime stats (played/wins/win rate/**best** daily streak,
+  not the current one), **per-mode ranked ladder cards** (`profileLadderCard`, **Standard shown before
+  Sprint** — Tournament/Territory are not surfaced), and a **Puzzle Ladder card** in the same
+  `profileLadderCard` visual treatment ("puzzles shown like ranked" — `profilePuzzleLadderCard`, a
+  tier-coloured dot standing in for the hexagon rank badge since the Puzzle Ladder's Wood..Legend tiers
+  are a different system from `buildRankBadge`'s Bronze..Master) plus Solved/Best streak/Best Time Trial
+  stats beneath it. The free-play best-times matrix was dropped entirely (`profileBestsGrid` and friends,
+  removed). **Matches** (`#profile_tab_matches`) — the rating graph + recent-games list (see Match history
+  below); **Achievements** (`#profile_tab_achievements`). The **rating graph** (`buildRatingChartSVG`)
+  draws its horizontal reference lines at **tier boundaries** (every `SUB_TIER_WIDTH`, capped so a wide
+  rating range doesn't cram in too many) instead of generic evenly-spaced values, each labelled/coloured
+  with that tier — doubles as "how close to the next tier" at a glance. `renderRatingGraphCard` forces
+  strictly increasing point timestamps before charting: the synthetic "before" seed point used to share
+  the first real match's exact timestamp (and two real matches recorded in the same tick still could),
+  which draws a perfectly vertical line segment at that x — a real bug, not a style choice; don't
+  reintroduce a same-timestamp point without nudging it forward. The **Achievements** card
+  (`#achievements_card`, `renderAchievements`): a **data-driven** `ACHIEVEMENTS` catalogue (~25 + a meta
+  **Collector**) evaluated against a flat **metrics bag** = `account` fields merged with the server's
   `db.achievementStats(userId)` aggregates. Two entry shapes — TIERED counter (`value(m)` + `tiers`, e.g.
   Victories 1/10/50/250/1000, Ascendant by tier, Deductionist, On Fire win-streak, Duelist, Daily Devotee,
-  …) or BOOLEAN (`bool(m)` + `progress(m)`, e.g. Two-Sport, Well-rounded, Sharpshooter, Sub-minute).
-  **Adding an achievement is one catalogue entry** (plus, if it needs a number we don't track, one metric
-  in `achievementStats`). Rank/streak/peak achievements read **peak/best** metrics (`stats.peak.*`,
-  `winStreakBest`, `dailyStreakBest`, `peakPuzzleRating`) so they **never un-earn** when the current value
-  drops. `achievementStats` reads a **pre-aggregated `player_stats` row** (one per user — a PK lookup, no
-  scans): per-mode wins, peak-per-style, win streak, best day wins/gain, big swing, 1v1/6-player wins,
-  peak puzzle rating, dailies solved, best daily streak, distinct active days. That row is maintained
-  **incrementally** at the event seams — `recordMatch`→`bumpMatchStats` (read-modify-write: per-mode win +
-  peak, streak cur/best, day counters + bests, swing, 1v1/6p, active day), `updateUserPuzzleRating`→
-  `bumpPuzzleStats`, `recordDailyAttempt`→`bumpDailyStats`; the `*_current`/`stat_day`/`day_*` columns are
-  the working state the `*_best` columns need. A **one-time lazy backfill**
-  (`computeStatsFromHistory`→`backfillPlayerStats`, gated by `player_stats.backfilled`) seeds the row from
-  existing `match_history`/`puzzle_attempts`/`daily_attempts` the first time it's read — so existing
-  players keep their numbers and the expensive aggregation runs **once per user, never per profile-open**.
+  …; most now carry one extra top tier beyond their original ceiling) or BOOLEAN (`bool(m)` + `progress(m)`,
+  e.g. Two-Sport, Well-rounded, Sharpshooter, Sub-minute). A tile's progress bar (`.ach-prog-bar`) is muted
+  grey while the achievement is still fully locked (`.ach-locked .ach-prog-bar`) even though it shows real
+  progress toward the first tier — left at the default accent blue, that read as "you've unlocked
+  something here" on a tile that's otherwise dimmed/grey, which wasn't true yet. **Adding an achievement is
+  one catalogue entry** (plus, if it needs a number we don't track, one metric in `achievementStats`).
+  Rank/streak/peak achievements read **peak/best** metrics (`stats.peak.*`, `winStreakBest`,
+  `dailyStreakBest`, `peakPuzzleRating`) so they **never un-earn** when the current value drops.
+  `achievementStats` reads a **pre-aggregated `player_stats` row** (one per user — a PK lookup, no scans):
+  per-mode wins, peak-per-style, win streak, best day wins/gain, big swing, 1v1/6-player wins, peak puzzle
+  rating, dailies solved, best daily streak, distinct active days. That row is maintained **incrementally**
+  at the event seams — `recordMatch`→`bumpMatchStats` (read-modify-write: per-mode win + peak, streak
+  cur/best, day counters + bests, swing, 1v1/6p, active day), `updateUserPuzzleRating`→`bumpPuzzleStats`,
+  `recordDailyAttempt`→`bumpDailyStats`; the `*_current`/`stat_day`/`day_*` columns are the working state
+  the `*_best` columns need. A **one-time lazy backfill** (`computeStatsFromHistory`→`backfillPlayerStats`,
+  gated by `player_stats.backfilled`) seeds the row from existing
+  `match_history`/`puzzle_attempts`/`daily_attempts` the first time it's read — so existing players keep
+  their numbers and the expensive aggregation runs **once per user, never per profile-open**.
   All bumps swallow their own errors. `achievementStats` ships in the `get_match_history` payload as
   `stats` (shape unchanged → client untouched; rank achievements client-fallback to current ratings when
   a player has no match history yet). The client renders achievements from
