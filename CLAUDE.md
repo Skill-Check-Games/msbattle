@@ -527,10 +527,28 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   join (custom rooms stay normal in planning so their config shows); the opponent's board is painted
   covered (`paintOpponentCovered`) until their first real frame, so both boards show through the join +
   countdown. Both boards are pushed toward the center column so the VS sits exactly between them.
-  No separate mobile-landscape layout exists for this — past ~700px wide (most phones' landscape
-  width) this same layout already applies and looks right; the portrait fallback is the unrelated
-  `#mobile_duel_progress` compact strip (see the Mobile in-game bullet below), which inherits the same
-  timer-badge/board-glow styling since those are gated on `.game-view.duo`, not a screen-size query.
+  **Landscape phones** (wide enough — `min-width: 701px` — to clear the portrait breakpoint below, but
+  short: `@media (orientation: landscape) and (max-height: 500px) and (min-width: 701px)`) get their own
+  override on top of this rather than inheriting the desktop layout as-is: the mockup sketch this was
+  redesigned from calls for the player's own board to dominate, so `.game-grid` becomes a 2-column ×
+  2-row grid (`grid-template-areas: "left right" "left center"`) — own board spans both rows at
+  `minmax(0,2.3fr)`, the opponent board sits above the VS/meter/timer group in a shared `minmax(0,1fr)`
+  column (both keyed off the same `left`/`right`/`center` grid-area names the base duo rule assigns, so
+  no DOM reordering is needed to relocate them). `#leave_button`/`.game-header-right` (Exit, fullscreen)
+  are hidden — no room, and `.duel-timer-badge` moves to the header's right edge, over the opponent
+  column, so the timer and tug-of-war meter both read as attached to the opponent's (smaller) side per
+  the sketch. `DESKTOP_CELL_MIN` (`MobileLayout.js`, 22px) means a board with many rows can still be
+  taller than a short landscape viewport has room for even after all that; rather than let the page
+  itself scroll (carrying the opponent panel/meter off-screen), `.board-scroll` gets the same
+  `flex:1; min-height:0; overflow:auto` chain the portrait mobile layout already uses so only the board
+  pans internally (`.game-view.duo` is pinned to `height:100dvh; overflow:hidden` so nothing above it
+  can scroll instead). The opponent canvas gets an explicit `max-height` too, since `max-width:100%`
+  alone only shrinks it by width and a many-row board stays proportionally tall regardless. The
+  `min-width: 701px` floor is deliberate, not incidental: a small phone turned sideways (e.g. iPhone SE
+  landscape, 667×375) is still narrower than 700px, so it's already handled by the portrait/mobile
+  breakpoint below (full-bleed board, `#mobile_duel_progress` strip) — which relies on `#leave_button`
+  staying visible as its only way to exit. Matching this block against that width range too would hide
+  it there with nothing to replace it.
   **6-player battle layout** (`isMultiRacing()`, 3-6 racing players): the same TetrisFriends idea
   scaled up — one big own board on the left with your identity panel (`#duel_id_you`) above it, the
   round timer centered up top (shared `#duel_timer`), and **every** opponent's live board tiled in a
@@ -551,10 +569,10 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   The site footer is hidden whenever a game is on screen via a `body.in-game` class (added by the
   game entry points, removed in `hideAllViews`).
 - **Mobile in-game (portrait phones)**: `.opponents` and the desktop `.duel-bar`/`#duel_id_you` panel
-  are all hidden below the `max-width: 700px` breakpoint (no room) — but past roughly that width
-  (most phones' landscape width), the normal desktop side-by-side board layout already applies as-is
-  and looks right, so there's no separate landscape-specific mobile layout to maintain. Two things
-  fill the portrait gap: a **rotate-to-landscape nudge** (`#rotate_prompt`, CSS-only
+  are all hidden below the `max-width: 700px` breakpoint (no room) — past that width, phones wide
+  enough to be in landscape get their own dedicated layout instead (see the 1v1 duel layout bullet
+  above), not just the desktop layout inherited as-is. Two things fill the portrait gap: a
+  **rotate-to-landscape nudge** (`#rotate_prompt`, CSS-only
   `@media (max-width: 900px) and (orientation: portrait)`, shown only while `body.in-game` — not a true
   OS orientation lock, which is unreliable outside fullscreen across browsers, so a "Continue anyway"
   button (`#rotate_prompt_dismiss`) adds a `.dismissed` class rather than trapping anyone whose device

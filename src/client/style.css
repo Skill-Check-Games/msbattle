@@ -3859,11 +3859,15 @@ body.touch .find-next-arrow { display: inline-flex; }
 .game-view.duo { display: flex; flex-direction: column; min-height: calc(100dvh - 2rem); }
 .game-view.duo .game-grid {
 	grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+	grid-template-areas: "left center right";
 	align-items: center;
 	align-content: center;
 	flex: 1 1 auto;
 	gap: 0.85rem;
 }
+.game-view.duo .game-left { grid-area: left; }
+.game-view.duo .duel-center { grid-area: center; }
+.game-view.duo .game-side { grid-area: right; }
 /* The big center timer replaces the top-bar timer in the duel. */
 .game-view.duo #round_timer { display: none; }
 /* The player-controls row (Ready/flag) carries no content during the duel play — drop it so the
@@ -4046,6 +4050,104 @@ body.touch .find-next-arrow { display: inline-flex; }
 .duel-timer.round-timer-warning { color: var(--energy-streak); }
 .duel-timer.round-timer-urgent { color: var(--danger); animation: duel-timer-pulse 0.7s ease-in-out infinite; }
 @keyframes duel-timer-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+
+/* ===== 1v1 duel, landscape phones =====
+   Landscape phones (the rotate-prompt below actively steers players here) are wide enough
+   (>700px) to fall past the portrait mobile breakpoint and land on the plain desktop duel
+   layout above — symmetric boards, Exit/Fullscreen in the header, VS/timer centered between
+   the boards. That reads fine on an actual desktop monitor but wastes a short landscape phone
+   viewport: two equal boards are both too small to read, and the header buttons eat vertical
+   space that matters far more here than on desktop. max-height (not max-width) is what
+   actually distinguishes "phone turned sideways" from "small desktop window" — phones stay
+   short in landscape regardless of width, desktops don't.
+   min-width: 701px keeps this from also matching a SMALL phone turned sideways (e.g. iPhone
+   SE landscape, 667×375) — those stay under the @media (max-width: 700px) breakpoint above,
+   which already gives them their own mobile board layout (full-bleed board, mobile_duel_progress
+   strip) built around #leave_button staying put as the only way out. Applying this block's
+   "hide leave_button" rule there too, on top of that different layout, would remove the one
+   working exit control and put nothing in its place. */
+@media (orientation: landscape) and (max-height: 500px) and (min-width: 701px) {
+	/* Exit/Fullscreen aren't worth the header row's height here; the timer stays but moves to
+	   the header's right edge, over the opponent's (now narrower) column below — see the
+	   grid-area reshuffle further down for why that's "near the opponent board". */
+	.game-view.duo .game-header {
+		grid-template-columns: minmax(0, 2.3fr) minmax(0, 1fr);
+		padding-top: 0.3rem;
+		margin-bottom: 0.35rem;
+	}
+	.game-view.duo .game-header #leave_button,
+	.game-view.duo .game-header-right {
+		display: none;
+	}
+	.game-view.duo .duel-timer-badge {
+		grid-column: 2;
+		justify-self: end;
+	}
+
+	/* The viewport is genuinely too short to fit a full board at fitDesktopCellPx's legibility
+	   floor (DESKTOP_CELL_MIN, MobileLayout.js) AND every other panel with no scrolling at all —
+	   pin the page to exactly the viewport instead of letting it grow to whatever the board needs,
+	   and give the board's own scroll box (below) the leftover space via a min-height:0 flex chain
+	   (the same pattern the portrait mobile layout already uses for this exact problem). Without
+	   min-height:0 at each link, a flex/grid item's default auto min-size refuses to shrink below
+	   its content, and the whole page scrolls instead of just the board. */
+	.game-view.duo { height: 100dvh; min-height: 0; overflow: hidden; }
+	.game-view.duo .game-grid { min-height: 0; }
+
+	/* Your board dominates the viewport; the opponent's board, its identity panel, and the
+	   VS/tug-of-war meter share a single narrow column stacked underneath each other — the same
+	   "advantage scale sits with the opponent" grouping the mockup sketch called for. */
+	.game-view.duo .game-grid {
+		grid-template-columns: minmax(0, 2.3fr) minmax(0, 1fr);
+		grid-template-rows: minmax(0, auto) minmax(0, 1fr);
+		grid-template-areas: "left right" "left center";
+		align-items: stretch;
+		gap: 0.5rem 0.65rem;
+	}
+	.game-view.duo .game-left {
+		align-items: stretch;
+		justify-content: flex-start;
+		min-height: 0;
+	}
+	.game-view.duo .player-board {
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
+	}
+	.game-view.duo .board-wrap {
+		display: flex;
+		flex-direction: column;
+		flex: 1;
+		min-height: 0;
+	}
+	.game-view.duo .board-scroll {
+		flex: 1;
+		min-height: 0;
+		overflow: auto;
+		-webkit-overflow-scrolling: touch;
+	}
+	.game-view.duo .duel-center {
+		align-self: start;
+		min-width: 0;
+		padding: 0;
+		gap: 0.6rem;
+	}
+	.game-view.duo .duel-vs-badge {
+		width: 40px;
+		height: 40px;
+		font-size: 0.7rem;
+	}
+	.game-view.duo .duel-goal-pill {
+		display: none; /* the room this saves matters more here than the reminder text */
+	}
+
+	/* The opponent canvas already shrinks to its (now much narrower) column via max-width:100%, but
+	   height:auto only follows that width — on a board with many rows the resulting height can still
+	   be taller than this whole column has room for, next to its identity panel and the meter/timer
+	   stacked below it. Cap the height too so the browser picks the more restrictive of the two,
+	   same aspect-ratio-preserving resolution as an <img> with both max-width and max-height set. */
+	.game-view.duo .opponent_div canvas { max-height: 16vh; width: auto; }
+}
 
 /* ===== 6-player battle layout (TetrisFriends-style) =====
    One big own board on the left with your identity panel above it; every opponent's live board
