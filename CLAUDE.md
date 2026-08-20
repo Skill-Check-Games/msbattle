@@ -759,14 +759,29 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   (`showDailyOutcome` in `PuzzlePlay.js`) shows a **Try again** button next to Back to lobby; the home
   card's daily hero button does the same (`renderLobbyDailyState` in `Profile.js` — "Try again", not
   disabled, on a miss).
-- **Leaderboard page** (`/leaderboard`) has **mode filter tabs** (`#leaderboard_tabs`: Overall · Sprint ·
-  Standard · Tournament · Territory). `Leaderboard.js` tracks `currentLeaderboardMode` and
-  `selectLeaderboardMode(mode)` (highlights the tab, shows a loading row, emits `get_leaderboard {mode}`);
-  the `leaderboard` handler ignores replies whose `mode` no longer matches (tab-switch races).
-  Server: `get_leaderboard` passes `mode` to `db.topPlayers(limit, mode)`, which ranks by that style's
-  column via a **whitelist** map (`LEADERBOARD_COLUMNS`; unknown/`overall` → `MAX(...)` across modes) and
-  returns it as `rating`, so `renderLeaderboard` stays mode-agnostic (tier via `tierFor` on that rating).
-  Puzzles is excluded (separate rating scale).
+- **Leaderboard page** (`/leaderboard`) has **mode filter tabs** (`#leaderboard_tabs`: Sprint · Standard
+  only — Overall/Tournament/Territory tabs were dropped from the UI, though `get_leaderboard`/
+  `db.topPlayers` still support those modes server-side). `Leaderboard.js` tracks `currentLeaderboardMode`
+  (defaults `"sprint"`) and `selectLeaderboardMode(mode)` (highlights the tab, shows a loading row, emits
+  `get_leaderboard {mode}`); the `leaderboard` handler ignores replies whose `mode` no longer matches
+  (tab-switch races). Server: `get_leaderboard` passes `mode` to `db.topPlayers(limit, mode)`, which ranks
+  by that style's column via a **whitelist** map (`LEADERBOARD_COLUMNS`) and returns it as `rating`
+  (plus `id` now, for profile links), so `renderLeaderboard` stays mode-agnostic (tier via `tierFor` on
+  that rating). Puzzles is excluded (separate rating scale).
+  **Rows link to a read-only public profile** (`/profile?id=<userId>`, `.lb-row-linked`) — a feature
+  that didn't exist before (there was previously no way to view anyone's profile but your own).
+  `showProfileView` (Router.js) branches on `?id=`: with one, it calls `renderPublicProfile(userId)`
+  (Profile.js) instead of the normal `renderProfile()`; that emits `get_public_profile {userId}` and
+  renders `renderPublicProfileData` from the `public_profile` reply — a trimmed Overview-only build
+  (identity, lifetime stats, Sprint/Standard ladders, puzzles, free-play bests; no tabs, no
+  achievements/match history/rating graph, no edit-name pencil) reusing the same `profileStat`/
+  `profileLadderCard`/`profileBestsGrid` helpers `renderProfile` uses, just fed from the fetched
+  `profile` object instead of the global `account`. Server-side, `buildPublicProfilePayload`
+  (session.js, beside `buildAccountPayload`) is a curated subset — no token/provider/ownedItems/email;
+  puzzle rating stays hidden same as everywhere else, only ladder points are exposed. Returns `null` for
+  a missing or guest user. `publicProfilePending` (Profile.js) guards against a stale reply landing after
+  the player has already navigated to a different profile or away — the `public_profile` handler
+  (Main.js) drops any reply whose `userId` doesn't match.
 - **Profile page** (`Profile.js`, `renderProfile`) is a full stats dashboard, split into three **tabs**
   (`#profile_tabs`, `PROFILE_TABS`/`selectProfileTab`, reusing the `.lb-tab` pill style; the active tab is
   remembered in `profileTab` across re-renders, defaulting to Overview; the tab bar is hidden when signed

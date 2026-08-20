@@ -59,6 +59,32 @@ function buildAccountPayload(user) {
 	};
 }
 
+// Read-only profile for a player who ISN'T the caller — leaderboard rows link here (get_public_profile
+// below). A curated subset of buildAccountPayload: ratings/stats already shown to everyone in the
+// leaderboard/in-game, never anything account-management-ish (no token/provider/ownedItems/email).
+// Puzzle rating is excluded same as everywhere else — it's hidden info, only the ladder points/tier
+// are public. Returns null for a missing or guest user (guests aren't a stable identity worth linking to).
+function buildPublicProfilePayload(user) {
+	if (!user || user.is_guest) return null;
+	return {
+		id: user.id,
+		name: db.displayNameOf(user),
+		avatarColor: user.avatar_color || null,
+		country: user.country || null,
+		createdAt: user.created_at,
+		ratingSprint: user.rating_sprint, ratingStandard: user.rating_standard,
+		ratingTournament: user.rating_tournament, ratingTerritory: user.rating_territory,
+		wins: user.wins, played: user.played,
+		provisional: user.played < PROVISIONAL_GAMES,
+		puzzlePoints: user.puzzle_points || 0,
+		puzzlesSolved: user.puzzles_solved,
+		puzzlesAttempted: user.puzzles_attempted,
+		streakBest: user.streak_best,
+		stormBest: user.storm_best,
+		soloBests: db.getSoloBests(user.id)
+	};
+}
+
 function loginSocket(socket, playerID, user, token, sendToken) {
 	accounts[playerID] = {
 		userId: user.id, token: token, played: user.played,
@@ -220,6 +246,14 @@ function registerSocketHandlers(socket, playerID) {
 			winnerId: row.winner_id, players: row.players ? JSON.parse(row.players).map(function(p) { delete p.bot; return p; }) : [],
 			data: raw // Buffer → socket.io sends as binary; arrives as ArrayBuffer on the client
 		});
+	});
+
+	// Leaderboard rows link here to show another player's read-only profile. No auth required to
+	// view (leaderboard itself is public/guest-visible) — just a valid, non-guest user id.
+	socket.on("get_public_profile", function(data) {
+		var userId = data && parseInt(data.userId, 10);
+		var user = userId ? db.getUserById(userId) : null;
+		socket.emit("public_profile", { userId: userId || null, profile: buildPublicProfilePayload(user) });
 	});
 
 	socket.on("set_name", function(data) {

@@ -924,6 +924,9 @@ main:has(.game-view.territory) { max-width: none; }
 }
 
 .lb-row-me { background: rgba(99, 102, 241, 0.12); border-color: rgba(99, 102, 241, 0.3); }
+.lb-row-linked { cursor: pointer; transition: border-color 0.12s ease; }
+.lb-row-linked:hover, .lb-row-linked:focus-visible { border-color: var(--accent); }
+.profile-public-back { margin-bottom: 1rem; }
 .lb-rank { color: var(--muted); font-size: 0.85rem; text-align: right; }
 /* Stacked identity: name on top, rank/tier beneath (the avatar spans both lines). */
 .lb-id { display: flex; flex-direction: column; justify-content: center; gap: 0.05rem; min-width: 0; line-height: 1.2; }

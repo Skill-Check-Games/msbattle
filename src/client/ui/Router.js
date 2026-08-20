@@ -424,13 +424,22 @@ function showLeaderboardView() {
 	document.getElementById("leaderboard_view").style.display = "";
 	setSiteNavActive("leaderboard");
 	// Re-request the current mode's ladder (highlights the tab + shows a loading row).
-	if (typeof selectLeaderboardMode === "function") selectLeaderboardMode(currentLeaderboardMode || "overall");
+	if (typeof selectLeaderboardMode === "function") selectLeaderboardMode(currentLeaderboardMode || "sprint");
 	else socket.emit("get_leaderboard");
 }
 
 function showProfileView() {
 	hideAllViews();
 	document.getElementById("profile_view").style.display = "";
+	// /profile?id=<userId> shows a read-only view of that player instead of your own — reached from
+	// leaderboard rows. Query strings don't affect route matching (see ROUTE_VIEWS' own comment),
+	// just what this view renders once shown.
+	var viewId = parseInt(new URLSearchParams(location.search).get("id"), 10);
+	if (viewId) {
+		setSiteNavActive(null);
+		if (typeof renderPublicProfile === "function") renderPublicProfile(viewId);
+		return;
+	}
 	setSiteNavActive("profile");
 	renderProfile();
 }

@@ -1540,6 +1540,14 @@ socket.on("match_history", function(data) {
 	if (typeof renderMatchHistory === "function") renderMatchHistory(data);
 });
 
+// Reply to renderPublicProfile's get_public_profile — only render if the player hasn't since
+// navigated to a different profile (or away entirely), which would make this a stale reply.
+socket.on("public_profile", function(data) {
+	if (typeof publicProfilePending === "undefined" || publicProfilePending !== (data && data.userId)) return;
+	publicProfilePending = null;
+	if (typeof renderPublicProfileData === "function") renderPublicProfileData(data && data.profile);
+});
+
 socket.on("replay_data", function(data) {
 	if (typeof onReplayData === "function") onReplayData(data);
 });

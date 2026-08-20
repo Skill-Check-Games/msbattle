@@ -309,6 +309,114 @@ function renderProfile() {
 	selectProfileTab(profileTab); // restore the active tab (defaults to Overview)
 }
 
+// Read-only profile for someone who ISN'T the signed-in player — reached from leaderboard rows
+// (/profile?id=<userId>). A trimmed-down version of the Overview tab above (identity, lifetime
+// stats, ranked ladders, puzzles, free-play bests) built from the get_public_profile payload
+// instead of `account` — no tabs, no achievements/match history/rating graph, no edit-name pencil,
+// nothing that assumes this is "you". Reuses the same profileStat/profileLadderCard/etc. helpers
+// so it stays visually consistent with the real profile page without duplicating their markup.
+function renderPublicProfile(userId) {
+	var card = document.getElementById("profile_card");
+	if (!card) return;
+	var tabsBar = document.getElementById("profile_tabs");
+	if (tabsBar) tabsBar.style.display = "none";
+	["rating_history_card", "recent_games_card"].forEach(function(id) {
+		var el = document.getElementById(id); if (el) el.style.display = "none";
+	});
+	var ac = document.getElementById("achievements_card");
+	if (ac) ac.innerHTML = "";
+
+	card.innerHTML = "";
+	var loading = document.createElement("p");
+	loading.textContent = "Loading player…";
+	card.appendChild(loading);
+
+	if (typeof socket === "undefined" || !userId) { loading.textContent = "Player not found."; return; }
+	socket.emit("get_public_profile", { userId: userId });
+	publicProfilePending = userId;
+}
+
+// Set right before the get_public_profile emit above; onPublicProfile (Main.js's public_profile
+// handler) checks this still matches the reply's userId before rendering — guards against a stale
+// reply landing after the player has already navigated to a different profile or away entirely.
+var publicProfilePending = null;
+
+function renderPublicProfileData(profile) {
+	var card = document.getElementById("profile_card");
+	if (!card) return;
+	card.innerHTML = "";
+	if (!profile) {
+		var msg = document.createElement("p");
+		msg.textContent = "Player not found.";
+		card.appendChild(msg);
+		return;
+	}
+
+	var back = document.createElement("a");
+	back.className = "btn btn-ghost learn-back-btn profile-public-back";
+	back.href = "/leaderboard";
+	back.textContent = "← Back to leaderboard";
+	card.appendChild(back);
+
+	var summary = document.createElement("div");
+	summary.className = "profile-summary";
+	if (typeof buildAvatarChip === "function") {
+		var chip = buildAvatarChip(profile.avatarColor || DEFAULT_AVATAR, profile.country || null, 76);
+		chip.classList.add("profile-avatar");
+		summary.appendChild(chip);
+	}
+	var overall = Math.max(profile.ratingSprint || 0, profile.ratingStandard || 0, profile.ratingTournament || 0, profile.ratingTerritory || 0);
+	summary.appendChild(buildRankBadge(overall));
+	var text = document.createElement("div");
+	text.className = "profile-summary-text";
+	var nameLine = document.createElement("div");
+	nameLine.className = "profile-summary-name";
+	nameLine.textContent = profile.name || "Player";
+	text.appendChild(nameLine);
+	var ratingLine = document.createElement("div");
+	ratingLine.className = "profile-summary-rating";
+	var t = tierFor(overall, profile.provisional);
+	ratingLine.textContent = t.name + " · " + overall;
+	ratingLine.style.color = t.color;
+	text.appendChild(ratingLine);
+	if (profile.createdAt) {
+		var since = document.createElement("div");
+		since.className = "profile-summary-since";
+		since.textContent = "Member since " + formatMemberSince(profile.createdAt);
+		text.appendChild(since);
+	}
+	summary.appendChild(text);
+	card.appendChild(summary);
+
+	var played = profile.played || 0, wins = profile.wins || 0;
+	var winRate = played > 0 ? Math.round((wins / played) * 100) + "%" : "—";
+	var stats = document.createElement("div");
+	stats.className = "profile-stats";
+	stats.appendChild(profileStat("Played", String(played)));
+	stats.appendChild(profileStat("Wins", String(wins)));
+	stats.appendChild(profileStat("Win rate", winRate));
+	card.appendChild(stats);
+
+	card.appendChild(profileSectionTitle("Ranked ladders"));
+	var ladders = document.createElement("div");
+	ladders.className = "profile-ladders";
+	ladders.appendChild(profileLadderCard("Sprint", profile.ratingSprint || 0));
+	ladders.appendChild(profileLadderCard("Standard", profile.ratingStandard || 0));
+	card.appendChild(ladders);
+
+	card.appendChild(profileSectionTitle("Puzzles"));
+	var pz = document.createElement("div");
+	pz.className = "profile-stats";
+	if (typeof puzzleLadderLabel === "function") pz.appendChild(profileStat("Ladder", puzzleLadderLabel(profile.puzzlePoints || 0)));
+	pz.appendChild(profileStat("Solved", (profile.puzzlesSolved || 0) + " / " + (profile.puzzlesAttempted || 0)));
+	pz.appendChild(profileStat("Best streak", String(profile.streakBest || 0)));
+	pz.appendChild(profileStat("Best storm", String(profile.stormBest || 0)));
+	card.appendChild(pz);
+
+	card.appendChild(profileSectionTitle("Free-play best times"));
+	card.appendChild(profileBestsGrid(profile.soloBests || {}));
+}
+
 // Avatar (recolored flag) palette + country dropdown. Choices persist via set_avatar / set_country and
 // update the header chip in place (no full re-render → no refetch/toast churn).
 function renderAppearance() {

@@ -709,7 +709,7 @@ function topPlayers(limit, mode) {
 	var col = LEADERBOARD_COLUMNS[mode];
 	var ratingExpr = col || "MAX(rating_sprint, rating_standard, rating_tournament, rating_territory)";
 	return db.prepare(
-		"SELECT COALESCE(display_name, name) AS name, " + ratingExpr + " AS rating, " +
+		"SELECT id, COALESCE(display_name, name) AS name, " + ratingExpr + " AS rating, " +
 		"wins, played, avatar_color, country FROM users WHERE is_guest = 0 ORDER BY rating DESC LIMIT ?"
 	).all(limit || 20);
 }

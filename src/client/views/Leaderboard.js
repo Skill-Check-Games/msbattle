@@ -2,14 +2,15 @@
 // (#leaderboard_list) and the full /leaderboard view (#leaderboard_full_list)
 // — from the same dataset, painting tier + rating + "you" highlight per row.
 
-// Which mode's ladder the /leaderboard page is showing. The server returns the
-// chosen mode's rating as `rating`, so renderLeaderboard stays mode-agnostic.
-var currentLeaderboardMode = "overall";
+// Which mode's ladder the /leaderboard page is showing (Sprint or Standard — Overall/Tournament/
+// Territory tabs were dropped, though the server still supports those modes for get_leaderboard).
+// The server returns the chosen mode's rating as `rating`, so renderLeaderboard stays mode-agnostic.
+var currentLeaderboardMode = "sprint";
 
 // Open/refresh the leaderboard for a mode: highlight the tab, show a loading row,
 // and request that ladder. The `leaderboard` socket handler renders the reply.
 function selectLeaderboardMode(mode) {
-	currentLeaderboardMode = mode || "overall";
+	currentLeaderboardMode = mode || "sprint";
 	var tabs = document.querySelectorAll("#leaderboard_tabs .lb-tab");
 	for (var i = 0; i < tabs.length; i++) {
 		tabs[i].classList.toggle("active", tabs[i].getAttribute("data-mode") === currentLeaderboardMode);
@@ -45,6 +46,15 @@ function renderLeaderboard(players) {
 			var li = document.createElement("li");
 			li.className = "lb-row";
 			if (account && p.name === account.name) li.classList.add("lb-row-me");
+			// Link to the player's read-only profile — not for a guest row (topPlayers already excludes
+			// guests server-side, but the "you" row when you're a guest still has no linkable id).
+			if (p.id) {
+				li.classList.add("lb-row-linked");
+				li.tabIndex = 0;
+				li.setAttribute("role", "link");
+				li.addEventListener("click", function() { navigate("/profile?id=" + p.id); });
+				li.addEventListener("keydown", function(e) { if (e.key === "Enter") navigate("/profile?id=" + p.id); });
+			}
 
 			var rank = document.createElement("span");
 			rank.className = "lb-rank";
