@@ -710,11 +710,16 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   board (`result.anyChange || result.hitMine`) and from Input.js's flag branch when a flag is placed — NOT
   from the top of `performAction` (which fired for any click, including clicking an already-revealed cell
   to position the cursor — the bug this fixed).
-- **Puzzles page** (`/puzzles`, `#puzzle_picker_view`, `showPuzzlePickerView`) — a **separate** page from
-  Solo: the **Puzzle Ladder**/Streak/Storm/Daily mode cards (`.solo-puzzle-modes`, reusing `.ranked-picker-option`)
-  linking straight to `/puzzles/play|streak|storm|daily`, with the player's puzzle rating in the header
-  (`#puzzle_picker_rating`) and the Ladder tier/level on the first card (`#puzzle_ladder_progress`). Also has
-  no nav item — reached via the home dashboard's **Puzzles** row; keeps **Play** highlighted.
+- **Puzzles picker** (`#puzzles_mode_modal`, `openPuzzlesModal`/`closePuzzlesModal` in Router.js) — same
+  in-place modal pattern as `ranked_mode_modal` (Sprint/Standard): opened from the home dashboard's
+  **Puzzles** row instead of navigating to a page. Just two cards now — **Puzzle Ladder** (with its
+  tier/level progress inline, `#puzzles_modal_ladder_progress`, via `puzzleLadderHTML`) and **Time Trial**
+  (the renamed Storm mode; `mode === "storm"` on the wire/DB is unchanged, only the displayed name
+  changed) — Streak and Daily were dropped from this picker (Daily has its own home-page hero card
+  already; Streak's route/feature still exists, just isn't linked from here). `/puzzles` is a back-compat
+  redirect that lands on the lobby and opens the modal, same as `/ranked/sprint`|`standard`. The home
+  card itself shows the **Puzzle Ladder tier** (`#puzzle_ladder_tier`, `puzzleLadderLabel`) instead of the
+  hidden puzzle rating or a solved count — same "tier only" treatment Sprint/Standard use.
 - **Puzzle Ladder** (the renamed "Rated" mode) — a chess.com-style **monotonic points progression** layered
   on the rated trainer. `users.puzzle_points` only ever goes **up** (awarded server-side in `finalizePuzzle`
   on a rated *solve*, scaled by difficulty: `puzzlePointsFor(puzzleRating − playerRating)` → 15 regular /

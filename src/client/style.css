@@ -5894,21 +5894,6 @@ input[type="range"].sound-lab-rate-slider { grid-column: 1 / -1; grid-row: 2; wi
 .ranked-picker-option-title-big { font-size: 2.4rem; line-height: 1; margin-bottom: 0.2rem; }
 .ranked-picker-option-sub { color: var(--muted); font-size: 0.85rem; }
 
-/* === Puzzles page (mode cards) =================================== */
-.solo-puzzles-head { display: flex; align-items: baseline; gap: 0.9rem; }
-.solo-puzzles-head .section-title { margin-bottom: 0; }
-.solo-puzzles-rating { display: inline-flex; align-items: baseline; gap: 0.4rem; }
-.solo-puzzles-rating-label {
-	font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
-	letter-spacing: 0.07em; color: var(--muted);
-}
-.solo-puzzles-rating-num { font-size: 1.05rem; font-weight: 800; color: var(--accent-hover); }
-.solo-puzzles-sub { margin-top: 0.35rem; }
-.solo-puzzle-modes { grid-template-columns: repeat(4, 1fr); }
-@media (max-width: 900px) { .solo-puzzle-modes { grid-template-columns: 1fr 1fr; } }
-@media (max-width: 560px) { .solo-puzzle-modes { grid-template-columns: 1fr; } }
-.solo-puzzle-modes .ranked-picker-option { padding: 1.25rem; }
-.solo-puzzle-modes .ranked-picker-option-title { font-size: 1.2rem; }
 
 /* === In-battle ranked search ===================================== */
 /* Status pill shown in the game header while opponents are being found for the racing modes

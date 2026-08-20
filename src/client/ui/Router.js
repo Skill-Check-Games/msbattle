@@ -25,7 +25,6 @@ var ROUTE_VIEWS = {
 	"/terms": { view: "terms_view", nav: null, fn: "showTermsView" },
 	"/": { view: "lobby_view", nav: "home", fn: "showLobbyView" },
 	"/learn": { view: "learn_view", nav: "learn", fn: "showLearnView" },
-	"/puzzles": { view: "puzzle_picker_view", nav: "home", fn: "showPuzzlePickerView" },
 	"/custom": { view: "custom_view", nav: "home", fn: "showCustomView" },
 	"/puzzles/play": { view: "puzzle_play_view", nav: "", fn: "showPuzzlePlayView" },
 	"/puzzles/streak": { view: "puzzle_play_view", nav: "", fn: "showPuzzleStreakView" },
@@ -216,6 +215,41 @@ function closeRankedModeModal() {
 	});
 })();
 
+// Puzzles picker: same in-place modal as ranked_mode_modal above, opened from the home dashboard's
+// Puzzles row instead of navigating to /puzzles (the page still exists as a back-compat route — see
+// applyRouteFromHash).
+function openPuzzlesModal() {
+	var modal = document.getElementById("puzzles_mode_modal");
+	if (!modal) return;
+	var prog = document.getElementById("puzzles_modal_ladder_progress");
+	if (prog && typeof puzzleLadderHTML === "function") prog.innerHTML = account ? puzzleLadderHTML(account.puzzlePoints) : "";
+	modal.removeAttribute("hidden");
+}
+function closePuzzlesModal() {
+	var modal = document.getElementById("puzzles_mode_modal");
+	if (modal) modal.setAttribute("hidden", "");
+}
+(function wirePuzzlesModal() {
+	var modal = document.getElementById("puzzles_mode_modal");
+	if (!modal) return;
+	modal.addEventListener("click", function(e) {
+		if (e.target.hasAttribute("data-pz-close")) closePuzzlesModal();
+		// Picking an option navigates via the router's own link handler (below) — just close the
+		// modal so it doesn't sit on top of the destination page.
+		if (e.target.closest && e.target.closest(".ranked-picker-option")) closePuzzlesModal();
+	});
+	document.addEventListener("keydown", function(e) {
+		if (e.key === "Escape" && !modal.hasAttribute("hidden")) closePuzzlesModal();
+	});
+	document.querySelectorAll(".home-card-puzzles").forEach(function(row) {
+		row.addEventListener("click", function(e) {
+			if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+			e.preventDefault();
+			openPuzzlesModal();
+		});
+	});
+})();
+
 
 // Skeleton-loader helper (see .skel-shimmer / .dash-skel-cover in style.css): fades out the cover
 // over a home-dashboard card. Idempotent — safe to call more than once (e.g. both the real data
@@ -264,18 +298,6 @@ function showLearnView() {
 function showSoloView() {
 	setSiteNavActive("home");
 	if (typeof startSolo === "function") startSolo(soloSelectedSize);
-}
-
-// Puzzles page: the Rated / Streak / Storm / Daily mode cards. Reached from the
-// home dashboard's Puzzles row; keeps Play highlighted.
-function showPuzzlePickerView() {
-	hideAllViews();
-	document.getElementById("puzzle_picker_view").style.display = "";
-	setSiteNavActive("home");
-	var ratingEl = document.getElementById("puzzle_picker_rating");
-	if (ratingEl) ratingEl.textContent = account ? (account.puzzleRating != null ? account.puzzleRating : 0) : "—";
-	var prog = document.getElementById("puzzle_ladder_progress");
-	if (prog && typeof puzzleLadderHTML === "function") prog.innerHTML = account ? puzzleLadderHTML(account.puzzlePoints) : "";
 }
 
 function showCustomView() {
@@ -545,6 +567,15 @@ function applyRouteFromHash() {
 			return;
 		}
 		if (typeof showRankedPickerView === "function") return showRankedPickerView(style);
+	}
+	// Puzzles picker: opens the mode modal over the lobby instead of a dedicated page (see
+	// openPuzzlesModal) — this route is just a back-compat landing spot for old links/bookmarks.
+	if (hash === "/puzzles" && typeof openPuzzlesModal === "function") {
+		history.replaceState(null, "", "/");
+		lastAppliedHash = "/";
+		showLobbyView();
+		openPuzzlesModal();
+		return;
 	}
 	// Solo drops straight into a generated board (no static view to show ahead of that data), and
 	// /practice is a plain redirect — neither fits the "this path shows this one view" shape below.

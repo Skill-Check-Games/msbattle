@@ -514,7 +514,7 @@ var ACHIEVEMENTS = [
 	{ icon: "🧩", name: "Deductionist", value: function(m) { return m.puzzlesSolved || 0; }, tiers: [10, 100, 500, 2000, 5000], desc: function(t) { return "Solve " + t + " puzzles"; } },
 	{ icon: "🧠", name: "Puzzle Rank", value: function(m) { return Math.max(m.peakPuzzleRating || 0, m.puzzleRating || 0); }, tiers: [1000, 1500, 2000, 2500], desc: function(t) { return "Reach a puzzle rating of " + t; } },
 	{ icon: "🎲", name: "On a Roll", value: function(m) { return m.streakBest || 0; }, tiers: [5, 10, 25, 50], desc: function(t) { return "Hit an " + t + "-puzzle streak"; } },
-	{ icon: "⛈️", name: "Storm Chaser", value: function(m) { return m.stormBest || 0; }, tiers: [15, 30, 50, 75], desc: function(t) { return "Solve " + t + " in one Storm"; } },
+	{ icon: "⛈️", name: "Time Trial Ace", value: function(m) { return m.stormBest || 0; }, tiers: [15, 30, 50, 75], desc: function(t) { return "Solve " + t + " in one Time Trial run"; } },
 	// Daily
 	{ icon: "📅", name: "Daily Devotee", value: function(m) { return Math.max(m.dailyStreakBest || 0, m.dailyStreak || 0); }, tiers: [3, 7, 30, 100], desc: function(t) { return "Reach a " + t + "-day daily streak"; } },
 	{ icon: "🗓️", name: "Daily Regular", value: function(m) { return m.dailiesSolved || 0; }, tiers: [10, 50, 200], desc: function(t) { return "Solve " + t + " daily puzzles"; } },
@@ -806,15 +806,17 @@ function renderHomeRankChips() {
 		["dash_stat_sprint", "dash_stat_standard", "dash_stat_puzzles"].forEach(revealStat);
 	}
 
-	var puzzleRatingEl = document.getElementById("puzzle_rating_value");
-	var puzzleSolvedEl = document.getElementById("puzzle_solved_count");
-	if (puzzleRatingEl) {
-		puzzleRatingEl.textContent = account ? (account.puzzleRating || 800) : "—";
-	}
-	if (puzzleSolvedEl) {
-		puzzleSolvedEl.textContent = account
-			? (account.puzzlesSolved || 0) + " / " + (account.puzzlesAttempted || 0)
-			: "";
+	// The Puzzles home row shows the Puzzle Ladder tier (same "tier only, no raw number" treatment as
+	// Sprint/Standard) instead of the hidden puzzle rating or a solved count.
+	var puzzleTierEl = document.getElementById("puzzle_ladder_tier");
+	if (puzzleTierEl) {
+		if (account && typeof puzzleLadder === "function" && typeof puzzleLadderLabel === "function") {
+			puzzleTierEl.textContent = puzzleLadderLabel(account.puzzlePoints || 0);
+			puzzleTierEl.style.color = puzzleLadder(account.puzzlePoints || 0).tierColor;
+		} else {
+			puzzleTierEl.textContent = "—";
+			puzzleTierEl.style.color = "";
+		}
 	}
 	var streakBestEl = document.getElementById("puzzle_streak_best");
 	var stormBestEl = document.getElementById("puzzle_storm_best");

@@ -61,7 +61,7 @@ function renderPuzzlePlay(mode) {
 	var title = document.createElement("h1");
 	title.className = "section-page-title";
 	title.textContent = mode === "streak" ? "Streak"
-		: mode === "storm" ? "Storm"
+		: mode === "storm" ? "Time Trial"
 		: mode === "daily" ? "Daily puzzle"
 		: "Puzzle Ladder";
 	view.appendChild(title);
@@ -88,7 +88,7 @@ function renderPuzzlePlay(mode) {
 	var loading2 = document.createElement("p");
 	loading2.className = "puzzle-play-empty";
 	loading2.textContent = mode === "streak" ? "Starting streak run…"
-		: mode === "storm" ? "Starting storm run…"
+		: mode === "storm" ? "Starting Time Trial run…"
 		: "Finding a puzzle near your rating…";
 	view.appendChild(loading2);
 	if (mode === "streak") socket.emit("puzzle_streak_start");
@@ -148,7 +148,7 @@ function togglePuzzleChrome(on, mode, marathon) {
 		if (runPanel) runPanel.style.display = "";
 		if (titleEl) {
 			titleEl.textContent = mode === "streak" ? "Streak"
-				: mode === "storm" ? "Storm"
+				: mode === "storm" ? "Time Trial"
 				: "Daily puzzle";
 		}
 		if (primaryLabel) {
@@ -613,7 +613,7 @@ function showPuzzleRunOutcome(data) {
 
 	var again = document.createElement("button");
 	again.className = "btn btn-primary";
-	again.textContent = data.mode === "streak" ? "New streak" : "New storm";
+	again.textContent = data.mode === "streak" ? "New streak" : "New Time Trial";
 	again.addEventListener("click", function() {
 		hideOverlay();
 		if (data.mode === "streak") socket.emit("puzzle_streak_start");
