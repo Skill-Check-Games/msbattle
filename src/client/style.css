@@ -5011,8 +5011,11 @@ body.touch .find-next-arrow { display: inline-flex; }
 .learn-course-card:hover:not(:disabled) { border-color: var(--accent); }
 .learn-course-card:disabled, .learn-course-card.locked { opacity: 0.55; cursor: not-allowed; }
 .learn-course-card.done { border-color: rgba(74, 222, 128, 0.4); }
-.learn-course-top { display: flex; justify-content: space-between; align-items: center; }
-.learn-course-num { font-size: 0.7rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+/* Same specificity as the generic :hover rule above (2 classes + 1 pseudo-class each) — this one
+   needs to win on a completed card, or hovering it loses the green "done" border for the plain
+   accent colour, reading as a glitch on a status indicator rather than a hover state. */
+.learn-course-card.done:hover { border-color: var(--success); }
+.learn-course-top { display: flex; align-items: center; }
 .learn-course-badge {
 	font-size: 0.7rem;
 	letter-spacing: 0.08em;

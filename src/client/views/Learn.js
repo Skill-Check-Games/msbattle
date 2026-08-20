@@ -13,7 +13,7 @@
 var LEARN_COURSES = [
 {
 	id: "basics",
-	title: "The Basics",
+	title: "How to play the game",
 	sub: "How to play. Every move you can make.",
 	lessons: [
 	{
@@ -861,24 +861,22 @@ function renderLearnHome() {
 			card.className = "learn-course-card" + (done ? " done" : "") + (locked ? " locked" : "");
 			card.disabled = locked;
 
-			var top = document.createElement("div");
-			top.className = "learn-course-top";
-			var num = document.createElement("span");
-			num.className = "learn-course-num";
-			num.textContent = "Course " + (idx + 1);
-			top.appendChild(num);
-			if (done) {
-				var badge = document.createElement("span");
-				badge.className = "learn-course-badge";
-				badge.textContent = "✓ Done";
-				top.appendChild(badge);
-			} else if (locked) {
-				var lock = document.createElement("span");
-				lock.className = "learn-course-badge locked";
-				lock.textContent = "Locked";
-				top.appendChild(lock);
+			if (done || locked) {
+				var top = document.createElement("div");
+				top.className = "learn-course-top";
+				if (done) {
+					var badge = document.createElement("span");
+					badge.className = "learn-course-badge";
+					badge.textContent = "✓ Done";
+					top.appendChild(badge);
+				} else {
+					var lock = document.createElement("span");
+					lock.className = "learn-course-badge locked";
+					lock.textContent = "Locked";
+					top.appendChild(lock);
+				}
+				card.appendChild(top);
 			}
-			card.appendChild(top);
 
 			var title = document.createElement("h2");
 			title.className = "learn-course-card-title";
