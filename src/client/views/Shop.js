@@ -45,8 +45,11 @@ function markOwnedLocally(itemId) {
 }
 
 function buyShopItemFake(item, btn, originalLabel) {
+	// Deliberately doesn't swap the button's text for a "Starting checkout…" state — the price label
+	// is usually shorter than that string, so the swap widened the button and shifted whatever sits
+	// next to it. Disabling the button (dimmed via .btn:disabled) is feedback enough for how brief
+	// this in-flight window actually is.
 	btn.disabled = true;
-	btn.textContent = "Starting checkout…"; // same in-flight text as a real purchase — see buildShopTile
 	fetch("/api/shop/fake-grant", {
 		method: "POST",
 		headers: Object.assign({ "Content-Type": "application/json" }, shopHeaders()),
@@ -67,8 +70,7 @@ function buyShopItem(item, btn) {
 	// fakeShopMode="true" can't leak into a real checkout for a non-admin account mid-session (e.g.
 	// an admin toggles it on, then signs out into a guest without a page reload).
 	if (fakeShopMode && account && account.isAdmin) { buyShopItemFake(item, btn, originalLabel); return; }
-	btn.disabled = true;
-	btn.textContent = "Starting checkout…";
+	btn.disabled = true; // see buyShopItemFake's comment on why this doesn't also swap the button text
 	fetch("/api/shop/checkout", {
 		method: "POST",
 		headers: Object.assign({ "Content-Type": "application/json" }, shopHeaders()),
@@ -110,8 +112,9 @@ function buildShopTile(item) {
 		var buyBtn = document.createElement("button");
 		buyBtn.type = "button"; buyBtn.className = "btn btn-primary shop-tile-btn";
 		// Deliberately identical whether fakeShopMode is on or not — the shop should look exactly the
-		// same either way, only what happens on click differs (see buyShopItem).
-		buyBtn.textContent = "Buy — " + shopPriceLabel(item.id);
+		// same either way, only what happens on click differs (see buyShopItem). Just the price, no
+		// "Buy" prefix — it's already the only thing a buy button on an unowned item could mean.
+		buyBtn.textContent = shopPriceLabel(item.id);
 		buyBtn.addEventListener("click", function() { buyShopItem(item, buyBtn); });
 		tile.appendChild(buyBtn);
 	}

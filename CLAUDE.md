@@ -946,8 +946,11 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   all, so it works even with Stripe unconfigured). Env: `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`
   (`.env.example`; a restricted key is recommended over a full secret key). **No refund/chargeback
   revocation** and **no grandfathering** of pre-shop `tactical` usage — deliberate launch scope, not an
-  oversight. **Client UI**: `Shop.js` renders tiles grouped by kind (Owned / Buy — $X.XX / Sign in to buy)
-  and handles the `?purchase=success|cancel` return trip; an admin sees a **"Fake shop" checkbox** at the
+  oversight. **Client UI**: `Shop.js` renders tiles grouped by kind (Owned / $X.XX / Sign in to buy — no
+  "Buy" prefix on the price, it's already the only thing that button could mean; clicking it just disables
+  the button rather than swapping in a "Starting checkout…" label, so the price text's own width never
+  shifts anything) and handles the `?purchase=success|cancel` return trip; an admin sees a
+  **"Fake shop" checkbox** at the
   top of the page (`account.isAdmin`, in-memory `fakeShopMode` — never persisted) that, while on, routes
   every Buy click to `/api/shop/fake-grant` instead of Checkout, activating instantly with no payment (the
   button relabels to "Activate (fake)" so it's never ambiguous which mode is live; the server independently

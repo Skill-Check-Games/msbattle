@@ -120,7 +120,7 @@ function openItemPurchaseModal(item) {
 	body.appendChild(name);
 	var buyBtn = document.createElement("button");
 	buyBtn.type = "button"; buyBtn.className = "btn btn-primary item-purchase-btn";
-	buyBtn.textContent = "Buy — " + shopPriceLabel(item.id);
+	buyBtn.textContent = shopPriceLabel(item.id);
 	buyBtn.addEventListener("click", function() {
 		if (typeof buyShopItem === "function") buyShopItem(item, buyBtn);
 	});
