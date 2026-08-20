@@ -3906,6 +3906,9 @@ body.touch .find-next-arrow { display: inline-flex; }
 
 /* Per-board progress bar (your side fills from the left, opponent from the right). */
 .duel-bar { display: none; }
+/* Mobile-only duo-race substitute for the (desktop) opponent board/duel-bar — see the
+   @media (max-width: 700px) .game-view.duo #mobile_duel_progress rule for the shown state. */
+#mobile_duel_progress { display: none; }
 .game-view.duo .duel-bar {
 	display: block;
 	position: relative;
@@ -4505,6 +4508,31 @@ body.touch .find-next-arrow { display: inline-flex; }
 	/* The side-by-side VS column (opponent board + tug-of-war) has no place in the stacked mobile
 	   layout — it was floating detached at the bottom. Hide it on mobile. */
 	body.in-game #duel_center { display: none; }
+	/* Mobile substitute for the desktop opponent board/duel-bar (both hidden — no room): a compact
+	   two-row progress strip, bordered so it reads as its own element against the full-bleed board
+	   below it rather than floating loose. Only for the 1v1 layout — see #mobile_duel_progress. */
+	.game-view.duo #mobile_duel_progress {
+		display: flex; flex-direction: column; gap: 0.4rem;
+		margin: 0.5rem 1rem 0; padding: 0.6rem 0.7rem;
+		border: 1px solid var(--border); border-radius: 10px;
+		background: var(--surface); flex-shrink: 0;
+	}
+	.mobile-duel-progress-row { display: flex; align-items: center; gap: 0.6rem; }
+	.mobile-duel-progress-label {
+		flex: 0 0 auto; width: 4.2rem; font-size: 0.78rem; font-weight: 700;
+		overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+	}
+	.mobile-duel-progress-bar {
+		flex: 1 1 auto; position: relative; height: 0.6rem;
+		border-radius: 4px; background: rgba(255, 255, 255, 0.08); overflow: hidden;
+	}
+	.mobile-duel-progress-fill {
+		display: block; height: 100%; width: 0;
+		background: linear-gradient(90deg, var(--duel-you, #3b82f6), #7db8ff);
+		transition: width 0.3s ease;
+	}
+	.mobile-duel-progress-fill-opp { background: linear-gradient(90deg, var(--duel-opp, #fb7185), #fda4af); }
+	.mobile-duel-progress-pct { flex: 0 0 auto; width: 2.6rem; text-align: right; font-size: 0.78rem; font-variant-numeric: tabular-nums; }
 	body.in-game .player-controls { padding: 0; }
 	body.in-game .game-header { padding: 0.4rem 1rem; margin-bottom: 0; flex-shrink: 0; }
 	body.in-game main {
@@ -6200,4 +6228,38 @@ body.game-fullscreen .game-view:not(.territory):not(.puzzle):not(.solo):not(.duo
 /* Terms · © MSBattle · Privacy — small text, centred together (not pushed to edges). */
 .site-footer-legal { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0.4rem 1rem; font-size: 0.78rem; }
 .site-footer-legal a { color: var(--muted); text-decoration: none; }
+
+/* Rotate-to-landscape nudge (see #rotate_prompt in index.html for why this is a soft prompt, not a
+   true orientation lock). Hidden by default; shown only in-game, on a narrow-enough portrait viewport
+   — past ~700px wide (most phones' landscape width) the normal desktop board layout already looks
+   right, so this is the ONLY mobile-specific handling gameplay needs for orientation. */
+.rotate-prompt { display: none; }
+@media (max-width: 900px) and (orientation: portrait) {
+	body.in-game .rotate-prompt {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		gap: 1rem;
+		position: fixed;
+		inset: 0;
+		z-index: 200;
+		padding: 2rem;
+		text-align: center;
+		background: var(--bg);
+	}
+	body.in-game .rotate-prompt.dismissed { display: none; }
+}
+.rotate-prompt-icon {
+	font-size: 3rem;
+	color: var(--accent);
+	animation: rotate-prompt-spin 1.8s ease-in-out infinite;
+}
+@keyframes rotate-prompt-spin {
+	0%, 15% { transform: rotate(0deg); }
+	50%, 65% { transform: rotate(90deg); }
+	100% { transform: rotate(90deg); }
+}
+.rotate-prompt-text { font-size: 1.05rem; color: var(--text); max-width: 24ch; }
+.rotate-prompt-dismiss { color: var(--muted); font-size: 0.85rem; }
 .site-footer-legal a:hover { color: var(--text); }

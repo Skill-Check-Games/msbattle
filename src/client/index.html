@@ -516,6 +516,18 @@
 		     fresh page load never needs, and the parser has to walk past it before this script runs. -->
 		<!-- HYDRATE_DATA -->
 
+		<!-- Mobile portrait nudge, shown only while actually in a game (body.in-game) on a narrow
+		     portrait viewport — see style.css. Landscape needs no special mobile layout at all: past
+		     ~700px wide the normal desktop side-by-side board layout already kicks in and looks right,
+		     so this is purely about getting the player to rotate, not building a second layout. Not a
+		     true OS-level orientation lock (unreliable cross-browser outside fullscreen) — a "Continue
+		     anyway" escape hatch keeps it from trapping anyone whose device won't rotate. -->
+		<div id="rotate_prompt" class="rotate-prompt">
+			<div class="rotate-prompt-icon" aria-hidden="true">⟳</div>
+			<p class="rotate-prompt-text">Rotate your device for the best experience</p>
+			<button id="rotate_prompt_dismiss" class="btn btn-ghost rotate-prompt-dismiss" type="button">Continue anyway</button>
+		</div>
+
 		<section id="game_view" class="view game-view" style="display:none">
 			<div class="game-header">
 				<button id="leave_button" class="btn btn-ghost">← Exit game</button>
@@ -538,6 +550,23 @@
 					</button>
 				</div>
 			</div>
+				<!-- Mobile-only duo race progress: desktop shows the full opponent board (.opponents) and
+				     duel-bar side panel, but both are hidden on mobile (no room) — this compact strip is
+				     the mobile substitute so a 1v1 race isn't just your own board with zero indication of
+				     whether you're winning or losing. Filled in by updateDuelHud (Main.js), same call as
+				     the desktop bars. Hidden outside .game-view.duo — see style.css. -->
+				<div id="mobile_duel_progress" class="mobile-duel-progress" aria-hidden="true">
+					<div class="mobile-duel-progress-row">
+						<span class="mobile-duel-progress-label">You</span>
+						<div class="mobile-duel-progress-bar"><span id="mobile_duel_bar_you" class="mobile-duel-progress-fill"></span></div>
+						<b id="mobile_duel_pct_you" class="mobile-duel-progress-pct">0%</b>
+					</div>
+					<div class="mobile-duel-progress-row">
+						<span id="mobile_duel_opp_name" class="mobile-duel-progress-label">Opponent</span>
+						<div class="mobile-duel-progress-bar mobile-duel-progress-bar-opp"><span id="mobile_duel_bar_opp" class="mobile-duel-progress-fill mobile-duel-progress-fill-opp"></span></div>
+						<b id="mobile_duel_pct_opp" class="mobile-duel-progress-pct">0%</b>
+					</div>
+				</div>
 				<div class="game-grid">
 				<div class="game-left">
 					<div id="player_div" class="player-board">

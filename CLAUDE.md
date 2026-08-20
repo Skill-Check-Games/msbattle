@@ -534,6 +534,19 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   still in the pre-reveal window) specifically to close this gap — don't drop that call when touching this code.
   The site footer is hidden whenever a game is on screen via a `body.in-game` class (added by the
   game entry points, removed in `hideAllViews`).
+- **Mobile in-game (portrait phones)**: `.opponents` and the desktop `.duel-bar`/`#duel_id_you` panel
+  are all hidden below the `max-width: 700px` breakpoint (no room) — but past roughly that width
+  (most phones' landscape width), the normal desktop side-by-side board layout already applies as-is
+  and looks right, so there's no separate landscape-specific mobile layout to maintain. Two things
+  fill the portrait gap: a **rotate-to-landscape nudge** (`#rotate_prompt`, CSS-only
+  `@media (max-width: 900px) and (orientation: portrait)`, shown only while `body.in-game` — not a true
+  OS orientation lock, which is unreliable outside fullscreen across browsers, so a "Continue anyway"
+  button (`#rotate_prompt_dismiss`) adds a `.dismissed` class rather than trapping anyone whose device
+  won't rotate; `resetGameUI` clears that class so the nudge reappears for the next game/search), and a
+  **compact 1v1 progress strip** (`#mobile_duel_progress`, duo only — `updateDuelHud` mirrors the same
+  you/opponent progress numbers into it via `setMobileDuelBar`, with the opponent's name read straight
+  from `#player_name1`) so a portrait player isn't racing with zero indication of whether they're
+  winning until the round ends.
 - `AdminList.js` — shared helpers for the paginated admin views: `renderPager` and the
   `applyQueryString` URL-filter-state write (All Puzzles / Bots / Patterns / Starting positions).
 - `style.css` — all styles.

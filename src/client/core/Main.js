@@ -220,6 +220,22 @@ function updateDuelHud(meGame, oppGame) {
 	var opP = oppGame ? (oppGame.progress || 0) : 0;
 	setDuelBar("duel_bar_you", myP);
 	setDuelBar("duel_bar_opp", opP);
+	// Mobile substitute for the desktop opponent board/duel-bar panel (both hidden there — no room).
+	// Mirrors the same two numbers into a compact strip instead of leaving mobile with zero indication
+	// of whether you're winning or losing until the round ends. Name comes from #player_name1, which
+	// setOppIdentity already keeps current — no separate identity plumbing needed here.
+	setMobileDuelBar("mobile_duel_bar_you", "mobile_duel_pct_you", myP);
+	setMobileDuelBar("mobile_duel_bar_opp", "mobile_duel_pct_opp", opP);
+	var oppNameEl = document.getElementById("player_name1");
+	var mobileOppNameEl = document.getElementById("mobile_duel_opp_name");
+	if (mobileOppNameEl) mobileOppNameEl.textContent = (oppNameEl && oppNameEl.textContent) || "Opponent";
+}
+function setMobileDuelBar(fillId, pctId, progress) {
+	var fill = document.getElementById(fillId);
+	var pct = document.getElementById(pctId);
+	var p = Math.round((progress || 0) * 100) + "%";
+	if (fill) fill.style.width = p;
+	if (pct) pct.textContent = p;
 }
 // 6-player battle: mark finished opponents. Opponent slots are filled in sorted order, so
 // slot[i] ↔ opponents[i].
@@ -1363,6 +1379,13 @@ scoreboardEl.addEventListener("click", function(e) {
 	});
 })();
 
+// "Continue anyway" on the rotate-to-landscape nudge — dismiss for the rest of this game (a device
+// that genuinely can't rotate, or a player who just prefers portrait, shouldn't be trapped behind it).
+// Re-shows on the next game/round, same as any other in-game overlay resetting between games.
+document.getElementById("rotate_prompt_dismiss").addEventListener("click", function() {
+	document.getElementById("rotate_prompt").classList.add("dismissed");
+});
+
 // Pre-game Start button over the board → run the countdown, then unlock the board.
 document.getElementById("solo_start_btn").addEventListener("click", function() {
 	if (typeof beginSolo === "function") beginSolo();
@@ -2341,6 +2364,8 @@ function resetGameUI() {
 	readyButton.style.display = "";
 	hideOverlay();
 	clearFreeze();
+	var rp = document.getElementById("rotate_prompt");
+	if (rp) rp.classList.remove("dismissed"); // re-nudge for the new game/search, even if dismissed last time
 	stopRoundTimer();
 	resetBoardAnimations();
 	clearPlaceBadges(); // finish-place stamps (1st/2nd/…) from the last round/match
