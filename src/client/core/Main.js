@@ -1363,10 +1363,6 @@ scoreboardEl.addEventListener("click", function(e) {
 	});
 })();
 
-document.getElementById("refresh_button").addEventListener("click", function() {
-	socket.emit("list_rooms");
-});
-
 // Pre-game Start button over the board → run the countdown, then unlock the board.
 document.getElementById("solo_start_btn").addEventListener("click", function() {
 	if (typeof beginSolo === "function") beginSolo();

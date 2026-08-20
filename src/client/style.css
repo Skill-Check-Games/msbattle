@@ -1245,11 +1245,6 @@ main:has(.game-view.territory) { max-width: none; }
 .custom-head-text { min-width: 0; }
 .custom-head-actions { display: flex; gap: 0.6rem; align-items: center; flex: 0 0 auto; }
 .custom-create-btn { font-weight: 700; }
-.custom-refresh {
-	width: 2.6rem; height: 2.6rem; padding: 0; flex: 0 0 auto;
-	font-size: 1.2rem; line-height: 1; border-radius: 10px;
-}
-.custom-refresh:hover { transform: rotate(45deg); }
 
 /* Room ruleset chips on each lobby row. */
 .room-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.1rem 0 0.05rem; }
