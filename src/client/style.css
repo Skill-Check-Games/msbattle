@@ -4237,6 +4237,7 @@ body.duel-landscape-mode .game-view.duo .opponent_div .duel-header-row {
 	padding: 0;
 	border-radius: 0;
 	overflow-y: visible;
+	width: 100%;
 }
 
 /* Back button, top-left of the left panel — #leave_button (the header's own Exit button) is hidden
@@ -4279,7 +4280,7 @@ body.duel-landscape-mode .game-view.duo #duel_id_you { margin-top: 1.6rem; } /* 
    align: right; }`, desktop's mirror treatment) carries an ID selector, which beats the plain-class
    .duel-id rule above on specificity regardless of source order — needs its own ID-selector override
    to actually win here. Same story for its tier-pill's row-reverse just below. */
-body.duel-landscape-mode .game-view.duo #duel_id_opp { flex-direction: column; text-align: center; margin-top: 0; }
+body.duel-landscape-mode .game-view.duo #duel_id_opp { flex-direction: column; text-align: center; margin-top: 1.6rem; }
 body.duel-landscape-mode .game-view.duo .duel-id-info,
 body.duel-landscape-mode .game-view.duo #duel_id_opp .duel-id-info { align-items: center; }
 body.duel-landscape-mode .game-view.duo .duel-id-tier-pill,
@@ -4329,7 +4330,7 @@ body.duel-landscape-mode .game-view.duo .duel-bar-corner {
 }
 body.duel-landscape-mode .game-view.duo .duel-bar-corner-row { width: 100%; justify-content: center; }
 body.duel-landscape-mode .game-view.duo .duel-bar-corner-pct { font-size: 1.1rem; }
-body.duel-landscape-mode .game-view.duo .duel-bar-corner-track { flex: 1; width: auto; max-width: 130px; }
+body.duel-landscape-mode .game-view.duo .duel-bar-corner-track { flex: 1; width: auto; }
 body.duel-landscape-mode .game-view.duo .duel-bar-corner-left { text-align: center; }
 
 /* Timer, relocated here from the old center column — see index.html's comment on

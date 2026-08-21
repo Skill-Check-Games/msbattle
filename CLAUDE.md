@@ -605,10 +605,11 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   mistake as the previous bullet, just for buttons instead of an info panel. DOM order is still Reveal
   then Flag (matches the sketch — was Flag then Reveal in the very first version); both still just flip
   the same shared `flagMode` state everything else does (`updateFlagModeButton`, Main.js).
-  **`fitDesktopCellPx`** (`MobileLayout.js`) floors at 40px here now (was 30, before that the shared
-  `DESKTOP_CELL_MIN` 22px) — still gated on `isDuoRacing()` + `body.duel-landscape-mode` — bumped again
-  after "very hard to click correctly" feedback at 30px; pinch-zoom is there for zooming back OUT to an
-  overview, tapping cells accurately at the default size matters more than fitting the whole board in
+  **`fitDesktopCellPx`** (`MobileLayout.js`) floors at 56px here now (was 40, before that 30, before that
+  the shared `DESKTOP_CELL_MIN` 22px) — still gated on `isDuoRacing()` + `body.duel-landscape-mode` (via
+  the `isDuelLandscapeMobile()` helper) — bumped repeatedly after "very hard to click correctly" feedback;
+  pinch-zoom is there for zooming back OUT to an overview, tapping cells accurately at the default size
+  matters more than fitting the whole board in
   untouched. `.board-scroll` still gets the `flex:1; min-height:0; overflow:auto` chain (only the board
   pans internally, not the page — `.game-view.duo` stays pinned to `height:100dvh; overflow:hidden`),
   scrollbar hidden, and `#game0`'s `touch-action: manipulation` (pan + native pinch-zoom, minus
@@ -620,6 +621,39 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   `position: absolute; inset: 0` radial-gradient) still doesn't scroll *with* the board's content, same
   bug/fix as before — disabled specifically where `.board-scroll` is actually scrollable (here and
   portrait mobile), left alone on desktop.
+  **Opponent stats box was width-starved, fixed**: `.duel-bar-corner-track`'s `flex: 1` should fill the
+  stats card, but the opponent's copy stayed pinned near its label's own width. Cause: the *shared*
+  `.duel-header-row, .opponent_div { display: flex; flex-direction: column; align-items: center; }` rule
+  matches the opponent's nested `.duel-header-row` (see the "second real bug" above) too, and `align-items:
+  center` on its parent (`.opponent_div`) shrink-wraps a child with no explicit width to its own content's
+  width instead of stretching it — so `.duel-bar-corner { width: 100% }` computed against that narrow
+  shrink-wrapped wrapper, not the full 210px panel. Fixed by adding `width: 100%` to the
+  `.opponent_div .duel-header-row` neutralizing override alongside its border/background reset. Once that
+  wrapper actually spans the panel, the old `max-width: 130px` cap on `.duel-bar-corner-track` (a leftover
+  from a narrower previous layout) was also removed — both sides' tracks now size purely off `flex: 1`
+  and match exactly.
+  **Opponent avatar sat higher than the player's, fixed**: `#duel_id_you` carries `margin-top: 1.6rem` to
+  clear the back button; `#duel_id_opp` had `margin-top: 0`, so despite both panels having identical
+  padding, the opponent's avatar rendered ~26px closer to the panel's top edge — asymmetric even though
+  only the left panel actually has a back button reserving that space. Fixed by giving `#duel_id_opp` the
+  same `margin-top: 1.6rem`, so both avatars now start at an identical distance from their panel's top
+  regardless of which side has the button.
+  **Cells were still hard to tap despite the 40px floor, actual fix**: `fitDesktopCellPx`'s landscape-duel
+  floor (see below) only controls the *backing* cell size the JS computes — `sizePlayerCanvas`'s non-mobile
+  branch (taken whenever `mobileLayout`, the `max-width: 700px` boolean, is false — true for this layout,
+  since it's specifically gated to `min-width: 701px` in `applyDuelLandscapeClass`) sets `canvas.style.
+  maxWidth = "100%"`, which silently scales the rendered canvas straight back down to fit `.board-scroll`'s
+  container width regardless of what cell size the JS floor asked for. So the floor bump to 40 never
+  actually changed anything on screen — the effective on-screen cell size was still just container-width /
+  cols (~17px at 844×390), the exact thing the "hard to click" feedback was about. Fixed with a new
+  `isDuelLandscapeMobile()` helper (`isDuoRacing()` + `body.duel-landscape-mode`) that now also routes
+  `sizePlayerCanvas` through the *mobile* branch (fixed pixel `width`/`height`, `maxWidth: none`, the
+  whole-cell-centered `.board-scroll` width calc) even though `mobileLayout` itself stays false here — this
+  is exactly the fixed-size-plus-native-pan treatment `.board-scroll`'s `overflow: auto` was already
+  written for, just never actually reachable before. With real headroom to scroll now available, also
+  bumped the floor itself again, 40 -> 56px. `snapBoardScroll`/`mobileNavigate`/the find-next-frontier arrow
+  stay gated on the real `mobileLayout` flag (unchanged) — panning here is native browser touch-scroll, no
+  whole-cell snap-back or frontier-hunting aid, since only the sizing branch was in scope this round.
   **Known gap, not fixed by this version**: `body.duel-force-rotate` (see its own bullet below) only ever
   applies on a phone-sized viewport that's still portrait-*width* — the CSS rotation trick changes how
   the content renders, not the actual width a media query measures — which means the portrait

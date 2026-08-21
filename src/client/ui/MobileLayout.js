@@ -27,6 +27,14 @@ var PUZZLE_BOARD_PX_MOBILE = 320;
 var PUZZLE_CELL_MAX = 75;
 var PUZZLE_CELL_MAX_MOBILE = 56;
 
+// True on the mobile landscape 1v1 duel layout (body.duel-landscape-mode, style.css) — a wide
+// (width > 700) viewport, so it fails the width-based mobileLayout check even though it's a phone
+// held sideways and needs the same fixed-size, panned-by-hand canvas as the real mobileLayout branch
+// below (fitMobileCellPx's board-scroll gets exactly that treatment for portrait phones).
+function isDuelLandscapeMobile() {
+	return (typeof isDuoRacing === "function") && isDuoRacing() && document.body.classList.contains("duel-landscape-mode");
+}
+
 // Largest cell size that lets a rows×cols board fit the available board area on
 // desktop, clamped to [DESKTOP_CELL_MIN, DESKTOP_CELL_MAX]. Scaling to fit means a
 // big board grows to use the screen instead of sitting at a fixed small size, and a
@@ -54,11 +62,10 @@ function fitDesktopCellPx() {
 	// the general-purpose DESKTOP_CELL_MIN — on a viewport this short the ideal (fit-everything)
 	// cell size is almost always well under 22px anyway (that's exactly why board-scroll pans), so
 	// the board was already rendering at the absolute minimum, not a deliberately chosen size. Bumped
-	// again (30 -> 40) after "very hard to click correctly" feedback at 30 — pinch-zoom (#game0's
-	// touch-action, style.css) is there for zooming back OUT to an overview; tapping individual cells
-	// accurately matters more than fitting the whole board in untouched by default.
-	var landscapeDuelMobile = inDuo && document.body.classList.contains("duel-landscape-mode");
-	var minCell = landscapeDuelMobile ? 40 : DESKTOP_CELL_MIN;
+	// twice (30 -> 40 -> 56) after repeated "very hard to click correctly" feedback — pinch-zoom
+	// (#game0's touch-action, style.css) is there for zooming back OUT to an overview; tapping
+	// individual cells accurately matters more than fitting the whole board in untouched by default.
+	var minCell = isDuelLandscapeMobile() ? 56 : DESKTOP_CELL_MIN;
 	return Math.max(minCell, Math.min(maxCell, cell));
 }
 
@@ -100,7 +107,11 @@ function sizePlayerCanvas() {
 	if (playerCanvas.width !== pw) playerCanvas.width = pw;
 	if (playerCanvas.height !== ph) playerCanvas.height = ph;
 	playerCanvas.style.width = (cols * cellPx) + "px";
-	if (mobileLayout) {
+	// Duel-landscape needs the same fixed-size, hand-panned canvas as real mobileLayout (below) —
+	// otherwise the desktop branch's maxWidth:100% would scale the canvas straight back down to fit
+	// the panel, silently undoing fitDesktopCellPx's landscape-duel floor and leaving cells just as
+	// small (and just as hard to tap) as before that floor was raised.
+	if (mobileLayout || isDuelLandscapeMobile()) {
 		mobileCellPx = cellPx;
 		wireScrollSnap();
 		playerCanvas.style.height = (rows * cellPx) + "px";
