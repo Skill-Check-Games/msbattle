@@ -4198,22 +4198,43 @@ body.duel-landscape-mode .game-view.duo .opponent_div {
 	padding-left: 0.5rem;
 	padding-right: 0.5rem;
 }
-body.duel-landscape-mode .game-view.duo .duel-id { margin-bottom: 0.3rem; }
-/* The opponent's identity shares a much narrower card than the player's own, so give it a
-   smaller avatar and tighter type — without it, the tier pill's text has too little room and
-   wraps. buildAvatarChip always builds at 52px (Main.js) regardless of context; scale it down
-   with plain CSS sizing here rather than threading a size parameter through for one breakpoint. */
-body.duel-landscape-mode .game-view.duo #duel_id_opp {
-	gap: 0.45rem;
-	min-height: 40px;
+/* Was margin-bottom on .duel-id itself (both the base 0.75rem, .game-view.duo .duel-id above, and a
+   0.3rem landscape override) — that's fine while it's the header's only row, but once it started
+   sharing .duel-header-row with .duel-bar-corner (no such margin), the margin ate into .duel-id's own
+   share of the row's stretched height instead of the space it was meant to add below the row as a
+   whole, leaving it visibly shorter than its sibling despite align-items:stretch. Zero it on .duel-id
+   and move it to the row instead, so both sides stretch to the exact same height and the gap below is
+   even either way. */
+body.duel-landscape-mode .game-view.duo .duel-id { margin-bottom: 0; }
+body.duel-landscape-mode .game-view.duo .duel-header-row { margin-bottom: 0.3rem; }
+/* No chip: just the badge + tier name, no pill border/background — the sketch doesn't box it in,
+   and freed from having to look like a self-contained pill it can stretch to fill the identity
+   block's full height instead (see .duel-id-info's justify-content below). */
+body.duel-landscape-mode .game-view.duo .duel-id-tier-pill {
+	border: none;
+	background: transparent;
+	padding: 0;
 }
-body.duel-landscape-mode .game-view.duo #duel_id_opp .duel-id-avatar,
-body.duel-landscape-mode .game-view.duo #duel_id_opp .duel-id-avatar canvas {
-	width: 40px !important;
-	height: 40px !important;
-}
+/* Name + tier pill span the exact height of the avatar next to them (align-items:stretch on .duel-id
+   below makes .duel-id-info stretch to match the avatar's height; space-between here spreads the
+   name to the top edge and the tier pill to the bottom, instead of the two lines huddling together
+   in the middle) — avatar, name, and tier read as one aligned block instead of an off-center stack.
+   The progress corner readout (.duel-bar-corner) gets the matching treatment below, off the same
+   .duel-header-row, so both halves of the header end up the same height with nothing left over. */
+body.duel-landscape-mode .game-view.duo .duel-id { align-items: stretch; align-self: stretch; }
+body.duel-landscape-mode .game-view.duo .duel-id-info { justify-content: space-between; align-self: stretch; }
+/* The opponent's identity shares a much narrower card than the player's own, so give it tighter
+   type — without it, the tier pill's text has too little room (white-space:nowrap below stops it
+   wrapping, but it'd still overflow the card). The avatar itself stays unscaled (unlike an earlier
+   version of this rule, which forced it down to 40px): with .duel-id-info now stretching to the
+   avatar's full height (see .duel-id/.duel-id-info above), shrinking the avatar just left the info
+   column's own natural content height (name + tier row, even at this reduced size) taller than the
+   avatar next to it — the opposite of the aligned block being asked for. Letting the avatar be
+   buildAvatarChip's normal 52px, same as the player's own, is what actually makes info's stretched
+   height and the avatar's height match on both sides symmetrically. */
+body.duel-landscape-mode .game-view.duo #duel_id_opp { gap: 0.45rem; }
 body.duel-landscape-mode .game-view.duo #duel_id_opp .duel-id-name { font-size: 1rem; }
-body.duel-landscape-mode .game-view.duo #duel_id_opp .duel-id-tier-pill { padding: 0.1rem 0.25rem 0.1rem 0.5rem; gap: 0.3rem; }
+body.duel-landscape-mode .game-view.duo #duel_id_opp .duel-id-tier-pill { gap: 0.3rem; }
 body.duel-landscape-mode .game-view.duo #duel_id_opp .duel-id-tier-badge.rank-badge { font-size: 4px; }
 body.duel-landscape-mode .game-view.duo #duel_id_opp .duel-id-rating { font-size: 0.72rem; }
 body.duel-landscape-mode .game-view.duo .player-board {
@@ -4318,15 +4339,25 @@ body.duel-landscape-mode .game-view.duo .board-scroll::-webkit-scrollbar { displ
    covered, so the board gets its height back too. */
 body.duel-landscape-mode .game-view.duo .duel-bar-row { display: none; }
 body.duel-landscape-mode .game-view.duo .duel-header-row {
-	display: flex;
-	align-items: flex-start;
-	justify-content: space-between;
+	/* Grid, not flex: a flex row's align-items:stretch here reliably stretched the ROW itself to fit
+	   its tallest child, but not .duel-id back down into that stretched height (align-self:stretch
+	   on it made no measurable difference) — some interaction with it being a nested flex container
+	   in its own right, never fully pinned down. Grid's per-item stretch (its own default —
+	   align-items on a grid container applies per grid area, no extra property needed) does this
+	   reliably: both columns share the row's height outright, no fighting a flex item that won't grow. */
+	display: grid;
+	grid-template-columns: 1fr auto;
+	align-items: stretch;
 	gap: 0.5rem;
 }
 body.duel-landscape-mode .game-view.duo .duel-bar-corner {
 	display: flex;
 	flex-direction: column;
 	align-items: flex-end;
+	/* space-between spreads the pct+bar row to the top edge and "N cells left" to the bottom edge,
+	   spanning the row's full (stretched) height instead of huddling together — the exact same
+	   treatment .duel-id-info gets, so both halves of the header read as the same height. */
+	justify-content: space-between;
 	flex: 0 0 auto;
 }
 
