@@ -3973,6 +3973,11 @@ body.touch .find-next-arrow { display: inline-flex; }
 /* Landscape-only Flag/Reveal buttons pinned to the board's corner — hidden everywhere else (desktop
    keeps .flag-mode-button in .player-controls, portrait keeps .mobile-action-bar). */
 .duel-mode-toggle { display: none; }
+/* Landscape-only back button and opponent-board-preview label — hidden by default like everything
+   else purpose-built for that layout; without this base rule both leaked onto desktop (and every
+   other breakpoint), since neither had a display:none anywhere until now. */
+.duel-back-btn { display: none; }
+.duel-opp-board-label { display: none; }
 
 /* Landscape-phone progress readout — a separate, purpose-built element (not a repositioned
    #duel_bar_you/#duel_bar_opp) so its compact treatment doesn't fight the desktop bar's own layout.
@@ -4163,310 +4168,252 @@ body.duel-landscape-mode .game-view.duo .game-header { display: none; }
 body.duel-landscape-mode .game-view.duo { height: 100dvh; min-height: 0; overflow: hidden; }
 body.duel-landscape-mode .game-view.duo .game-grid { min-height: 0; }
 
-/* Your board dominates the viewport; the opponent's board, its identity panel, and the
-   VS/tug-of-war meter share a single narrow column stacked underneath each other — the same
-   "advantage scale sits with the opponent" grouping the mockup sketch called for. */
+/* ===== Centered-board layout =====
+   Earlier version of this had your board pinned to one side (2.3fr of the grid) with the
+   opponent's smaller board opposite it — playable, but felt unnatural: your own eyes/thumbs
+   want the thing you're actually interacting with to be dead center, not off to one side. This
+   version centers the board and turns both sides into pure info panels instead — yours on the
+   left, the opponent's on the right (their board shrinks to a small glance-only preview at the
+   bottom of their panel, not a second thing to actively track) — with Flag/Reveal in their own
+   panel directly under the board. #duel_center (the old VS/tug-of-war meter) has no place here
+   at all, so it's hidden outright rather than trying to fit it in somewhere. */
+body.duel-landscape-mode .game-view.duo .duel-center { display: none; }
 body.duel-landscape-mode .game-view.duo .game-grid {
-	/* Back to the original ratio — the opponent's board grows taller (its canvas max-height below),
-	   not the column wider; widening the column too was a misread of "give it more space" as
-	   horizontal specifically, when only the vertical direction was meant. */
-	grid-template-columns: minmax(0, 2.3fr) minmax(0, 1fr);
-	/* 2fr/1fr: the opponent's card gets 2/3 of the right column's height, the VS/meter/timer group
-	   below it the remaining 1/3 — was auto/1fr (opponent sized to its own content, whatever that
-	   happened to be, meter+timer getting everything left over instead of a deliberate share). */
-	grid-template-rows: minmax(0, 2fr) minmax(0, 1fr);
-	grid-template-areas: "left right" "left center";
+	grid-template-columns: minmax(0, 210px) minmax(0, 1fr) minmax(0, 210px);
+	grid-template-rows: minmax(0, 1fr) auto;
+	grid-template-areas:
+		"left board right"
+		"left toggle right";
 	align-items: stretch;
-	gap: 0.5rem 0.65rem;
+	gap: 0.6rem;
 }
-body.duel-landscape-mode .game-view.duo .game-left {
-	align-items: stretch;
-	justify-content: flex-start;
-	min-height: 0;
-}
-/* .game-side is flex-column with align-items:flex-start on desktop (deliberately shrink-wrapped
-   there, since the opponent card sits in open space next to the scoreboard) — inherited as-is
-   here, it shrink-wraps the opponent card to its own tiny content (avatar + a canvas capped by
-   max-height below) instead of filling the grid column reserved for it, leaving a dead gap
-   between the two cards that gets more obvious the wider the column is. Stretch it back out. */
-body.duel-landscape-mode .game-view.duo .game-side { align-items: stretch; }
+/* .game-left/.player-board flatten entirely (display:contents) so their children — the info panel
+   (.duel-header-row), the board itself (.board-wrap), and the Flag/Reveal panel (.duel-mode-toggle)
+   — can each land in their own grid area instead of all sharing one card, the way the old
+   side-by-side-boards layout needed them to. display:contents only affects the box tree, not
+   descendant-selector matching, so `.game-left .duel-header-row`-style targeting still works fine
+   through it if ever needed — these three all happen to have distinct selectors already though. */
+body.duel-landscape-mode .game-view.duo .game-left { display: contents; }
+body.duel-landscape-mode .game-view.duo .player-board { display: contents; }
+body.duel-landscape-mode .game-view.duo .duel-header-row { grid-area: left; }
+body.duel-landscape-mode .game-view.duo .board-wrap { grid-area: board; }
+body.duel-landscape-mode .game-view.duo .duel-mode-toggle { grid-area: toggle; }
+/* The opponent's side doesn't need the same flattening depth — .opponent_div itself becomes the
+   right panel directly (its board preview stays nested inside it, unlike the player's own board
+   which has to escape all the way to the center column), so only ITS ancestors flatten. */
+body.duel-landscape-mode .game-view.duo .game-side { display: contents; }
+body.duel-landscape-mode .game-view.duo #all_opponents_div { display: contents; }
+body.duel-landscape-mode .game-view.duo .opponent_div { grid-area: right; }
+
+/* ── Left/right info panels — same structure, mirrored accent colour. Both carry the bordered
+   "arena" card look the two boards used to wear themselves; now there's only one board left to
+   wear it (.board-wrap below), so the panels get it instead. ── */
+body.duel-landscape-mode .game-view.duo .duel-header-row,
 body.duel-landscape-mode .game-view.duo .opponent_div {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
+	text-align: center;
+	gap: 0.5rem;
+	padding: 0.6rem 0.5rem;
+	border-radius: 14px;
+	border: 1px solid var(--duel-you);
+	background: var(--surface);
+	box-shadow: 0 0 22px -6px var(--duel-you), inset 0 0 22px -14px var(--duel-you);
+	position: relative;
+	overflow-y: auto;
+	min-height: 0;
 }
-/* align-items:center above is for the canvas (narrower than the card, so it'd otherwise sit flush
-   left) — .duel-header-row doesn't want that: centered, it just shrinks to fit its own content and
-   sits in the middle with padding on both sides ("clustered", not aligned to either edge). Stretch it
-   back to the card's full width so its own grid-template-columns:1fr auto can do the actual left/
-   right alignment — identity flush left, progress flush right, same as the player's own header. */
-body.duel-landscape-mode .game-view.duo .opponent_div .duel-header-row { align-self: stretch; }
-/* Trim the neon card's own padding — it was sized for a symmetric desktop layout with room to
-   spare; here every pixel it eats is a pixel the board doesn't get. padding-top specifically: the
-   base rule's 1.25rem/0.75rem (player/opponent) left a visible gap between the card's top border and
-   the avatar that had nothing to do with any of the height-matching above — just unused space. The
-   identity panel's own gap above the board shrinks too, per the same "give it back to the board" ask. */
-body.duel-landscape-mode .game-view.duo .player-board,
 body.duel-landscape-mode .game-view.duo .opponent_div {
-	padding-left: 0.5rem;
-	padding-right: 0.5rem;
-	padding-top: 0.4rem;
+	border-color: var(--duel-opp);
+	box-shadow: 0 0 22px -6px var(--duel-opp), inset 0 0 22px -14px var(--duel-opp);
 }
-/* Avatar-to-name gap, tightened on both sides — "pretty tight" was the ask, and the base 0.7rem
-   (player) read as loose once everything else here got this compact. */
-body.duel-landscape-mode .game-view.duo .duel-id { gap: 0.4rem; }
-/* Was margin-bottom on .duel-id itself (both the base 0.75rem, .game-view.duo .duel-id above, and a
-   0.3rem landscape override) — that's fine while it's the header's only row, but once it started
-   sharing .duel-header-row with .duel-bar-corner (no such margin), the margin ate into .duel-id's own
-   share of the row's stretched height instead of the space it was meant to add below the row as a
-   whole, leaving it visibly shorter than its sibling despite align-items:stretch. Zero it on .duel-id
-   and move it to the row instead, so both sides stretch to the exact same height and the gap below is
-   even either way. */
-body.duel-landscape-mode .game-view.duo .duel-id { margin-bottom: 0; }
-body.duel-landscape-mode .game-view.duo .duel-header-row { margin-bottom: 0.3rem; }
-/* No chip: just the badge + tier name, no pill border/background — the sketch doesn't box it in,
-   and freed from having to look like a self-contained pill it can stretch to fill the identity
-   block's full height instead (see .duel-id-info's justify-content below). Tight gap too — the
-   rank-badge SVG itself (buildRankBadge, Ranking.js) has real whitespace baked into its viewBox
-   around the hexagon (room for glow/rings elsewhere it's used, e.g. the profile rank ladder), so
-   the badge's own box already reads as padded before any CSS gap is added on top; a small negative
-   margin pulls the tier text in to compensate, tighter than gap alone could get it. */
-body.duel-landscape-mode .game-view.duo .duel-id-tier-pill {
+
+/* Back button, top-left of the left panel — #leave_button (the header's own Exit button) is hidden
+   entirely in this layout, so this drives the exact same leaveGameClicked flow (Main.js) instead
+   of routing straight to leaveRoom, which would skip the "counts as a loss" mid-round confirm,
+   cancel-your-search handling, etc. */
+body.duel-landscape-mode .game-view.duo .duel-back-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	position: absolute;
+	top: 0.5rem;
+	left: 0.5rem;
+	width: 28px;
+	height: 28px;
+	border-radius: 8px;
+	border: 1px solid var(--border);
+	background: rgba(255, 255, 255, 0.05);
+	color: var(--muted);
+	cursor: pointer;
+	z-index: 1;
+}
+body.duel-landscape-mode .game-view.duo .duel-back-btn:hover { color: var(--text); border-color: var(--duel-you); }
+
+/* Identity: avatar on top, name + tier below, all centered — a vertical stack instead of the
+   horizontal avatar-beside-text row this element is everywhere else (desktop, and the earlier
+   version of this same landscape layout, which mirrored the opponent's row instead of centering
+   both — a whole different panel shape now, so that mirror question doesn't come up any more). */
+body.duel-landscape-mode .game-view.duo .duel-id {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
+	gap: 0.5rem;
+	min-height: 0;
+	margin-bottom: 0;
+}
+body.duel-landscape-mode .game-view.duo #duel_id_you { margin-top: 1.6rem; } /* clears the back button */
+/* #duel_id_opp's own base rule (`.game-view.duo #duel_id_opp { flex-direction: row-reverse; text-
+   align: right; }`, desktop's mirror treatment) carries an ID selector, which beats the plain-class
+   .duel-id rule above on specificity regardless of source order — needs its own ID-selector override
+   to actually win here. Same story for its tier-pill's row-reverse just below. */
+body.duel-landscape-mode .game-view.duo #duel_id_opp { flex-direction: column; text-align: center; margin-top: 0; }
+body.duel-landscape-mode .game-view.duo .duel-id-info,
+body.duel-landscape-mode .game-view.duo #duel_id_opp .duel-id-info { align-items: center; }
+body.duel-landscape-mode .game-view.duo .duel-id-tier-pill,
+body.duel-landscape-mode .game-view.duo #duel_id_opp .duel-id-tier-pill {
+	flex-direction: row;
 	border: none;
 	background: transparent;
 	padding: 0;
 	gap: 0.15rem;
 }
-/* A negative margin alone only closes the LAYOUT gap to the text — the hexagon itself still looks
-   small and padded within its own box, since the whitespace is baked into the badge's SVG viewBox
-   (hexagon spans roughly x:15-85, y:15-91 of a 0-100 box — real margin, not an illusion). Scale the
-   rendered badge up to fill more of that box (the layout footprint stays the same size — flex still
-   reserves the original box for it — so this crops the badge's own internal padding visually, on
-   top of the negative margin closing the gap to the text next to it). */
+/* Rank badge: same scale-up trick as before (its SVG viewBox has real whitespace baked around the
+   hexagon — a plain negative margin only closes the LAYOUT gap to the text, not the padding inside
+   the badge's own rendered box). */
 body.duel-landscape-mode .game-view.duo .duel-id-tier-badge.rank-badge {
-	transform: scale(1.5);
-	margin: 0 2px;
+	font-size: 5px;
+	transform: scale(1.6);
+	margin: 0 3px;
 }
-/* Name + tier pill span the exact height of the avatar next to them (align-items:stretch on .duel-id
-   below makes .duel-id-info stretch to match the avatar's height; space-between here spreads the
-   name to the top edge and the tier pill to the bottom, instead of the two lines huddling together
-   in the middle) — avatar, name, and tier read as one aligned block instead of an off-center stack.
-   The progress corner readout (.duel-bar-corner) gets the matching treatment below, off the same
-   .duel-header-row, so both halves of the header end up the same height with nothing left over. */
-body.duel-landscape-mode .game-view.duo .duel-id { align-items: stretch; align-self: stretch; }
-/* center (not space-between): the block still spans the avatar's full height (align-self:stretch
-   above), but the two lines sit together around the middle of it with a small gap, instead of each
-   being pinned flush to the top/bottom edge right next to the card's border. */
-body.duel-landscape-mode .game-view.duo .duel-id-info { justify-content: center; gap: 0.3rem; align-self: stretch; }
-/* The opponent's identity shares a much narrower card than the player's own, and the board itself
-   matters more than a big portrait there — smaller avatar, tighter type (white-space:nowrap above
-   stops the tier pill's text wrapping, but it'd still overflow the card without the reduced size
-   too). .duel-id-info no longer needs to stretch to match it (center, not stretch — .duel-id here
-   overrides the stretch alignment above so the now-smaller avatar and the info column both just sit
-   centered against each other instead of one trying to match the other's height exactly). */
-/* Un-mirror: avatar on the left, name/tier on the right, same order as the player's own identity —
-   desktop mirrors the opponent's whole panel (row-reverse + text-align:right, base rule above) since
-   its card sits on the opposite side of the VS column from the player's, so mirroring reads as
-   "facing" it; the header row here doesn't have that same left/right framing, so consistency with
-   the player's own side (which players see every duel) matters more than the mirror. */
-body.duel-landscape-mode .game-view.duo #duel_id_opp {
-	gap: 0.3rem;
-	align-items: center;
-	flex-direction: row;
-	text-align: left;
+body.duel-landscape-mode .game-view.duo .duel-id-name { font-size: 1.05rem; white-space: nowrap; }
+body.duel-landscape-mode .game-view.duo .duel-id-avatar,
+body.duel-landscape-mode .game-view.duo .duel-id-avatar canvas {
+	width: 64px !important;
+	height: 64px !important;
+	border-radius: 50%;
 }
-body.duel-landscape-mode .game-view.duo #duel_id_opp .duel-id-info {
-	align-self: auto;
-	align-items: flex-start;
+body.duel-landscape-mode .game-view.duo .duel-id-avatar {
+	border: 2px solid var(--duel-you);
+	box-shadow: 0 0 16px -4px var(--duel-you);
 }
-body.duel-landscape-mode .game-view.duo #duel_id_opp .duel-id-tier-pill { flex-direction: row; }
-body.duel-landscape-mode .game-view.duo #duel_id_opp .duel-id-avatar,
-body.duel-landscape-mode .game-view.duo #duel_id_opp .duel-id-avatar canvas {
-	width: 32px !important;
-	height: 32px !important;
+body.duel-landscape-mode .game-view.duo #duel_id_opp .duel-id-avatar {
+	border-color: var(--duel-opp);
+	box-shadow: 0 0 16px -4px var(--duel-opp);
 }
-body.duel-landscape-mode .game-view.duo #duel_id_opp .duel-id-name { font-size: 1rem; }
-body.duel-landscape-mode .game-view.duo #duel_id_opp .duel-id-tier-badge.rank-badge { font-size: 4px; }
-body.duel-landscape-mode .game-view.duo #duel_id_opp .duel-id-rating { font-size: 0.72rem; }
-body.duel-landscape-mode .game-view.duo .player-board {
+
+/* Stats: pct + bar + "N cells left", boxed — was a compact corner readout in the old two-board
+   layout; a dedicated side panel has the width to spare for a proper little card instead. */
+body.duel-landscape-mode .game-view.duo .duel-bar-corner {
 	display: flex;
 	flex-direction: column;
-	min-height: 0;
-}
-body.duel-landscape-mode .game-view.duo .board-wrap {
-	display: flex;
-	flex-direction: column;
-	flex: 1;
-	min-height: 0;
-	/* The board's cell size is capped by whichever of width/height is tighter (fitDesktopCellPx,
-	   MobileLayout.js) — on a short viewport that's almost always height, leaving width to spare.
-	   Left-aligned (the default, stretched to the card's now-full width), that spare width just
-	   reads as a dead gap next to the board. Center it instead — the identity row above and the
-	   corner badge (position:absolute) aren't flex children of this element, so neither is
-	   affected. */
-	align-self: center;
-}
-body.duel-landscape-mode .game-view.duo .board-scroll {
-	flex: 1;
-	min-height: 0;
-	overflow: auto;
-	-webkit-overflow-scrolling: touch;
-}
-body.duel-landscape-mode .game-view.duo .duel-center {
-	align-self: start;
-	min-width: 0;
-	padding: 0;
-	gap: 0.5rem;
-}
-/* YOU – VS – opponent name, all one row (the sketch's mobile layout), instead of the VS badge
-   alone on its own centered row (desktop, untouched). */
-body.duel-landscape-mode .game-view.duo .duel-meter-header {
-	display: flex;
 	align-items: center;
-	justify-content: space-between;
-	gap: 0.5rem;
 	width: 100%;
+	gap: 0.35rem;
+	padding: 0.5rem;
+	border-radius: 10px;
+	border: 1px solid var(--border);
+	background: rgba(255, 255, 255, 0.03);
 }
-body.duel-landscape-mode .game-view.duo .duel-meter-label {
-	display: block;
-	font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
-	color: var(--duel-you);
-}
-body.duel-landscape-mode .game-view.duo .duel-meter-label-opp { color: var(--duel-opp); text-align: right; }
-body.duel-landscape-mode .game-view.duo .duel-vs-badge {
-	width: 34px;
-	height: 34px;
-	font-size: 0.62rem;
-	flex: 0 0 auto;
-	/* Just the mark, no card — the border+glow reads fine as a standalone badge on desktop where
-	   it has open space around it, but boxed in here between two panels it's redundant framing. */
-	border: none;
-	box-shadow: none;
-	background: transparent;
-}
-body.duel-landscape-mode .game-view.duo .duel-goal-pill {
-	display: none; /* the room this saves matters more here than the reminder text */
-}
-/* Boxed timer card below the meter (see .duel-timer-landscape-box), replacing the plain-text
-   #duel_timer_landscape reused as-is — a smaller echo of the desktop header badge's own border. */
-body.duel-landscape-mode .game-view.duo .duel-timer-landscape { display: block; }
+body.duel-landscape-mode .game-view.duo .duel-bar-corner-row { width: 100%; justify-content: center; }
+body.duel-landscape-mode .game-view.duo .duel-bar-corner-pct { font-size: 1.1rem; }
+body.duel-landscape-mode .game-view.duo .duel-bar-corner-track { flex: 1; width: auto; max-width: 130px; }
+body.duel-landscape-mode .game-view.duo .duel-bar-corner-left { text-align: center; }
+
+/* Timer, relocated here from the old center column — see index.html's comment on
+   #duel_timer_landscape_box for why (no VS/meter column left to sit next to any more). */
 body.duel-landscape-mode .game-view.duo .duel-timer-landscape-box {
-	display: block;
-	padding: 0.3rem 0.7rem;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0.15rem;
+	width: 100%;
+	padding: 0.4rem;
 	border-radius: 10px;
 	border: 1px solid transparent;
 	background:
 		linear-gradient(var(--surface), var(--surface)) padding-box,
 		linear-gradient(90deg, var(--duel-you), var(--duel-opp)) border-box;
 }
+body.duel-landscape-mode .game-view.duo .duel-timer-landscape-row { justify-content: center; }
+body.duel-landscape-mode .game-view.duo .duel-timer-landscape { display: block; font-size: 1.15rem; }
 
-/* The opponent canvas needs to shrink to fit this much narrower, shorter column, but width and
-   height can't be constrained independently (max-width:100% off the column, max-height off the
-   viewport) — that fights the JS-computed inline width (sizeBoardCanvas, matched 1:1 to the
-   player board's own cell size) and stretches cells off-square, since the two limits rarely
-   agree on the same scale factor. Force both dimensions back to auto (!important — inline
-   styles otherwise always win over a stylesheet) so only the max-* box applies; a canvas has an
-   intrinsic ratio same as an <img>, so the browser scales it down to fit while preserving it,
-   same as the rest of the site already relies on for the desktop opponent board. */
+/* Opponent board preview: a small, view-only glance at their progress, not a second board to
+   actively track — label + shrunk canvas at the bottom of the right panel. */
+body.duel-landscape-mode .game-view.duo .duel-opp-board-label {
+	display: block;
+	font-size: 0.62rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+	color: var(--muted);
+	margin-top: 0.2rem;
+}
+/* width/height auto !important: max-width and max-height can't constrain a canvas independently
+   (same reasoning as the desktop opponent board and the previous version of this layout) — inline
+   styles otherwise always beat a stylesheet, so !important is required to get both back to auto and
+   let the intrinsic ratio resolve the two max-* limits the way an <img> would, keeping cells square. */
 body.duel-landscape-mode .game-view.duo .opponent_div canvas {
 	width: auto !important;
 	height: auto !important;
 	max-width: 100%;
-	/* Bumped up from an original 16vh now that the smaller avatar frees up room for it and the 2fr/1fr
-	   row split above gives the opponent's card a real 2/3 share of the column's height to grow into
-	   — generous on purpose so that row split, not this vh figure, ends up the actual limit; a canvas
-	   still shrinks to fit width-wise too (max-width:100%, same aspect-ratio-preserving resolution as
-	   the rest of this rule), so an overly generous max-height here doesn't overflow anything, it just
-	   stops being the binding constraint. */
-	max-height: 32vh;
+	max-height: 14vh;
 }
 
-/* The board's own scrollbar is real (see board-scroll's min-height:0 flex chain above — a board
-   with more rows than fit at the legibility floor genuinely needs to pan) but the visible
-   scrollbar chrome is not; touch/wheel panning still works with it hidden. */
+/* ── The board itself — carries the neon "arena" card look now, since .player-board (which used
+   to wear it) is flattened away above. ── */
+body.duel-landscape-mode .game-view.duo .board-wrap {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	border-radius: 14px;
+	border: 1px solid var(--duel-you);
+	background: var(--surface);
+	box-shadow: 0 0 22px -6px var(--duel-you), inset 0 0 22px -14px var(--duel-you);
+	padding: 0.5rem;
+}
 body.duel-landscape-mode .game-view.duo .board-scroll {
+	flex: 1;
+	min-height: 0;
+	overflow: auto;
 	scrollbar-width: none;
 	-ms-overflow-style: none;
 }
 body.duel-landscape-mode .game-view.duo .board-scroll::-webkit-scrollbar { display: none; width: 0; height: 0; }
-/* Same fix as the portrait-mobile block, same reason: the Gold skin's vignette (::after) is a
-   position:absolute overlay that doesn't scroll with a scrollable board's content — see that rule's
-   comment for the full explanation. */
+/* The Gold skin's vignette (::after) is a position:absolute overlay that doesn't scroll with a
+   scrollable board's content — see the same rule in the portrait-mobile block for the full
+   explanation. */
 body.duel-landscape-mode[data-board-skin="gold"] .game-view.duo .board-scroll::after { display: none; }
-
-/* Identity + progress share one header row (space-between) instead of stacking — see
-   .duel-header-row above. Progress itself moves to the compact .duel-bar-corner readout instead
-   of the desktop bar-row under the board; that row is freed up entirely, not just visually
-   covered, so the board gets its height back too. */
+/* Desktop's bottom bar-row has no place here either (progress lives in the boxed stats card in the
+   side panel instead, above). */
 body.duel-landscape-mode .game-view.duo .duel-bar-row { display: none; }
-body.duel-landscape-mode .game-view.duo .duel-header-row {
-	/* Grid, not flex: a flex row's align-items:stretch here reliably stretched the ROW itself to fit
-	   its tallest child, but not .duel-id back down into that stretched height (align-self:stretch
-	   on it made no measurable difference) — some interaction with it being a nested flex container
-	   in its own right, never fully pinned down. Grid's per-item stretch (its own default —
-	   align-items on a grid container applies per grid area, no extra property needed) does this
-	   reliably: both columns share the row's height outright, no fighting a flex item that won't grow. */
-	display: grid;
-	grid-template-columns: 1fr auto;
-	align-items: stretch;
-	gap: 0.5rem;
-}
-body.duel-landscape-mode .game-view.duo .duel-bar-corner {
-	display: flex;
-	flex-direction: column;
-	align-items: flex-end;
-	/* center (not space-between): still spans the same matched height as .duel-id-info (both stretch
-	   to fill the shared grid row), but the pct+bar row and "N cells left" sit together around the
-	   middle of it instead of pinned flush to the top/bottom edge right next to the card's border. */
-	justify-content: center;
-	gap: 0.3rem;
-	flex: 0 0 auto;
-}
-/* Your own card has room to spare (2.3fr of the grid vs the opponent's 1fr) — let the bar actually
-   use some of it instead of sitting at the same compact width as the opponent's. */
-body.duel-landscape-mode .game-view.duo #duel_bar_you_corner .duel-bar-corner-track { width: 110px; }
 
-/* Reveal/flag: two explicit buttons pinned to the board's own bottom-right corner (the sketch's
-   own take on this control) instead of the single toggle the touch action bar uses elsewhere —
-   see #duel_flag_btn/#duel_reveal_btn (Main.js) for the shared flagMode wiring. The action bar
-   itself stays hidden here (no body.touch override), same as .player-controls, the desktop
-   Ready/flag-mode-button row both of these replace. */
-body.duel-landscape-mode .game-view.duo .player-board,
-body.duel-landscape-mode .game-view.duo .opponent_div { position: relative; }
+/* ── Flag/Reveal panel, its own row under the board — no longer pinned over the board's own
+   corner (the earlier version of this layout), so no board-scroll padding-bottom reservation is
+   needed for it any more either. */
 body.duel-landscape-mode .game-view.duo .duel-mode-toggle {
 	display: flex;
-	gap: 0.4rem;
-	position: absolute;
-	right: 0.6rem;
-	bottom: 0.5rem;
+	gap: 0.6rem;
 }
 body.duel-landscape-mode .game-view.duo .duel-mode-btn {
+	flex: 1;
 	display: flex;
 	align-items: center;
-	gap: 0.3rem;
-	padding: 0.35rem 0.65rem;
-	border-radius: 8px;
+	justify-content: center;
+	gap: 0.4rem;
+	padding: 0.6rem;
+	border-radius: 10px;
 	border: 1px solid var(--border);
-	/* Solid, not translucent — these sit directly over the board (bottom-right corner, position:
-	   absolute), and revealed cells scrolling underneath a see-through button read as distracting
-	   noise behind the label rather than a clean control. */
 	background: var(--surface);
 	color: var(--muted);
-	font-size: 0.78rem;
+	font-size: 0.95rem;
 	font-weight: 700;
-	line-height: 1;
 }
-body.duel-landscape-mode .game-view.duo .duel-mode-btn-icon { font-size: 0.85rem; }
+body.duel-landscape-mode .game-view.duo .duel-mode-btn-icon { font-size: 1rem; }
 body.duel-landscape-mode .game-view.duo .duel-mode-btn-active {
 	border-color: var(--duel-you);
 	color: var(--text);
-	/* Same solid idea as the base button — a blue-tinted opaque navy instead of a translucent wash,
-	   picked to read the same as the old rgba(59,130,246,0.16) did sitting over --surface, just
-	   without the transparency. */
 	background: #14213d;
 }
-/* Leave the board's bottom-right corner clear for that control. */
-body.duel-landscape-mode .game-view.duo .board-scroll { padding-bottom: 2.6rem; }
 
 /* ===== Forced landscape (portrait phone, CSS-rotated) =====
    screen.orientation.lock('landscape') (Fullscreen.js, tried right after entering fullscreen) does
@@ -4501,6 +4448,24 @@ body.duel-force-rotate #game_view {
 	z-index: 40;
 	background: var(--bg);
 }
+/* body.duel-force-rotate only ever applies on a phone-sized, portrait-*width* viewport (that's the
+   whole point of it — a phone still stuck in portrait), which means the @media (max-width: 700px)
+   block above still matches too, at the same time as body.duel-landscape-mode — a CSS transform
+   doesn't change the actual viewport width a media query measures, only how the transformed content
+   renders. That block's portrait-specific rules (the #mobile_duel_progress strip, .mobile-action-bar,
+   hiding .game-side outright) fight this layout's own versions of the same things, so they need an
+   explicit, higher-specificity override here. KNOWN GAP not fixed by this: the board's own cell
+   sizing algorithm (fitDesktopCellPx vs fitMobileCellPx, MobileLayout.js) is chosen by that same
+   mobileLayout boolean off that same width media query — it doesn't know about force-rotate either,
+   so the board itself still sizes/paginates using the portrait touch-pan logic instead of this
+   layout's own board-scroll approach. Fixing that needs a JS-side change (making mobileLayout, or
+   what reads it here, force-rotate-aware), not just more CSS — left for a follow-up. */
+body.duel-force-rotate .game-view.duo #mobile_duel_progress,
+body.duel-force-rotate.in-game .game-view.duo #mobile_duel_progress { display: none !important; }
+body.duel-force-rotate .mobile-action-bar,
+body.duel-force-rotate.touch .mobile-action-bar { display: none !important; }
+body.duel-force-rotate.in-game .game-view.duo .game-side,
+body.duel-force-rotate .game-view.duo .game-side { display: contents !important; }
 
 /* ===== 6-player battle layout (TetrisFriends-style) =====
    One big own board on the left with your identity panel above it; every opponent's live board

@@ -533,168 +533,92 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   covered (`paintOpponentCovered`) until their first real frame, so both boards show through the join +
   countdown. Both boards are pushed toward the center column so the VS sits exactly between them.
   **Landscape phones** (wide enough — `min-width: 701px` — to clear the portrait breakpoint below, but
-  short: `@media (orientation: landscape) and (max-height: 500px) and (min-width: 701px)`) get their own
-  override on top of this rather than inheriting the desktop layout as-is: the mockup sketch this was
-  redesigned from calls for the player's own board to dominate, so `.game-grid` becomes a 2-column ×
-  2-row grid (`grid-template-areas: "left right" "left center"`) — own board spans both rows at
-  `minmax(0,2.3fr)`, the opponent board sits above the VS/meter/timer group in a shared `minmax(0,1fr)`
-  column (both keyed off the same `left`/`right`/`center` grid-area names the base duo rule assigns, so
-  no DOM reordering is needed to relocate them). The whole `.game-header` (Exit, fullscreen, the
-  `#duel_timer` badge) is hidden outright — that height goes straight back to the boards, which was the
-  point of dropping it — and the timer gets a second home instead: `#duel_timer_landscape`, a plain
-  element sitting right after the goal pill inside `#duel_center`, mirrored by `updateRoundTimer`
-  (`RoundTimer.js`) alongside `#duel_timer` itself (a third copy of the same handful of lines the header
-  and 6-player timers already shared — see its comment). So in landscape the timer and the tug-of-war
-  meter both read as attached to the opponent's (smaller) side, per the sketch, instead of centered up
-  top. `fitDesktopCellPx` (`MobileLayout.js`) floors noticeably higher here (30px) than its normal
-  `DESKTOP_CELL_MIN` (22px, still used everywhere else) — `body.duel-landscape-mode` gated, checked
-  alongside `isDuoRacing()` — a deliberate "more zoomed in" bump once pinch-zoom (below) gives the
-  player a way back out to an overview, rather than always fitting the whole board in by default. A
-  board with many rows can still be taller than a short landscape viewport has room for even after
-  all that; rather than let the page itself scroll (carrying the opponent panel/meter off-screen),
-  `.board-scroll` gets the same `flex:1; min-height:0; overflow:auto` chain the portrait mobile layout
-  already uses so only the board pans internally (`.game-view.duo` is pinned to `height:100dvh;
-  overflow:hidden` so nothing above it can scroll instead), with the scrollbar itself hidden
-  (`scrollbar-width:none` + the `::-webkit-scrollbar` equivalent) since panning still works without
-  the visible chrome. `#game0`'s `touch-action` is `manipulation` (pan + native pinch-zoom, minus the
-  double-tap-zoom shortcut, which would fight tap-to-reveal) rather than the `pan-x pan-y` it used to
-  be — this is the browser's own page-level zoom, not a custom board-scoped one; the same change
-  applies to portrait mobile's `.board-scroll` (the `@media (max-width: 700px)` block) for the same
-  reason. The opponent canvas needs `width` and
-  `height` forced back to `auto` with `!important` (`max-width:100%` and `max-height:16vh` alone fight
-  the JS-set inline `width`, independently scaling each axis and stretching cells off-square — `!important`
-  is required since inline styles otherwise always beat a stylesheet regardless of selector specificity;
-  once both are `auto`, the canvas's intrinsic ratio — genuinely `cols/rows`, since `sizeBoardCanvas`
-  always sets its width/height attributes off the same single `cellPx` — resolves the two max-* limits
-  the same way an `<img>` would). The `min-width: 701px` floor is deliberate, not incidental: a small
-  phone turned sideways (e.g. iPhone SE landscape, 667×375) is still narrower than 700px, so it's already
-  handled by the portrait/mobile breakpoint below (full-bleed board, `#mobile_duel_progress` strip) —
-  which relies on `#leave_button` staying visible as its only way to exit. Matching this block against
-  that width range too would hide it there with nothing to replace it. The neon card's own side padding
-  and the identity panel's gap above the board both shrink here too — every pixel either one eats is a
-  pixel the board doesn't get on a viewport this tight — and the VS badge drops its border/glow/background
-  (`border`/`box-shadow`/`background: transparent`), since boxed in tight between two panels the framing
-  that reads fine as a standalone desktop badge is just redundant. This whole layout is built to match a
-  provided mobile sketch as closely as possible (`layout-mobile.png`/`layout-desktop.png`, repo root),
-  not just "the desktop layout, shrunk" — several pieces below exist specifically because the sketch's
-  mobile treatment differs from its own desktop one, not only from pre-redesign defaults.
-  Identity and progress share one header row per card instead of stacking (`.duel-header-row`,
-  `display:contents` — a no-op — everywhere but here, wrapping `#duel_id_you`/`#duel_id_opp` and the
-  progress readout next to them with `justify-content:space-between`). Progress itself moves off the
-  bottom (`.duel-bar-row`, hidden outright — not just visually covered, so its space goes back to the
-  board) to that header row's compact right side instead (`.duel-bar-corner`, its own separate element
-  per side — `#duel_bar_you_corner`/`#duel_bar_opp_corner`, pct+bar then "N cells left" below it —
-  mirrored into by `setDuelBar` alongside the bar it's replacing, same "own element, own layout" idea as
-  `#duel_timer_landscape`: a deliberate choice **not** to reposition the existing bar with more CSS
-  overrides, since that's exactly the kind of layering that produced the canvas aspect-ratio bug above).
-  The opponent's card is much narrower than the player's own, so its identity additionally gets tighter
-  type and `white-space: nowrap` on the name/tier text (`.duel-id-name`/`.duel-id-rating`, applied
-  globally, not landscape-scoped — a narrow flex row wrapping the tier pill's text mid-word is never a
-  look worth keeping anywhere). **Avatar, name, and tier read as one aligned block**: `.duel-id`
-  stretches `.duel-id-info` to the avatar's height (`align-items: stretch`), and within that matched
-  height `.duel-id-info`'s own `justify-content: center` (a small `gap` between the two lines) keeps the
-  name and tier pill (stripped of its border/background — `.duel-id-tier-pill`, no chip box, just the
-  badge + text) sitting together around the middle, rather than each pinned flush to the top/bottom edge
-  right next to the card's border (tried first — reads as cramped). `.duel-header-row` (the shared row
-  wrapping identity + `.duel-bar-corner`) gets the *same* height-matching treatment one level up —
-  `display: grid` (not flex; a flex row's own `align-items: stretch` reliably grew the row to fit its
-  tallest child, but wouldn't stretch `.duel-id` — itself a nested flex container — back down into it,
-  an interaction never fully pinned down; grid's per-item stretch does this reliably) so the identity
-  block and the progress corner readout end up the same height, `.duel-bar-corner`'s own
-  `justify-content: center` centering its pct+bar row and "N cells left" the same way. **Gotcha that
-  cost real time chasing**: `.duel-id`'s `margin-bottom` (0.75rem base, or an earlier 0.3rem landscape
-  override) has to be zero and live on `.duel-header-row` instead — while it's on `.duel-id`, that margin
-  gets counted as part of its own share of the stretched grid track (a margin box, not the border box
-  `getBoundingClientRect()` measures), so it renders visibly shorter than its zero-margin sibling despite
-  `align-items: stretch` being correctly applied everywhere — looks exactly like stretch silently
-  failing, isn't.
-  **The opponent's avatar is intentionally smaller than the player's own** (32px vs `buildAvatarChip`'s
-  normal 52px — `#duel_id_opp .duel-id-avatar`/its `canvas`, `!important` since the canvas carries an
-  inline `width`/`height` from `sizeBoardCanvas`) — an earlier version of this same rule tried keeping it
-  at 52px specifically to preserve the height-match above (a smaller avatar being shorter than
-  `.duel-id-info`'s own content undoes the stretch match otherwise), but the board matters more than a
-  big portrait in that narrow column, so `#duel_id_opp` switches to plain `align-items: center` instead
-  of participating in the stretch chain — avatar and info just sit centered next to each other, no
-  longer required to be the exact same height. The freed-up space goes entirely to the opponent's canvas
-  height (`max-height` raised from 16vh to 21vh) — **not** the column's width, which stays exactly
-  `2.3fr 1fr`; "give the opponent's board more room" meant vertically specifically, an easy
-  misread since so much of this layout has been about reclaiming width elsewhere. `.opponent_div`'s
-  `align-items: center` (needed so the narrower canvas doesn't sit flush left, off-center against the
-  card) has a side effect worth calling out: **it also centers `.duel-header-row` itself** unless
-  overridden, since a shrink-to-fit grid container is exactly the kind of child that setting exists to
-  center — the whole identity+progress row ends up padded evenly on both sides instead of spanning the
-  card ("clustered in the middle" rather than each half anchored to its own edge). Fixed with
-  `align-self: stretch` on `.opponent_div .duel-header-row` specifically, so it fills the card's full
-  width and its own `grid-template-columns: 1fr auto` can do the actual left/right alignment — identity
-  flush left, progress flush right, matching the player's own header exactly. The opponent's identity is
-  also **un-mirrored** in landscape specifically — avatar on the left, name/tier on the right, the same
-  order as the player's own (`flex-direction: row`/`text-align: left` override desktop's `row-reverse`/
-  `right`, base rule above `#duel_id_opp`) — desktop's mirroring reads as "facing" the player's panel
-  across the VS column; the header row here doesn't have that same left/right framing, so matching the
-  player's own layout (which every duel shows) matters more than the mirror. The player's own progress
-  bar is also longer now (`#duel_bar_you_corner .duel-bar-corner-track`, 110px vs the shared 46px) —
-  that side has 2.3fr of the grid to the opponent's 1fr, no reason its bar should be as compact as the
-  cramped opponent one.
-  The VS mark gains "YOU"/opponent-name labels flanking it, all one row
-  (`.duel-meter-header`, another `display:contents` no-op wrapper — desktop keeps the VS badge alone on
-  its own centered row, unchanged), and the timer gets a bordered card of its own below the meter
-  (`#duel_timer_landscape_box`, mirroring `#duel_timer_mode`'s text into `#duel_timer_landscape_mode`
-  too — same gradient-border trick as `.duel-timer-badge`, which can't be reused directly since it lives
-  in the header this layout hides) rather than floating as plain text. The reveal/flag toggle is two
-  explicit buttons (`#duel_flag_btn`/`#duel_reveal_btn`, `.duel-mode-toggle`) pinned to the player
-  board's own bottom-right corner — the sketch's own take on this control — instead of the single
-  touch-toggle action bar the portrait layout uses; both just set the same shared `flagMode` state
-  directly (`updateFlagModeButton` in Main.js keeps all of desktop's pill, the mobile action bar, and
-  these two in sync off one variable, no separate input logic) — `.duel-mode-btn`/`-active` use solid
-  `var(--surface)`/a solid navy tint rather than translucent `rgba()` backgrounds, since these sit
-  directly over the board and revealed cells scrolling underneath a see-through button read as noise
-  behind the label. `.game-grid`'s right-column rows are `2fr 1fr` (`grid-template-rows`, was
-  `auto 1fr`) — the opponent's card gets a deliberate 2/3 share of the column's height, the VS/meter/
-  timer group the remaining 1/3, instead of the opponent card being sized to whatever its own content
-  happened to need; the opponent canvas's `max-height` is bumped generously (32vh) so that row split,
-  not the vh figure, ends up the actual limit. Both cards' `padding-top` is trimmed too (0.4rem, down
-  from the base rule's 1.25rem/0.75rem player/opponent) — closing a gap between the card's top border
-  and the avatar that had nothing to do with any of the height-matching elsewhere in this layout, just
-  unused space — alongside a tighter avatar-to-name `gap` (`.duel-id`) and tier-badge-to-text `gap`
-  (`.duel-id-tier-pill`) on both sides. The tier badge itself also gets `transform: scale(1.5)` plus a
-  small `margin` (`.duel-id-tier-badge.rank-badge`) to compensate for whitespace baked into the rank
-  badge's own SVG viewBox (`buildRankBadge`, `Ranking.js` — its hexagon spans roughly x:15-85, y:15-91
-  of a 0-100 box, real margin inside the badge's own rendered pixels, not an illusion — room for
-  glow/rings in other contexts it's used, like the profile rank ladder). A negative margin alone only
-  closes the *layout* gap to the text next to it; the badge still looks small and padded within its own
-  box unless it's also visually scaled up to fill more of that box — the two together are what actually
-  closes both gaps (the one CSS `gap` can reach, and the one baked into the SVG that only scaling
-  reaches). The timer and the VS/tug-of-war meter also swap order here — timer first, meter below —
-  purely a DOM reorder in `index.html` (`#duel_timer_landscape_box` now precedes `.duel-meter-header`
-  inside `#duel_center`); desktop is unaffected either way since `#duel_timer_landscape_box` is always
-  `display: none` there, order or not.
-  **The Gold board skin's vignette breaks once the board can scroll**: `body[data-board-skin="gold"]
-  .board-scroll::after` (a `position: absolute; inset: 0` radial-gradient, the skin's ambient shading)
-  doesn't scroll *with* the board's content — it stays pinned to `.board-scroll`'s own box, so panning
-  a board taller than its viewport drags the revealed cells out from under a vignette that doesn't
-  follow, reading as a shading bug rather than the intended ambient effect. Disabled specifically
-  wherever `.board-scroll` is actually scrollable — here (`body.duel-landscape-mode[data-board-skin=
-  "gold"] .game-view.duo .board-scroll::after`) and the portrait `@media (max-width: 700px)` block
-  (`body[data-board-skin="gold"] .board-scroll::after`, already scoped by the media query itself) — left
-  alone everywhere else (desktop, where the board always fits without scrolling). **Gotcha**: the first
-  landscape version of this rule was missing the `body.duel-landscape-mode` prefix entirely — every
-  other rule in this whole block has it, so it read as scoped at a glance, but without it the selector
-  matched `data-board-skin="gold"` **anywhere** `.game-view.duo .board-scroll` exists, silently killing
-  the vignette on desktop too. Caught by explicitly checking desktop after the "fix," not something a
-  landscape-only screenshot would ever have caught on its own.
-  `.game-side` is flex-column with `align-items: flex-start` on
-  desktop (deliberate there — the opponent card sits in open space next to the scoreboard, so it
-  shrink-wraps to its own content) — inherited as-is in landscape, that shrink-wrapped the opponent
-  card down to its tiny identity+canvas instead of filling the grid column reserved for it, leaving a
-  dead gap between the two cards that got more obvious the wider the window (barely visible on a real
-  phone's ~800-930px landscape width; glaring on a desktop browser window just resized short, which
-  has no such cap). Landscape overrides it back to `align-items: stretch` and gives `.opponent_div`
-  its own `align-items: center` so its now-wider card doesn't just leave its small canvas pinned to one
-  side. The player's own board has the mirror-image version of that same gap — `fitDesktopCellPx`
-  (`MobileLayout.js`) caps cell size at `min(availW/cols, availH/rows)`, and on a short viewport height
-  is almost always the tighter limit, leaving width to spare next to the board — so `.board-wrap` gets
-  `align-self: center` too (the identity row and the corner badge aren't its flex children, so neither
-  shifts).
+  short: `@media (orientation: landscape) and (max-height: 500px) and (min-width: 701px)`, mirrored into
+  `body.duel-landscape-mode` by `applyDuelLandscapeClass`, Main.js — see the force-rotate bullet further
+  down for why a class instead of the media query directly) get an entirely different **centered-board**
+  layout instead of inheriting the desktop one. Went through two versions: the first kept the desktop
+  idea of two boards side by side, just resized (own board dominant, opponent's smaller) — playable, but
+  felt unnatural to actually play on, since the thing you're interacting with sat off to one side instead
+  of dead center. This version centers the board and turns *both* sides into pure info panels instead —
+  yours on the left, the opponent's on the right, with a small view-only board preview at the bottom of
+  theirs (not a second board to actively track) — Flag/Reveal in their own panel directly under the
+  board, and a back button (`#duel_back_btn`, top-left of the left panel) since the header carrying
+  `#leave_button` is hidden outright here same as before. Built to match a second provided sketch closely
+  (`layout-mobile2.png`, repo root — distinct from `layout-mobile.png`/`layout-desktop.png`, the first
+  round's references).
+  **The grid**: `.game-grid` becomes `minmax(0,210px) minmax(0,1fr) minmax(0,210px)` columns ×
+  `minmax(0,1fr) auto` rows, with `grid-template-areas: "left board right" "left toggle right"` — left
+  and right panels span the full height, the board and the Flag/Reveal panel stack in the center column.
+  `#duel_center` (the old VS/tug-of-war meter this layout doesn't use at all) is hidden outright rather
+  than finding it a spot. Getting three unrelated elements — the info panel, the board, and the toggle
+  buttons, previously three levels deep inside one `#player_div` card — to each land in their own grid
+  area **without moving anything in the DOM** uses `display: contents` cascaded through `.game-left` AND
+  `#player_div` (both flatten to nothing box-wise, promoting their children — `.duel-header-row`,
+  `.board-wrap`, `.duel-mode-toggle` — up to be direct grid items); `grid-area` assigned to each
+  individually. `display: contents` only removes an element from the box tree, not the DOM tree, so
+  descendant selectors through it still match fine if ever needed. The opponent's side doesn't need the
+  same depth — `.opponent_div` itself becomes the right panel directly (its board preview stays nested
+  normally inside it, since it doesn't need to escape anywhere), so only `.game-side`/`#all_opponents_div`
+  flatten, one level less than the player's side.
+  **Both info panels** (`.duel-header-row` for "you", `.opponent_div` for the opponent — different
+  elements, identical styling rules applied to both) carry the neon "arena" card look the two boards used
+  to wear themselves (border/glow in the side's own colour) — there's only one board left to wear it now
+  (`.board-wrap`, styled directly since `.player-board`, which used to carry it, is flattened away).
+  Identity is a **vertical, centered stack** — avatar on top (64px, circular, ringed in the side's own
+  colour — up from the horizontal avatar-beside-text row every earlier version of this layout, and every
+  other context this component appears in, used), name, then the tier pill below. **No more "un-mirror
+  the opponent" question** from the previous version — both sides just center, so there's no left/right
+  asymmetry to reconcile between them any more. Progress (`.duel-bar-corner`, pct + bar + "N cells left")
+  is a boxed stats card below identity — more width to work with in a dedicated side panel than the old
+  compact top-right corner readout it used to be. The round timer relocates into the left panel too
+  (`#duel_timer_landscape_box`, physically moved in `index.html` from inside `#duel_center` to inside
+  `.duel-header-row` — still mirrored by `updateRoundTimer`/`updateDuelHud` exactly as before, just a new
+  home; both `.duel-timer-landscape-box` and `.duel-timer-landscape` need their own `display` override
+  here since their base rules default to `display: none` — missing the second one was a real bug caught
+  by checking the *element's* computed style, not just eyeballing the screenshot, since the icon next to
+  it still rendered fine on its own and made the empty box easy to miss at a glance).
+  **Gotcha, cost real debugging time**: `#duel_id_opp`'s own base rule (`.game-view.duo #duel_id_opp {
+  flex-direction: row-reverse; text-align: right; }` — desktop's mirror treatment) carries an ID
+  selector, which beats a plain-class override on specificity regardless of source order. Three separate
+  properties needed their own `#duel_id_opp`-qualified override here (`.duel-id`'s `flex-direction`,
+  `.duel-id-tier-pill`'s `flex-direction`, `.duel-id-info`'s `align-items`) for the opponent to actually
+  end up vertical/centered instead of silently keeping its old horizontal desktop layout underneath the
+  new panel styling.
+  **A second real bug, caught only by explicitly re-checking desktop after implementing**: two brand new
+  elements this version introduces — `.duel-back-btn` and `.duel-opp-board-label` — had no base
+  `display: none` rule anywhere (every other landscape-only element in this whole layout has one), so
+  they rendered on desktop (and everywhere else) by default the instant they existed in the DOM, not just
+  in landscape. Fixed by adding the missing base-hidden rules alongside the rest.
+  **Reveal/Flag** (`.duel-mode-toggle`) is now a full-width row of two equal buttons directly under the
+  board — no longer pinned absolutely over the board's own corner (the previous version), so no
+  `board-scroll` padding-bottom reservation is needed for it any more either. DOM order is Reveal then
+  Flag (matches the sketch — was Flag then Reveal in the previous version); both still just flip the same
+  shared `flagMode` state everything else does (`updateFlagModeButton`, Main.js).
+  **`fitDesktopCellPx`** (`MobileLayout.js`) still floors at 30px here (not the shared `DESKTOP_CELL_MIN`
+  22px), still gated on `isDuoRacing()` + `body.duel-landscape-mode`, unchanged from the previous version
+  — a deliberate "more zoomed in" default now that pinch-zoom gives the player a way back out to an
+  overview. `.board-scroll` still gets the `flex:1; min-height:0; overflow:auto` chain (only the board
+  pans internally, not the page — `.game-view.duo` stays pinned to `height:100dvh; overflow:hidden`),
+  scrollbar hidden, and `#game0`'s `touch-action: manipulation` (pan + native pinch-zoom, minus
+  double-tap-zoom, which would fight tap-to-reveal) — all unchanged from before, still needed for the
+  same reasons. The opponent canvas fix also carries over unchanged: `width`/`height: auto !important`
+  (inline styles otherwise always beat a stylesheet) so `max-width`/`max-height` can't independently
+  stretch cells off-square, same aspect-ratio-preserving resolution as an `<img>`.
+  **The Gold board skin's vignette** (`body[data-board-skin="gold"] .board-scroll::after`, a
+  `position: absolute; inset: 0` radial-gradient) still doesn't scroll *with* the board's content, same
+  bug/fix as before — disabled specifically where `.board-scroll` is actually scrollable (here and
+  portrait mobile), left alone on desktop.
+  **Known gap, not fixed by this version**: `body.duel-force-rotate` (see its own bullet below) only ever
+  applies on a phone-sized viewport that's still portrait-*width* — the CSS rotation trick changes how
+  the content renders, not the actual width a media query measures — which means the portrait
+  `@media (max-width: 700px)` block's own rules (the `#mobile_duel_progress` strip, `.mobile-action-bar`,
+  hiding `.game-side` outright) still match at the same time as this layout's, and fight it. Explicit
+  higher-specificity overrides for the worst of these (hide the portrait strip/action-bar, force
+  `.game-side` back to `display: contents`) live right after the `body.duel-force-rotate #game_view`
+  rotation rule. **Not fixed**: the board's own cell-sizing algorithm (`fitDesktopCellPx` vs
+  `fitMobileCellPx`, chosen by the `mobileLayout` boolean off that same width media query) doesn't know
+  about force-rotate either, so a force-rotated board still sizes/paginates using the portrait touch-pan
+  logic instead of this layout's own approach — a JS-side fix, not just more CSS, left for later.
   **6-player battle layout** (`isMultiRacing()`, 3-6 racing players): the same TetrisFriends idea
   scaled up — one big own board on the left with your identity panel (`#duel_id_you`) above it, the
   round timer centered up top (shared `#duel_timer`), and **every** opponent's live board tiled in a

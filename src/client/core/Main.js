@@ -1572,7 +1572,7 @@ cancelRankedButton.addEventListener("click", function() {
 	exitGameFullscreen();
 });
 
-document.getElementById("leave_button").addEventListener("click", function() {
+function leaveGameClicked() {
 	if (rankedSearch) { cancelBattleSearch(); return; } // still searching → cancel the queue, leave
 	if (soloSession) { exitSolo(); return; }
 	if (puzzleSession) { navigate("/"); return; }
@@ -1583,7 +1583,14 @@ document.getElementById("leave_button").addEventListener("click", function() {
 		return;
 	}
 	leaveRoom(true);
-});
+}
+document.getElementById("leave_button").addEventListener("click", leaveGameClicked);
+// Landscape duel's own back arrow (top-left of the left info panel, .duel-back-btn) — #leave_button
+// itself lives in the header, which that layout hides outright, so it needs its own control that
+// drives the exact same leave flow rather than a route straight to leaveRoom (which would skip the
+// "counts as a loss" confirm mid-round, cancel-your-search handling, etc.).
+var duelBackBtn = document.getElementById("duel_back_btn");
+if (duelBackBtn) duelBackBtn.addEventListener("click", leaveGameClicked);
 
 readyButton.addEventListener("click", function() {
 	autoEnterGameFullscreen();

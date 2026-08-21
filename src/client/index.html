@@ -578,18 +578,35 @@
 						<p id="player_name0" class="player-name"></p>
 						<!-- Landscape-phone only: identity and progress share one header row (space-between)
 						     instead of stacking — see .duel-header-row in style.css. A plain wrapper (display:
-						     contents) everywhere else, so it's a no-op for the desktop layout. -->
+						     contents) everywhere else, so it's a no-op for the desktop layout.
+						     In this layout .duel-header-row IS the left info panel (border/background applied
+						     to it directly, see style.css) — #player_div/.game-left both become display:contents
+						     so this and .board-wrap/.duel-mode-toggle below can land in their own separate grid
+						     areas (left / board / toggle) instead of all sharing one card. -->
 						<div class="duel-header-row">
+							<button type="button" id="duel_back_btn" class="duel-back-btn" aria-hidden="true" aria-label="Exit game">
+								<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+							</button>
 							<div id="duel_id_you" class="duel-id"></div>
-							<!-- Compact top-right progress readout, separate from #duel_bar_you (bottom,
-							     desktop) — mirrored into by setDuelBar (Main.js). Hidden elsewhere; see
-							     .duel-bar-corner in style.css. -->
+							<!-- Compact progress readout, separate from #duel_bar_you (bottom, desktop) —
+							     mirrored into by setDuelBar (Main.js). Hidden elsewhere; see .duel-bar-corner
+							     in style.css. -->
 							<div id="duel_bar_you_corner" class="duel-bar-corner" aria-hidden="true">
 								<div class="duel-bar-corner-row">
 									<b id="duel_bar_you_corner_pct" class="duel-bar-corner-pct"></b>
 									<div class="duel-bar-corner-track"><span class="duel-bar-corner-fill"></span></div>
 								</div>
 								<span id="duel_bar_you_corner_left" class="duel-bar-corner-left"></span>
+							</div>
+							<!-- Moved here from #duel_center (now unused in this layout — no VS/tug-of-war
+							     mark in the sketch this is based on) — same mirrored elements, just relocated
+							     into the left panel instead of a separate center column. -->
+							<div id="duel_timer_landscape_box" class="duel-timer-landscape-box" aria-hidden="true">
+								<span id="duel_timer_landscape_mode" class="duel-timer-landscape-mode"></span>
+								<div class="duel-timer-landscape-row">
+									<span class="duel-timer-landscape-icon" aria-hidden="true">⏱</span>
+									<span id="duel_timer_landscape" class="duel-timer-landscape"></span>
+								</div>
 							</div>
 						</div>
 						<div class="board-wrap">
@@ -612,18 +629,19 @@
 							<div id="duel_bar_you" class="duel-bar"><span class="duel-bar-fill"></span><b class="duel-bar-pct"></b></div>
 							<span id="duel_cells_left_you" class="duel-cells-left"></span>
 						</div>
-						<!-- Landscape-phone only: two explicit Flag/Reveal buttons pinned to the board's own
-						     bottom-right corner (the sketch's own take on this control), instead of the
-						     single toggle the touch action bar below uses elsewhere. Both just drive the
-						     same shared flagMode state as everything else (see setFlagMode, Main.js) — no
-						     separate input logic of its own. Hidden outside landscape; see .duel-mode-toggle
-						     in style.css. -->
+						<!-- Landscape-phone only: two explicit Flag/Reveal buttons in their own panel below the
+						     board (the sketch's own take on this control), instead of the single toggle the
+						     touch action bar below uses elsewhere. Both just drive the same shared flagMode
+						     state as everything else (see setFlagMode, Main.js) — no separate input logic of
+						     its own. Hidden outside landscape; see .duel-mode-toggle in style.css. Reveal
+						     first, then Flag, matching the sketch (DOM order, not just visual — keyboard/
+						     screen-reader tab order should match too). -->
 						<div class="duel-mode-toggle" id="duel_mode_toggle" aria-hidden="true">
-							<button type="button" id="duel_flag_btn" class="duel-mode-btn" aria-pressed="false">
-								<span class="duel-mode-btn-icon" aria-hidden="true">🚩</span> Flag
-							</button>
 							<button type="button" id="duel_reveal_btn" class="duel-mode-btn duel-mode-btn-active" aria-pressed="true">
 								<span class="duel-mode-btn-icon" aria-hidden="true">👆</span> Reveal
+							</button>
+							<button type="button" id="duel_flag_btn" class="duel-mode-btn" aria-pressed="false">
+								<span class="duel-mode-btn-icon" aria-hidden="true">🚩</span> Flag
 							</button>
 						</div>
 						<div class="player-controls">
@@ -683,13 +701,6 @@
 					     .duel-timer-landscape-box in style.css. Sits above the VS mark/meter here — swapped
 					     from the order they're built in below, timer first — while desktop (where this
 					     element is always display:none) is unaffected by DOM order either way. -->
-					<div id="duel_timer_landscape_box" class="duel-timer-landscape-box" aria-hidden="true">
-						<div class="duel-timer-landscape-row">
-							<span class="duel-timer-landscape-icon" aria-hidden="true">⏱</span>
-							<span id="duel_timer_landscape" class="duel-timer-landscape"></span>
-						</div>
-						<span id="duel_timer_landscape_mode" class="duel-timer-landscape-mode"></span>
-					</div>
 					<!-- Landscape-phone only: YOU / opponent-name labels flanking the VS mark, all one row
 					     (the sketch's mobile layout) instead of the VS badge alone on its own row (desktop,
 					     unchanged) — see .duel-meter-header/.duel-meter-label in style.css. A plain
@@ -727,6 +738,9 @@
 									<span id="duel_bar_opp_corner_left" class="duel-bar-corner-left"></span>
 								</div>
 							</div>
+							<!-- Landscape-phone only label above the (small, view-only) opponent board preview —
+							     see .duel-opp-board-label in style.css. -->
+							<div class="duel-opp-board-label" aria-hidden="true">Opponent board</div>
 							<canvas id="game1" width="250" height="175"></canvas>
 							<div class="duel-bar-row">
 								<span id="duel_cells_left_opp" class="duel-cells-left"></span>
