@@ -4180,24 +4180,21 @@ body.duel-landscape-mode .game-view.duo .game-grid { min-height: 0; }
 body.duel-landscape-mode .game-view.duo .duel-center { display: none; }
 body.duel-landscape-mode .game-view.duo .game-grid {
 	grid-template-columns: minmax(0, 210px) minmax(0, 1fr) minmax(0, 210px);
-	grid-template-rows: minmax(0, 1fr) auto;
-	grid-template-areas:
-		"left board right"
-		"left toggle right";
+	grid-template-areas: "left board right";
 	align-items: stretch;
 	gap: 0.6rem;
 }
 /* .game-left/.player-board flatten entirely (display:contents) so their children — the info panel
-   (.duel-header-row), the board itself (.board-wrap), and the Flag/Reveal panel (.duel-mode-toggle)
-   — can each land in their own grid area instead of all sharing one card, the way the old
-   side-by-side-boards layout needed them to. display:contents only affects the box tree, not
-   descendant-selector matching, so `.game-left .duel-header-row`-style targeting still works fine
-   through it if ever needed — these three all happen to have distinct selectors already though. */
+   (.duel-header-row) and the board itself (.board-wrap) — can each land in their own grid area
+   instead of both sharing one card, the way the old side-by-side-boards layout needed them to.
+   display:contents only affects the box tree, not descendant-selector matching, so
+   `.game-left .duel-header-row`-style targeting still works fine through it if ever needed.
+   Flag/Reveal (.duel-mode-toggle) no longer needs its own grid area at all — it's nested inside
+   .board-wrap now (index.html), part of the board's own card instead of a separate one below it. */
 body.duel-landscape-mode .game-view.duo .game-left { display: contents; }
 body.duel-landscape-mode .game-view.duo .player-board { display: contents; }
 body.duel-landscape-mode .game-view.duo .duel-header-row { grid-area: left; }
 body.duel-landscape-mode .game-view.duo .board-wrap { grid-area: board; }
-body.duel-landscape-mode .game-view.duo .duel-mode-toggle { grid-area: toggle; }
 /* The opponent's side doesn't need the same flattening depth — .opponent_div itself becomes the
    right panel directly (its board preview stays nested inside it, unlike the player's own board
    which has to escape all the way to the center column), so only ITS ancestors flatten. */
@@ -4227,6 +4224,19 @@ body.duel-landscape-mode .game-view.duo .opponent_div {
 body.duel-landscape-mode .game-view.duo .opponent_div {
 	border-color: var(--duel-opp);
 	box-shadow: 0 0 22px -6px var(--duel-opp), inset 0 0 22px -14px var(--duel-opp);
+}
+/* The .duel-header-row selector above also matches the OTHER .duel-header-row — the opponent's own,
+   nested inside .opponent_div (wrapping #duel_id_opp + its progress corner) — giving it the same
+   card treatment (blue, .duel-you's default) as a second, redundant box nested inside the already-
+   bordered (red/opp) panel. That one's just a plain wrapper; .opponent_div itself is the card here,
+   so neutralize it back to invisible. */
+body.duel-landscape-mode .game-view.duo .opponent_div .duel-header-row {
+	border: none;
+	background: transparent;
+	box-shadow: none;
+	padding: 0;
+	border-radius: 0;
+	overflow-y: visible;
 }
 
 /* Back button, top-left of the left panel — #leave_button (the header's own Exit button) is hidden
@@ -4387,12 +4397,16 @@ body.duel-landscape-mode[data-board-skin="gold"] .game-view.duo .board-scroll::a
    side panel instead, above). */
 body.duel-landscape-mode .game-view.duo .duel-bar-row { display: none; }
 
-/* ── Flag/Reveal panel, its own row under the board — no longer pinned over the board's own
-   corner (the earlier version of this layout), so no board-scroll padding-bottom reservation is
-   needed for it any more either. */
+/* ── Flag/Reveal — nested inside .board-wrap (index.html), part of the board's own card instead of
+   a separate panel below it or pinned over its corner (both tried in earlier versions of this
+   layout). flex:0 0 auto keeps it from growing/shrinking as a flex child of .board-wrap alongside
+   .board-scroll's flex:1; margin-top gives it a little daylight from the board above without needing
+   its own border/background to read as a separate thing — it's already inside the same card. */
 body.duel-landscape-mode .game-view.duo .duel-mode-toggle {
 	display: flex;
-	gap: 0.6rem;
+	flex: 0 0 auto;
+	gap: 0.5rem;
+	margin-top: 0.5rem;
 }
 body.duel-landscape-mode .game-view.duo .duel-mode-btn {
 	flex: 1;

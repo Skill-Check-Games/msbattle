@@ -624,6 +624,14 @@
 							<button id="find_next_arrow" class="find-next-arrow" type="button" aria-label="Pan to next unrevealed area">
 								<span class="find-next-arrow-glyph" aria-hidden="true">→</span>
 							</button>
+							<div class="duel-mode-toggle" id="duel_mode_toggle" aria-hidden="true">
+								<button type="button" id="duel_reveal_btn" class="duel-mode-btn duel-mode-btn-active" aria-pressed="true">
+									<span class="duel-mode-btn-icon" aria-hidden="true">👆</span> Reveal
+								</button>
+								<button type="button" id="duel_flag_btn" class="duel-mode-btn" aria-pressed="false">
+									<span class="duel-mode-btn-icon" aria-hidden="true">🚩</span> Flag
+								</button>
+							</div>
 						</div>
 						<div class="duel-bar-row">
 							<div id="duel_bar_you" class="duel-bar"><span class="duel-bar-fill"></span><b class="duel-bar-pct"></b></div>
@@ -636,14 +644,6 @@
 						     its own. Hidden outside landscape; see .duel-mode-toggle in style.css. Reveal
 						     first, then Flag, matching the sketch (DOM order, not just visual — keyboard/
 						     screen-reader tab order should match too). -->
-						<div class="duel-mode-toggle" id="duel_mode_toggle" aria-hidden="true">
-							<button type="button" id="duel_reveal_btn" class="duel-mode-btn duel-mode-btn-active" aria-pressed="true">
-								<span class="duel-mode-btn-icon" aria-hidden="true">👆</span> Reveal
-							</button>
-							<button type="button" id="duel_flag_btn" class="duel-mode-btn" aria-pressed="false">
-								<span class="duel-mode-btn-icon" aria-hidden="true">🚩</span> Flag
-							</button>
-						</div>
 						<div class="player-controls">
 							<button id="ready_button" class="btn btn-primary">Ready</button>
 							<button id="flag_mode_button" class="flag-mode-button" type="button" aria-pressed="false">

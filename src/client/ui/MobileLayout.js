@@ -53,11 +53,12 @@ function fitDesktopCellPx() {
 	// The mobile landscape duel (body.duel-landscape-mode, style.css) floors noticeably higher than
 	// the general-purpose DESKTOP_CELL_MIN — on a viewport this short the ideal (fit-everything)
 	// cell size is almost always well under 22px anyway (that's exactly why board-scroll pans), so
-	// the board was already rendering at the absolute minimum, not a deliberately chosen size. Bump
-	// it up now that pinch-zoom (#game0's touch-action, style.css) lets the player zoom back out for
-	// an overview instead of needing the whole board visible by default.
+	// the board was already rendering at the absolute minimum, not a deliberately chosen size. Bumped
+	// again (30 -> 40) after "very hard to click correctly" feedback at 30 — pinch-zoom (#game0's
+	// touch-action, style.css) is there for zooming back OUT to an overview; tapping individual cells
+	// accurately matters more than fitting the whole board in untouched by default.
 	var landscapeDuelMobile = inDuo && document.body.classList.contains("duel-landscape-mode");
-	var minCell = landscapeDuelMobile ? 30 : DESKTOP_CELL_MIN;
+	var minCell = landscapeDuelMobile ? 40 : DESKTOP_CELL_MIN;
 	return Math.max(minCell, Math.min(maxCell, cell));
 }
 

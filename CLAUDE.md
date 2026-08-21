@@ -589,15 +589,27 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   `display: none` rule anywhere (every other landscape-only element in this whole layout has one), so
   they rendered on desktop (and everywhere else) by default the instant they existed in the DOM, not just
   in landscape. Fixed by adding the missing base-hidden rules alongside the rest.
-  **Reveal/Flag** (`.duel-mode-toggle`) is now a full-width row of two equal buttons directly under the
-  board — no longer pinned absolutely over the board's own corner (the previous version), so no
-  `board-scroll` padding-bottom reservation is needed for it any more either. DOM order is Reveal then
-  Flag (matches the sketch — was Flag then Reveal in the previous version); both still just flip the same
-  shared `flagMode` state everything else does (`updateFlagModeButton`, Main.js).
-  **`fitDesktopCellPx`** (`MobileLayout.js`) still floors at 30px here (not the shared `DESKTOP_CELL_MIN`
-  22px), still gated on `isDuoRacing()` + `body.duel-landscape-mode`, unchanged from the previous version
-  — a deliberate "more zoomed in" default now that pinch-zoom gives the player a way back out to an
-  overview. `.board-scroll` still gets the `flex:1; min-height:0; overflow:auto` chain (only the board
+  **A third, same-shaped bug**: `.duel-header-row` also matches the OPPONENT's own `.duel-header-row` —
+  a different element, same class, nested inside `.opponent_div` wrapping `#duel_id_opp` + its progress
+  corner — so the "give this the neon arena card look" rule (border/background/glow, meant for the left
+  panel) styled it too, as a second, redundant blue (`--duel-you`, its default) card nested inside the
+  already-bordered (red/`--duel-opp`) right panel. Fixed with a follow-up rule scoped to
+  `.opponent_div .duel-header-row` specifically, resetting it back to a plain invisible wrapper —
+  `.opponent_div` itself is already the card there.
+  **Reveal/Flag** (`.duel-mode-toggle`) is nested inside `.board-wrap` now (moved there in `index.html`,
+  a real DOM move, not just a CSS reposition) — part of the board's own card instead of a separate panel
+  below it (tried in the version right before this one) or pinned over its corner (the version before
+  that). `flex: 0 0 auto` keeps it from participating in `.board-scroll`'s `flex: 1` growth as a sibling
+  flex child of `.board-wrap`; no border/background of its own any more either, since it's already inside
+  the same bordered card as the board — a second nested border there would be the same "two boxes"
+  mistake as the previous bullet, just for buttons instead of an info panel. DOM order is still Reveal
+  then Flag (matches the sketch — was Flag then Reveal in the very first version); both still just flip
+  the same shared `flagMode` state everything else does (`updateFlagModeButton`, Main.js).
+  **`fitDesktopCellPx`** (`MobileLayout.js`) floors at 40px here now (was 30, before that the shared
+  `DESKTOP_CELL_MIN` 22px) — still gated on `isDuoRacing()` + `body.duel-landscape-mode` — bumped again
+  after "very hard to click correctly" feedback at 30px; pinch-zoom is there for zooming back OUT to an
+  overview, tapping cells accurately at the default size matters more than fitting the whole board in
+  untouched. `.board-scroll` still gets the `flex:1; min-height:0; overflow:auto` chain (only the board
   pans internally, not the page — `.game-view.duo` stays pinned to `height:100dvh; overflow:hidden`),
   scrollbar hidden, and `#game0`'s `touch-action: manipulation` (pan + native pinch-zoom, minus
   double-tap-zoom, which would fight tap-to-reveal) — all unchanged from before, still needed for the
