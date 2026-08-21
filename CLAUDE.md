@@ -656,11 +656,32 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   from the base rule's 1.25rem/0.75rem player/opponent) — closing a gap between the card's top border
   and the avatar that had nothing to do with any of the height-matching elsewhere in this layout, just
   unused space — alongside a tighter avatar-to-name `gap` (`.duel-id`) and tier-badge-to-text `gap`
-  (`.duel-id-tier-pill`) on both sides. The tier badge itself also gets a small negative `margin`
-  (`.duel-id-tier-badge.rank-badge`) to compensate for whitespace that's baked into the rank badge's
-  own SVG viewBox (`buildRankBadge`, `Ranking.js` — room for glow/rings in other contexts it's used,
-  like the profile rank ladder) and reads as padding around the badge no CSS `gap` alone can close,
-  since it's inside the badge's own rendered box, not outside it.
+  (`.duel-id-tier-pill`) on both sides. The tier badge itself also gets `transform: scale(1.5)` plus a
+  small `margin` (`.duel-id-tier-badge.rank-badge`) to compensate for whitespace baked into the rank
+  badge's own SVG viewBox (`buildRankBadge`, `Ranking.js` — its hexagon spans roughly x:15-85, y:15-91
+  of a 0-100 box, real margin inside the badge's own rendered pixels, not an illusion — room for
+  glow/rings in other contexts it's used, like the profile rank ladder). A negative margin alone only
+  closes the *layout* gap to the text next to it; the badge still looks small and padded within its own
+  box unless it's also visually scaled up to fill more of that box — the two together are what actually
+  closes both gaps (the one CSS `gap` can reach, and the one baked into the SVG that only scaling
+  reaches). The timer and the VS/tug-of-war meter also swap order here — timer first, meter below —
+  purely a DOM reorder in `index.html` (`#duel_timer_landscape_box` now precedes `.duel-meter-header`
+  inside `#duel_center`); desktop is unaffected either way since `#duel_timer_landscape_box` is always
+  `display: none` there, order or not.
+  **The Gold board skin's vignette breaks once the board can scroll**: `body[data-board-skin="gold"]
+  .board-scroll::after` (a `position: absolute; inset: 0` radial-gradient, the skin's ambient shading)
+  doesn't scroll *with* the board's content — it stays pinned to `.board-scroll`'s own box, so panning
+  a board taller than its viewport drags the revealed cells out from under a vignette that doesn't
+  follow, reading as a shading bug rather than the intended ambient effect. Disabled specifically
+  wherever `.board-scroll` is actually scrollable — here (`body.duel-landscape-mode[data-board-skin=
+  "gold"] .game-view.duo .board-scroll::after`) and the portrait `@media (max-width: 700px)` block
+  (`body[data-board-skin="gold"] .board-scroll::after`, already scoped by the media query itself) — left
+  alone everywhere else (desktop, where the board always fits without scrolling). **Gotcha**: the first
+  landscape version of this rule was missing the `body.duel-landscape-mode` prefix entirely — every
+  other rule in this whole block has it, so it read as scoped at a glance, but without it the selector
+  matched `data-board-skin="gold"` **anywhere** `.game-view.duo .board-scroll` exists, silently killing
+  the vignette on desktop too. Caught by explicitly checking desktop after the "fix," not something a
+  landscape-only screenshot would ever have caught on its own.
   `.game-side` is flex-column with `align-items: flex-start` on
   desktop (deliberate there — the opponent card sits in open space next to the scoreboard, so it
   shrink-wraps to its own content) — inherited as-is in landscape, that shrink-wrapped the opponent

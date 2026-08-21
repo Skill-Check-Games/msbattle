@@ -674,6 +674,22 @@
 				     The VS badge + gauge only mean anything once a duel's actually forming/playing (duo
 				     class), so this whole block is CSS-hidden outside that, same as the two duel-bars. -->
 				<div id="duel_center" class="duel-center">
+					<!-- Landscape-phone only: the header (and its #duel_timer) is hidden there to give the
+					     boards more height, so the timer needs a second home near the meter instead —
+					     mirrored into by RoundTimer.js/updateDuelHud alongside #duel_timer/#duel_timer_mode.
+					     Boxed like the desktop timer badge (its own separate card in the sketch's mobile
+					     layout, not just floating text) rather than reusing .duel-timer-badge directly, since
+					     that element physically lives in the header this hides. Hidden elsewhere; see
+					     .duel-timer-landscape-box in style.css. Sits above the VS mark/meter here — swapped
+					     from the order they're built in below, timer first — while desktop (where this
+					     element is always display:none) is unaffected by DOM order either way. -->
+					<div id="duel_timer_landscape_box" class="duel-timer-landscape-box" aria-hidden="true">
+						<div class="duel-timer-landscape-row">
+							<span class="duel-timer-landscape-icon" aria-hidden="true">⏱</span>
+							<span id="duel_timer_landscape" class="duel-timer-landscape"></span>
+						</div>
+						<span id="duel_timer_landscape_mode" class="duel-timer-landscape-mode"></span>
+					</div>
 					<!-- Landscape-phone only: YOU / opponent-name labels flanking the VS mark, all one row
 					     (the sketch's mobile layout) instead of the VS badge alone on its own row (desktop,
 					     unchanged) — see .duel-meter-header/.duel-meter-label in style.css. A plain
@@ -691,20 +707,6 @@
 						<div id="duel_meter_callout" class="duel-meter-callout">Tied up</div>
 					</div>
 					<div class="duel-goal-pill">⚡ First to 100% wins</div>
-					<!-- Landscape-phone only: the header (and its #duel_timer) is hidden there to give the
-					     boards more height, so the timer needs a second home near the meter instead —
-					     mirrored into by RoundTimer.js/updateDuelHud alongside #duel_timer/#duel_timer_mode.
-					     Boxed like the desktop timer badge (its own separate card in the sketch's mobile
-					     layout, not just floating text) rather than reusing .duel-timer-badge directly, since
-					     that element physically lives in the header this hides. Hidden elsewhere; see
-					     .duel-timer-landscape-box in style.css. -->
-					<div id="duel_timer_landscape_box" class="duel-timer-landscape-box" aria-hidden="true">
-						<div class="duel-timer-landscape-row">
-							<span class="duel-timer-landscape-icon" aria-hidden="true">⏱</span>
-							<span id="duel_timer_landscape" class="duel-timer-landscape"></span>
-						</div>
-						<span id="duel_timer_landscape_mode" class="duel-timer-landscape-mode"></span>
-					</div>
 				</div>
 				<aside class="game-side">
 					<div id="scoreboard_card" class="side-card">

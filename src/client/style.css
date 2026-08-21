@@ -4237,7 +4237,16 @@ body.duel-landscape-mode .game-view.duo .duel-id-tier-pill {
 	padding: 0;
 	gap: 0.15rem;
 }
-body.duel-landscape-mode .game-view.duo .duel-id-tier-badge.rank-badge { margin: -3px; }
+/* A negative margin alone only closes the LAYOUT gap to the text — the hexagon itself still looks
+   small and padded within its own box, since the whitespace is baked into the badge's SVG viewBox
+   (hexagon spans roughly x:15-85, y:15-91 of a 0-100 box — real margin, not an illusion). Scale the
+   rendered badge up to fill more of that box (the layout footprint stays the same size — flex still
+   reserves the original box for it — so this crops the badge's own internal padding visually, on
+   top of the negative margin closing the gap to the text next to it). */
+body.duel-landscape-mode .game-view.duo .duel-id-tier-badge.rank-badge {
+	transform: scale(1.5);
+	margin: 0 2px;
+}
 /* Name + tier pill span the exact height of the avatar next to them (align-items:stretch on .duel-id
    below makes .duel-id-info stretch to match the avatar's height; space-between here spreads the
    name to the top edge and the tier pill to the bottom, instead of the two lines huddling together
@@ -4380,6 +4389,10 @@ body.duel-landscape-mode .game-view.duo .board-scroll {
 	-ms-overflow-style: none;
 }
 body.duel-landscape-mode .game-view.duo .board-scroll::-webkit-scrollbar { display: none; width: 0; height: 0; }
+/* Same fix as the portrait-mobile block, same reason: the Gold skin's vignette (::after) is a
+   position:absolute overlay that doesn't scroll with a scrollable board's content — see that rule's
+   comment for the full explanation. */
+body.duel-landscape-mode[data-board-skin="gold"] .game-view.duo .board-scroll::after { display: none; }
 
 /* Identity + progress share one header row (space-between) instead of stacking — see
    .duel-header-row above. Progress itself moves to the compact .duel-bar-corner readout instead
@@ -5018,6 +5031,15 @@ body.duel-force-rotate #game_view {
 		background: var(--bg);
 	}
 	#game0 { max-width: none !important; width: auto; }
+	/* The Gold skin's vignette (body[data-board-skin="gold"] .board-scroll::after, above) is a
+	   position:absolute overlay pinned to .board-scroll's own box — fine when the board fits without
+	   scrolling, but .board-scroll is scrollable here (overflow:auto above), and an absolutely
+	   positioned overlay doesn't scroll WITH the content inside it, only sits still relative to the
+	   container. Panning the board then drags it out from under a vignette that stays put, reading as
+	   a shading bug rather than the ambient effect it's meant to be. Simplest fix: skip it wherever the
+	   board can actually scroll (here and the landscape duel, both below) rather than trying to make a
+	   decorative overlay track scroll position. */
+	body[data-board-skin="gold"] .board-scroll::after { display: none; }
 
 	/* In-game layout: flex chain so the board fills exactly the space between
 	   the compact header and the action buttons — no fragile calc() needed. */
