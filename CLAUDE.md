@@ -546,13 +546,21 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   (`RoundTimer.js`) alongside `#duel_timer` itself (a third copy of the same handful of lines the header
   and 6-player timers already shared — see its comment). So in landscape the timer and the tug-of-war
   meter both read as attached to the opponent's (smaller) side, per the sketch, instead of centered up
-  top. `DESKTOP_CELL_MIN` (`MobileLayout.js`, 22px) means a board with many rows can still be
-  taller than a short landscape viewport has room for even after all that; rather than let the page
-  itself scroll (carrying the opponent panel/meter off-screen), `.board-scroll` gets the same
-  `flex:1; min-height:0; overflow:auto` chain the portrait mobile layout already uses so only the board
-  pans internally (`.game-view.duo` is pinned to `height:100dvh; overflow:hidden` so nothing above it
-  can scroll instead), with the scrollbar itself hidden (`scrollbar-width:none` + the `::-webkit-scrollbar`
-  equivalent) since panning still works without the visible chrome. The opponent canvas needs `width` and
+  top. `fitDesktopCellPx` (`MobileLayout.js`) floors noticeably higher here (30px) than its normal
+  `DESKTOP_CELL_MIN` (22px, still used everywhere else) — `body.duel-landscape-mode` gated, checked
+  alongside `isDuoRacing()` — a deliberate "more zoomed in" bump once pinch-zoom (below) gives the
+  player a way back out to an overview, rather than always fitting the whole board in by default. A
+  board with many rows can still be taller than a short landscape viewport has room for even after
+  all that; rather than let the page itself scroll (carrying the opponent panel/meter off-screen),
+  `.board-scroll` gets the same `flex:1; min-height:0; overflow:auto` chain the portrait mobile layout
+  already uses so only the board pans internally (`.game-view.duo` is pinned to `height:100dvh;
+  overflow:hidden` so nothing above it can scroll instead), with the scrollbar itself hidden
+  (`scrollbar-width:none` + the `::-webkit-scrollbar` equivalent) since panning still works without
+  the visible chrome. `#game0`'s `touch-action` is `manipulation` (pan + native pinch-zoom, minus the
+  double-tap-zoom shortcut, which would fight tap-to-reveal) rather than the `pan-x pan-y` it used to
+  be — this is the browser's own page-level zoom, not a custom board-scoped one; the same change
+  applies to portrait mobile's `.board-scroll` (the `@media (max-width: 700px)` block) for the same
+  reason. The opponent canvas needs `width` and
   `height` forced back to `auto` with `!important` (`max-width:100%` and `max-height:16vh` alone fight
   the JS-set inline `width`, independently scaling each axis and stretching cells off-square — `!important`
   is required since inline styles otherwise always beat a stylesheet regardless of selector specificity;

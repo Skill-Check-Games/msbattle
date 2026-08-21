@@ -3757,8 +3757,10 @@ body.touch .flag-mode-button { display: inline-flex; }
 .flag-mode-icon { font-size: 1rem; line-height: 1; }
 .flag-mode-label { line-height: 1; }
 
-/* Let the browser pan inside the scroll container but block pinch/double-tap zoom. */
-#game0 { touch-action: pan-x pan-y; }
+/* Let the browser pan inside the scroll container AND pinch-zoom (native browser page zoom, not a
+   custom board-only zoom — "manipulation" is pan-x + pan-y + pinch-zoom, still without the
+   double-tap-zoom shortcut, which would fight tap-to-reveal). */
+#game0 { touch-action: manipulation; }
 
 /* Board scroll container — pass-through on desktop, a scrollable viewport on mobile. */
 .board-scroll {
@@ -4921,7 +4923,7 @@ body.duel-force-rotate #game_view {
 		max-height: 75vh;
 		overflow: auto;
 		-webkit-overflow-scrolling: touch;
-		touch-action: pan-x pan-y;
+		touch-action: manipulation; /* pan + pinch-zoom, no double-tap-zoom (would fight tap-to-reveal) */
 		overscroll-behavior: contain;
 		border-radius: 0;
 		background: var(--bg);

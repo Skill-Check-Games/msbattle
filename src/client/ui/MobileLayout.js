@@ -50,7 +50,15 @@ function fitDesktopCellPx() {
 	var inDuo = (typeof isDuoRacing === "function") && isDuoRacing();
 	var bigCell = (typeof territoryActive !== "undefined" && territoryActive) || ((typeof soloSession !== "undefined") && soloSession) || inMarathon || inDuo;
 	var maxCell = bigCell ? 100 : DESKTOP_CELL_MAX;
-	return Math.max(DESKTOP_CELL_MIN, Math.min(maxCell, cell));
+	// The mobile landscape duel (body.duel-landscape-mode, style.css) floors noticeably higher than
+	// the general-purpose DESKTOP_CELL_MIN — on a viewport this short the ideal (fit-everything)
+	// cell size is almost always well under 22px anyway (that's exactly why board-scroll pans), so
+	// the board was already rendering at the absolute minimum, not a deliberately chosen size. Bump
+	// it up now that pinch-zoom (#game0's touch-action, style.css) lets the player zoom back out for
+	// an overview instead of needing the whole board visible by default.
+	var landscapeDuelMobile = inDuo && document.body.classList.contains("duel-landscape-mode");
+	var minCell = landscapeDuelMobile ? 30 : DESKTOP_CELL_MIN;
+	return Math.max(minCell, Math.min(maxCell, cell));
 }
 
 // Mobile cell size for racing/solo/territory: the largest whole-pixel cell that lets a finger-friendly
