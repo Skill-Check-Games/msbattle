@@ -596,16 +596,18 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   next: shrinking the avatar left `.duel-id-info`'s own natural content height (name + tier row, even at
   reduced type) taller than the avatar sitting next to it, undoing the alignment that was the whole
   point. **Avatar, name, and tier read as one aligned block**: `.duel-id` stretches `.duel-id-info` to
-  the avatar's exact height (`align-items: stretch`) and `.duel-id-info`'s own `justify-content:
-  space-between` spreads the name to the top edge and the tier pill (now stripped of its
-  border/background — `.duel-id-tier-pill`, no chip box, just the badge + text) to the bottom, instead
-  of both lines huddling in the middle. `.duel-header-row` (the shared row wrapping identity +
-  `.duel-bar-corner`) gets the *same* treatment one level up — `display: grid` (not flex; a flex row's
-  own `align-items: stretch` reliably grew the row to fit its tallest child, but wouldn't stretch
-  `.duel-id` — itself a nested flex container — back down into it, an interaction never fully pinned
-  down; grid's per-item stretch does this reliably) so the identity block and the progress corner
-  readout end up the exact same height too, `.duel-bar-corner`'s own `justify-content: space-between`
-  spreading its pct+bar row and "N cells left" the same way. **Gotcha that cost real time chasing**:
+  the avatar's exact height (`align-items: stretch`), and within that matched height `.duel-id-info`'s
+  own `justify-content: center` (a small `gap` between the two lines) keeps the name and tier pill (now
+  stripped of its border/background — `.duel-id-tier-pill`, no chip box, just the badge + text) sitting
+  together around the middle, rather than each pinned flush to the top/bottom edge right next to the
+  card's border (tried first — reads as cramped, too close to the border). `.duel-header-row` (the
+  shared row wrapping identity + `.duel-bar-corner`) gets the *same* height-matching treatment one level
+  up — `display: grid` (not flex; a flex row's own `align-items: stretch` reliably grew the row to fit
+  its tallest child, but wouldn't stretch `.duel-id` — itself a nested flex container — back down into
+  it, an interaction never fully pinned down; grid's per-item stretch does this reliably) so the
+  identity block and the progress corner readout end up the exact same height too, `.duel-bar-corner`'s
+  own `justify-content: center` centering its pct+bar row and "N cells left" the same way. **Gotcha
+  that cost real time chasing**:
   `.duel-id`'s `margin-bottom` (0.75rem base, or an earlier 0.3rem landscape override) has to be zero
   and live on `.duel-header-row` instead — while it's on `.duel-id`, that margin gets counted as part of
   its own share of the stretched grid track (a margin box, not the border box `getBoundingClientRect()`

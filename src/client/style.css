@@ -4222,7 +4222,10 @@ body.duel-landscape-mode .game-view.duo .duel-id-tier-pill {
    The progress corner readout (.duel-bar-corner) gets the matching treatment below, off the same
    .duel-header-row, so both halves of the header end up the same height with nothing left over. */
 body.duel-landscape-mode .game-view.duo .duel-id { align-items: stretch; align-self: stretch; }
-body.duel-landscape-mode .game-view.duo .duel-id-info { justify-content: space-between; align-self: stretch; }
+/* center (not space-between): the block still spans the avatar's full height (align-self:stretch
+   above), but the two lines sit together around the middle of it with a small gap, instead of each
+   being pinned flush to the top/bottom edge right next to the card's border. */
+body.duel-landscape-mode .game-view.duo .duel-id-info { justify-content: center; gap: 0.3rem; align-self: stretch; }
 /* The opponent's identity shares a much narrower card than the player's own, so give it tighter
    type — without it, the tier pill's text has too little room (white-space:nowrap below stops it
    wrapping, but it'd still overflow the card). The avatar itself stays unscaled (unlike an earlier
@@ -4354,10 +4357,11 @@ body.duel-landscape-mode .game-view.duo .duel-bar-corner {
 	display: flex;
 	flex-direction: column;
 	align-items: flex-end;
-	/* space-between spreads the pct+bar row to the top edge and "N cells left" to the bottom edge,
-	   spanning the row's full (stretched) height instead of huddling together — the exact same
-	   treatment .duel-id-info gets, so both halves of the header read as the same height. */
-	justify-content: space-between;
+	/* center (not space-between): still spans the same matched height as .duel-id-info (both stretch
+	   to fill the shared grid row), but the pct+bar row and "N cells left" sit together around the
+	   middle of it instead of pinned flush to the top/bottom edge right next to the card's border. */
+	justify-content: center;
+	gap: 0.3rem;
 	flex: 0 0 auto;
 }
 
