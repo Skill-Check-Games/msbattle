@@ -590,29 +590,42 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   The opponent's card is much narrower than the player's own, so its identity additionally gets tighter
   type and `white-space: nowrap` on the name/tier text (`.duel-id-name`/`.duel-id-rating`, applied
   globally, not landscape-scoped — a narrow flex row wrapping the tier pill's text mid-word is never a
-  look worth keeping anywhere). An earlier version of this rule also forced the opponent's avatar down
-  to 40px (`buildAvatarChip` always builds at a fixed 52px regardless of context) to keep the identity
-  row from getting too wide for the card — reverted, because it fought the height-matching described
-  next: shrinking the avatar left `.duel-id-info`'s own natural content height (name + tier row, even at
-  reduced type) taller than the avatar sitting next to it, undoing the alignment that was the whole
-  point. **Avatar, name, and tier read as one aligned block**: `.duel-id` stretches `.duel-id-info` to
-  the avatar's exact height (`align-items: stretch`), and within that matched height `.duel-id-info`'s
-  own `justify-content: center` (a small `gap` between the two lines) keeps the name and tier pill (now
-  stripped of its border/background — `.duel-id-tier-pill`, no chip box, just the badge + text) sitting
-  together around the middle, rather than each pinned flush to the top/bottom edge right next to the
-  card's border (tried first — reads as cramped, too close to the border). `.duel-header-row` (the
-  shared row wrapping identity + `.duel-bar-corner`) gets the *same* height-matching treatment one level
-  up — `display: grid` (not flex; a flex row's own `align-items: stretch` reliably grew the row to fit
-  its tallest child, but wouldn't stretch `.duel-id` — itself a nested flex container — back down into
-  it, an interaction never fully pinned down; grid's per-item stretch does this reliably) so the
-  identity block and the progress corner readout end up the exact same height too, `.duel-bar-corner`'s
-  own `justify-content: center` centering its pct+bar row and "N cells left" the same way. **Gotcha
-  that cost real time chasing**:
-  `.duel-id`'s `margin-bottom` (0.75rem base, or an earlier 0.3rem landscape override) has to be zero
-  and live on `.duel-header-row` instead — while it's on `.duel-id`, that margin gets counted as part of
-  its own share of the stretched grid track (a margin box, not the border box `getBoundingClientRect()`
-  measures), so it renders visibly shorter than its zero-margin sibling despite `align-items: stretch`
-  being correctly applied everywhere — looks exactly like stretch silently failing, isn't.
+  look worth keeping anywhere). **Avatar, name, and tier read as one aligned block**: `.duel-id`
+  stretches `.duel-id-info` to the avatar's height (`align-items: stretch`), and within that matched
+  height `.duel-id-info`'s own `justify-content: center` (a small `gap` between the two lines) keeps the
+  name and tier pill (stripped of its border/background — `.duel-id-tier-pill`, no chip box, just the
+  badge + text) sitting together around the middle, rather than each pinned flush to the top/bottom edge
+  right next to the card's border (tried first — reads as cramped). `.duel-header-row` (the shared row
+  wrapping identity + `.duel-bar-corner`) gets the *same* height-matching treatment one level up —
+  `display: grid` (not flex; a flex row's own `align-items: stretch` reliably grew the row to fit its
+  tallest child, but wouldn't stretch `.duel-id` — itself a nested flex container — back down into it,
+  an interaction never fully pinned down; grid's per-item stretch does this reliably) so the identity
+  block and the progress corner readout end up the same height, `.duel-bar-corner`'s own
+  `justify-content: center` centering its pct+bar row and "N cells left" the same way. **Gotcha that
+  cost real time chasing**: `.duel-id`'s `margin-bottom` (0.75rem base, or an earlier 0.3rem landscape
+  override) has to be zero and live on `.duel-header-row` instead — while it's on `.duel-id`, that margin
+  gets counted as part of its own share of the stretched grid track (a margin box, not the border box
+  `getBoundingClientRect()` measures), so it renders visibly shorter than its zero-margin sibling despite
+  `align-items: stretch` being correctly applied everywhere — looks exactly like stretch silently
+  failing, isn't.
+  **The opponent's avatar is intentionally smaller than the player's own** (32px vs `buildAvatarChip`'s
+  normal 52px — `#duel_id_opp .duel-id-avatar`/its `canvas`, `!important` since the canvas carries an
+  inline `width`/`height` from `sizeBoardCanvas`) — an earlier version of this same rule tried keeping it
+  at 52px specifically to preserve the height-match above (a smaller avatar being shorter than
+  `.duel-id-info`'s own content undoes the stretch match otherwise), but the board matters more than a
+  big portrait in that narrow column, so `#duel_id_opp` switches to plain `align-items: center` instead
+  of participating in the stretch chain — avatar and info just sit centered next to each other, no
+  longer required to be the exact same height. The freed-up space goes to the opponent's canvas
+  (`max-height` raised from 16vh to 21vh) and the column itself (`grid-template-columns` on `.game-grid`,
+  `2.3fr 1fr` → `1.9fr 1.2fr` — still player-dominant, just less extreme). The opponent's identity is
+  also **un-mirrored** in landscape specifically — avatar on the left, name/tier on the right, the same
+  order as the player's own (`flex-direction: row`/`text-align: left` override desktop's `row-reverse`/
+  `right`, base rule above `#duel_id_opp`) — desktop's mirroring reads as "facing" the player's panel
+  across the VS column; the header row here doesn't have that same left/right framing, so matching the
+  player's own layout (which every duel shows) matters more than the mirror. The player's own progress
+  bar is also longer now (`#duel_bar_you_corner .duel-bar-corner-track`, 110px vs the shared 46px) —
+  that side has 1.9fr of the grid to the opponent's 1.2fr, no reason its bar should be as compact as
+  the cramped opponent one.
   The VS mark gains "YOU"/opponent-name labels flanking it, all one row
   (`.duel-meter-header`, another `display:contents` no-op wrapper — desktop keeps the VS badge alone on
   its own centered row, unchanged), and the timer gets a bordered card of its own below the meter

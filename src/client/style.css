@@ -4167,7 +4167,7 @@ body.duel-landscape-mode .game-view.duo .game-grid { min-height: 0; }
    VS/tug-of-war meter share a single narrow column stacked underneath each other — the same
    "advantage scale sits with the opponent" grouping the mockup sketch called for. */
 body.duel-landscape-mode .game-view.duo .game-grid {
-	grid-template-columns: minmax(0, 2.3fr) minmax(0, 1fr);
+	grid-template-columns: minmax(0, 1.9fr) minmax(0, 1.2fr);
 	grid-template-rows: minmax(0, auto) minmax(0, 1fr);
 	grid-template-areas: "left right" "left center";
 	align-items: stretch;
@@ -4226,16 +4226,33 @@ body.duel-landscape-mode .game-view.duo .duel-id { align-items: stretch; align-s
    above), but the two lines sit together around the middle of it with a small gap, instead of each
    being pinned flush to the top/bottom edge right next to the card's border. */
 body.duel-landscape-mode .game-view.duo .duel-id-info { justify-content: center; gap: 0.3rem; align-self: stretch; }
-/* The opponent's identity shares a much narrower card than the player's own, so give it tighter
-   type — without it, the tier pill's text has too little room (white-space:nowrap below stops it
-   wrapping, but it'd still overflow the card). The avatar itself stays unscaled (unlike an earlier
-   version of this rule, which forced it down to 40px): with .duel-id-info now stretching to the
-   avatar's full height (see .duel-id/.duel-id-info above), shrinking the avatar just left the info
-   column's own natural content height (name + tier row, even at this reduced size) taller than the
-   avatar next to it — the opposite of the aligned block being asked for. Letting the avatar be
-   buildAvatarChip's normal 52px, same as the player's own, is what actually makes info's stretched
-   height and the avatar's height match on both sides symmetrically. */
-body.duel-landscape-mode .game-view.duo #duel_id_opp { gap: 0.45rem; }
+/* The opponent's identity shares a much narrower card than the player's own, and the board itself
+   matters more than a big portrait there — smaller avatar, tighter type (white-space:nowrap above
+   stops the tier pill's text wrapping, but it'd still overflow the card without the reduced size
+   too). .duel-id-info no longer needs to stretch to match it (center, not stretch — .duel-id here
+   overrides the stretch alignment above so the now-smaller avatar and the info column both just sit
+   centered against each other instead of one trying to match the other's height exactly). */
+/* Un-mirror: avatar on the left, name/tier on the right, same order as the player's own identity —
+   desktop mirrors the opponent's whole panel (row-reverse + text-align:right, base rule above) since
+   its card sits on the opposite side of the VS column from the player's, so mirroring reads as
+   "facing" it; the header row here doesn't have that same left/right framing, so consistency with
+   the player's own side (which players see every duel) matters more than the mirror. */
+body.duel-landscape-mode .game-view.duo #duel_id_opp {
+	gap: 0.45rem;
+	align-items: center;
+	flex-direction: row;
+	text-align: left;
+}
+body.duel-landscape-mode .game-view.duo #duel_id_opp .duel-id-info {
+	align-self: auto;
+	align-items: flex-start;
+}
+body.duel-landscape-mode .game-view.duo #duel_id_opp .duel-id-tier-pill { flex-direction: row; }
+body.duel-landscape-mode .game-view.duo #duel_id_opp .duel-id-avatar,
+body.duel-landscape-mode .game-view.duo #duel_id_opp .duel-id-avatar canvas {
+	width: 32px !important;
+	height: 32px !important;
+}
 body.duel-landscape-mode .game-view.duo #duel_id_opp .duel-id-name { font-size: 1rem; }
 body.duel-landscape-mode .game-view.duo #duel_id_opp .duel-id-tier-pill { gap: 0.3rem; }
 body.duel-landscape-mode .game-view.duo #duel_id_opp .duel-id-tier-badge.rank-badge { font-size: 4px; }
@@ -4324,7 +4341,10 @@ body.duel-landscape-mode .game-view.duo .opponent_div canvas {
 	width: auto !important;
 	height: auto !important;
 	max-width: 100%;
-	max-height: 16vh;
+	/* Bumped up from 16vh now that the smaller avatar and wider column (both above) free up more
+	   room for it — the opponent's board matters more than a big portrait or a ton of spare width
+	   in that column going unused. */
+	max-height: 21vh;
 }
 
 /* The board's own scrollbar is real (see board-scroll's min-height:0 flex chain above — a board
@@ -4364,6 +4384,9 @@ body.duel-landscape-mode .game-view.duo .duel-bar-corner {
 	gap: 0.3rem;
 	flex: 0 0 auto;
 }
+/* Your own card has room to spare (2.3fr of the grid vs the opponent's 1fr) — let the bar actually
+   use some of it instead of sitting at the same compact width as the opponent's. */
+body.duel-landscape-mode .game-view.duo #duel_bar_you_corner .duel-bar-corner-track { width: 110px; }
 
 /* Reveal/flag: two explicit buttons pinned to the board's own bottom-right corner (the sketch's
    own take on this control) instead of the single toggle the touch action bar uses elsewhere —
