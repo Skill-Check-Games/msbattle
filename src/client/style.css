@@ -4171,7 +4171,10 @@ body.duel-landscape-mode .game-view.duo .game-grid {
 	   not the column wider; widening the column too was a misread of "give it more space" as
 	   horizontal specifically, when only the vertical direction was meant. */
 	grid-template-columns: minmax(0, 2.3fr) minmax(0, 1fr);
-	grid-template-rows: minmax(0, auto) minmax(0, 1fr);
+	/* 2fr/1fr: the opponent's card gets 2/3 of the right column's height, the VS/meter/timer group
+	   below it the remaining 1/3 — was auto/1fr (opponent sized to its own content, whatever that
+	   happened to be, meter+timer getting everything left over instead of a deliberate share). */
+	grid-template-rows: minmax(0, 2fr) minmax(0, 1fr);
 	grid-template-areas: "left right" "left center";
 	align-items: stretch;
 	gap: 0.5rem 0.65rem;
@@ -4350,10 +4353,13 @@ body.duel-landscape-mode .game-view.duo .opponent_div canvas {
 	width: auto !important;
 	height: auto !important;
 	max-width: 100%;
-	/* Bumped up from 16vh now that the smaller avatar and wider column (both above) free up more
-	   room for it — the opponent's board matters more than a big portrait or a ton of spare width
-	   in that column going unused. */
-	max-height: 21vh;
+	/* Bumped up from an original 16vh now that the smaller avatar frees up room for it and the 2fr/1fr
+	   row split above gives the opponent's card a real 2/3 share of the column's height to grow into
+	   — generous on purpose so that row split, not this vh figure, ends up the actual limit; a canvas
+	   still shrinks to fit width-wise too (max-width:100%, same aspect-ratio-preserving resolution as
+	   the rest of this rule), so an overly generous max-height here doesn't overflow anything, it just
+	   stops being the binding constraint. */
+	max-height: 32vh;
 }
 
 /* The board's own scrollbar is real (see board-scroll's min-height:0 flex chain above — a board
@@ -4418,7 +4424,10 @@ body.duel-landscape-mode .game-view.duo .duel-mode-btn {
 	padding: 0.35rem 0.65rem;
 	border-radius: 8px;
 	border: 1px solid var(--border);
-	background: rgba(11, 16, 32, 0.75);
+	/* Solid, not translucent — these sit directly over the board (bottom-right corner, position:
+	   absolute), and revealed cells scrolling underneath a see-through button read as distracting
+	   noise behind the label rather than a clean control. */
+	background: var(--surface);
 	color: var(--muted);
 	font-size: 0.78rem;
 	font-weight: 700;
@@ -4428,7 +4437,10 @@ body.duel-landscape-mode .game-view.duo .duel-mode-btn-icon { font-size: 0.85rem
 body.duel-landscape-mode .game-view.duo .duel-mode-btn-active {
 	border-color: var(--duel-you);
 	color: var(--text);
-	background: rgba(59, 130, 246, 0.16);
+	/* Same solid idea as the base button — a blue-tinted opaque navy instead of a translucent wash,
+	   picked to read the same as the old rgba(59,130,246,0.16) did sitting over --surface, just
+	   without the transparency. */
+	background: #14213d;
 }
 /* Leave the board's bottom-right corner clear for that control. */
 body.duel-landscape-mode .game-view.duo .board-scroll { padding-bottom: 2.6rem; }
