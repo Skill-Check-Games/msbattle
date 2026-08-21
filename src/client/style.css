@@ -4201,15 +4201,20 @@ body.duel-landscape-mode .game-view.duo .opponent_div {
    back to the card's full width so its own grid-template-columns:1fr auto can do the actual left/
    right alignment — identity flush left, progress flush right, same as the player's own header. */
 body.duel-landscape-mode .game-view.duo .opponent_div .duel-header-row { align-self: stretch; }
-/* Trim the neon card's own side padding — it was sized for a symmetric desktop layout with
-   room to spare; here every pixel it eats is a pixel the board doesn't get. Top/bottom stay
-   (still needed to clear the identity panel and progress row), and the identity panel's own
-   gap above the board shrinks too, per the same "give it back to the board" ask. */
+/* Trim the neon card's own padding — it was sized for a symmetric desktop layout with room to
+   spare; here every pixel it eats is a pixel the board doesn't get. padding-top specifically: the
+   base rule's 1.25rem/0.75rem (player/opponent) left a visible gap between the card's top border and
+   the avatar that had nothing to do with any of the height-matching above — just unused space. The
+   identity panel's own gap above the board shrinks too, per the same "give it back to the board" ask. */
 body.duel-landscape-mode .game-view.duo .player-board,
 body.duel-landscape-mode .game-view.duo .opponent_div {
 	padding-left: 0.5rem;
 	padding-right: 0.5rem;
+	padding-top: 0.4rem;
 }
+/* Avatar-to-name gap, tightened on both sides — "pretty tight" was the ask, and the base 0.7rem
+   (player) read as loose once everything else here got this compact. */
+body.duel-landscape-mode .game-view.duo .duel-id { gap: 0.4rem; }
 /* Was margin-bottom on .duel-id itself (both the base 0.75rem, .game-view.duo .duel-id above, and a
    0.3rem landscape override) — that's fine while it's the header's only row, but once it started
    sharing .duel-header-row with .duel-bar-corner (no such margin), the margin ate into .duel-id's own
@@ -4221,12 +4226,18 @@ body.duel-landscape-mode .game-view.duo .duel-id { margin-bottom: 0; }
 body.duel-landscape-mode .game-view.duo .duel-header-row { margin-bottom: 0.3rem; }
 /* No chip: just the badge + tier name, no pill border/background — the sketch doesn't box it in,
    and freed from having to look like a self-contained pill it can stretch to fill the identity
-   block's full height instead (see .duel-id-info's justify-content below). */
+   block's full height instead (see .duel-id-info's justify-content below). Tight gap too — the
+   rank-badge SVG itself (buildRankBadge, Ranking.js) has real whitespace baked into its viewBox
+   around the hexagon (room for glow/rings elsewhere it's used, e.g. the profile rank ladder), so
+   the badge's own box already reads as padded before any CSS gap is added on top; a small negative
+   margin pulls the tier text in to compensate, tighter than gap alone could get it. */
 body.duel-landscape-mode .game-view.duo .duel-id-tier-pill {
 	border: none;
 	background: transparent;
 	padding: 0;
+	gap: 0.15rem;
 }
+body.duel-landscape-mode .game-view.duo .duel-id-tier-badge.rank-badge { margin: -3px; }
 /* Name + tier pill span the exact height of the avatar next to them (align-items:stretch on .duel-id
    below makes .duel-id-info stretch to match the avatar's height; space-between here spreads the
    name to the top edge and the tier pill to the bottom, instead of the two lines huddling together
@@ -4250,7 +4261,7 @@ body.duel-landscape-mode .game-view.duo .duel-id-info { justify-content: center;
    "facing" it; the header row here doesn't have that same left/right framing, so consistency with
    the player's own side (which players see every duel) matters more than the mirror. */
 body.duel-landscape-mode .game-view.duo #duel_id_opp {
-	gap: 0.45rem;
+	gap: 0.3rem;
 	align-items: center;
 	flex-direction: row;
 	text-align: left;
@@ -4266,7 +4277,6 @@ body.duel-landscape-mode .game-view.duo #duel_id_opp .duel-id-avatar canvas {
 	height: 32px !important;
 }
 body.duel-landscape-mode .game-view.duo #duel_id_opp .duel-id-name { font-size: 1rem; }
-body.duel-landscape-mode .game-view.duo #duel_id_opp .duel-id-tier-pill { gap: 0.3rem; }
 body.duel-landscape-mode .game-view.duo #duel_id_opp .duel-id-tier-badge.rank-badge { font-size: 4px; }
 body.duel-landscape-mode .game-view.duo #duel_id_opp .duel-id-rating { font-size: 0.72rem; }
 body.duel-landscape-mode .game-view.duo .player-board {

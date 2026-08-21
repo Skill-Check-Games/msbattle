@@ -645,8 +645,23 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   board's own bottom-right corner — the sketch's own take on this control — instead of the single
   touch-toggle action bar the portrait layout uses; both just set the same shared `flagMode` state
   directly (`updateFlagModeButton` in Main.js keeps all of desktop's pill, the mobile action bar, and
-  these two in sync off one variable, no separate input logic). `.game-side` is flex-column with
-  `align-items: flex-start` on
+  these two in sync off one variable, no separate input logic) — `.duel-mode-btn`/`-active` use solid
+  `var(--surface)`/a solid navy tint rather than translucent `rgba()` backgrounds, since these sit
+  directly over the board and revealed cells scrolling underneath a see-through button read as noise
+  behind the label. `.game-grid`'s right-column rows are `2fr 1fr` (`grid-template-rows`, was
+  `auto 1fr`) — the opponent's card gets a deliberate 2/3 share of the column's height, the VS/meter/
+  timer group the remaining 1/3, instead of the opponent card being sized to whatever its own content
+  happened to need; the opponent canvas's `max-height` is bumped generously (32vh) so that row split,
+  not the vh figure, ends up the actual limit. Both cards' `padding-top` is trimmed too (0.4rem, down
+  from the base rule's 1.25rem/0.75rem player/opponent) — closing a gap between the card's top border
+  and the avatar that had nothing to do with any of the height-matching elsewhere in this layout, just
+  unused space — alongside a tighter avatar-to-name `gap` (`.duel-id`) and tier-badge-to-text `gap`
+  (`.duel-id-tier-pill`) on both sides. The tier badge itself also gets a small negative `margin`
+  (`.duel-id-tier-badge.rank-badge`) to compensate for whitespace that's baked into the rank badge's
+  own SVG viewBox (`buildRankBadge`, `Ranking.js` — room for glow/rings in other contexts it's used,
+  like the profile rank ladder) and reads as padding around the badge no CSS `gap` alone can close,
+  since it's inside the badge's own rendered box, not outside it.
+  `.game-side` is flex-column with `align-items: flex-start` on
   desktop (deliberate there — the opponent card sits in open space next to the scoreboard, so it
   shrink-wraps to its own content) — inherited as-is in landscape, that shrink-wrapped the opponent
   card down to its tiny identity+canvas instead of filling the grid column reserved for it, leaving a
