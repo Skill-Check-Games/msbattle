@@ -4167,7 +4167,10 @@ body.duel-landscape-mode .game-view.duo .game-grid { min-height: 0; }
    VS/tug-of-war meter share a single narrow column stacked underneath each other — the same
    "advantage scale sits with the opponent" grouping the mockup sketch called for. */
 body.duel-landscape-mode .game-view.duo .game-grid {
-	grid-template-columns: minmax(0, 1.9fr) minmax(0, 1.2fr);
+	/* Back to the original ratio — the opponent's board grows taller (its canvas max-height below),
+	   not the column wider; widening the column too was a misread of "give it more space" as
+	   horizontal specifically, when only the vertical direction was meant. */
+	grid-template-columns: minmax(0, 2.3fr) minmax(0, 1fr);
 	grid-template-rows: minmax(0, auto) minmax(0, 1fr);
 	grid-template-areas: "left right" "left center";
 	align-items: stretch;
@@ -4189,6 +4192,12 @@ body.duel-landscape-mode .game-view.duo .opponent_div {
 	flex-direction: column;
 	align-items: center;
 }
+/* align-items:center above is for the canvas (narrower than the card, so it'd otherwise sit flush
+   left) — .duel-header-row doesn't want that: centered, it just shrinks to fit its own content and
+   sits in the middle with padding on both sides ("clustered", not aligned to either edge). Stretch it
+   back to the card's full width so its own grid-template-columns:1fr auto can do the actual left/
+   right alignment — identity flush left, progress flush right, same as the player's own header. */
+body.duel-landscape-mode .game-view.duo .opponent_div .duel-header-row { align-self: stretch; }
 /* Trim the neon card's own side padding — it was sized for a symmetric desktop layout with
    room to spare; here every pixel it eats is a pixel the board doesn't get. Top/bottom stay
    (still needed to clear the identity panel and progress row), and the identity panel's own

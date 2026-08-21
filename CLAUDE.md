@@ -615,17 +615,26 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   `.duel-id-info`'s own content undoes the stretch match otherwise), but the board matters more than a
   big portrait in that narrow column, so `#duel_id_opp` switches to plain `align-items: center` instead
   of participating in the stretch chain — avatar and info just sit centered next to each other, no
-  longer required to be the exact same height. The freed-up space goes to the opponent's canvas
-  (`max-height` raised from 16vh to 21vh) and the column itself (`grid-template-columns` on `.game-grid`,
-  `2.3fr 1fr` → `1.9fr 1.2fr` — still player-dominant, just less extreme). The opponent's identity is
+  longer required to be the exact same height. The freed-up space goes entirely to the opponent's canvas
+  height (`max-height` raised from 16vh to 21vh) — **not** the column's width, which stays exactly
+  `2.3fr 1fr`; "give the opponent's board more room" meant vertically specifically, an easy
+  misread since so much of this layout has been about reclaiming width elsewhere. `.opponent_div`'s
+  `align-items: center` (needed so the narrower canvas doesn't sit flush left, off-center against the
+  card) has a side effect worth calling out: **it also centers `.duel-header-row` itself** unless
+  overridden, since a shrink-to-fit grid container is exactly the kind of child that setting exists to
+  center — the whole identity+progress row ends up padded evenly on both sides instead of spanning the
+  card ("clustered in the middle" rather than each half anchored to its own edge). Fixed with
+  `align-self: stretch` on `.opponent_div .duel-header-row` specifically, so it fills the card's full
+  width and its own `grid-template-columns: 1fr auto` can do the actual left/right alignment — identity
+  flush left, progress flush right, matching the player's own header exactly. The opponent's identity is
   also **un-mirrored** in landscape specifically — avatar on the left, name/tier on the right, the same
   order as the player's own (`flex-direction: row`/`text-align: left` override desktop's `row-reverse`/
   `right`, base rule above `#duel_id_opp`) — desktop's mirroring reads as "facing" the player's panel
   across the VS column; the header row here doesn't have that same left/right framing, so matching the
   player's own layout (which every duel shows) matters more than the mirror. The player's own progress
   bar is also longer now (`#duel_bar_you_corner .duel-bar-corner-track`, 110px vs the shared 46px) —
-  that side has 1.9fr of the grid to the opponent's 1.2fr, no reason its bar should be as compact as
-  the cramped opponent one.
+  that side has 2.3fr of the grid to the opponent's 1fr, no reason its bar should be as compact as the
+  cramped opponent one.
   The VS mark gains "YOU"/opponent-name labels flanking it, all one row
   (`.duel-meter-header`, another `display:contents` no-op wrapper — desktop keeps the VS badge alone on
   its own centered row, unchanged), and the timer gets a bordered card of its own below the meter
