@@ -692,6 +692,21 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   report an inset, so desktop and non-notched phones render pixel-identical to before — same reasoning as
   the existing `env(safe-area-inset-bottom)` use for the portrait mobile action bar, just extended to the
   two side edges here since a notch can land on either one depending on which way the phone was rotated.
+  **Panning only worked from a drag that started exactly on the canvas, fixed (mobile only)**:
+  `#board_scroll`'s native `overflow: auto` pan (the cell-zoom fix above) only ever engages for a touch
+  that starts inside the scrollable element itself — easy to miss with a thumb on a short, cramped
+  landscape screen where the canvas shares the viewport with two side panels, and a swipe starting just
+  off it did nothing. `MobileLayout.js` now also wires `touchstart`/`touchmove`/`touchend` on `#game_view`
+  itself, gated on `isDuelLandscapeMobile()`, that manually drives `boardScroll.scrollLeft`/`scrollTop`
+  by the drag delta for any touch that starts OUTSIDE `#board_scroll` (`duelPan` state, `DUEL_PAN_TOLERANCE`
+  10px). Touches starting ON the canvas are left completely alone — `boardScroll.contains(e.target)` bails
+  out at `touchstart`, so the existing native scroll and Main.js's own tap/long-press-to-flag handling for
+  the canvas are untouched, no double-handling of the same gesture. Below the 10px tolerance nothing is
+  intercepted (no `preventDefault`), so a plain tap on Reveal/Flag/back/find-next still fires its normal
+  click — the same "don't commit until real movement" idea `TOUCH_MOVE_TOLERANCE` already uses for the
+  canvas's own tap-vs-pan distinction, just at the game-view level instead. No whole-cell snap here (that's
+  still gated on the real `mobileLayout` flag, which stays false in this layout, same as before) — this is
+  plain 1:1 drag panning, nothing more.
   **Known gap, not fixed by this version**: `body.duel-force-rotate` (see its own bullet below) only ever
   applies on a phone-sized viewport that's still portrait-*width* — the CSS rotation trick changes how
   the content renders, not the actual width a media query measures — which means the portrait

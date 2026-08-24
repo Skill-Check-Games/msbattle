@@ -336,6 +336,46 @@ function mobileNavigate(dir) {
 	if (navigator.vibrate) navigator.vibrate(8);
 }
 
+// Duel-landscape mobile: let a drag ANYWHERE in the game view pan the board, not only a drag that
+// starts directly on the canvas. The board is zoomed in on a short landscape screen (fitDesktopCellPx's
+// landscape floor, above) and the canvas is only part of a cramped viewport shared with two side
+// panels, so a swipe starting a few px off it — an easy miss with a thumb — otherwise does nothing;
+// #board_scroll's native overflow:auto pan only ever engages for a touch that starts inside it. This
+// drives boardScroll.scrollLeft/Top by hand instead, for any touch that starts outside #board_scroll —
+// touches starting ON it (the canvas) are untouched, still the existing native scroll + Main.js's own
+// tap/long-press handling, so there's no double-handling of the same gesture.
+var duelPan = null; // { startX, startY, lastX, lastY, moved } | null, while a gesture from off-canvas is live
+var DUEL_PAN_TOLERANCE = 10;
+(function() {
+	var container = document.getElementById("game_view");
+	if (!container) return;
+	container.addEventListener("touchstart", function(e) {
+		duelPan = null;
+		if (!isDuelLandscapeMobile() || e.touches.length !== 1) return;
+		if (!boardScroll || boardScroll.contains(e.target)) return; // native scroll already owns this one
+		var t = e.touches[0];
+		duelPan = { startX: t.clientX, startY: t.clientY, lastX: t.clientX, lastY: t.clientY, moved: false };
+	}, { passive: true });
+	container.addEventListener("touchmove", function(e) {
+		if (!duelPan || e.touches.length !== 1 || !boardScroll) return;
+		var t = e.touches[0];
+		if (!duelPan.moved) {
+			// Below tolerance: leave it alone so a plain tap on a button (Reveal/Flag/back/...) still
+			// fires its normal click on touchend, same threshold-before-committing idea as the canvas's
+			// own tap-vs-pan logic (Main.js's touchMoved/TOUCH_MOVE_TOLERANCE).
+			if (Math.abs(t.clientX - duelPan.startX) < DUEL_PAN_TOLERANCE && Math.abs(t.clientY - duelPan.startY) < DUEL_PAN_TOLERANCE) return;
+			duelPan.moved = true;
+		}
+		e.preventDefault(); // now committed to a pan — don't let anything else react to this touch too
+		boardScroll.scrollLeft -= (t.clientX - duelPan.lastX);
+		boardScroll.scrollTop -= (t.clientY - duelPan.lastY);
+		duelPan.lastX = t.clientX;
+		duelPan.lastY = t.clientY;
+	}, { passive: false });
+	container.addEventListener("touchend", function() { duelPan = null; });
+	container.addEventListener("touchcancel", function() { duelPan = null; });
+})();
+
 function onMobileLayoutChange() {
 	mobileLayout = !!(mobileMQL && mobileMQL.matches);
 	sizePlayerCanvas();
