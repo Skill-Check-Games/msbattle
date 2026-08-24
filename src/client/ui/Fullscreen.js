@@ -129,6 +129,19 @@ document.addEventListener("webkitfullscreenchange", syncFullscreenChrome);
 	if (btn) btn.addEventListener("click", toggleGameFullscreen);
 })();
 
+// The landscape duel's own fullscreen entry point, next to its back button (style.css/index.html) —
+// #fullscreen_btn above lives in .game-header, which duel-landscape-mode hides outright, and the
+// auto-attempt on match start (enterDuelMobileFullscreen) can silently fail (blocked, unsupported, or
+// the click that started the match just didn't count as a strong enough gesture on that browser). Only
+// ever enters — force=true bypasses enterGameFullscreen's own "skip on mobile" check the same way
+// enterDuelMobileFullscreen does, since a player tapping this button has unambiguously asked for it
+// regardless of viewport-size heuristics. The button hides itself once fullscreen (style.css,
+// body.game-fullscreen), so there's no exit path to wire here.
+(function wireDuelFullscreenButton() {
+	var btn = document.getElementById("duel_fullscreen_btn");
+	if (btn) btn.addEventListener("click", function() { enterGameFullscreen(true); });
+})();
+
 // Settings-page toggle for the auto-fullscreen opt-in (see autoFullscreenEnabled above).
 function renderGameplaySettings() {
 	var card = document.getElementById("gameplay_card");

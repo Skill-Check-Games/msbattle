@@ -3977,6 +3977,7 @@ body.touch .find-next-arrow { display: inline-flex; }
    else purpose-built for that layout; without this base rule both leaked onto desktop (and every
    other breakpoint), since neither had a display:none anywhere until now. */
 .duel-back-btn { display: none; }
+.duel-fullscreen-btn { display: none; }
 .duel-opp-board-label { display: none; }
 
 /* Landscape-phone progress readout — a separate, purpose-built element (not a repositioned
@@ -4272,6 +4273,32 @@ body.duel-landscape-mode .game-view.duo .duel-back-btn {
 	z-index: 1;
 }
 body.duel-landscape-mode .game-view.duo .duel-back-btn:hover { color: var(--text); border-color: var(--duel-you); }
+
+/* Fullscreen entry, right next to the back button — same size/look, just offset one slot over.
+   Hidden the instant body.game-fullscreen is set (wireDuelFullscreenButton/syncFullscreenChrome,
+   Fullscreen.js) instead of swapping to a "compress" icon the way the header's own #fullscreen_btn
+   does — this one only ever needs to get IN, .duel-back-btn is already the way out. Also hidden
+   wherever the Fullscreen API itself isn't there to call (body.no-fullscreen-support, same class the
+   header button already respects). */
+body.duel-landscape-mode .game-view.duo .duel-fullscreen-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	position: absolute;
+	top: 0.5rem;
+	left: calc(0.5rem + 28px + 6px);
+	width: 28px;
+	height: 28px;
+	border-radius: 8px;
+	border: 1px solid var(--border);
+	background: rgba(255, 255, 255, 0.05);
+	color: var(--muted);
+	cursor: pointer;
+	z-index: 1;
+}
+body.duel-landscape-mode .game-view.duo .duel-fullscreen-btn:hover { color: var(--text); border-color: var(--duel-you); }
+body.game-fullscreen .duel-fullscreen-btn,
+body.no-fullscreen-support .duel-fullscreen-btn { display: none !important; }
 
 /* Identity: avatar on top, name + tier below, all centered — a vertical stack instead of the
    horizontal avatar-beside-text row this element is everywhere else (desktop, and the earlier

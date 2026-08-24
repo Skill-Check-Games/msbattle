@@ -707,6 +707,17 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   canvas's own tap-vs-pan distinction, just at the game-view level instead. No whole-cell snap here (that's
   still gated on the real `mobileLayout` flag, which stays false in this layout, same as before) — this is
   plain 1:1 drag panning, nothing more.
+  **Manual fullscreen entry point, next to the back button**: `enterDuelMobileFullscreen` (Fullscreen.js)
+  already auto-attempts fullscreen the instant a duel match starts, but that can silently fail (blocked,
+  unsupported, or the gesture just didn't count on that browser) — and the header's own `#fullscreen_btn`
+  toggle is no help here since `.game-header` itself is hidden outright in this layout. `#duel_fullscreen_btn`
+  (`index.html`, right next to `#duel_back_btn`, same 28px square styling one slot over) gives mobile
+  players a manual way back in. Unlike the header button it only ever calls `enterGameFullscreen(true)` —
+  never toggles/exits — and hides itself outright once `body.game-fullscreen` is set (style.css) rather
+  than swapping to a compress icon, since the back button already covers "get me out of here". Also
+  respects `body.no-fullscreen-support` (same class the header button already sets itself when the API
+  isn't there to call at all, e.g. iOS Safari) — hidden by default everywhere else like every other
+  landscape-only element in this layout (`.duel-fullscreen-btn { display: none; }`, base rules).
   **Known gap, not fixed by this version**: `body.duel-force-rotate` (see its own bullet below) only ever
   applies on a phone-sized viewport that's still portrait-*width* — the CSS rotation trick changes how
   the content renders, not the actual width a media query measures — which means the portrait
