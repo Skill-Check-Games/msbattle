@@ -677,6 +677,21 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   sound/decorative sweep) `startBoardGoAnimation`. Elsewhere (desktop, solo, territory, the 6-player
   layout) `mobileDuel` is always false, so this is strictly additive — the canvas glyph path is completely
   untouched or reachable.
+  **Opponent panel clipped by a notch/curved corner on real devices, fixed**: reported as "the opponent's
+  panel goes a bit off-screen to the right" — didn't reproduce as an actual layout overflow in a plain
+  browser at any realistic landscape width (`window.innerWidth`/`document.body.scrollWidth` always matched
+  exactly, checked 701px through 1024px), which pointed at a real-device-only cause instead: a landscape
+  PHONE (this layout is JS-gated to one) commonly has a notch/Dynamic Island or curved display corners on
+  its left/right edges in this orientation, and the grid's flat `1.5rem` side padding
+  (`body.ranked-game .game-grid`) reserves no extra room for that — so on a device that reports a real
+  inset, content can render partly behind the curved bezel/notch, invisible despite being completely
+  "on-screen" by every DOM measurement. Fixed by adding `env(safe-area-inset-left/right, 0px)` on top of
+  the existing `1.5rem` baseline directly on `body.duel-landscape-mode .game-view.duo .game-grid`
+  (specificity already beats the ranked-game shorthand, so this is the actual left/right padding used
+  here regardless of that class). No-op (`env()` falls back to `0px`) on any device/browser that doesn't
+  report an inset, so desktop and non-notched phones render pixel-identical to before — same reasoning as
+  the existing `env(safe-area-inset-bottom)` use for the portrait mobile action bar, just extended to the
+  two side edges here since a notch can land on either one depending on which way the phone was rotated.
   **Known gap, not fixed by this version**: `body.duel-force-rotate` (see its own bullet below) only ever
   applies on a phone-sized viewport that's still portrait-*width* — the CSS rotation trick changes how
   the content renders, not the actual width a media query measures — which means the portrait

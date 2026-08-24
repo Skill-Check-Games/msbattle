@@ -4183,6 +4183,17 @@ body.duel-landscape-mode .game-view.duo .game-grid {
 	grid-template-areas: "left board right";
 	align-items: stretch;
 	gap: 0.6rem;
+	/* A landscape PHONE (this layout is JS-gated to one — applyDuelLandscapeClass, Main.js) commonly has
+	   a notch/Dynamic Island or curved display corners on its left/right edges in this orientation —
+	   whichever side depends on which way the player physically rotated it, so both sides need the same
+	   treatment. Without this, the flat 1.5rem base padding (body.ranked-game .game-grid, further up)
+	   isn't enough room on a device that reports a real inset, and the right (or left) panel renders
+	   partly behind the curved bezel/notch — clipped from view despite still being inside the DOM
+	   viewport width (window.innerWidth/document.body.scrollWidth both look completely fine, which is
+	   why this doesn't show up as a normal overflow bug). env(...) falls back to 0px anywhere that
+	   doesn't report an inset (older iOS, most Android, desktop), so this is a no-op there. */
+	padding-left: calc(1.5rem + env(safe-area-inset-left, 0px));
+	padding-right: calc(1.5rem + env(safe-area-inset-right, 0px));
 }
 /* .game-left/.player-board flatten entirely (display:contents) so their children — the info panel
    (.duel-header-row) and the board itself (.board-wrap) — can each land in their own grid area
