@@ -4474,6 +4474,49 @@ body.duel-landscape-mode .game-view.duo .duel-mode-btn-active {
 	background: #14213d;
 }
 
+/* ===== Post-game result modal, compacted for the short mobile-duel viewport =====
+   .board-overlay-panel's normal sizing (padding, gaps, font sizes) is roomy by design — fine for
+   desktop and portrait mobile, where max-height:90vh has real headroom — but this layout's own
+   viewport is barely ~390px tall, and the full 1v1 ranked-result content (hero + rating card +
+   opponent line + times chips + Play another/Leave) doesn't fit under 90vh of that at normal size,
+   forcing a scroll just to reach the buttons (the modal's own overflow-y:auto fallback, further up).
+   Not scoped to .game-view.duo like the rest of this section — the modal is a fixed-position overlay
+   outside the grid entirely, so body.duel-landscape-mode alone is the right gate (still only ever
+   true while gameView carries .duo — see applyDuelLandscapeClass, Main.js — so this can't leak into
+   any other mode's result modal). Only the 1v1 (.ranked-result) shape is handled since the 6-player
+   standings variant never shows here — duel-landscape-mode is duo-only. */
+body.duel-landscape-mode .board-overlay-panel,
+body.duel-landscape-mode .board-overlay-panel:has(.ranked-result) {
+	max-height: 94vh;
+	padding: 0.7rem 0.9rem;
+}
+body.duel-landscape-mode .result-panel { gap: 0.35rem; }
+body.duel-landscape-mode .ranked-result { gap: 0.5rem; }
+
+body.duel-landscape-mode .ranked-result-hero { gap: 0.6rem; }
+body.duel-landscape-mode .ranked-result-badge { font-size: 9px; }
+body.duel-landscape-mode .ranked-result-heading { font-size: 1.2rem; }
+body.duel-landscape-mode .ranked-result-sub { font-size: 0.7rem; margin-top: 0.1rem; }
+
+body.duel-landscape-mode .ranked-result-ratingcard { padding: 0.5rem 0.7rem; gap: 0.35rem; }
+body.duel-landscape-mode .ranked-result-colnum { font-size: 1.3rem; }
+body.duel-landscape-mode .ranked-result-colnum.old { font-size: 0.9rem; }
+body.duel-landscape-mode .ranked-result-col.center .ranked-result-colnum { font-size: 1.05rem; }
+body.duel-landscape-mode .ranked-result-progress { height: 0.35rem; }
+body.duel-landscape-mode .ranked-result-progress-tier,
+body.duel-landscape-mode .ranked-result-progress-label { font-size: 0.68rem; }
+
+body.duel-landscape-mode .ranked-result-context { gap: 0.35rem; }
+body.duel-landscape-mode .ranked-result-opp-line { gap: 0.4rem; }
+body.duel-landscape-mode .ranked-result-opp-name { font-size: 0.85rem; }
+body.duel-landscape-mode .ranked-result-opp-tier { font-size: 0.7rem; }
+body.duel-landscape-mode .ranked-result-times { gap: 0.8rem; }
+body.duel-landscape-mode .ranked-result-time-val { font-size: 0.85rem; }
+body.duel-landscape-mode .ranked-result-time-label { font-size: 0.58rem; }
+
+body.duel-landscape-mode .result-actions { margin-top: 0.4rem; gap: 0.5rem; }
+body.duel-landscape-mode .result-actions .btn { padding: 0.4rem 0.9rem; font-size: 0.9rem; }
+
 /* ===== Forced landscape (portrait phone, CSS-rotated) =====
    screen.orientation.lock('landscape') (Fullscreen.js, tried right after entering fullscreen) does
    the real, correct version of this on browsers that support it while fullscreen — genuinely

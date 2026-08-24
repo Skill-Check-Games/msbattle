@@ -718,6 +718,21 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   respects `body.no-fullscreen-support` (same class the header button already sets itself when the API
   isn't there to call at all, e.g. iOS Safari) — hidden by default everywhere else like every other
   landscape-only element in this layout (`.duel-fullscreen-btn { display: none; }`, base rules).
+  **Post-game result modal needed a scroll to reach its own buttons, fixed**: `.board-overlay-panel`
+  (the fixed, screen-centered ranked-result modal — MatchPanels.js's `showRankedResult`) already had an
+  `overflow-y: auto`/`max-height: 90vh` scroll fallback for short viewports, but at this layout's actual
+  ~390px height the full 1v1 content (hero + rating card + opponent line + times chips + Play
+  another/Leave) didn't fit under that even with the fallback — the buttons themselves sat below the
+  fold, unreachable without scrolling. Rather than lean on the scroll, a `body.duel-landscape-mode`
+  block right after the duel's own CSS (not nested under `.game-view.duo` like the rest of that
+  section — the modal is a fixed-position overlay outside the grid, `body.duel-landscape-mode` alone is
+  the right gate, and it's already only ever true while `.duo` is active) shrinks every padding/gap/font
+  size in the hero, rating card, and opponent/times context, plus `.result-actions .btn`'s own padding —
+  nothing removed, just proportionally smaller, verified against actual `scrollHeight` vs `clientHeight`
+  (295px of content in a 390px-tall viewport, comfortably no scroll needed) rather than eyeballing it.
+  Only the 1v1 (`.ranked-result`) shape needed handling — the 6-player standings-list variant never
+  shows here, this layout is duo-only. Desktop and portrait mobile (which have real vertical headroom)
+  are untouched, same reasoning as every other `body.duel-landscape-mode`-gated rule in this file.
   **Known gap, not fixed by this version**: `body.duel-force-rotate` (see its own bullet below) only ever
   applies on a phone-sized viewport that's still portrait-*width* — the CSS rotation trick changes how
   the content renders, not the actual width a media query measures — which means the portrait
