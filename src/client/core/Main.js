@@ -509,6 +509,12 @@ if (mobileModeButton) mobileModeButton.addEventListener("click", toggleFlagMode)
 if (duelFlagBtn) duelFlagBtn.addEventListener("click", function() { if (!flagMode) toggleFlagMode(); });
 if (duelRevealBtn) duelRevealBtn.addEventListener("click", function() { if (flagMode) toggleFlagMode(); });
 
+// "Jump to another unsolved area" — reuses mobileNavigate's frontier-cycling (MobileLayout.js), same
+// logic the never-built portrait ‹/› nav buttons were meant to drive, just triggered from this one
+// button instead. Always dir=1 (next) — there's no "previous" button here to pair it with.
+var duelFindNextBtn = document.getElementById("duel_find_next_btn");
+if (duelFindNextBtn) duelFindNextBtn.addEventListener("click", function() { mobileNavigate(1); });
+
 playerCanvas.onclick = function(event) {
 	if (Date.now() - lastTouchAt < 500) return;
 	boardClicked(event);
@@ -1934,7 +1940,22 @@ function localRoundStartReveal() {
 	queueRevealAnimations(initialState);
 	myState = initialState;
 	prevPlayerState = cloneState(initialState);
+	// Mobile duel: fitDesktopCellPx renders a whole-board OVERVIEW right up until the round is live
+	// (roundStartTime, which this same countDown/onDone sequence just stamped a moment ago, in
+	// Overlay.js — gates its own floor, see the comment there) so the player can size up what they're
+	// about to solve during the countdown, then zoom into the same 56px-floor cell size as before once
+	// there's actually a round to play. Re-fit to the FINAL zoomed size/position first (sizePlayerCanvas
+	// — sets the canvas's real backing resolution once, and #board_scroll's own width/margin) so the
+	// reveal below draws at that resolution, THEN animate the DISPLAY size + scroll position back from
+	// the overview up to it (animateDuelZoomIn, MobileLayout.js) — a visual-only CSS/scroll animation
+	// over the already-drawn raster, so GO reads as zooming into the cascade's own origin instead of an
+	// instant cut. fromCellPx has to be captured before sizePlayerCanvas overwrites it with the final
+	// value.
+	var duelMobile = typeof isDuelLandscapeMobile === "function" && isDuelLandscapeMobile();
+	var fromCellPx = duelMobile ? parseFloat(playerCanvas.style.width) / cols : 0;
+	if (duelMobile) sizePlayerCanvas();
 	renderPlayerBoard();
+	if (duelMobile) animateDuelZoomIn(centerR, centerC, fromCellPx);
 	if (targets.length && typeof startOpponentRevealAnim === "function") startOpponentRevealAnim(targets);
 }
 

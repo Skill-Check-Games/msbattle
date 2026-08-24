@@ -733,6 +733,64 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   Only the 1v1 (`.ranked-result`) shape needed handling — the 6-player standings-list variant never
   shows here, this layout is duo-only. Desktop and portrait mobile (which have real vertical headroom)
   are untouched, same reasoning as every other `body.duel-landscape-mode`-gated rule in this file.
+  **Whole-board overview during the countdown, zooming into the opening cascade at GO**: the 56px-floor
+  zoom (above) is great for tapping accurately mid-round, but useless for getting your bearings before
+  the round even starts — nothing's clickable yet, so `fitDesktopCellPx` (`MobileLayout.js`) now only
+  applies that floor once `roundStartTime > 0` (stamped the instant GO fires, `countDown`'s onDone,
+  Overlay.js). Before that it floors at `1` instead — effectively no floor, just whatever cell size
+  fits the WHOLE board on screen — so the player can size up what they're about to solve during the
+  countdown. `localRoundStartReveal` (Main.js — the shared onDone for every racing mode, fires the
+  guaranteed opening cascade from the board's exact center, `Math.floor(rows/2), Math.floor(cols/2)`,
+  the same cell every player's board shares) now also calls `sizePlayerCanvas()` right before its own
+  `renderPlayerBoard()`, gated on `isDuelLandscapeMobile()` — draws the reveal at the FINAL (zoomed)
+  backing resolution once, so nothing needs to be redrawn again as the zoom below plays out.
+  **Animated, not instant** — a first version just snapped straight to the new size/scroll position, but
+  that read as an abrupt cut, not "zooming in on where you're starting." `animateDuelZoomIn(centerR,
+  centerC, fromCellPx)` (`MobileLayout.js`, called right after `sizePlayerCanvas()`) is a plain
+  `requestAnimationFrame` loop, ~450ms, ease-out cubic: each frame recomputes an interpolated `cellPx`
+  between the overview size and the final one, writes it straight to `playerCanvas.style.width/height`
+  (CSS display size only — the backing resolution/raster was already fixed by the one `sizePlayerCanvas`
+  call above, so this never re-renders, just rescales the existing frame each tick, cheap), and
+  re-centers `#board_scroll`'s `scrollLeft`/`scrollTop` on `(centerR, centerC)` at that frame's cell
+  size (same math as `scrollToCell`, just re-run every tick against the moving cell size instead of
+  once) — clamps harmlessly to the scroll range's own bounds early on, when the board's still too small
+  to overflow at all. `fromCellPx` has to be captured BEFORE `sizePlayerCanvas()` runs (it overwrites
+  `playerCanvas.style.width` with the final value) — the animation's own first frame immediately
+  overrides it back down to the start size before the browser's next paint, so there's no flash of the
+  final huge size first. `queueRevealAnimations`/`cellAnims` only ever store `(r,c)` + a start timestamp
+  (not pixel coordinates), and every repaint recomputes cell position from the CURRENT cell size —
+  confirmed safe to resize (and, now, animate the size of) mid-reveal-animation.
+  **The "jump to another unsolved area" button's pan (below) is smooth too, with no extra code needed**:
+  `scrollToCell(r, c, true)` (`MobileLayout.js`, already existed) passes `behavior: "smooth"` to the
+  native `Element.scrollTo` — the browser already animates that on its own, verified by sampling
+  `scrollLeft`/`scrollTop` across several `requestAnimationFrame` ticks after a click and seeing it ease
+  toward the target over ~250ms rather than jump.
+  **Bug found along the way, not introduced by this feature but only ever visible once the overview
+  needed a real number instead of a floor to hide behind**: `fitDesktopCellPx`'s generic width/height
+  measurement doesn't fit this layout at all — `.game-left` is `display: contents` here (grid-area
+  flattening, above), so its `clientWidth` is always exactly 0, silently falling back to the
+  `cols * PLAYER_CELL` guess every single time; the height formula (`window.innerHeight - canvas top -
+  24`) has no idea the Reveal/Flag/find-next row shares `.board-wrap`'s column below the canvas, so it
+  overshoots by that row's real height. Both errors happened to not matter before — the 56px floor
+  always won regardless of what the (wrong) natural-fit number came out to — but surfaced as a
+  doesn't-quite-fit overview the moment that floor stopped applying. Fixed with a duel-landscape-only
+  measurement branch: `.board-wrap` itself is a real, un-flattened box (`grid-area: board`), and
+  `#board_scroll`'s `clientHeight` already reflects everything else in its flex column correctly
+  (ordinary flex layout, button row included) — read the width off `.board-wrap` and the height off
+  `#board_scroll` directly instead. Width can't come from `#board_scroll` itself the same way: its
+  pannable-board branch (above) explicitly narrows `#board_scroll`'s own `style.width` to fit the LAST
+  computed cell size, so reading it back here would be circular, always chasing the previous value.
+  **"Jump to another unsolved area" button**: `#duel_find_next_btn` (index.html, third button in the
+  Reveal/Flag row, icon-only/`flex: 0 0 auto` so it doesn't steal their width) revives `mobileNavigate`
+  (`MobileLayout.js`) — written for a `‹ / ›` nav button pair that never actually got built, so this was
+  dead code with no callers until now. Steps a cursor through `getSortedFrontierCells`'s circular sweep
+  and `scrollToCell`s to it (smooth), same as the never-shipped portrait buttons would have; always
+  `dir=1` here, no "previous" button to pair it with. Its guard (`!mobileLayout` → now `!boardIsPannable()`,
+  a new shared `mobileLayout || isDuelLandscapeMobile()` helper also used by `sizePlayerCanvas`'s own
+  branch condition) is the only change needed to make it reachable from here — the frontier-cycling logic
+  itself was already correct, just never wired to anything. The existing auto-appearing hint arrow
+  (`#find_next_arrow`/`updateMobileFindNextHint`) stays `mobileLayout`-only, untouched — a deliberately
+  separate, not-yet-requested feature from this on-demand button.
   **Known gap, not fixed by this version**: `body.duel-force-rotate` (see its own bullet below) only ever
   applies on a phone-sized viewport that's still portrait-*width* — the CSS rotation trick changes how
   the content renders, not the actual width a media query measures — which means the portrait

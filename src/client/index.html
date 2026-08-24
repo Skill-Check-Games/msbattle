@@ -642,6 +642,15 @@
 								<button type="button" id="duel_flag_btn" class="duel-mode-btn" aria-pressed="false">
 									<span class="duel-mode-btn-icon" aria-hidden="true">🚩</span> Flag
 								</button>
+								<!-- Manual counterpart to #find_next_arrow's auto-appearing hint (which stays
+								     off here — that's still mobileLayout-only, see updateMobileFindNextHint,
+								     MobileLayout.js): jumps to the next frontier cell in the same sorted sweep
+								     mobileNavigate already walks, on demand, without waiting for the arrow to
+								     decide nothing solvable is on screen. Icon-only so Reveal/Flag keep the
+								     width. -->
+								<button type="button" id="duel_find_next_btn" class="duel-mode-btn duel-find-next-btn" aria-label="Jump to another unsolved area">
+									<span class="duel-mode-btn-icon" aria-hidden="true">🧭</span>
+								</button>
 							</div>
 						</div>
 						<div class="duel-bar-row">

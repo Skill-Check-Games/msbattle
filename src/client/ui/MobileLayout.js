@@ -35,18 +35,42 @@ function isDuelLandscapeMobile() {
 	return (typeof isDuoRacing === "function") && isDuoRacing() && document.body.classList.contains("duel-landscape-mode");
 }
 
+// True whenever the board is the fixed-size, hand-panned kind — portrait mobileLayout, or duel-
+// landscape mobile — rather than desktop's scale-to-fit-then-static canvas. Shared by every place
+// that needs "can/should this board be panned around," so the two flags don't have to be OR'd
+// together separately at each call site.
+function boardIsPannable() {
+	return mobileLayout || isDuelLandscapeMobile();
+}
+
 // Largest cell size that lets a rows×cols board fit the available board area on
 // desktop, clamped to [DESKTOP_CELL_MIN, DESKTOP_CELL_MAX]. Scaling to fit means a
 // big board grows to use the screen instead of sitting at a fixed small size, and a
 // wide board uses the full column width. Falls back to PLAYER_CELL if the layout
 // can't be measured yet (e.g. called before the game view is visible).
 function fitDesktopCellPx() {
-	var gameLeft = document.querySelector(".game-left");
-	// .game-left has min-width:0 and lives in a minmax(0,1fr) track, so its width is
-	// the available column width regardless of the canvas's current size.
-	var availW = gameLeft ? gameLeft.clientWidth - 42 : 0; // minus .player-board padding + border
-	var top = playerCanvas.getBoundingClientRect().top;
-	var availH = window.innerHeight - top - 24;            // leave a small bottom gap
+	var availW, availH;
+	if (isDuelLandscapeMobile()) {
+		// The generic measurement below doesn't fit this layout: .game-left is display:contents here
+		// (grid-area flattening, style.css), so its clientWidth is always 0 — and the "window height
+		// minus canvas top" formula has no idea the Reveal/Flag/find-next row shares .board-wrap's own
+		// column below the canvas, so it overshoots by that row's height. .board-wrap itself is a real,
+		// un-flattened box (grid-area: board), and #board_scroll's clientHeight already reflects
+		// everything ELSE in its flex column (that button row included, via ordinary flex layout) — so
+		// measure directly off those instead. Can't use #board_scroll's own WIDTH the same way: below,
+		// sizePlayerCanvas's pannable-board branch explicitly narrows its style.width to fit the LAST
+		// computed cell size, so reading it back here would be circular (always chasing the old value).
+		var wrap = document.querySelector(".board-wrap");
+		availW = wrap ? wrap.clientWidth - 16 : 0; // minus .board-wrap's own 0.5rem × 2 padding
+		availH = boardScroll ? boardScroll.clientHeight : 0;
+	} else {
+		var gameLeft = document.querySelector(".game-left");
+		// .game-left has min-width:0 and lives in a minmax(0,1fr) track, so its width is
+		// the available column width regardless of the canvas's current size.
+		availW = gameLeft ? gameLeft.clientWidth - 42 : 0; // minus .player-board padding + border
+		var top = playerCanvas.getBoundingClientRect().top;
+		availH = window.innerHeight - top - 24;            // leave a small bottom gap
+	}
 	if (!(availW > 0)) availW = cols * PLAYER_CELL;
 	if (!(availH > 0)) availH = rows * PLAYER_CELL;
 	var cell = Math.floor(Math.min(availW / cols, availH / rows));
@@ -59,13 +83,20 @@ function fitDesktopCellPx() {
 	var bigCell = (typeof territoryActive !== "undefined" && territoryActive) || ((typeof soloSession !== "undefined") && soloSession) || inMarathon || inDuo;
 	var maxCell = bigCell ? 100 : DESKTOP_CELL_MAX;
 	// The mobile landscape duel (body.duel-landscape-mode, style.css) floors noticeably higher than
-	// the general-purpose DESKTOP_CELL_MIN — on a viewport this short the ideal (fit-everything)
-	// cell size is almost always well under 22px anyway (that's exactly why board-scroll pans), so
-	// the board was already rendering at the absolute minimum, not a deliberately chosen size. Bumped
-	// twice (30 -> 40 -> 56) after repeated "very hard to click correctly" feedback — pinch-zoom
-	// (#game0's touch-action, style.css) is there for zooming back OUT to an overview; tapping
-	// individual cells accurately matters more than fitting the whole board in untouched by default.
-	var minCell = isDuelLandscapeMobile() ? 56 : DESKTOP_CELL_MIN;
+	// the general-purpose DESKTOP_CELL_MIN once the round is actually live — on a viewport this short
+	// the ideal (fit-everything) cell size is almost always well under 22px anyway (that's exactly why
+	// board-scroll pans), so the board was already rendering at the absolute minimum, not a
+	// deliberately chosen size. Bumped twice (30 -> 40 -> 56) after repeated "very hard to click
+	// correctly" feedback — tapping individual cells accurately matters more than fitting the whole
+	// board in untouched, WHILE PLAYING.
+	// Before that (still in the pre-round countdown, roundStartTime not stamped yet — Overlay.js's
+	// countDown sets it at the exact instant GO fires, same moment localRoundStartReveal/Main.js does
+	// the actual zoom-in resize) there's no reason to pay that cost: nothing is clickable yet, so an
+	// overview of the WHOLE board — no floor at all, just whatever cell size fits everything on
+	// screen — is more useful than a zoomed-in slice of it, letting the player size up what they're
+	// about to solve during the countdown instead of after.
+	var roundLive = (typeof roundStartTime !== "undefined") && roundStartTime > 0;
+	var minCell = (isDuelLandscapeMobile() && roundLive) ? 56 : (isDuelLandscapeMobile() ? 1 : DESKTOP_CELL_MIN);
 	return Math.max(minCell, Math.min(maxCell, cell));
 }
 
@@ -111,7 +142,7 @@ function sizePlayerCanvas() {
 	// otherwise the desktop branch's maxWidth:100% would scale the canvas straight back down to fit
 	// the panel, silently undoing fitDesktopCellPx's landscape-duel floor and leaving cells just as
 	// small (and just as hard to tap) as before that floor was raised.
-	if (mobileLayout || isDuelLandscapeMobile()) {
+	if (boardIsPannable()) {
 		mobileCellPx = cellPx;
 		wireScrollSnap();
 		playerCanvas.style.height = (rows * cellPx) + "px";
@@ -129,6 +160,40 @@ function sizePlayerCanvas() {
 		playerCanvas.style.height = "auto";
 		playerCanvas.style.maxWidth = "100%";
 	}
+}
+
+// Animates the mobile duel's whole-board OVERVIEW (fitDesktopCellPx, above) zooming into the opening
+// cascade's own cell size, converging on (centerR, centerC) — so GO reads as "zooming in on where
+// you're starting" instead of an instant cut from one cell size/scroll position to another. Called
+// from localRoundStartReveal (Main.js) right after sizePlayerCanvas has already locked in every value
+// this needs at its FINAL, correct state: the canvas's backing resolution (so there's nothing left to
+// redraw mid-animation — see below), and #board_scroll's own width/margin (the pannable-board branch
+// above already sized it to its final, viewport-cropped value; only the CANVAS's DISPLAY size and the
+// scroll position animate here, board_scroll's box itself does not need to change size).
+// fromCellPx is a snapshot of the cell size the board was AT before this call (the overview, or
+// whatever the previous round left behind) — the animation's start point.
+function animateDuelZoomIn(centerR, centerC, fromCellPx) {
+	var toCellPx = parseFloat(playerCanvas.style.width) / cols; // sizePlayerCanvas already set this
+	if (!boardScroll || !(fromCellPx > 0) || !(toCellPx > fromCellPx + 0.5)) return; // nothing worth animating
+	var DURATION_MS = 450;
+	// Ease-out cubic: fast start, settling in gently right as it reaches the target cell — reads as
+	// "zooming toward" the destination rather than mechanically interpolating toward it.
+	function ease(t) { return 1 - Math.pow(1 - t, 3); }
+	var t0 = null;
+	function frame(now) {
+		if (t0 === null) t0 = now;
+		var t = Math.min(1, (now - t0) / DURATION_MS);
+		var cellPx = fromCellPx + (toCellPx - fromCellPx) * ease(t);
+		playerCanvas.style.width = (cols * cellPx) + "px";
+		playerCanvas.style.height = (rows * cellPx) + "px";
+		// Same centering math as scrollToCell, just re-run every frame against the CURRENT (animating)
+		// cell size — negative/overflowing values clamp harmlessly to the scroll range's own min/max,
+		// which is exactly right early on (small cellPx: board doesn't overflow yet, no scroll needed).
+		boardScroll.scrollLeft = (centerC + 0.5) * cellPx - boardScroll.clientWidth / 2;
+		boardScroll.scrollTop = (centerR + 0.5) * cellPx - boardScroll.clientHeight / 2;
+		if (t < 1) requestAnimationFrame(frame);
+	}
+	requestAnimationFrame(frame);
 }
 
 // Once a pan settles, glide the board to the nearest whole-cell offset so no cell is left clipped at an
@@ -307,10 +372,11 @@ function getSortedFrontierCells() {
 // made the board jump around). Kept as a stub so its call sites stay valid.
 function mobileAutoSelect() {}
 
-// Step the cursor to the prev (dir=-1) or next (dir=+1) frontier cell along
-// the circular boundary sweep, wrapping around. Used by the ‹ / › nav buttons.
+// Step the cursor to the prev (dir=-1) or next (dir=+1) frontier cell along the circular boundary
+// sweep, wrapping around. Used by the portrait ‹ / › nav buttons, and by the mobile duel's own
+// #duel_find_next_btn (index.html) — its "another unsolved part of the map" button, always dir=1.
 function mobileNavigate(dir) {
-	if (!mobileLayout || !touchInput) return;
+	if (!boardIsPannable() || !touchInput) return;
 	var cells = getSortedFrontierCells();
 	if (!cells.length) return;
 	// Find where the cursor currently sits in the sorted list.
