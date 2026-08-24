@@ -330,40 +330,91 @@ function updateMobileFindNextHint() {
 }
 // --- Mobile cursor / frontier navigation ---
 
-// All frontier cells (UNKNOWN and adjacent to at least one KNOWN cell), in
-// reading order (top-left → bottom-right). Falls back to all UNKNOWN cells
-// when no frontier exists (e.g. very start of game before any reveals).
-function getSortedFrontierCells() {
+// Frontier cells (UNKNOWN, adjacent to at least one KNOWN cell) that are actually worth landing on —
+// mines the player hasn't flagged yet are deliberately excluded even when they're obviously deducible
+// from a solved clue nearby, since there's nothing to DO there but flag it; this button's job is
+// finding somewhere to dig, not surfacing a mine to avoid. boardCell (BoardDecoder.js) can answer this
+// directly — the client already fully decodes any cell's true value on demand for its own optimistic-
+// reveal prediction (Input.js), this is the same read, not new information exposure. Falls back to all
+// non-mine UNKNOWN cells when no frontier exists yet (very start of a round, before any reveals).
+function safeFrontierCells() {
 	var cells = [];
 	if (!myState) return cells;
 	for (var r = 0; r < rows; r++) {
 		for (var c = 0; c < cols; c++) {
-			if (isFrontierCell(r, c)) cells.push({ r: r, c: c });
+			if (isFrontierCell(r, c) && boardCell(r, c) !== MINE) cells.push([r, c]);
 		}
 	}
 	if (!cells.length) {
 		for (var r = 0; r < rows; r++) {
 			for (var c = 0; c < cols; c++) {
-				if (myState[r][c] === UNKNOWN) cells.push({ r: r, c: c });
+				if (myState[r][c] === UNKNOWN && boardCell(r, c) !== MINE) cells.push([r, c]);
 			}
 		}
 	}
-	if (cells.length <= 1) return cells;
-	// Sort by angle from the centroid of revealed cells so ‹/› traces the
-	// frontier boundary in a circular sweep rather than jumping back and forth
-	// across rows in reading order.
+	return cells;
+}
+
+// Groups safeFrontierCells() into connected areas (8-adjacency) — what #duel_find_next_btn actually
+// steps between (mobileNavigate), not individual cells. Stepping cell-by-cell along a flat sorted list
+// mostly just nudged the view to the cell right next door, which barely reads as "somewhere else";
+// jumping between whole areas instead means every press lands somewhere materially different. "At
+// least one non-mine cell in the cluster" falls out for free this way too — clusters are built ONLY
+// from safeFrontierCells, so a mine is simply never a graph node to begin with.
+function getFrontierClusters() {
+	var cells = safeFrontierCells();
+	if (!cells.length) return [];
+	function key(r, c) { return r + "," + c; }
+	var inSet = {};
+	cells.forEach(function(rc) { inSet[key(rc[0], rc[1])] = true; });
+	var seen = {};
+	var clusters = [];
+	cells.forEach(function(start) {
+		var sk = key(start[0], start[1]);
+		if (seen[sk]) return;
+		seen[sk] = true;
+		var stack = [start], members = [start];
+		while (stack.length) {
+			var cur = stack.pop();
+			for (var dr = -1; dr <= 1; dr++) {
+				for (var dc = -1; dc <= 1; dc++) {
+					if (dr === 0 && dc === 0) continue;
+					var nr = cur[0] + dr, nc = cur[1] + dc, nk = key(nr, nc);
+					if (!inSet[nk] || seen[nk]) continue;
+					seen[nk] = true;
+					stack.push([nr, nc]);
+					members.push([nr, nc]);
+				}
+			}
+		}
+		// Representative (landing) cell: the member closest to the cluster's own centroid, so it reads
+		// as "the middle of this area" instead of an arbitrary corner of it.
+		var sumR = 0, sumC = 0;
+		members.forEach(function(m) { sumR += m[0]; sumC += m[1]; });
+		var cR = sumR / members.length, cC = sumC / members.length;
+		var rep = members[0], repD = Infinity;
+		members.forEach(function(m) {
+			var d = (m[0] - cR) * (m[0] - cR) + (m[1] - cC) * (m[1] - cC);
+			if (d < repD) { repD = d; rep = m; }
+		});
+		clusters.push({ r: rep[0], c: rep[1] });
+	});
+	if (clusters.length <= 1) return clusters;
+	// Sort by angle from the centroid of revealed cells, same trick as before, now one entry per AREA
+	// instead of per cell — traces the board's boundary in a circular sweep rather than jumping back
+	// and forth across rows in reading order.
 	var sumR = 0, sumC = 0, n = 0;
 	for (var r = 0; r < rows; r++) {
 		for (var c = 0; c < cols; c++) {
 			if (myState[r][c] === KNOWN) { sumR += r; sumC += c; n++; }
 		}
 	}
-	var cR = n > 0 ? sumR / n : rows / 2;
-	var cC = n > 0 ? sumC / n : cols / 2;
-	cells.sort(function(a, b) {
-		return Math.atan2(a.r - cR, a.c - cC) - Math.atan2(b.r - cR, b.c - cC);
+	var boardCR = n > 0 ? sumR / n : rows / 2;
+	var boardCC = n > 0 ? sumC / n : cols / 2;
+	clusters.sort(function(a, b) {
+		return Math.atan2(a.r - boardCR, a.c - boardCC) - Math.atan2(b.r - boardCR, b.c - boardCC);
 	});
-	return cells;
+	return clusters;
 }
 
 // On mobile we play by tapping cells directly and panning the board by hand — there's no focus
@@ -372,30 +423,29 @@ function getSortedFrontierCells() {
 // made the board jump around). Kept as a stub so its call sites stay valid.
 function mobileAutoSelect() {}
 
-// Step the cursor to the prev (dir=-1) or next (dir=+1) frontier cell along the circular boundary
-// sweep, wrapping around. Used by the portrait ‹ / › nav buttons, and by the mobile duel's own
-// #duel_find_next_btn (index.html) — its "another unsolved part of the map" button, always dir=1.
+// Step the cursor to the prev (dir=-1) or next (dir=+1) unsolved AREA (getFrontierClusters, above)
+// along the circular boundary sweep, wrapping around. Used by the portrait ‹ / › nav buttons, and by
+// the mobile duel's own #duel_find_next_btn (index.html) — its "another unsolved part of the map"
+// button, always dir=1.
 function mobileNavigate(dir) {
 	if (!boardIsPannable() || !touchInput) return;
-	var cells = getSortedFrontierCells();
-	if (!cells.length) return;
-	// Find where the cursor currently sits in the sorted list.
-	var cur = -1;
-	for (var i = 0; i < cells.length; i++) {
-		if (cells[i].r === focusedR && cells[i].c === focusedC) { cur = i; break; }
+	var clusters = getFrontierClusters();
+	if (!clusters.length) return;
+	// Anchor on whichever area is nearest the cursor's current spot, so "next"/"prev" moves relative
+	// to where we actually are instead of always restarting from the first area in sweep order. Moving
+	// dir steps from THAT area always lands in a different one — areas are connected components of the
+	// frontier, so two distinct areas are never adjacent to each other by construction (there's always
+	// at least one revealed cell between them) — which is exactly what makes this "somewhere else"
+	// instead of just the next cell over.
+	var cur = -1, best = Infinity;
+	for (var i = 0; i < clusters.length; i++) {
+		var dr = clusters[i].r - focusedR, dc = clusters[i].c - focusedC;
+		var d = dr * dr + dc * dc;
+		if (d < best) { best = d; cur = i; }
 	}
-	if (cur === -1) {
-		// Cursor isn't on a frontier cell — find the nearest by pixel distance.
-		var best = Infinity;
-		for (var i = 0; i < cells.length; i++) {
-			var dr = cells[i].r - focusedR, dc = cells[i].c - focusedC;
-			var d = dr * dr + dc * dc;
-			if (d < best) { best = d; cur = i; }
-		}
-	}
-	var next = (cur + dir + cells.length) % cells.length;
-	focusedR = cells[next].r;
-	focusedC = cells[next].c;
+	var next = (cur + dir + clusters.length) % clusters.length;
+	focusedR = clusters[next].r;
+	focusedC = clusters[next].c;
 	focusVisible = true;
 	scrollToCell(focusedR, focusedC, true);
 	redrawOwnBoardWithFocus();

@@ -783,14 +783,35 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   **"Jump to another unsolved area" button**: `#duel_find_next_btn` (index.html, third button in the
   Reveal/Flag row, icon-only/`flex: 0 0 auto` so it doesn't steal their width) revives `mobileNavigate`
   (`MobileLayout.js`) — written for a `‹ / ›` nav button pair that never actually got built, so this was
-  dead code with no callers until now. Steps a cursor through `getSortedFrontierCells`'s circular sweep
-  and `scrollToCell`s to it (smooth), same as the never-shipped portrait buttons would have; always
-  `dir=1` here, no "previous" button to pair it with. Its guard (`!mobileLayout` → now `!boardIsPannable()`,
-  a new shared `mobileLayout || isDuelLandscapeMobile()` helper also used by `sizePlayerCanvas`'s own
-  branch condition) is the only change needed to make it reachable from here — the frontier-cycling logic
-  itself was already correct, just never wired to anything. The existing auto-appearing hint arrow
-  (`#find_next_arrow`/`updateMobileFindNextHint`) stays `mobileLayout`-only, untouched — a deliberately
-  separate, not-yet-requested feature from this on-demand button.
+  dead code with no callers until now. Its guard (`!mobileLayout` → now `!boardIsPannable()`, a shared
+  `mobileLayout || isDuelLandscapeMobile()` helper also used by `sizePlayerCanvas`'s own branch
+  condition) is what made it reachable from here at all. Always `dir=1`, no "previous" button to pair
+  it with. The existing auto-appearing hint arrow (`#find_next_arrow`/`updateMobileFindNextHint`) stays
+  `mobileLayout`-only, untouched — a deliberately separate, not-yet-requested feature from this
+  on-demand button.
+  **Cell-by-cell stepping wasn't good enough, reworked into area-cycling**: the original revived version
+  stepped through `getSortedFrontierCells`'s flat, circularly-sorted list of individual UNKNOWN cells one
+  at a time — which (a) could land on a cell that's a deducible mine the player just hasn't flagged yet
+  (nothing to do there but flag it, not what this button is for), and (b) mostly just nudged the view to
+  the cell right next door, which barely reads as "somewhere else" when the fallback path (cursor not
+  currently on a frontier cell) finds the NEAREST cell and steps to its immediate neighbour in the sorted
+  list. Replaced with `safeFrontierCells()` + `getFrontierClusters()`: the former is the same frontier
+  scan, but excludes any cell where `boardCell(r,c) === MINE` — `boardCell` (BoardDecoder.js) can answer
+  this directly since the client already fully decodes any cell's true value on demand for its own
+  optimistic-reveal prediction (Input.js); this is the same read, not new information exposure. The
+  latter flood-fills those safe cells into 8-adjacency connected components ("areas") and picks each
+  one's landing cell as the member closest to the cluster's own centroid. `mobileNavigate` now cycles
+  between these AREAS (same circular-sweep-by-angle-from-the-board's-centroid sort as before, just one
+  entry per cluster instead of per cell) instead of individual cells — solves both asks at once: "at
+  least one non-mine cell in the cluster" falls out for free (mines are never graph nodes, so a mine-only
+  ring around a solved clue simply produces zero clusters, silently skipped), and "somewhere else, not
+  the cell next to you" falls out because two distinct clusters are never adjacent to each other by
+  construction (there's always at least one revealed cell separating them) — stepping to the next
+  cluster in sweep order is a guaranteed jump to a materially different part of the board, not a
+  neighbor. Verified with a synthetic board: an all-mine frontier ring around a revealed cell produces
+  no cluster at all (never a candidate); a mixed ring (some mines, some safe) still produces one cluster
+  but only ever lands on its safe member; two well-separated all-safe rings alternate cleanly on
+  successive presses instead of drifting locally.
   **Known gap, not fixed by this version**: `body.duel-force-rotate` (see its own bullet below) only ever
   applies on a phone-sized viewport that's still portrait-*width* — the CSS rotation trick changes how
   the content renders, not the actual width a media query measures — which means the portrait
