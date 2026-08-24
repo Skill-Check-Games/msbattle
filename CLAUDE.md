@@ -564,7 +564,7 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   elements, identical styling rules applied to both) carry the neon "arena" card look the two boards used
   to wear themselves (border/glow in the side's own colour) — there's only one board left to wear it now
   (`.board-wrap`, styled directly since `.player-board`, which used to carry it, is flattened away).
-  Identity is a **vertical, centered stack** — avatar on top (64px, circular, ringed in the side's own
+  Identity is a **vertical, centered stack** — avatar on top (50px, circular, ringed in the side's own
   colour — up from the horizontal avatar-beside-text row every earlier version of this layout, and every
   other context this component appears in, used), name, then the tier pill below. **No more "un-mirror
   the opponent" question** from the previous version — both sides just center, so there's no left/right
@@ -654,6 +654,29 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   bumped the floor itself again, 40 -> 56px. `snapBoardScroll`/`mobileNavigate`/the find-next-frontier arrow
   stay gated on the real `mobileLayout` flag (unchanged) — panning here is native browser touch-scroll, no
   whole-cell snap-back or frontier-hunting aid, since only the sizing branch was in scope this round.
+  **Side panels shrunk to maximize board space**: `.game-grid`'s side columns went 210px -> 158px (avatar
+  64px -> 50px, name/pct/rank-badge font sizes and card paddings/gaps trimmed to match, `.duel-id-name`
+  gained `overflow: hidden; text-overflow: ellipsis` since a slimmer panel clips long names sooner) — more
+  of the fixed-width 844×390-ish viewport goes to `minmax(0, 1fr)`'s board column instead of the two info
+  panels, letting more of the (now bigger, see below) cells fit on screen without panning as far. Purely a
+  width/sizing pass — no structural changes, so none of the gotchas above needed touching again.
+  **Countdown didn't work while the board was panned, fixed (mobile only)**: `countdownDigitCycle`
+  (`Overlay.js`) spells its number out of covered CELLS spread across the whole board grid (`Animations.js`)
+  — fine when the whole board is always in view (desktop), broken here once the board legitimately zooms in
+  and pans (the cell-floor fix above), since the glyph can land anywhere on the (now larger-than-viewport)
+  canvas, including entirely scrolled off-screen. Fixed with a mobile-only counterpart,
+  `mobileCountdownDigitCycle`, gated on the same `isDuelLandscapeMobile()` helper `MobileLayout.js` already
+  exports: instead of painting into board cells, it just drives `#board_overlay`'s existing count/go text
+  styles (`.board-overlay-count`/`.board-overlay-go` in style.css — previously dead CSS, written for an even
+  earlier countdown implementation and never wired back up until now). `#board_overlay` is a sibling of
+  `#board_scroll` inside `.board-wrap` (`position: relative`), absolutely `inset: 0` over the whole card —
+  NOT inside the scrollable canvas — so it's pinned to the same spot on screen no matter how far the board
+  is panned, works at any zoom/scroll position by construction. `countDown` branches on `mobileDuel` once,
+  up front, calling `mobileCountdownDigitCycle` instead of `countdownDigitCycle` and showing `"GO"` in the
+  same overlay (auto-hides after 550ms) instead of relying on the (still-unchanged, still-running for its
+  sound/decorative sweep) `startBoardGoAnimation`. Elsewhere (desktop, solo, territory, the 6-player
+  layout) `mobileDuel` is always false, so this is strictly additive — the canvas glyph path is completely
+  untouched or reachable.
   **Known gap, not fixed by this version**: `body.duel-force-rotate` (see its own bullet below) only ever
   applies on a phone-sized viewport that's still portrait-*width* — the CSS rotation trick changes how
   the content renders, not the actual width a media query measures — which means the portrait

@@ -4179,7 +4179,7 @@ body.duel-landscape-mode .game-view.duo .game-grid { min-height: 0; }
    at all, so it's hidden outright rather than trying to fit it in somewhere. */
 body.duel-landscape-mode .game-view.duo .duel-center { display: none; }
 body.duel-landscape-mode .game-view.duo .game-grid {
-	grid-template-columns: minmax(0, 210px) minmax(0, 1fr) minmax(0, 210px);
+	grid-template-columns: minmax(0, 158px) minmax(0, 1fr) minmax(0, 158px);
 	grid-template-areas: "left board right";
 	align-items: stretch;
 	gap: 0.6rem;
@@ -4211,8 +4211,8 @@ body.duel-landscape-mode .game-view.duo .opponent_div {
 	flex-direction: column;
 	align-items: center;
 	text-align: center;
-	gap: 0.5rem;
-	padding: 0.6rem 0.5rem;
+	gap: 0.4rem;
+	padding: 0.5rem 0.4rem;
 	border-radius: 14px;
 	border: 1px solid var(--duel-you);
 	background: var(--surface);
@@ -4296,14 +4296,20 @@ body.duel-landscape-mode .game-view.duo #duel_id_opp .duel-id-tier-pill {
    the badge's own rendered box). */
 body.duel-landscape-mode .game-view.duo .duel-id-tier-badge.rank-badge {
 	font-size: 5px;
-	transform: scale(1.6);
+	transform: scale(1.4);
 	margin: 0 3px;
 }
-body.duel-landscape-mode .game-view.duo .duel-id-name { font-size: 1.05rem; white-space: nowrap; }
+body.duel-landscape-mode .game-view.duo .duel-id-name {
+	font-size: 0.92rem;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	max-width: 100%;
+}
 body.duel-landscape-mode .game-view.duo .duel-id-avatar,
 body.duel-landscape-mode .game-view.duo .duel-id-avatar canvas {
-	width: 64px !important;
-	height: 64px !important;
+	width: 50px !important;
+	height: 50px !important;
 	border-radius: 50%;
 }
 body.duel-landscape-mode .game-view.duo .duel-id-avatar {
@@ -4322,14 +4328,14 @@ body.duel-landscape-mode .game-view.duo .duel-bar-corner {
 	flex-direction: column;
 	align-items: center;
 	width: 100%;
-	gap: 0.35rem;
-	padding: 0.5rem;
+	gap: 0.3rem;
+	padding: 0.4rem;
 	border-radius: 10px;
 	border: 1px solid var(--border);
 	background: rgba(255, 255, 255, 0.03);
 }
 body.duel-landscape-mode .game-view.duo .duel-bar-corner-row { width: 100%; justify-content: center; }
-body.duel-landscape-mode .game-view.duo .duel-bar-corner-pct { font-size: 1.1rem; }
+body.duel-landscape-mode .game-view.duo .duel-bar-corner-pct { font-size: 1rem; }
 body.duel-landscape-mode .game-view.duo .duel-bar-corner-track { flex: 1; width: auto; }
 body.duel-landscape-mode .game-view.duo .duel-bar-corner-left { text-align: center; }
 

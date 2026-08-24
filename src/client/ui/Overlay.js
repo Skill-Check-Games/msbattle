@@ -128,10 +128,21 @@ function countDown(delayMs, onDone) {
 	if (typeof sound !== "undefined") sound.sweep();
 	var digitsMs = (typeof countdownTickMs === "function") ? countdownTickMs() * 3 : 3000;
 	var digitLeadDelay = Math.max(0, delayMs - digitsMs);
-	setTimeout(function() { countdownDigitCycle(3); }, digitLeadDelay);
+	// The canvas-drawn glyph (countdownDigitCycle below) spells its number out of covered CELLS spread
+	// across the whole board — fine on desktop, where the whole board is always visible at once, but on
+	// the mobile duel layout the board is zoomed in and scrolled to wherever the player last panned
+	// (MobileLayout.js), so the glyph can land anywhere, including entirely off-screen. There, use
+	// mobileCountdownDigitCycle instead: plain DOM text in #board_overlay, which sits over the whole
+	// board-wrap CARD (not the scrollable canvas inside it — see its position:relative/absolute pairing
+	// in style.css), so it's pinned to the same spot on screen no matter how far the board is panned.
+	var mobileDuel = (typeof isDuelLandscapeMobile === "function") && isDuelLandscapeMobile();
+	setTimeout(function() {
+		if (mobileDuel) mobileCountdownDigitCycle(3); else countdownDigitCycle(3);
+	}, digitLeadDelay);
 	setTimeout(function() {
 		sound.go();
 		roundStartTime = Date.now(); // danger-warning grace period starts here
+		if (mobileDuel) showOverlay("GO", "go", 550);
 		if (typeof onDone === "function") onDone();
 	}, delayMs);
 }
@@ -145,4 +156,17 @@ function countdownDigitCycle(number) {
 	// pacing now — see the comment on countDown above for why it no longer drives gameplay timing.
 	var tickMs = (typeof countdownTickMs === "function") ? countdownTickMs() : 1000;
 	setTimeout(function() { countdownDigitCycle(number - 1); }, tickMs);
+}
+
+// Mobile-duel counterpart to countdownDigitCycle above — same 3/2/1 pacing (shares countdownTickMs so
+// the two stay in sync with each other and with the "GO" that follows), but shows the digit as plain
+// text in #board_overlay instead of painting it into board cells. Stops at 1 (doesn't hide itself);
+// the delayMs timeout in countDown owns the handoff to "GO" so there's exactly one authoritative
+// transition instead of two timers racing to touch the overlay at the same instant.
+function mobileCountdownDigitCycle(number) {
+	if (number <= 0) return;
+	showOverlay(String(number), "count");
+	sound.beep(392 + (3 - Math.min(number, 3)) * 110);
+	var tickMs = (typeof countdownTickMs === "function") ? countdownTickMs() : 1000;
+	setTimeout(function() { mobileCountdownDigitCycle(number - 1); }, tickMs);
 }
