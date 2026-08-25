@@ -565,21 +565,34 @@ if (duelFindNextBtn) duelFindNextBtn.addEventListener("click", function() { mobi
 // zooms in on wherever it landed instead of attempting a reveal/flag (the whole point of the overview
 // is that cells are too small to tap precisely at that scale — see the zoomed-out branches below).
 // Deliberately NOT a delay-before-acting scheme (waiting to see if a second tap follows would add
-// latency to every ordinary single-tap reveal) — the first tap of a pair still fires its normal action
-// immediately, same as always; only on an actual SECOND tap, close in time and position to the first,
-// does the zoom-out trigger ADDITIONALLY, checked entirely after the fact.
-var duelLastTapAt = 0, duelLastTapX = 0, duelLastTapY = 0;
+// latency to every ordinary single-tap reveal) — every tap still fires its normal action immediately,
+// same as always; the zoom-out is layered on ADDITIONALLY, decided entirely after the fact.
+// Only fires if NEITHER tap of a close pair actually changed the board (performAction's own return
+// value, threaded back through emitBoardActionAt/boardClicked) — two real taps landing close together
+// in a fast burst of ordinary play (which happens constantly once you're used to the bigger zoomed-in
+// cells) must never get reinterpreted as "zoom out" just because they happened to land near each other;
+// only a pair that both did nothing (tapping something already settled, twice) reads as a deliberate
+// "I'm done here, zoom out" gesture. mouse and touch share this same tracking — onclick fires once per
+// physical click either way, including both clicks of a real double-click, so no separate dblclick
+// listener is needed.
+var duelLastTapAt = 0, duelLastTapX = 0, duelLastTapY = 0, duelLastTapChanged = false;
 var DUEL_DOUBLE_TAP_MS = 350;
 var DUEL_DOUBLE_TAP_TOLERANCE = 40;
 function duelIsDoubleTap(x, y) {
-	var now = Date.now();
-	var isDouble = (now - duelLastTapAt) < DUEL_DOUBLE_TAP_MS
+	return (Date.now() - duelLastTapAt) < DUEL_DOUBLE_TAP_MS
 		&& Math.abs(x - duelLastTapX) < DUEL_DOUBLE_TAP_TOLERANCE
 		&& Math.abs(y - duelLastTapY) < DUEL_DOUBLE_TAP_TOLERANCE;
-	duelLastTapAt = isDouble ? 0 : now; // consume the pair — a third quick tap starts a fresh pair, not a triple
+}
+// Call once per duel-mobile tap/click, right after performing its own action — `changed` is whatever
+// that action's own performAction call returned. Zooms out only if this pairs with the immediately
+// preceding tap AND neither of the two changed anything.
+function duelHandleTapForZoom(x, y, changed) {
+	var isPair = duelIsDoubleTap(x, y);
+	if (isPair && !changed && !duelLastTapChanged) zoomDuelOut();
+	duelLastTapAt = isPair ? 0 : Date.now(); // consume the pair — a third quick tap starts a fresh pair, not a triple
 	duelLastTapX = x;
 	duelLastTapY = y;
-	return isDouble;
+	duelLastTapChanged = changed;
 }
 
 playerCanvas.onclick = function(event) {
@@ -590,14 +603,11 @@ playerCanvas.onclick = function(event) {
 			if (cell) zoomDuelIn(cell.r, cell.c);
 			return;
 		}
+		var mouseChanged = boardClicked(event);
+		duelHandleTapForZoom(event.clientX, event.clientY, !!mouseChanged);
+		return;
 	}
 	boardClicked(event);
-};
-playerCanvas.ondblclick = function() {
-	if (typeof isDuelLandscapeMobile === "function" && isDuelLandscapeMobile()
-		&& typeof duelZoomedOut !== "undefined" && !duelZoomedOut) {
-		zoomDuelOut();
-	}
 };
 playerCanvas.oncontextmenu = function(event) {
 	event.preventDefault();
@@ -682,7 +692,12 @@ playerCanvas.addEventListener("touchend", function(e) {
 			if (cell) zoomDuelIn(cell.r, cell.c);
 			return;
 		}
-		if (duelIsDoubleTap(touchStartX, touchStartY)) zoomDuelOut();
+		// Tap acts directly on the tapped cell, per the shared reveal/flag mode — same on mobile and
+		// desktop. duelHandleTapForZoom decides AFTER the fact whether this + the previous tap add up
+		// to a deliberate zoom-out (see its own comment) — never delays or blocks the action itself.
+		var touchChanged = emitBoardActionAt(touchStartX, touchStartY, flagMode);
+		duelHandleTapForZoom(touchStartX, touchStartY, !!touchChanged);
+		return;
 	}
 	// Tap acts directly on the tapped cell, per the shared reveal/flag mode — same on mobile and desktop.
 	emitBoardActionAt(touchStartX, touchStartY, flagMode);

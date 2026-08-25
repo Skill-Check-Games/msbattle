@@ -109,17 +109,23 @@ function applyLocalLeftClick(r, c) {
 // solo; rating HUD for puzzles). Splitting this earlier had the rendering
 // bug masked by the multiplayer server echo, which silently kicked the
 // animation loop; in solo and puzzles there's no echo so the bug shows up.
+// Returns whether a real board change happened (a reveal/chord actually touched a cell, or a flag was
+// placed/removed) — false for every early-return guard and for a genuine no-op tap (e.g. a plain
+// left-click on an already-flagged, protected cell). Main.js's duel-landscape double-tap detection
+// (duelIsDoubleTap) uses this to tell "the player tapped twice near the same still-live spot, probably
+// meaning to zoom out" apart from "the player is just playing quickly and happened to land two real
+// actions close together in time/space" — only the former should trigger a zoom.
 function performAction(r, c, asFlag) {
 	var mode = currentActionMode();
-	if (!mode) return;
+	if (!mode) return false;
 	// Spectators (tournament-eliminated) see opponents on slot-0 but can't
 	// affect their boards — drop clicks early so we don't corrupt local
 	// myState or emit illegal left_click events to the server.
-	if (iAmEliminated) return;
-	if (Date.now() < frozenUntil) return;
-	if (r < 0 || r >= rows || c < 0 || c >= cols) return;
+	if (iAmEliminated) return false;
+	if (Date.now() < frozenUntil) return false;
+	if (r < 0 || r >= rows || c < 0 || c >= cols) return false;
 	// Solo is locked until the player hits Start and the countdown finishes.
-	if (mode === "solo" && soloSession && !soloSession.started) return;
+	if (mode === "solo" && soloSession && !soloSession.started) return false;
 	// Racing/casual multiplayer and territory are locked the same way — currentRoom.phase flips to
 	// "playing" once at series start and stays there for every round, so on its own it doesn't tell
 	// us this SPECIFIC round has gone live yet. roundStartTime is only stamped at GO (see countDown's
@@ -129,17 +135,17 @@ function performAction(r, c, asFlag) {
 	// after that same server-side delay, ROUND_START_DELAY_MS in minesweeperServer.js), which already
 	// silently drops clicks sent before then; this just stops the client from predicting a move
 	// locally that the server was always going to ignore.
-	if ((mode === "multiplayer" || mode === "territory") && !roundStartTime) return;
+	if ((mode === "multiplayer" || mode === "territory") && !roundStartTime) return false;
 	if (mode === "puzzle" && typeof clearPuzzleHints === "function") clearPuzzleHints();
 	// Custom-lobby modifiers: "noFlags" blocks flag/right-click; "onlyFlags" lets only the flag tool act.
 	if (mode === "multiplayer" && currentRoom && currentRoom.modifier) {
-		if (currentRoom.modifier === "noFlags" && asFlag) return;
+		if (currentRoom.modifier === "noFlags" && asFlag) return false;
 		if (currentRoom.modifier === "onlyFlags" && !asFlag) {
 			// Flags-only: a left-click can't reveal — it only chords a revealed number (right-click places/
 			// removes flags, which auto-chord). A left-click on a covered or flagged cell is a no-op; on a
 			// revealed number it routes through the flag tool so the server (which ignores left_click in this
 			// mode) handles it as a chord.
-			if (!myState || myState[r][c] !== KNOWN) return;
+			if (!myState || myState[r][c] !== KNOWN) return false;
 			asFlag = true;
 		}
 	}
@@ -155,8 +161,9 @@ function performAction(r, c, asFlag) {
 		if (!asFlag && typeof territoryAiming !== "undefined" && territoryAiming) {
 			if (typeof territoryLaunchBomb === "function") territoryLaunchBomb(r, c);
 			redrawOwnBoardWithFocus();
-			return;
+			return true;
 		}
+		var territoryChanged = true;
 		if (!asFlag && typeof territoryIsMyStructure === "function" && territoryIsMyStructure(r, c)) {
 			activeGameSocket().emit("territory_fire", { r: r, c: c }); // fire this fort's beam at the nearest enemy
 		} else if (myState && myState[r][c] === KNOWN) {
@@ -166,11 +173,14 @@ function performAction(r, c, asFlag) {
 		} else if (!(myState && myState[r][c] === FLAGGED)) {
 			if (typeof territoryLocalReveal === "function") territoryLocalReveal(r, c); // optimistic predict
 			activeGameSocket().emit("left_click", { r: r, c: c, id: id });
+		} else {
+			territoryChanged = false; // left-click on a flagged (protected) cell — genuinely nothing happened
 		}
 		redrawOwnBoardWithFocus();
-		return;
+		return territoryChanged;
 	}
 	var actionResult = null; // reveal/chord result, for emitting any chord-cleared flags to the server
+	var didChange = false;
 	if (asFlag) {
 		// Right-click on a covered cell toggles a flag. Right-click on a
 		// revealed number with the matching flag count chords the same way
@@ -180,13 +190,17 @@ function performAction(r, c, asFlag) {
 		if (myState && myState[r][c] === KNOWN) {
 			var chordResult = revealAt(r, c);
 			actionResult = chordResult;
+			didChange = !!chordResult.anyChange;
 			if (mode === "multiplayer" && chordResult.hitMine && currentRoom.deathPenalty) {
 				frozenUntil = Date.now() + currentRoom.deathPenalty * 1000;
 				startFreezeTick();
 			}
 			if (mode === "solo") soloOnAfterReveal(chordResult);
 		} else {
+			// Cell is guaranteed non-KNOWN here (the branch above already claimed KNOWN), so it's
+			// either UNKNOWN or FLAGGED — placeFlag always toggles one of those, a real change.
 			placeFlag(r, c);
+			didChange = true;
 			// Placing/toggling a flag is a real first move — start the solo clock.
 			if (mode === "solo" && typeof soloStartTimerOnce === "function") soloStartTimerOnce();
 			// No-flag-clear challenge (solo + racing only, not puzzles): a flag disqualifies it.
@@ -198,6 +212,7 @@ function performAction(r, c, asFlag) {
 		var wasCovered = myState && myState[r][c] === UNKNOWN;
 		var result = revealAt(r, c);
 		actionResult = result;
+		didChange = !!result.anyChange;
 		if (wasCovered && (mode === "solo" || mode === "multiplayer")) clearNoReveal = false;
 		if (mode === "multiplayer" && result.hitMine && currentRoom.deathPenalty) {
 			frozenUntil = Date.now() + currentRoom.deathPenalty * 1000;
@@ -236,6 +251,7 @@ function performAction(r, c, asFlag) {
 	// keyboard-focus ring, since focusedR/focusedC were just set above regardless of which branch
 	// ran — a plain DOM reposition, not a board repaint.
 	updateFocusHighlightOverlay();
+	return didChange;
 }
 
 // Territory chord: clicking an owned number whose local flag-count matches it emits a reveal for
@@ -318,18 +334,19 @@ function revealAt(r, c) {
 
 function emitBoardActionAt(clientX, clientY, asFlag) {
 	var cell = cellFromClient(clientX, clientY);
-	if (!cell) return;
+	if (!cell) return false;
 	focusVisible = false;
-	performAction(cell.r, cell.c, asFlag);
+	return performAction(cell.r, cell.c, asFlag);
 }
 
 function boardClicked(event) {
 	event = event || window.event;
 	var cell = cellFromClient(event.clientX, event.clientY);
-	if (!cell) return;
+	if (!cell) return false;
 	focusVisible = false;
-	if (isLeftClick(event)) performAction(cell.r, cell.c, false);
-	else if (isRightClick(event)) performAction(cell.r, cell.c, true);
+	if (isLeftClick(event)) return performAction(cell.r, cell.c, false);
+	if (isRightClick(event)) return performAction(cell.r, cell.c, true);
+	return false;
 }
 function stepFocus(dr, dc, skipRevealed) {
 	if (skipRevealed && myState) {

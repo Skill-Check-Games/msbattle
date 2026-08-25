@@ -832,17 +832,34 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   "nothing else is going to repaint this" condition) and confirming the canvas has real pixel content
   again immediately, not just eventually.
   **Gesture wiring, Main.js**: while zoomed IN, a double-tap/double-click (`duelIsDoubleTap` — tracks the
-  last tap's time+position, no artificial delay-before-acting on the FIRST tap of a pair, so ordinary
-  single-tap reveals stay exactly as responsive as before; the SECOND tap of a genuine pair triggers the
-  zoom out ADDITIONALLY, entirely after its own normal reveal/flag action has already fired) zooms out.
-  While zoomed OUT, cells are too small to tap precisely enough for a real reveal/flag attempt at all —
-  so ANY tap/click there is read as "zoom in HERE" instead (`cellFromClient` under the tap → `zoomDuelIn`),
-  and the long-press-to-flag timer isn't even started in that state (`touchstart`, Main.js) so it can't
-  race the zoom. Mouse gets the equivalent via `playerCanvas.ondblclick` (native, reliable for a real
-  mouse unlike touch, where a synthetic `dblclick` isn't guaranteed and `touch-action: manipulation`
-  deliberately suppresses the BROWSER's own native double-tap-zoom already — see the board-scroll
-  gotcha bullet — so this is a from-scratch custom gesture, not built on top of that) and a `duelZoomedOut`
-  check inside the existing `onclick`.
+  last tap's time+position, no artificial delay-before-acting on either tap, so ordinary single-tap
+  reveals stay exactly as responsive as before; each tap fires its own normal reveal/flag action first,
+  and only AFTER that does `duelHandleTapForZoom` decide whether the pair also adds up to a zoom-out —
+  see the false-trigger fix below for why it's not simply "any close pair") zooms out. While zoomed OUT,
+  cells are too small to tap precisely enough for a real reveal/flag attempt at all — so ANY tap/click
+  there is read as "zoom in HERE" instead (`cellFromClient` under the tap → `zoomDuelIn`), and the
+  long-press-to-flag timer isn't even started in that state (`touchstart`, Main.js) so it can't race the
+  zoom. Touch and mouse share the exact same `duelHandleTapForZoom` tracking — `onclick` fires once per
+  physical click either way, including both clicks of a real double-click, so there's no separate
+  `dblclick` listener (native `dblclick` couldn't have told us whether either individual click actually
+  changed anything, only that two clicks happened — see below for why that distinction matters). This is
+  a from-scratch custom gesture either way, not built on the browser's own native double-tap-zoom —
+  `touch-action: manipulation` deliberately suppresses that already (see the board-scroll gotcha bullet).
+  **Reported as triggering "a bit on accident," fixed**: the first version zoomed out on ANY two taps
+  landing close together in time/position, full stop — which reinterpreted a normal fast double-reveal
+  (landing two real actions near each other, which happens constantly once a player's used to the bigger
+  zoomed-in cells) as "the player wants to zoom out," an unwanted interruption. Fixed by threading a real
+  "did this actually change the board" signal all the way back from where it's decided: `performAction`
+  (Input.js) now returns whether a reveal/chord/flag genuinely touched a cell (`false` for every early
+  guard and for a true no-op tap, e.g. left-clicking an already-flagged protected cell), propagated
+  through `emitBoardActionAt`/`boardClicked`'s own return values. `duelHandleTapForZoom(x, y, changed)`
+  only actually calls `zoomDuelOut()` when the pair is close AND `changed` is false on BOTH this tap and
+  the immediately preceding one (`duelLastTapChanged`, tracked alongside the existing time/position
+  state) — a deliberate "I'm done here" double-tap on already-settled ground still zooms out exactly as
+  before, but two real, close-together actions never do, regardless of how fast they land. Verified with
+  three cases: two real reveals on different cells close together → no zoom; two taps on the same
+  already-revealed cell (a genuine no-op both times) → zooms out; one real reveal immediately followed by
+  a no-op tap on that same now-revealed cell → no zoom (only one of the pair has to be real).
   **The "jump to another unsolved area" button's pan (below) is smooth too, with no extra code needed**:
   `scrollToCell(r, c, true)` (`MobileLayout.js`, already existed) passes `behavior: "smooth"` to the
   native `Element.scrollTo` — the browser already animates that on its own, verified by sampling
