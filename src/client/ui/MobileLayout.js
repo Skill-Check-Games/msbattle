@@ -237,18 +237,31 @@ function animateDuelZoomTo(centerR, centerC, fromCellPx) {
 	// Ease-out cubic: fast start, settling in gently right as it reaches the target cell — reads as
 	// "zooming toward" the destination rather than mechanically interpolating toward it.
 	function ease(t) { return 1 - Math.pow(1 - t, 3); }
+	function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+	// Precompute a real start AND end scroll position, then interpolate directly between the two —
+	// NOT derived from cellPx via the scrollToCell-style formula every frame. That formula's own target
+	// naturally starts near 0 (the small starting cellPx doesn't need scrolling yet at all) and only
+	// grows into a real, possibly-large offset once the canvas has grown enough to overflow — but the
+	// browser silently clamps any out-of-range scrollLeft/Top assignment to whatever's ACTUALLY
+	// scrollable at that instant, so early frames all landed on the same clamped-near-0 value regardless
+	// of the formula's real output, then the visible position had to visibly "catch up" once real
+	// scrolling room opened up — exactly the "starts toward a spot, then changes course" jitter this
+	// was reported as. Both endpoints below are real, reachable positions (the current on-screen scroll,
+	// and the fully-grown final canvas's own clamped target), so easing straight between them tracks
+	// smoothly the whole way — no formula-vs-clamp mismatch left to produce a kink.
+	var fromScrollLeft = boardScroll.scrollLeft, fromScrollTop = boardScroll.scrollTop;
+	var toScrollLeft = clamp((centerC + 0.5) * toCellPx - boardScroll.clientWidth / 2, 0, Math.max(0, cols * toCellPx - boardScroll.clientWidth));
+	var toScrollTop = clamp((centerR + 0.5) * toCellPx - boardScroll.clientHeight / 2, 0, Math.max(0, rows * toCellPx - boardScroll.clientHeight));
 	var t0 = null;
 	function frame(now) {
 		if (t0 === null) t0 = now;
 		var t = Math.min(1, (now - t0) / DURATION_MS);
-		var cellPx = fromCellPx + (toCellPx - fromCellPx) * ease(t);
+		var e = ease(t);
+		var cellPx = fromCellPx + (toCellPx - fromCellPx) * e;
 		playerCanvas.style.width = (cols * cellPx) + "px";
 		playerCanvas.style.height = (rows * cellPx) + "px";
-		// Same centering math as scrollToCell, just re-run every frame against the CURRENT (animating)
-		// cell size — negative/overflowing values clamp harmlessly to the scroll range's own min/max,
-		// which is exactly right early on (small cellPx: board doesn't overflow yet, no scroll needed).
-		boardScroll.scrollLeft = (centerC + 0.5) * cellPx - boardScroll.clientWidth / 2;
-		boardScroll.scrollTop = (centerR + 0.5) * cellPx - boardScroll.clientHeight / 2;
+		boardScroll.scrollLeft = fromScrollLeft + (toScrollLeft - fromScrollLeft) * e;
+		boardScroll.scrollTop = fromScrollTop + (toScrollTop - fromScrollTop) * e;
 		if (t < 1) requestAnimationFrame(frame);
 	}
 	requestAnimationFrame(frame);

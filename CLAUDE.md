@@ -790,6 +790,21 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   zoom toggle below, it's no longer only ever zooming IN) `DURATION_MS` went 450 → 900. This is the one
   moment (GO, or the manual zoom toggle) meant to be watched rather than reacted to instantly, unlike
   every other animation in this layout — worth the extra time specifically here.
+  **Reported as jagged — "starts to zoom into a spot and then changes course a bit," fixed**: the scroll
+  half of the animation used to be DERIVED from `cellPx` every frame (the same formula `scrollToCell`
+  uses, just re-run continuously) instead of interpolated as its own thing. Early on, the canvas is
+  still too small to overflow `#board_scroll` at all, so the browser silently clamps any `scrollLeft`/
+  `scrollTop` assignment down to `0` regardless of what the formula actually asked for — every early
+  frame landed on the same clamped value, going nowhere, until the canvas finally grew large enough to
+  overflow, at which point the real (often already-large) target became reachable and the position had
+  to visibly race to catch up in the animation's remaining frames — exactly the reported kink. Fixed by
+  computing two REAL endpoints once, up front — `fromScrollLeft/Top` (`#board_scroll`'s actual current
+  position) and `toScrollLeft/Top` (the fully-grown final canvas's own clamped target) — and easing
+  directly between those two fixed points every frame, same `t`/curve the cell-size interpolation
+  already uses, instead of re-deriving a moving target from a formula that only becomes valid partway
+  through. Verified by sampling `scrollLeft`/`scrollTop` on every frame of an off-center zoom and
+  checking the single largest frame-to-frame delta across the whole animation — a few px, consistent
+  with ordinary eased motion, no outlier spike anywhere.
   **Manual pinch-style zoom toggle, double-tap/double-click**: `duelZoomedOut` (`MobileLayout.js`) is a
   standalone boolean `fitDesktopCellPx` now also checks (alongside `roundLive`) when deciding whether to
   apply the 56px floor — lets a player zoom back OUT to the whole-board overview mid-round to get their
