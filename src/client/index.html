@@ -621,6 +621,19 @@
 							</div>
 						</div>
 						<div class="board-wrap">
+							<!-- Landscape-phone only: an experiment — your own progress, front and center right
+							     above the board you're actually looking at while playing, instead of only in the
+							     side panel's corner card (.duel-bar-corner) off to the left. Mirrored by the same
+							     setDuelBar("duel_bar_you", ...) call that already drives every other "you" bar
+							     (Main.js) — see updateDuelTopProgress there for the pulse/pop reward animation
+							     this one specifically adds on top. Hidden outside landscape; see .duel-top-progress
+							     in style.css. -->
+							<div id="duel_top_progress" class="duel-top-progress" aria-hidden="true">
+								<div class="duel-top-progress-track">
+									<span id="duel_top_progress_fill" class="duel-top-progress-fill"></span>
+								</div>
+								<b id="duel_top_progress_pct" class="duel-top-progress-pct">0%</b>
+							</div>
 							<div id="board_scroll" class="board-scroll">
 								<canvas id="game0" width="500" height="350"></canvas>
 								<div id="board_focus_ring" class="board-cell-highlight board-focus-ring" hidden></div>

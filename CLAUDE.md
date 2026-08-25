@@ -881,6 +881,30 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   position inside the same ring each time, the chosen representative cell never changed, confirming the
   choice is purely geometric (centroid-nearest) and carries no information about where the mine actually
   is.
+  **Experiment: your own progress, front and center above the board**: `#duel_top_progress` (index.html,
+  first child of `.board-wrap`, before `#board_scroll`) puts a second copy of the "you" progress bar
+  right above the board you're actually looking at while playing, instead of only in the side panel's
+  `.duel-bar-corner` off to the left — the goal being to make progress feel more immediately satisfying
+  to watch land, not just a number to glance at. Mirrored by `setDuelBar`'s existing `"duel_bar_you"`
+  branch (Main.js) — one extra `if (barId === "duel_bar_you") updateDuelTopProgress(pct, cellsLeft);`
+  line, no new data plumbing. `flex: 0 0 auto` inside `.board-wrap`'s flex column, same as
+  `.duel-mode-toggle` below the board — `#board_scroll`'s own `clientHeight` (the duel-landscape
+  `fitDesktopCellPx` measurement fix, above) automatically accounts for the extra row's height when
+  fitting the board, no manual adjustment needed anywhere.
+  **The actual "reward" part**: `updateDuelTopProgress`/`bumpDuelTopProgress` (Main.js) fire a pulse +
+  pop combo every time `cellsLeft` actually drops (`lastDuelTopProgressLeft`, reset at the start of every
+  round in `setCoveredBoard` so a new round's first frame can't read as a bogus gain against the last
+  one's leftover number) — a slower springier fill transition than the corner bar's plain `0.3s ease`
+  (`cubic-bezier(0.22, 1, 0.36, 1)`, `0.5s`), a brief glow (`.duel-top-progress-pulse`, restarted from
+  scratch via a forced reflow — `void fill.offsetWidth` — so a fast chord streak doesn't have to wait
+  out a still-running pulse before showing the next one), and a one-shot `+N` callout spawned at the
+  fill's current leading edge that floats up and fades (`.duel-top-progress-pop`, removed on its own
+  `animationend`). A chord that clears several cells in one server frame reads as one `+N`, not N silent
+  ticks — `draw_board` frames are already coalesced to whatever the server just broadcast, so batching
+  falls out for free rather than needing its own logic. Verified a simulated +12 gain: pop text `"+12"`,
+  the pulse class present on the fill, then both gone again after the animation's own duration with no
+  manual cleanup needed. Desktop is untouched (`.duel-top-progress`'s base rule is `display: none`, same
+  pattern as every other landscape-only element here).
   **Known gap, not fixed by this version**: `body.duel-force-rotate` (see its own bullet below) only ever
   applies on a phone-sized viewport that's still portrait-*width* — the CSS rotation trick changes how
   the content renders, not the actual width a media query measures — which means the portrait

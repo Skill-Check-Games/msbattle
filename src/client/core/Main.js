@@ -272,6 +272,49 @@ function setDuelBar(barId, progress, cellsLeft) {
 		var cleft = corner.querySelector(".duel-bar-corner-left");
 		if (cleft && typeof cellsLeft === "number") cleft.textContent = cellsLeft + (cellsLeft === 1 ? " cell left" : " cells left");
 	}
+	// Landscape's own extra: the same "you" progress again, front and center above the board itself —
+	// see updateDuelTopProgress for why this one gets its own pulse/pop animation the corner copy above
+	// doesn't. Opponent has no board of their own in this layout to put one above, so "you" only.
+	if (barId === "duel_bar_you") updateDuelTopProgress(pct, cellsLeft);
+}
+
+// Experiment: makes "you just made progress" feel like something happened, not just a number ticking
+// over — a brief glow pulse on the fill plus a floating "+N" callout, every time cellsLeft actually
+// DROPS (a chord clearing five cells at once still reads as one satisfying "+5", not five silent
+// updates — draw_board frames are already coalesced to whatever the server just broadcast, so this
+// naturally batches with however the reveal actually happened). lastDuelTopProgressLeft is reset at
+// the start of every round (setCoveredBoard) so the first frame of a new round can't read as a bogus
+// "gain" against the previous round's leftover number.
+var lastDuelTopProgressLeft = null;
+function updateDuelTopProgress(pct, cellsLeft) {
+	var fill = document.getElementById("duel_top_progress_fill");
+	var label = document.getElementById("duel_top_progress_pct");
+	if (fill) fill.style.width = pct + "%";
+	if (label) label.textContent = pct + "%";
+	if (typeof cellsLeft === "number") {
+		if (lastDuelTopProgressLeft != null && cellsLeft < lastDuelTopProgressLeft) {
+			bumpDuelTopProgress(lastDuelTopProgressLeft - cellsLeft);
+		}
+		lastDuelTopProgressLeft = cellsLeft;
+	}
+}
+function bumpDuelTopProgress(gained) {
+	var fill = document.getElementById("duel_top_progress_fill");
+	var track = document.getElementById("duel_top_progress");
+	if (!fill || !track) return;
+	track = track.querySelector(".duel-top-progress-track");
+	if (!track) return;
+	// Restart the pulse from scratch even if the previous one is still mid-flight (a fast chord streak
+	// shouldn't have to wait out an old animation before showing the next one).
+	fill.classList.remove("duel-top-progress-pulse");
+	void fill.offsetWidth; // force a reflow so re-adding the class below actually restarts the animation
+	fill.classList.add("duel-top-progress-pulse");
+	var pop = document.createElement("span");
+	pop.className = "duel-top-progress-pop";
+	pop.textContent = "+" + gained;
+	pop.style.left = fill.style.width; // roughly the fill's current leading edge
+	track.appendChild(pop);
+	pop.addEventListener("animationend", function() { pop.remove(); });
 }
 // Live battle HUD from the current frame: each board's progress bar, the "cells left" readout
 // beside it, and the center VS meter (a tug-of-war gauge + "X is ahead" callout — see
@@ -2032,6 +2075,7 @@ function setCoveredBoard() {
 	if (!rows || !cols) return;
 	clearPlaceBadges(); // a fresh round starts covered — drop the previous round's finish places
 	resetClearChallenge(); // new board → reset the no-flag / chord-only tracking
+	lastDuelTopProgressLeft = null; // fresh round — don't read its first frame as a gain vs the last one
 	// New round → fresh move-history hash chain, matching the server's own reset (GameCreator.init).
 	localMoveSeq = 0;
 	localMoveHash = MoveHash.SEED;

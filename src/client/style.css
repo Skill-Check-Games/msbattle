@@ -3979,6 +3979,7 @@ body.touch .find-next-arrow { display: inline-flex; }
 .duel-back-btn { display: none; }
 .duel-fullscreen-btn { display: none; }
 .duel-opp-board-label { display: none; }
+.duel-top-progress { display: none; }
 
 /* Landscape-phone progress readout — a separate, purpose-built element (not a repositioned
    #duel_bar_you/#duel_bar_opp) so its compact treatment doesn't fight the desktop bar's own layout.
@@ -4423,6 +4424,75 @@ body.duel-landscape-mode .game-view.duo .board-wrap {
 	box-shadow: 0 0 22px -6px var(--duel-you), inset 0 0 22px -14px var(--duel-you);
 	padding: 0.5rem;
 }
+/* Experiment: your own progress, front and center above the board instead of only in the side panel's
+   corner card — mirrored by setDuelBar's existing "duel_bar_you" branch (Main.js), plus its own
+   pulse/pop "reward" animation (updateDuelTopProgress, same file) that the corner bar deliberately
+   doesn't get, so this becomes the one place progress actually feels like it's landing. flex:0 0 auto
+   keeps it from participating in .board-scroll's flex:1 growth, same idea as .duel-mode-toggle below. */
+body.duel-landscape-mode .game-view.duo .duel-top-progress {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	flex: 0 0 auto;
+	margin-bottom: 0.4rem;
+}
+body.duel-landscape-mode .game-view.duo .duel-top-progress-track {
+	position: relative;
+	flex: 1;
+	height: 10px;
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.08);
+	overflow: visible; /* the "+N" pop (below) floats above the fill, not clipped by it */
+}
+body.duel-landscape-mode .game-view.duo .duel-top-progress-fill {
+	display: block;
+	height: 100%;
+	width: 0;
+	border-radius: 999px;
+	background: linear-gradient(90deg, var(--duel-you), #7db8ff);
+	/* A slower, springier curve than the corner bar's plain 0.3s ease — this is the one progress
+	   indicator meant to be watched land, not just glanced at. */
+	transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+/* Toggled on/off by updateDuelTopProgress (Main.js) each time progress actually increases — a brief
+   glow pulse so the moment reads as a small reward, not just a number ticking over. */
+body.duel-landscape-mode .game-view.duo .duel-top-progress-fill.duel-top-progress-pulse {
+	animation: duelTopProgressPulse 0.5s ease-out;
+}
+@keyframes duelTopProgressPulse {
+	0%   { box-shadow: 0 0 0 0 rgba(125, 184, 255, 0.7); filter: brightness(1); }
+	40%  { box-shadow: 0 0 14px 4px rgba(125, 184, 255, 0.55); filter: brightness(1.3); }
+	100% { box-shadow: 0 0 0 0 rgba(125, 184, 255, 0); filter: brightness(1); }
+}
+body.duel-landscape-mode .game-view.duo .duel-top-progress-pct {
+	font-size: 0.85rem;
+	font-weight: 800;
+	color: var(--text);
+	font-variant-numeric: tabular-nums;
+	min-width: 2.4em;
+	text-align: right;
+}
+/* One-shot "+N" cells-gained callout, spawned at the fill's leading edge (updateDuelTopProgress sets
+   its `left` inline to match) and removed on its own animationend — floats up and fades, the same
+   "reward tick" idea the ranked-result modal's rating count-up goes for, just lighter-weight and
+   per-reveal instead of once per match. */
+body.duel-landscape-mode .game-view.duo .duel-top-progress-pop {
+	position: absolute;
+	top: 0;
+	transform: translate(-50%, 0);
+	font-size: 0.72rem;
+	font-weight: 800;
+	color: #bfdcff;
+	pointer-events: none;
+	white-space: nowrap;
+	animation: duelTopProgressPop 0.7s ease-out forwards;
+}
+@keyframes duelTopProgressPop {
+	0%   { transform: translate(-50%, 2px) scale(0.8); opacity: 0; }
+	20%  { transform: translate(-50%, -2px) scale(1.08); opacity: 1; }
+	100% { transform: translate(-50%, -20px) scale(1); opacity: 0; }
+}
+
 body.duel-landscape-mode .game-view.duo .board-scroll {
 	flex: 1;
 	min-height: 0;
