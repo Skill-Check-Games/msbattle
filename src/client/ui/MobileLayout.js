@@ -273,6 +273,15 @@ function zoomDuelOut() {
 	var anchorR = (boardScroll.scrollTop + boardScroll.clientHeight / 2) / fromCellPx - 0.5;
 	duelZoomedOut = true;
 	sizePlayerCanvas();
+	// sizePlayerCanvas reassigns the canvas's backing width/height whenever the cell size actually
+	// changes (nearly always true here — that's the whole point) — which, per the HTML canvas spec,
+	// clears its contents outright, same as every other resize call site (e.g. refreshPlayerBoardSize,
+	// below) already has to repaint after. Missing this left the board solid black until SOMETHING else
+	// happened to trigger a repaint — usually masked in quick testing by the reveal-animation RAF loop
+	// (startAnimLoop, Animations.js) still running from a moment earlier, but with no animation in
+	// flight (the common case once a round's been idle a beat) nothing ever repainted it again — a real
+	// "board goes black and stays black" bug, not just a one-frame flicker.
+	if (typeof redrawOwnBoardWithFocus === "function") redrawOwnBoardWithFocus();
 	animateDuelZoomTo(anchorR, anchorC, fromCellPx);
 	if (navigator.vibrate) navigator.vibrate(8);
 }
@@ -286,6 +295,8 @@ function zoomDuelIn(targetR, targetC) {
 	if (!(fromCellPx > 0)) return;
 	duelZoomedOut = false;
 	sizePlayerCanvas();
+	// Same repaint-after-resize requirement as zoomDuelOut above — see its comment.
+	if (typeof redrawOwnBoardWithFocus === "function") redrawOwnBoardWithFocus();
 	animateDuelZoomTo(targetR, targetC, fromCellPx);
 	if (navigator.vibrate) navigator.vibrate(8);
 }

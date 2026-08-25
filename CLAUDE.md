@@ -802,6 +802,20 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   `animateDuelZoomTo`, same "final state first, then animate the display size backwards from where it
   was" pattern the GO transition established. Reset to `false` at the start of every round
   (`localRoundStartReveal`, Main.js) so a round never inherits the previous one's zoom state.
+  **Real bug, reported as "the board goes black and I can't play anymore"**: `sizePlayerCanvas()`
+  reassigns the canvas's backing `width`/`height` attributes whenever the cell size actually changes —
+  which the HTML canvas spec defines as clearing its contents outright, same as every OTHER resize call
+  site here already has to repaint after (e.g. `refreshPlayerBoardSize`, which calls
+  `redrawOwnBoardWithFocus()` right after its own `sizePlayerCanvas()` for exactly this reason).
+  `zoomDuelOut`/`zoomDuelIn` were missing that repaint entirely — quick manual testing never caught it
+  because the reveal-animation RAF loop (`startAnimLoop`, Animations.js) usually happened to still be
+  running from a moment earlier and painted over the blank frame within the next tick or two, but with
+  no animation in flight (the common case once a round's been idle even briefly — most real play) the
+  canvas simply stayed black forever, since nothing else was ever going to repaint it. Fixed by adding
+  the same `redrawOwnBoardWithFocus()` call right after `sizePlayerCanvas()` in both functions. Verified
+  by explicitly killing any live `animRAF` loop before calling either function (reproducing the exact
+  "nothing else is going to repaint this" condition) and confirming the canvas has real pixel content
+  again immediately, not just eventually.
   **Gesture wiring, Main.js**: while zoomed IN, a double-tap/double-click (`duelIsDoubleTap` — tracks the
   last tap's time+position, no artificial delay-before-acting on the FIRST tap of a pair, so ordinary
   single-tap reveals stay exactly as responsive as before; the SECOND tap of a genuine pair triggers the
