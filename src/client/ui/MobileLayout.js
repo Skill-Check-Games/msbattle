@@ -424,39 +424,44 @@ function updateMobileFindNextHint() {
 }
 // --- Mobile cursor / frontier navigation ---
 
-// Frontier cells (UNKNOWN, adjacent to at least one KNOWN cell) that are actually worth landing on —
-// mines the player hasn't flagged yet are deliberately excluded even when they're obviously deducible
-// from a solved clue nearby, since there's nothing to DO there but flag it; this button's job is
-// finding somewhere to dig, not surfacing a mine to avoid. boardCell (BoardDecoder.js) can answer this
-// directly — the client already fully decodes any cell's true value on demand for its own optimistic-
-// reveal prediction (Input.js), this is the same read, not new information exposure. Falls back to all
-// non-mine UNKNOWN cells when no frontier exists yet (very start of a round, before any reveals).
-function safeFrontierCells() {
+// Frontier cells (UNKNOWN, adjacent to at least one KNOWN cell) — what #duel_find_next_btn/
+// #duel_find_prev_btn cycle between (mobileNavigate, via getFrontierClusters below), one AREA at a
+// time. Deliberately blind to the actual mine layout: an earlier version filtered out — and so never
+// highlighted/landed on — any cell the client's own boardDecoder (BoardDecoder.js) reports as a mine.
+// That's a real cheat vector, not just an unnecessary convenience: the client fully decodes the WHOLE
+// board's true mine layout locally (needed for its own optimistic-reveal prediction elsewhere, see
+// Input.js), so filtering by it here leaks that ground truth straight through the UI — a cell the
+// button always skips, or the specific cell it highlights within an otherwise uniform-looking area,
+// is directly readable as "the client knows this one isn't a mine." Only ever reason about what the
+// PLAYER themselves already knows (their own revealed/flagged state via myState — flagged cells are
+// already excluded here for free, isFrontierCell only considers UNKNOWN ones), never the underlying
+// boardDecoder. Falls back to all UNKNOWN cells when no frontier exists yet (very start of a round,
+// before any reveals).
+function frontierCells() {
 	var cells = [];
 	if (!myState) return cells;
 	for (var r = 0; r < rows; r++) {
 		for (var c = 0; c < cols; c++) {
-			if (isFrontierCell(r, c) && boardCell(r, c) !== MINE) cells.push([r, c]);
+			if (isFrontierCell(r, c)) cells.push([r, c]);
 		}
 	}
 	if (!cells.length) {
 		for (var r = 0; r < rows; r++) {
 			for (var c = 0; c < cols; c++) {
-				if (myState[r][c] === UNKNOWN && boardCell(r, c) !== MINE) cells.push([r, c]);
+				if (myState[r][c] === UNKNOWN) cells.push([r, c]);
 			}
 		}
 	}
 	return cells;
 }
 
-// Groups safeFrontierCells() into connected areas (8-adjacency) — what #duel_find_next_btn actually
-// steps between (mobileNavigate), not individual cells. Stepping cell-by-cell along a flat sorted list
-// mostly just nudged the view to the cell right next door, which barely reads as "somewhere else";
-// jumping between whole areas instead means every press lands somewhere materially different. "At
-// least one non-mine cell in the cluster" falls out for free this way too — clusters are built ONLY
-// from safeFrontierCells, so a mine is simply never a graph node to begin with.
+// Groups frontierCells() into connected areas (8-adjacency) — what #duel_find_next_btn/
+// #duel_find_prev_btn actually step between (mobileNavigate), not individual cells. Stepping
+// cell-by-cell along a flat sorted list mostly just nudged the view to the cell right next door, which
+// barely reads as "somewhere else"; jumping between whole areas instead means every press lands
+// somewhere materially different.
 function getFrontierClusters() {
-	var cells = safeFrontierCells();
+	var cells = frontierCells();
 	if (!cells.length) return [];
 	function key(r, c) { return r + "," + c; }
 	var inSet = {};

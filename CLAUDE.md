@@ -846,27 +846,36 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   separate feature from these on-demand buttons.
   **Cell-by-cell stepping wasn't good enough, reworked into area-cycling**: the original revived version
   stepped through `getSortedFrontierCells`'s flat, circularly-sorted list of individual UNKNOWN cells one
-  at a time — which (a) could land on a cell that's a deducible mine the player just hasn't flagged yet
-  (nothing to do there but flag it, not what this button is for), and (b) mostly just nudged the view to
-  the cell right next door, which barely reads as "somewhere else" when the fallback path (cursor not
-  currently on a frontier cell) finds the NEAREST cell and steps to its immediate neighbour in the sorted
-  list. Replaced with `safeFrontierCells()` + `getFrontierClusters()`: the former is the same frontier
-  scan, but excludes any cell where `boardCell(r,c) === MINE` — `boardCell` (BoardDecoder.js) can answer
-  this directly since the client already fully decodes any cell's true value on demand for its own
-  optimistic-reveal prediction (Input.js); this is the same read, not new information exposure. The
-  latter flood-fills those safe cells into 8-adjacency connected components ("areas") and picks each
-  one's landing cell as the member closest to the cluster's own centroid. `mobileNavigate` now cycles
-  between these AREAS (same circular-sweep-by-angle-from-the-board's-centroid sort as before, just one
-  entry per cluster instead of per cell) instead of individual cells — solves both asks at once: "at
-  least one non-mine cell in the cluster" falls out for free (mines are never graph nodes, so a mine-only
-  ring around a solved clue simply produces zero clusters, silently skipped), and "somewhere else, not
-  the cell next to you" falls out because two distinct clusters are never adjacent to each other by
-  construction (there's always at least one revealed cell separating them) — stepping to the next
-  cluster in sweep order is a guaranteed jump to a materially different part of the board, not a
-  neighbor. Verified with a synthetic board: an all-mine frontier ring around a revealed cell produces
-  no cluster at all (never a candidate); a mixed ring (some mines, some safe) still produces one cluster
-  but only ever lands on its safe member; two well-separated all-safe rings alternate cleanly on
-  successive presses instead of drifting locally.
+  at a time — which mostly just nudged the view to the cell right next door, barely reading as "somewhere
+  else," especially via the fallback path (cursor not currently on a frontier cell finds the NEAREST cell
+  and steps to its immediate neighbour in the sorted list). Replaced with `frontierCells()` +
+  `getFrontierClusters()`: the former is the same frontier scan; the latter flood-fills those cells into
+  8-adjacency connected components ("areas") and picks each one's landing cell as the member closest to
+  the cluster's own centroid. `mobileNavigate` cycles between these AREAS (same circular-sweep-by-angle-
+  from-the-board's-centroid sort as before, just one entry per cluster instead of per cell) instead of
+  individual cells — "somewhere else, not the cell next to you" falls out because two distinct clusters
+  are never adjacent to each other by construction (there's always at least one revealed cell separating
+  them) — stepping to the next cluster in sweep order is a guaranteed jump to a materially different part
+  of the board, not a neighbor. Verified with a synthetic board: two well-separated frontier rings
+  alternate cleanly on successive presses instead of drifting locally.
+  **A mine-aware version of this shipped first, then had to be reverted — real cheat vector, not just an
+  unnecessary convenience**: `frontierCells()` briefly excluded any cell `boardCell(r,c) === MINE`
+  (BoardDecoder.js) reports as a mine, on the reasoning that landing on/highlighting an obviously-a-mine
+  cell wasn't useful — the button's job is finding somewhere to dig, not surfacing a mine. But the client
+  fully decodes the WHOLE board's true mine layout locally the whole time (needed for its own optimistic-
+  reveal prediction, Input.js) — filtering by it here leaked that ground truth straight through the UI: a
+  cell the button always skipped, or the specific cell it highlighted (`redrawOwnBoardWithFocus`'s focus
+  ring) within an otherwise uniform-looking frontier, was directly readable as "the client knows this one
+  isn't a mine." Fixed by making `frontierCells()`/`getFrontierClusters()` reason ONLY about what the
+  PLAYER themselves already knows (`myState` — their own revealed/flagged state; flagged cells are
+  already excluded for free, `isFrontierCell` only considers `UNKNOWN` ones) and never consult
+  `boardCell`/the decoder at all. Verified by re-running the same "all-mine frontier ring around a
+  revealed cell" case that the mine-aware version deliberately hid (produced zero clusters there): the
+  fixed version now happily forms a cluster and lands on a mine cell directly (`boardCell(...) === MINE`
+  true at the landing spot) — and, across 50 trials with a single mine placed at a different random
+  position inside the same ring each time, the chosen representative cell never changed, confirming the
+  choice is purely geometric (centroid-nearest) and carries no information about where the mine actually
+  is.
   **Known gap, not fixed by this version**: `body.duel-force-rotate` (see its own bullet below) only ever
   applies on a phone-sized viewport that's still portrait-*width* — the CSS rotation trick changes how
   the content renders, not the actual width a media query measures — which means the portrait
