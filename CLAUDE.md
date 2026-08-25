@@ -805,6 +805,28 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   through. Verified by sampling `scrollLeft`/`scrollTop` on every frame of an off-center zoom and
   checking the single largest frame-to-frame delta across the whole animation — a few px, consistent
   with ordinary eased motion, no outlier spike anywhere.
+  **That fix alone wasn't enough — reported again as "zooming out begins in the upper-left corner
+  instead of where you are," and zoom-in "goes top-left first too"**: the two-endpoint approach above is
+  correct in principle, but `animateDuelZoomTo` was still reading `fromScrollLeft`/`Top` off the LIVE
+  `boardScroll.scrollLeft`/`Top` itself, at the top of its own body — which callers only ever invoke
+  AFTER already calling `sizePlayerCanvas()` (needed first, to compute `toCellPx`/lock in the final
+  backing resolution). `sizePlayerCanvas`'s pannable-board branch resizes `#board_scroll`'s OWN box
+  width to fit the FINAL cell size — when zooming OUT, that's narrower than before, and the instant it
+  shrinks, the browser silently re-clamps whatever `#board_scroll`'s existing (possibly large)
+  `scrollLeft`/`Top` was down to whatever's still in range for the new, narrower box. So by the time
+  `animateDuelZoomTo` read it, it wasn't reading where the player actually was anymore — it was reading
+  an already-clamped-to-near-0 value, and animating FROM there. Confirmed empirically: sampling
+  `boardScroll.scrollLeft` immediately after `zoomDuelOut()` (before its own first animation frame even
+  had a chance to run) showed it had already snapped to `0`, even though the real pre-call position was
+  `588`. Fixed by having each caller (`zoomDuelOut`, `zoomDuelIn`, `localRoundStartReveal`) capture
+  `fromScrollLeft`/`Top` itself, BEFORE calling `sizePlayerCanvas()`, and pass them into
+  `animateDuelZoomTo` as explicit parameters instead of letting it read the (by-then-corrupted) live
+  value on its own. `zoomDuelIn`/the GO transition (both zoom IN, growing `#board_scroll`) were never
+  actually broken this way — growing a container can't invalidate an existing in-range `scrollLeft` — but
+  they were switched to the same explicit-parameter pattern for consistency and because the fix is free
+  insurance either way. Re-verified with the same sampling approach: the trajectory now starts exactly at
+  the pre-call position and eases smoothly all the way to the target, with no corruption anywhere in the
+  first frame.
   **Manual pinch-style zoom toggle, double-tap/double-click**: `duelZoomedOut` (`MobileLayout.js`) is a
   standalone boolean `fitDesktopCellPx` now also checks (alongside `roundLive`) when deciding whether to
   apply the 56px floor — lets a player zoom back OUT to the whole-board overview mid-round to get their

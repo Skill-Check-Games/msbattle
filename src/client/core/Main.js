@@ -2066,6 +2066,11 @@ function localRoundStartReveal() {
 	// over from whatever they left the PREVIOUS round zoomed to.
 	var duelMobile = typeof isDuelLandscapeMobile === "function" && isDuelLandscapeMobile();
 	var fromCellPx = duelMobile ? parseFloat(playerCanvas.style.width) / cols : 0;
+	// Captured before sizePlayerCanvas runs below — it can resize #board_scroll's own box (the
+	// pannable-board branch, MobileLayout.js), which would otherwise silently re-clamp these out from
+	// under us. See animateDuelZoomTo's own comment for the bug this avoids.
+	var fromScrollLeft = duelMobile && boardScroll ? boardScroll.scrollLeft : 0;
+	var fromScrollTop = duelMobile && boardScroll ? boardScroll.scrollTop : 0;
 	var zoomR = centerR, zoomC = centerC;
 	if (duelMobile) {
 		duelZoomedOut = false;
@@ -2079,7 +2084,7 @@ function localRoundStartReveal() {
 		}
 	}
 	renderPlayerBoard();
-	if (duelMobile) animateDuelZoomTo(zoomR, zoomC, fromCellPx);
+	if (duelMobile) animateDuelZoomTo(zoomR, zoomC, fromCellPx, fromScrollLeft, fromScrollTop);
 	if (targets.length && typeof startOpponentRevealAnim === "function") startOpponentRevealAnim(targets);
 }
 
