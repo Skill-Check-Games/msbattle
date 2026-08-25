@@ -4368,9 +4368,6 @@ body.duel-landscape-mode .game-view.duo .duel-bar-corner {
 	width: 100%;
 	gap: 0.3rem;
 	padding: 0.4rem;
-	border-radius: 10px;
-	border: 1px solid var(--border);
-	background: rgba(255, 255, 255, 0.03);
 }
 body.duel-landscape-mode .game-view.duo .duel-bar-corner-row { width: 100%; justify-content: center; }
 body.duel-landscape-mode .game-view.duo .duel-bar-corner-pct { font-size: 1rem; }

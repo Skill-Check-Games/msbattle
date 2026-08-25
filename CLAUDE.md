@@ -569,8 +569,13 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   other context this component appears in, used), name, then the tier pill below. **No more "un-mirror
   the opponent" question** from the previous version — both sides just center, so there's no left/right
   asymmetry to reconcile between them any more. Progress (`.duel-bar-corner`, pct + bar + "N cells left")
-  is a boxed stats card below identity — more width to work with in a dedicated side panel than the old
-  compact top-right corner readout it used to be. The round timer relocates into the left panel too
+  sits below identity — more width to work with in a dedicated side panel than the old compact top-right
+  corner readout it used to be. Started as a bordered/backgrounded card like the timer box below it, but
+  the border/background were dropped on request (`border`/`background` removed from the
+  `body.duel-landscape-mode .game-view.duo .duel-bar-corner` rule) — the surrounding panel already reads
+  as a card of its own (its own border/glow), so a second nested box just for the stats felt redundant;
+  it reads fine sitting directly on the panel background instead, `padding` alone still keeps it clear
+  of the avatar above and the timer box below. The round timer relocates into the left panel too
   (`#duel_timer_landscape_box`, physically moved in `index.html` from inside `#duel_center` to inside
   `.duel-header-row` — still mirrored by `updateRoundTimer`/`updateDuelHud` exactly as before, just a new
   home; both `.duel-timer-landscape-box` and `.duel-timer-landscape` need their own `display` override
