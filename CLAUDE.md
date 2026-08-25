@@ -895,6 +895,20 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   position inside the same ring each time, the chosen representative cell never changed, confirming the
   choice is purely geometric (centroid-nearest) and carries no information about where the mine actually
   is.
+  **Then landed on a middle ground, on request**: fully mine-blind meant the button could confidently
+  center you on a cell that's obviously (or even just actually) a mine — not a cheat concern this time,
+  just landing on a cell there's nothing useful to do with. `getFrontierClusters()` now checks
+  `boardCell` again, but ONLY at the cluster level, not per-cell: a cluster is skipped as a landing
+  target if EVERY member is a mine (`members.some(m => boardCell(...) !== MINE)`), so the button still
+  won't confidently walk you into a dead pocket — but the representative (landing) cell within a
+  qualifying cluster is still picked with zero regard for mine status, same centroid-nearest geometry as
+  before, mines included in that pool. This is a deliberately coarser signal than the reverted version:
+  "this general area has at least one safe cell somewhere in it" leaks far less than "this exact cell is
+  safe," and the representative can still land directly on a mine if that's what's geometrically
+  central. Verified with three cases: a ring that's 100% mines still produces zero clusters (unchanged
+  from the mine-blind version); a ring with one mine placed exactly at the geometric center (so it WOULD
+  be the representative under blind selection) still forms a cluster and lands directly on that mine,
+  not a nudged-over safe neighbor; an all-safe ring behaves exactly as before.
   **Experiment: your own progress, front and center above the board**: `#duel_top_progress` (index.html,
   first child of `.board-wrap`, before `#board_scroll`) puts a second copy of the "you" progress bar
   right above the board you're actually looking at while playing, instead of only in the side panel's

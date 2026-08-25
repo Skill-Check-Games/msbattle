@@ -437,17 +437,12 @@ function updateMobileFindNextHint() {
 
 // Frontier cells (UNKNOWN, adjacent to at least one KNOWN cell) — what #duel_find_next_btn/
 // #duel_find_prev_btn cycle between (mobileNavigate, via getFrontierClusters below), one AREA at a
-// time. Deliberately blind to the actual mine layout: an earlier version filtered out — and so never
-// highlighted/landed on — any cell the client's own boardDecoder (BoardDecoder.js) reports as a mine.
-// That's a real cheat vector, not just an unnecessary convenience: the client fully decodes the WHOLE
-// board's true mine layout locally (needed for its own optimistic-reveal prediction elsewhere, see
-// Input.js), so filtering by it here leaks that ground truth straight through the UI — a cell the
-// button always skips, or the specific cell it highlights within an otherwise uniform-looking area,
-// is directly readable as "the client knows this one isn't a mine." Only ever reason about what the
+// time. This scan itself stays blind to the actual mine layout — only ever reasons about what the
 // PLAYER themselves already knows (their own revealed/flagged state via myState — flagged cells are
-// already excluded here for free, isFrontierCell only considers UNKNOWN ones), never the underlying
-// boardDecoder. Falls back to all UNKNOWN cells when no frontier exists yet (very start of a round,
-// before any reveals).
+// already excluded here for free, isFrontierCell only considers UNKNOWN ones). getFrontierClusters,
+// below, is where boardCell/the mine layout comes back in, and only at the CLUSTER level, not here —
+// see its own comment for why that split is the right line to draw. Falls back to all UNKNOWN cells
+// when no frontier exists yet (very start of a round, before any reveals).
 function frontierCells() {
 	var cells = [];
 	if (!myState) return cells;
@@ -471,6 +466,16 @@ function frontierCells() {
 // cell-by-cell along a flat sorted list mostly just nudged the view to the cell right next door, which
 // barely reads as "somewhere else"; jumping between whole areas instead means every press lands
 // somewhere materially different.
+// Mine-awareness lives HERE, at the cluster level only, not per-cell: an area is skipped as a landing
+// target if EVERY cell in it is a mine (boardCell(...) === MINE for all members) — nothing to actually
+// do there but flag, not what this button is for. A version that filtered individual cells instead (so
+// the landing cell was always guaranteed safe) was a real cheat vector — the exact cell the button
+// highlighted, or the ones it conspicuously never visited, directly leaked which specific cells the
+// client's boardDecoder knows aren't mines. This is deliberately coarser: "this whole area has at
+// least one safe cell somewhere in it" is a much weaker signal than "this exact cell is safe," and the
+// representative (landing) cell below is still chosen with NO regard for mine status — picked purely
+// by geometry from the cluster's full membership, mines included, so it can land on a mine just as
+// easily as a safe cell within a qualifying area.
 function getFrontierClusters() {
 	var cells = frontierCells();
 	if (!cells.length) return [];
@@ -497,8 +502,13 @@ function getFrontierClusters() {
 				}
 			}
 		}
+		// Skip this area entirely if every member is a mine — see the function comment above for why
+		// this check belongs here (cluster-level) and not folded into frontierCells (cell-level).
+		var hasSafeCell = members.some(function(m) { return boardCell(m[0], m[1]) !== MINE; });
+		if (!hasSafeCell) return;
 		// Representative (landing) cell: the member closest to the cluster's own centroid, so it reads
-		// as "the middle of this area" instead of an arbitrary corner of it.
+		// as "the middle of this area" instead of an arbitrary corner of it. Picked from ALL members,
+		// mines included — see the function comment above for why this stays blind to boardCell.
 		var sumR = 0, sumC = 0;
 		members.forEach(function(m) { sumR += m[0]; sumC += m[1]; });
 		var cR = sumR / members.length, cC = sumC / members.length;
