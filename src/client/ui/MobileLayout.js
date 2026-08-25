@@ -95,8 +95,12 @@ function fitDesktopCellPx() {
 	// overview of the WHOLE board — no floor at all, just whatever cell size fits everything on
 	// screen — is more useful than a zoomed-in slice of it, letting the player size up what they're
 	// about to solve during the countdown instead of after.
+	// Same overview treatment applies mid-round too, on demand, whenever duelZoomedOut is set — the
+	// player's own double-tap/double-click zoom-out toggle (zoomDuelOut, above), not just the
+	// pre-round state.
 	var roundLive = (typeof roundStartTime !== "undefined") && roundStartTime > 0;
-	var minCell = (isDuelLandscapeMobile() && roundLive) ? 56 : (isDuelLandscapeMobile() ? 1 : DESKTOP_CELL_MIN);
+	var duelMobile = isDuelLandscapeMobile();
+	var minCell = (duelMobile && roundLive && !duelZoomedOut) ? 56 : (duelMobile ? 1 : DESKTOP_CELL_MIN);
 	return Math.max(minCell, Math.min(maxCell, cell));
 }
 
@@ -210,20 +214,26 @@ function pickZoomTarget(state, centerR, centerC, viewCols, viewRows) {
 	return best || { r: centerR, c: centerC };
 }
 
-// Animates the mobile duel's whole-board OVERVIEW (fitDesktopCellPx, above) zooming into the opening
-// cascade's own cell size, converging on (centerR, centerC) — so GO reads as "zooming in on where
-// you're starting" instead of an instant cut from one cell size/scroll position to another. Called
-// from localRoundStartReveal (Main.js) right after sizePlayerCanvas has already locked in every value
-// this needs at its FINAL, correct state: the canvas's backing resolution (so there's nothing left to
-// redraw mid-animation — see below), and #board_scroll's own width/margin (the pannable-board branch
-// above already sized it to its final, viewport-cropped value; only the CANVAS's DISPLAY size and the
-// scroll position animate here, board_scroll's box itself does not need to change size).
-// fromCellPx is a snapshot of the cell size the board was AT before this call (the overview, or
-// whatever the previous round left behind) — the animation's start point.
-function animateDuelZoomIn(centerR, centerC, fromCellPx) {
+// Animates the mobile duel board between cell sizes — the GO transition (whole-board OVERVIEW ->
+// opening cascade's zoomed-in size, fitDesktopCellPx) and the manual zoomDuelOut/zoomDuelIn toggle
+// (below) both go through this, converging on (centerR, centerC) either way — so both read as
+// "zooming toward" a point instead of an instant cut from one cell size/scroll position to another.
+// Caller must call sizePlayerCanvas() FIRST so the canvas's backing resolution/#board_scroll's own
+// width/margin are already at their FINAL, correct state before this runs (the pannable-board branch,
+// above, sized #board_scroll to its final, viewport-cropped value) — only the CANVAS's DISPLAY size and
+// the scroll position animate here, board_scroll's own box does not need to change size, and nothing
+// needs to be redrawn mid-animation since the backing raster doesn't change.
+// fromCellPx is a snapshot of the cell size the board was AT before sizePlayerCanvas ran (the caller
+// has to capture it first — sizePlayerCanvas immediately overwrites playerCanvas.style.width with the
+// final value) — the animation's start point; sizePlayerCanvas's own new value is read back out as the
+// end point.
+function animateDuelZoomTo(centerR, centerC, fromCellPx) {
 	var toCellPx = parseFloat(playerCanvas.style.width) / cols; // sizePlayerCanvas already set this
-	if (!boardScroll || !(fromCellPx > 0) || !(toCellPx > fromCellPx + 0.5)) return; // nothing worth animating
-	var DURATION_MS = 450;
+	if (!boardScroll || !(fromCellPx > 0) || Math.abs(toCellPx - fromCellPx) < 0.5) return; // nothing worth animating
+	// Slower than a typical UI transition on purpose — this is the one moment (GO, or a manual zoom
+	// toggle) meant to be watched rather than reacted to instantly, giving the player a real sense of
+	// motion toward where they're headed rather than just registering a before/after.
+	var DURATION_MS = 900;
 	// Ease-out cubic: fast start, settling in gently right as it reaches the target cell — reads as
 	// "zooming toward" the destination rather than mechanically interpolating toward it.
 	function ease(t) { return 1 - Math.pow(1 - t, 3); }
@@ -242,6 +252,42 @@ function animateDuelZoomIn(centerR, centerC, fromCellPx) {
 		if (t < 1) requestAnimationFrame(frame);
 	}
 	requestAnimationFrame(frame);
+}
+
+// Manual zoom toggle, independent of roundStartTime (fitDesktopCellPx's own floor already handles the
+// pre-round overview automatically) — a player can zoom back out mid-round to get their bearings, then
+// back in, same two cell sizes either way, no third size in between. See fitDesktopCellPx's own use of
+// this flag. Reset to false at the start of every round (localRoundStartReveal, Main.js) so a round
+// never inherits the previous one's zoom state.
+var duelZoomedOut = false;
+
+// Zoom out to the whole-board overview, anchored on whatever's currently centered in the viewport —
+// the point that stays visually "under" the player as the rest of the board reveals itself around it,
+// same idea as a pinch-zoom's focal point. Triggered by a double-tap/double-click while zoomed in
+// (Main.js) — see zoomDuelIn below for the reverse.
+function zoomDuelOut() {
+	if (!isDuelLandscapeMobile() || duelZoomedOut || !boardScroll) return;
+	var fromCellPx = parseFloat(playerCanvas.style.width) / cols;
+	if (!(fromCellPx > 0)) return;
+	var anchorC = (boardScroll.scrollLeft + boardScroll.clientWidth / 2) / fromCellPx - 0.5;
+	var anchorR = (boardScroll.scrollTop + boardScroll.clientHeight / 2) / fromCellPx - 0.5;
+	duelZoomedOut = true;
+	sizePlayerCanvas();
+	animateDuelZoomTo(anchorR, anchorC, fromCellPx);
+	if (navigator.vibrate) navigator.vibrate(8);
+}
+
+// Zoom in on (targetR, targetC) — wherever the player just tapped/clicked while zoomed out (Main.js:
+// a tap at this zoom level can't land on a cell precisely enough to be a real reveal/flag attempt, so
+// it's read as "zoom in HERE" instead; see the touch/click handlers' own comments).
+function zoomDuelIn(targetR, targetC) {
+	if (!isDuelLandscapeMobile() || !duelZoomedOut || !boardScroll) return;
+	var fromCellPx = parseFloat(playerCanvas.style.width) / cols;
+	if (!(fromCellPx > 0)) return;
+	duelZoomedOut = false;
+	sizePlayerCanvas();
+	animateDuelZoomTo(targetR, targetC, fromCellPx);
+	if (navigator.vibrate) navigator.vibrate(8);
 }
 
 // Once a pan settles, glide the board to the nearest whole-cell offset so no cell is left clipped at an

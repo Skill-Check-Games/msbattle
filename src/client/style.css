@@ -4473,10 +4473,10 @@ body.duel-landscape-mode .game-view.duo .duel-mode-btn-active {
 	color: var(--text);
 	background: #14213d;
 }
-/* "Jump to another unsolved area" — icon-only, so it takes a fixed slot instead of sharing the row's
-   flex:1 equally with Reveal/Flag (which stay the wide, primary controls). */
-body.duel-landscape-mode .game-view.duo .duel-find-next-btn { flex: 0 0 auto; padding: 0.6rem 0.85rem; }
-body.duel-landscape-mode .game-view.duo .duel-find-next-btn .duel-mode-btn-icon { font-size: 1.1rem; }
+/* "Jump to prev/next unsolved area" — icon-only, so each takes a fixed slot instead of sharing the
+   row's flex:1 equally with Reveal/Flag (which stay the wide, primary controls). */
+body.duel-landscape-mode .game-view.duo .duel-find-nav-btn { flex: 0 0 auto; padding: 0.6rem 0.7rem; }
+body.duel-landscape-mode .game-view.duo .duel-find-nav-btn .duel-mode-btn-icon { font-size: 1.3rem; font-weight: 700; }
 
 /* ===== Post-game result modal, compacted for the short mobile-duel viewport =====
    .board-overlay-panel's normal sizing (padding, gaps, font sizes) is roomy by design — fine for

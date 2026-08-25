@@ -781,6 +781,34 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   still drive the actual cascade origin (`BoardLogic.cascadeReveal`) and every opponent's identical
   reveal (`startOpponentRevealAnim`'s `targets`); only the local camera's landing spot (`zoomR`/`zoomC`
   in `localRoundStartReveal`) is redirected.
+  **Slowed down on request**: `animateDuelZoomTo`'s (renamed from `animateDuelZoomIn` — see the manual
+  zoom toggle below, it's no longer only ever zooming IN) `DURATION_MS` went 450 → 900. This is the one
+  moment (GO, or the manual zoom toggle) meant to be watched rather than reacted to instantly, unlike
+  every other animation in this layout — worth the extra time specifically here.
+  **Manual pinch-style zoom toggle, double-tap/double-click**: `duelZoomedOut` (`MobileLayout.js`) is a
+  standalone boolean `fitDesktopCellPx` now also checks (alongside `roundLive`) when deciding whether to
+  apply the 56px floor — lets a player zoom back OUT to the whole-board overview mid-round to get their
+  bearings, then back IN, reusing the exact same two cell sizes and the exact same `animateDuelZoomTo`
+  the GO transition uses, just triggered on demand instead of automatically. `zoomDuelOut()` anchors the
+  zoom-out on whatever's currently centered in the viewport (read back from `#board_scroll`'s own
+  scroll position) so it feels anchored on "here" rather than jumping to recenter on something else;
+  `zoomDuelIn(targetR, targetC)` takes an explicit target — wherever the player just tapped/clicked.
+  Both call `sizePlayerCanvas()` (which re-reads `duelZoomedOut` through `fitDesktopCellPx`) before
+  `animateDuelZoomTo`, same "final state first, then animate the display size backwards from where it
+  was" pattern the GO transition established. Reset to `false` at the start of every round
+  (`localRoundStartReveal`, Main.js) so a round never inherits the previous one's zoom state.
+  **Gesture wiring, Main.js**: while zoomed IN, a double-tap/double-click (`duelIsDoubleTap` — tracks the
+  last tap's time+position, no artificial delay-before-acting on the FIRST tap of a pair, so ordinary
+  single-tap reveals stay exactly as responsive as before; the SECOND tap of a genuine pair triggers the
+  zoom out ADDITIONALLY, entirely after its own normal reveal/flag action has already fired) zooms out.
+  While zoomed OUT, cells are too small to tap precisely enough for a real reveal/flag attempt at all —
+  so ANY tap/click there is read as "zoom in HERE" instead (`cellFromClient` under the tap → `zoomDuelIn`),
+  and the long-press-to-flag timer isn't even started in that state (`touchstart`, Main.js) so it can't
+  race the zoom. Mouse gets the equivalent via `playerCanvas.ondblclick` (native, reliable for a real
+  mouse unlike touch, where a synthetic `dblclick` isn't guaranteed and `touch-action: manipulation`
+  deliberately suppresses the BROWSER's own native double-tap-zoom already — see the board-scroll
+  gotcha bullet — so this is a from-scratch custom gesture, not built on top of that) and a `duelZoomedOut`
+  check inside the existing `onclick`.
   **The "jump to another unsolved area" button's pan (below) is smooth too, with no extra code needed**:
   `scrollToCell(r, c, true)` (`MobileLayout.js`, already existed) passes `behavior: "smooth"` to the
   native `Element.scrollTo` — the browser already animates that on its own, verified by sampling
@@ -801,15 +829,17 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   `#board_scroll` directly instead. Width can't come from `#board_scroll` itself the same way: its
   pannable-board branch (above) explicitly narrows `#board_scroll`'s own `style.width` to fit the LAST
   computed cell size, so reading it back here would be circular, always chasing the previous value.
-  **"Jump to another unsolved area" button**: `#duel_find_next_btn` (index.html, third button in the
-  Reveal/Flag row, icon-only/`flex: 0 0 auto` so it doesn't steal their width) revives `mobileNavigate`
-  (`MobileLayout.js`) — written for a `‹ / ›` nav button pair that never actually got built, so this was
-  dead code with no callers until now. Its guard (`!mobileLayout` → now `!boardIsPannable()`, a shared
-  `mobileLayout || isDuelLandscapeMobile()` helper also used by `sizePlayerCanvas`'s own branch
-  condition) is what made it reachable from here at all. Always `dir=1`, no "previous" button to pair
-  it with. The existing auto-appearing hint arrow (`#find_next_arrow`/`updateMobileFindNextHint`) stays
-  `mobileLayout`-only, untouched — a deliberately separate, not-yet-requested feature from this
-  on-demand button.
+  **"Jump to prev/next unsolved area" buttons**: `#duel_find_prev_btn`/`#duel_find_next_btn`
+  (index.html, third/fourth buttons in the Reveal/Flag row, icon-only/`flex: 0 0 auto` so they don't
+  steal Reveal/Flag's width) revive `mobileNavigate` (`MobileLayout.js`) — written for a `‹ / ›` nav
+  button pair that never actually got built, so this was dead code with no callers until now. Its guard
+  (`!mobileLayout` → now `!boardIsPannable()`, a shared `mobileLayout || isDuelLandscapeMobile()`
+  helper also used by `sizePlayerCanvas`'s own branch condition) is what made it reachable from here at
+  all. **Originally shipped as a single button** (always `dir=1`, no "previous" to pair it with) — split
+  into this `‹`/`›` pair on request, each just calling `mobileNavigate(-1)`/`mobileNavigate(1)`; no
+  change needed in `mobileNavigate` itself, it already took a direction. The existing auto-appearing
+  hint arrow (`#find_next_arrow`/`updateMobileFindNextHint`) stays `mobileLayout`-only, untouched — a
+  deliberately separate feature from these on-demand buttons.
   **Cell-by-cell stepping wasn't good enough, reworked into area-cycling**: the original revived version
   stepped through `getSortedFrontierCells`'s flat, circularly-sorted list of individual UNKNOWN cells one
   at a time — which (a) could land on a cell that's a deducible mine the player just hasn't flagged yet

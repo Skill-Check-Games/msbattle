@@ -644,12 +644,16 @@
 								</button>
 								<!-- Manual counterpart to #find_next_arrow's auto-appearing hint (which stays
 								     off here — that's still mobileLayout-only, see updateMobileFindNextHint,
-								     MobileLayout.js): jumps to the next frontier cell in the same sorted sweep
-								     mobileNavigate already walks, on demand, without waiting for the arrow to
-								     decide nothing solvable is on screen. Icon-only so Reveal/Flag keep the
-								     width. -->
-								<button type="button" id="duel_find_next_btn" class="duel-mode-btn duel-find-next-btn" aria-label="Jump to another unsolved area">
-									<span class="duel-mode-btn-icon" aria-hidden="true">🧭</span>
+								     MobileLayout.js): jumps to the next/prev unsolved area in the same circular
+								     sweep mobileNavigate walks (getFrontierClusters), on demand, without waiting
+								     for the arrow to decide nothing solvable is on screen. Two buttons circling
+								     opposite directions around the sweep, not one — Icon-only so Reveal/Flag
+								     keep the width. -->
+								<button type="button" id="duel_find_prev_btn" class="duel-mode-btn duel-find-nav-btn" aria-label="Jump to the previous unsolved area">
+									<span class="duel-mode-btn-icon" aria-hidden="true">‹</span>
+								</button>
+								<button type="button" id="duel_find_next_btn" class="duel-mode-btn duel-find-nav-btn" aria-label="Jump to the next unsolved area">
+									<span class="duel-mode-btn-icon" aria-hidden="true">›</span>
 								</button>
 							</div>
 						</div>

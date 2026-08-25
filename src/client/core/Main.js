@@ -509,15 +509,52 @@ if (mobileModeButton) mobileModeButton.addEventListener("click", toggleFlagMode)
 if (duelFlagBtn) duelFlagBtn.addEventListener("click", function() { if (!flagMode) toggleFlagMode(); });
 if (duelRevealBtn) duelRevealBtn.addEventListener("click", function() { if (flagMode) toggleFlagMode(); });
 
-// "Jump to another unsolved area" — reuses mobileNavigate's frontier-cycling (MobileLayout.js), same
-// logic the never-built portrait ‹/› nav buttons were meant to drive, just triggered from this one
-// button instead. Always dir=1 (next) — there's no "previous" button here to pair it with.
+// "Jump to prev/next unsolved area" — reuses mobileNavigate's frontier-cycling (MobileLayout.js), same
+// logic the never-built portrait ‹/› nav buttons were meant to drive, just triggered from these two
+// instead — one for each direction around the circular sweep.
+var duelFindPrevBtn = document.getElementById("duel_find_prev_btn");
 var duelFindNextBtn = document.getElementById("duel_find_next_btn");
+if (duelFindPrevBtn) duelFindPrevBtn.addEventListener("click", function() { mobileNavigate(-1); });
 if (duelFindNextBtn) duelFindNextBtn.addEventListener("click", function() { mobileNavigate(1); });
+
+// Double-tap/double-click zoom toggle (mobile duel only — see zoomDuelOut/zoomDuelIn, MobileLayout.js):
+// zoomed in, a double tap/click zooms back out to the whole-board overview; zoomed out, any tap/click
+// zooms in on wherever it landed instead of attempting a reveal/flag (the whole point of the overview
+// is that cells are too small to tap precisely at that scale — see the zoomed-out branches below).
+// Deliberately NOT a delay-before-acting scheme (waiting to see if a second tap follows would add
+// latency to every ordinary single-tap reveal) — the first tap of a pair still fires its normal action
+// immediately, same as always; only on an actual SECOND tap, close in time and position to the first,
+// does the zoom-out trigger ADDITIONALLY, checked entirely after the fact.
+var duelLastTapAt = 0, duelLastTapX = 0, duelLastTapY = 0;
+var DUEL_DOUBLE_TAP_MS = 350;
+var DUEL_DOUBLE_TAP_TOLERANCE = 40;
+function duelIsDoubleTap(x, y) {
+	var now = Date.now();
+	var isDouble = (now - duelLastTapAt) < DUEL_DOUBLE_TAP_MS
+		&& Math.abs(x - duelLastTapX) < DUEL_DOUBLE_TAP_TOLERANCE
+		&& Math.abs(y - duelLastTapY) < DUEL_DOUBLE_TAP_TOLERANCE;
+	duelLastTapAt = isDouble ? 0 : now; // consume the pair — a third quick tap starts a fresh pair, not a triple
+	duelLastTapX = x;
+	duelLastTapY = y;
+	return isDouble;
+}
 
 playerCanvas.onclick = function(event) {
 	if (Date.now() - lastTouchAt < 500) return;
+	if (typeof isDuelLandscapeMobile === "function" && isDuelLandscapeMobile()) {
+		if (typeof duelZoomedOut !== "undefined" && duelZoomedOut) {
+			var cell = cellFromClient(event.clientX, event.clientY);
+			if (cell) zoomDuelIn(cell.r, cell.c);
+			return;
+		}
+	}
 	boardClicked(event);
+};
+playerCanvas.ondblclick = function() {
+	if (typeof isDuelLandscapeMobile === "function" && isDuelLandscapeMobile()
+		&& typeof duelZoomedOut !== "undefined" && !duelZoomedOut) {
+		zoomDuelOut();
+	}
 };
 playerCanvas.oncontextmenu = function(event) {
 	event.preventDefault();
@@ -556,6 +593,11 @@ playerCanvas.addEventListener("touchstart", function(e) {
 	pressedCell = cellFromClient(t.clientX, t.clientY);
 	if (pressedCell) updatePressHighlightOverlay();
 	if (longPressTimer) clearTimeout(longPressTimer);
+	// Zoomed-out mobile duel: nothing here is precise enough to flag either — a stationary press just
+	// zooms in on release (touchend, below), same as a plain tap does at this zoom level. Skip starting
+	// the long-press timer entirely so it can't race that.
+	if (typeof isDuelLandscapeMobile === "function" && isDuelLandscapeMobile()
+		&& typeof duelZoomedOut !== "undefined" && duelZoomedOut) return;
 	longPressTimer = setTimeout(function() {
 		longPressTimer = null;
 		if (touchMoved) return;
@@ -589,6 +631,16 @@ playerCanvas.addEventListener("touchend", function(e) {
 		return;
 	}
 	e.preventDefault();
+	if (typeof isDuelLandscapeMobile === "function" && isDuelLandscapeMobile()) {
+		if (typeof duelZoomedOut !== "undefined" && duelZoomedOut) {
+			// Zoomed out: any tap zooms back in on whatever's under it instead of attempting a reveal/
+			// flag — see zoomDuelIn's own comment for why.
+			var cell = cellFromClient(touchStartX, touchStartY);
+			if (cell) zoomDuelIn(cell.r, cell.c);
+			return;
+		}
+		if (duelIsDoubleTap(touchStartX, touchStartY)) zoomDuelOut();
+	}
 	// Tap acts directly on the tapped cell, per the shared reveal/flag mode — same on mobile and desktop.
 	emitBoardActionAt(touchStartX, touchStartY, flagMode);
 }, { passive: false });
@@ -1947,15 +1999,18 @@ function localRoundStartReveal() {
 	// there's actually a round to play. Re-fit to the FINAL zoomed cell size first (sizePlayerCanvas —
 	// sets the canvas's real backing resolution once, and #board_scroll's own width/margin) so the
 	// reveal below draws at that resolution, THEN animate the DISPLAY size + scroll position back from
-	// the overview up to it (animateDuelZoomIn, MobileLayout.js) — a visual-only CSS/scroll animation
+	// the overview up to it (animateDuelZoomTo, MobileLayout.js) — a visual-only CSS/scroll animation
 	// over the already-drawn raster, so GO reads as zooming into the cascade's own origin instead of an
 	// instant cut. fromCellPx has to be captured before sizePlayerCanvas overwrites it with the final
 	// value. Where it lands isn't always centerR/centerC itself — pickZoomTarget (MobileLayout.js) finds
-	// a more useful spot along the reveal's own boundary instead; see its own comment.
+	// a more useful spot along the reveal's own boundary instead; see its own comment. duelZoomedOut
+	// resets here too — the player's own zoom toggle (below the board, MobileLayout.js) shouldn't carry
+	// over from whatever they left the PREVIOUS round zoomed to.
 	var duelMobile = typeof isDuelLandscapeMobile === "function" && isDuelLandscapeMobile();
 	var fromCellPx = duelMobile ? parseFloat(playerCanvas.style.width) / cols : 0;
 	var zoomR = centerR, zoomC = centerC;
 	if (duelMobile) {
+		duelZoomedOut = false;
 		sizePlayerCanvas();
 		var toCellPx = parseFloat(playerCanvas.style.width) / cols;
 		if (boardScroll && toCellPx > 0 && typeof pickZoomTarget === "function") {
@@ -1966,7 +2021,7 @@ function localRoundStartReveal() {
 		}
 	}
 	renderPlayerBoard();
-	if (duelMobile) animateDuelZoomIn(zoomR, zoomC, fromCellPx);
+	if (duelMobile) animateDuelZoomTo(zoomR, zoomC, fromCellPx);
 	if (targets.length && typeof startOpponentRevealAnim === "function") startOpponentRevealAnim(targets);
 }
 
