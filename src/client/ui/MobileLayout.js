@@ -162,6 +162,54 @@ function sizePlayerCanvas() {
 	}
 }
 
+// Picks WHERE the GO zoom-in (below) actually lands — not always the board's exact geometric center,
+// even though that's where the opening cascade itself always originates from (localRoundStartReveal,
+// Main.js — a game rule, every player's board shares the same opening, unrelated to where the camera
+// ends up looking). By the time the cascade's done flooding outward, the center is usually deep inside
+// the newly-revealed blob: all clear, nothing left to click, a boring first view. Scans `state`'s own
+// reveal BOUNDARY (a KNOWN cell touching at least one still-UNKNOWN neighbor — an interior cell is
+// skipped outright, its neighborhood is nearly always all-revealed regardless of window size, so it can
+// never score well) for whichever boundary cell's own immediate viewCols×viewRows neighborhood — the
+// same footprint the final zoomed-in viewport will actually show — comes closest to an even 50/50 mix
+// of revealed vs still-covered cells: some clues already up to read, some cells right there to act on,
+// the most "interesting" place to actually start playing. `centerR`/`centerC` (the true geometric
+// center) is only the fallback for the degenerate case where nothing qualifies as a boundary at all
+// (the cascade happened to clear the entire board). A small distance-to-center term breaks near-ties in
+// favor of the more central candidate, purely for predictability when several spots score about the same.
+function pickZoomTarget(state, centerR, centerC, viewCols, viewRows) {
+	var halfC = viewCols / 2, halfR = viewRows / 2;
+	var best = null, bestScore = Infinity;
+	for (var r = 0; r < rows; r++) {
+		for (var c = 0; c < cols; c++) {
+			if (state[r][c] !== KNOWN) continue;
+			var onBoundary = false;
+			for (var dr = -1; dr <= 1 && !onBoundary; dr++) {
+				for (var dc = -1; dc <= 1 && !onBoundary; dc++) {
+					if (dr === 0 && dc === 0) continue;
+					var nr = r + dr, nc = c + dc;
+					if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue;
+					if (state[nr][nc] !== KNOWN) onBoundary = true;
+				}
+			}
+			if (!onBoundary) continue;
+			var r0 = Math.max(0, Math.round(r - halfR)), r1 = Math.min(rows - 1, Math.round(r + halfR));
+			var c0 = Math.max(0, Math.round(c - halfC)), c1 = Math.min(cols - 1, Math.round(c + halfC));
+			var total = 0, known = 0;
+			for (var wr = r0; wr <= r1; wr++) {
+				for (var wc = c0; wc <= c1; wc++) {
+					total++;
+					if (state[wr][wc] === KNOWN) known++;
+				}
+			}
+			if (!total) continue;
+			var dCenter = (r - centerR) * (r - centerR) + (c - centerC) * (c - centerC);
+			var score = Math.abs(known / total - 0.5) + 0.0001 * dCenter;
+			if (score < bestScore) { bestScore = score; best = { r: r, c: c }; }
+		}
+	}
+	return best || { r: centerR, c: centerC };
+}
+
 // Animates the mobile duel's whole-board OVERVIEW (fitDesktopCellPx, above) zooming into the opening
 // cascade's own cell size, converging on (centerR, centerC) — so GO reads as "zooming in on where
 // you're starting" instead of an instant cut from one cell size/scroll position to another. Called

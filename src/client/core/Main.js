@@ -1944,18 +1944,29 @@ function localRoundStartReveal() {
 	// (roundStartTime, which this same countDown/onDone sequence just stamped a moment ago, in
 	// Overlay.js — gates its own floor, see the comment there) so the player can size up what they're
 	// about to solve during the countdown, then zoom into the same 56px-floor cell size as before once
-	// there's actually a round to play. Re-fit to the FINAL zoomed size/position first (sizePlayerCanvas
-	// — sets the canvas's real backing resolution once, and #board_scroll's own width/margin) so the
+	// there's actually a round to play. Re-fit to the FINAL zoomed cell size first (sizePlayerCanvas —
+	// sets the canvas's real backing resolution once, and #board_scroll's own width/margin) so the
 	// reveal below draws at that resolution, THEN animate the DISPLAY size + scroll position back from
 	// the overview up to it (animateDuelZoomIn, MobileLayout.js) — a visual-only CSS/scroll animation
 	// over the already-drawn raster, so GO reads as zooming into the cascade's own origin instead of an
 	// instant cut. fromCellPx has to be captured before sizePlayerCanvas overwrites it with the final
-	// value.
+	// value. Where it lands isn't always centerR/centerC itself — pickZoomTarget (MobileLayout.js) finds
+	// a more useful spot along the reveal's own boundary instead; see its own comment.
 	var duelMobile = typeof isDuelLandscapeMobile === "function" && isDuelLandscapeMobile();
 	var fromCellPx = duelMobile ? parseFloat(playerCanvas.style.width) / cols : 0;
-	if (duelMobile) sizePlayerCanvas();
+	var zoomR = centerR, zoomC = centerC;
+	if (duelMobile) {
+		sizePlayerCanvas();
+		var toCellPx = parseFloat(playerCanvas.style.width) / cols;
+		if (boardScroll && toCellPx > 0 && typeof pickZoomTarget === "function") {
+			var target = pickZoomTarget(initialState, centerR, centerC,
+				boardScroll.clientWidth / toCellPx, boardScroll.clientHeight / toCellPx);
+			zoomR = target.r;
+			zoomC = target.c;
+		}
+	}
 	renderPlayerBoard();
-	if (duelMobile) animateDuelZoomIn(centerR, centerC, fromCellPx);
+	if (duelMobile) animateDuelZoomIn(zoomR, zoomC, fromCellPx);
 	if (targets.length && typeof startOpponentRevealAnim === "function") startOpponentRevealAnim(targets);
 }
 

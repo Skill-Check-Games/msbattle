@@ -760,6 +760,27 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   final huge size first. `queueRevealAnimations`/`cellAnims` only ever store `(r,c)` + a start timestamp
   (not pixel coordinates), and every repaint recomputes cell position from the CURRENT cell size —
   confirmed safe to resize (and, now, animate the size of) mid-reveal-animation.
+  **The zoom-in target isn't always the true center, either**: the opening cascade always originates
+  from the board's exact center (a game rule — every player's board shares the same opening, computed
+  from `Math.floor(rows/2), Math.floor(cols/2)`) but by the time a big cascade finishes flooding
+  outward, that center cell is usually deep inside the newly-revealed blob — all-clear, nothing left to
+  click, a boring first thing to see. `pickZoomTarget(state, centerR, centerC, viewCols, viewRows)`
+  (`MobileLayout.js`, called from `localRoundStartReveal` right after `sizePlayerCanvas()` — needs the
+  FINAL zoomed cell size to convert `#board_scroll`'s pixel dimensions into a cell-count viewport
+  footprint first) scans the reveal's own boundary (a `KNOWN` cell touching at least one still-`UNKNOWN`
+  neighbor — interior cells are skipped outright, their neighborhood is nearly always all-revealed
+  regardless of window size) for whichever boundary cell's own immediate viewport-sized neighborhood
+  comes closest to an even 50/50 split of revealed vs covered — some clues already up to read, some
+  cells right there to act on. Falls back to the true center only in the degenerate case where nothing
+  qualifies as a boundary at all (the cascade cleared the entire board); a small distance-to-center term
+  in the score breaks near-ties toward the more central candidate, purely for predictability when
+  several spots score about the same. Verified against a deliberately large all-clear blob (the "boring
+  center" case reproduced on purpose): the true center scored a 100%-revealed window, `pickZoomTarget`
+  landed on a boundary cell scoring 62.5% instead — and against a realistically-sized small opening,
+  landed right at its own edge, same as expected. `centerR`/`centerC` themselves are untouched — they
+  still drive the actual cascade origin (`BoardLogic.cascadeReveal`) and every opponent's identical
+  reveal (`startOpponentRevealAnim`'s `targets`); only the local camera's landing spot (`zoomR`/`zoomC`
+  in `localRoundStartReveal`) is redirected.
   **The "jump to another unsolved area" button's pan (below) is smooth too, with no extra code needed**:
   `scrollToCell(r, c, true)` (`MobileLayout.js`, already existed) passes `behavior: "smooth"` to the
   native `Element.scrollTo` — the browser already animates that on its own, verified by sampling
