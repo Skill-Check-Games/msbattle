@@ -830,16 +830,20 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   pannable-board branch (above) explicitly narrows `#board_scroll`'s own `style.width` to fit the LAST
   computed cell size, so reading it back here would be circular, always chasing the previous value.
   **"Jump to prev/next unsolved area" buttons**: `#duel_find_prev_btn`/`#duel_find_next_btn`
-  (index.html, third/fourth buttons in the Reveal/Flag row, icon-only/`flex: 0 0 auto` so they don't
-  steal Reveal/Flag's width) revive `mobileNavigate` (`MobileLayout.js`) — written for a `‹ / ›` nav
-  button pair that never actually got built, so this was dead code with no callers until now. Its guard
-  (`!mobileLayout` → now `!boardIsPannable()`, a shared `mobileLayout || isDuelLandscapeMobile()`
-  helper also used by `sizePlayerCanvas`'s own branch condition) is what made it reachable from here at
-  all. **Originally shipped as a single button** (always `dir=1`, no "previous" to pair it with) — split
-  into this `‹`/`›` pair on request, each just calling `mobileNavigate(-1)`/`mobileNavigate(1)`; no
-  change needed in `mobileNavigate` itself, it already took a direction. The existing auto-appearing
-  hint arrow (`#find_next_arrow`/`updateMobileFindNextHint`) stays `mobileLayout`-only, untouched — a
-  deliberately separate feature from these on-demand buttons.
+  (index.html, flanking Reveal/Flag on either side — prev first, then Reveal, Flag, next, in DOM order,
+  which is also visual order since `.duel-mode-toggle` is a plain flex row with no `order` overrides —
+  icon-only/`flex: 0 0 auto` so they don't steal Reveal/Flag's width) revive `mobileNavigate`
+  (`MobileLayout.js`) — written for a `‹ / ›` nav button pair that never actually got built, so this was
+  dead code with no callers until now. Its guard (`!mobileLayout` → now `!boardIsPannable()`, a shared
+  `mobileLayout || isDuelLandscapeMobile()` helper also used by `sizePlayerCanvas`'s own branch
+  condition) is what made it reachable from here at all. **Originally shipped as a single button**
+  trailing after Flag (always `dir=1`, no "previous" to pair it with) — split into this `‹`/`›` pair on
+  request, each just calling `mobileNavigate(-1)`/`mobileNavigate(1)` (no change needed in
+  `mobileNavigate` itself, it already took a direction), **then moved to flank Reveal/Flag** rather than
+  both trailing after them, again on request — purely a DOM reorder in index.html, `getElementById`
+  wiring in Main.js doesn't care about position. The existing auto-appearing hint arrow
+  (`#find_next_arrow`/`updateMobileFindNextHint`) stays `mobileLayout`-only, untouched — a deliberately
+  separate feature from these on-demand buttons.
   **Cell-by-cell stepping wasn't good enough, reworked into area-cycling**: the original revived version
   stepped through `getSortedFrontierCells`'s flat, circularly-sorted list of individual UNKNOWN cells one
   at a time — which (a) could land on a cell that's a deducible mine the player just hasn't flagged yet

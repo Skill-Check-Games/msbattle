@@ -636,21 +636,22 @@
 								<span class="find-next-arrow-glyph" aria-hidden="true">→</span>
 							</button>
 							<div class="duel-mode-toggle" id="duel_mode_toggle" aria-hidden="true">
-								<button type="button" id="duel_reveal_btn" class="duel-mode-btn duel-mode-btn-active" aria-pressed="true">
-									<span class="duel-mode-btn-icon" aria-hidden="true">👆</span> Reveal
-								</button>
-								<button type="button" id="duel_flag_btn" class="duel-mode-btn" aria-pressed="false">
-									<span class="duel-mode-btn-icon" aria-hidden="true">🚩</span> Flag
-								</button>
 								<!-- Manual counterpart to #find_next_arrow's auto-appearing hint (which stays
 								     off here — that's still mobileLayout-only, see updateMobileFindNextHint,
 								     MobileLayout.js): jumps to the next/prev unsolved area in the same circular
 								     sweep mobileNavigate walks (getFrontierClusters), on demand, without waiting
 								     for the arrow to decide nothing solvable is on screen. Two buttons circling
-								     opposite directions around the sweep, not one — Icon-only so Reveal/Flag
-								     keep the width. -->
+								     opposite directions around the sweep, flanking Reveal/Flag on either side
+								     (prev on the left, next on the right) rather than both trailing after —
+								     icon-only so Reveal/Flag still keep most of the row's width. -->
 								<button type="button" id="duel_find_prev_btn" class="duel-mode-btn duel-find-nav-btn" aria-label="Jump to the previous unsolved area">
 									<span class="duel-mode-btn-icon" aria-hidden="true">‹</span>
+								</button>
+								<button type="button" id="duel_reveal_btn" class="duel-mode-btn duel-mode-btn-active" aria-pressed="true">
+									<span class="duel-mode-btn-icon" aria-hidden="true">👆</span> Reveal
+								</button>
+								<button type="button" id="duel_flag_btn" class="duel-mode-btn" aria-pressed="false">
+									<span class="duel-mode-btn-icon" aria-hidden="true">🚩</span> Flag
 								</button>
 								<button type="button" id="duel_find_next_btn" class="duel-mode-btn duel-find-nav-btn" aria-label="Jump to the next unsolved area">
 									<span class="duel-mode-btn-icon" aria-hidden="true">›</span>
