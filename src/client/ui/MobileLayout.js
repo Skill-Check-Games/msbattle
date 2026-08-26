@@ -154,11 +154,26 @@ function sizePlayerCanvas() {
 		// Constrain the scroll viewport to a whole number of cells (centered), so its edges always land
 		// on cell boundaries — combined with whole-step panning (snapBoardScroll), no cell is ever
 		// rendered half-visible. Puzzles keep their fixed centered box (marathon boards don't).
-		if (boardScroll && !fixedBox) {
+		// Duel-landscape is deliberately excluded from this crop-to-content-width treatment: it wants a
+		// FIXED-size "game area" (#board_scroll) regardless of zoom level — the board (canvas) pans/
+		// zooms freely INSIDE it via overflow:auto, but the area itself must never resize, or the whole
+		// card (and the reveal/flag/nav row below it, sharing the same .board-wrap) visibly shifts width
+		// every time the player zooms in or out. #board_scroll's own landscape CSS (flex:1 inside
+		// .board-wrap's column-direction flex, no explicit width there) already stretches it to fill the
+		// full available width on its own — simply never overwriting style.width here is what keeps it
+		// constant; explicitly clearing any width/margin a DIFFERENT layout may have set as an inline
+		// style earlier in the same session (e.g. portrait mobile, before switching into duel-landscape
+		// without a full reload) makes sure that stretch actually takes over instead of an inline style
+		// silently overriding it.
+		if (boardScroll && !fixedBox && !isDuelLandscapeMobile()) {
 			var visW = Math.min(cols, Math.floor(mobileAvailW() / cellPx)) * cellPx;
 			boardScroll.style.width = visW + "px";
 			boardScroll.style.marginLeft = "auto";
 			boardScroll.style.marginRight = "auto";
+		} else if (boardScroll && isDuelLandscapeMobile()) {
+			boardScroll.style.width = "";
+			boardScroll.style.marginLeft = "";
+			boardScroll.style.marginRight = "";
 		}
 	} else {
 		playerCanvas.style.height = "auto";

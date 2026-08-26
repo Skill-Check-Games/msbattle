@@ -4501,6 +4501,17 @@ body.duel-landscape-mode .game-view.duo .board-scroll {
 	-ms-overflow-style: none;
 }
 body.duel-landscape-mode .game-view.duo .board-scroll::-webkit-scrollbar { display: none; width: 0; height: 0; }
+/* Horizontally centers the canvas within #board_scroll's now-FIXED-size game area (MobileLayout.js —
+   sizePlayerCanvas deliberately never resizes #board_scroll itself here) whenever the canvas is
+   narrower than it — the whole-board OVERVIEW, mainly, where the board doesn't fill the area it's given.
+   margin:0 auto specifically, not text-align:center or a flex/grid justify-content:center on the parent:
+   those center OVERFLOWING content symmetrically on both sides too, which would silently break every
+   scrollLeft/Top computation elsewhere (all of it assumes scrollLeft:0 means "showing the canvas's own
+   left edge," not "half the overflow is hidden to the left already") — margin:auto's classic
+   over-constrained-case behavior resolves to 0 instead of negative when the canvas is WIDER than its
+   container, so a zoomed-in (overflowing) canvas still starts flush at the left edge, scrollLeft:0
+   still means exactly what the rest of this file assumes it means. */
+body.duel-landscape-mode .game-view.duo .board-scroll canvas { display: block; margin: 0 auto; }
 /* The Gold skin's vignette (::after) is a position:absolute overlay that doesn't scroll with a
    scrollable board's content — see the same rule in the portrait-mobile block for the full
    explanation. */

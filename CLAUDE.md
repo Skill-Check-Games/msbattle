@@ -790,6 +790,38 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   through `fitDesktopCellPx`) before `animateDuelZoomTo`. Reset to `true` at the start of every round
   (`localRoundStartReveal`, Main.js — see the overview-through-GO bullet above) so a round never
   inherits the previous one's zoom state.
+  **The "game area" itself was resizing between zoom levels, reported as jank plus layout shifts
+  elsewhere on the page, fixed**: `sizePlayerCanvas`'s pannable-board branch (shared with portrait
+  `mobileLayout`) used to set `#board_scroll`'s own `style.width` to `visW` — the current cell size's
+  own crop-to-whole-columns width, which is naturally a DIFFERENT number at the overview size than at
+  the 56px-floor size. So `#board_scroll` itself — the "game area" card, along with the Reveal/Flag/nav
+  row sharing `.board-wrap` below it — was visibly changing width every time the player zoomed, not just
+  the board inside it. Fixed by excluding `isDuelLandscapeMobile()` from that branch entirely: this
+  layout wants a FIXED-size game area regardless of zoom level, with the board (canvas) panning/zooming
+  freely INSIDE it via `overflow: auto`, never the area itself. `#board_scroll`'s own landscape CSS
+  (`flex: 1` inside `.board-wrap`'s column-direction flex, no explicit width) already stretches it to
+  fill the full available width on its own whenever nothing overwrites `style.width` — the fix is
+  mostly just NOT setting it, plus explicitly clearing any width/margin a DIFFERENT layout might have
+  left as an inline style earlier in the same session (portrait mobile, before switching into
+  duel-landscape without a full reload) so that stretch actually takes over. Portrait `mobileLayout`
+  keeps the original `visW`-cropping behavior unchanged — a board narrower than ITS viewport genuinely
+  looks better centered there than pinned to one edge, and it doesn't have this layout's "zoom between
+  two very different sizes" problem to begin with. Verified `#board_scroll.getBoundingClientRect()` (and
+  every other element sharing the row — the side panels, the toggle row) is byte-identical between the
+  overview and zoomed states.
+  **The now-narrower-than-its-fixed-area overview board looked a little off-center, polished**: added
+  `display: block; margin: 0 auto;` on the canvas itself (`.board-scroll canvas`, landscape-scoped) —
+  deliberately NOT `text-align: center` on `#board_scroll` or a flex/grid `justify-content: center`,
+  both of which center OVERFLOWING content symmetrically on both sides too, which would silently break
+  every `scrollLeft`/`Top` computation in this file (all of it assumes `scrollLeft: 0` means "showing
+  the canvas's own left edge," not "half the overflow is already hidden off-screen to the left").
+  `margin: auto`'s classic over-constrained-case behavior resolves to `0` instead of going negative when
+  the canvas is WIDER than its container, so a zoomed-in (overflowing) canvas still starts flush at the
+  container's left edge — `scrollLeft: 0` still means exactly what the rest of the code assumes.
+  Verified both ends: the overview canvas's left/right gaps within `#board_scroll` are pixel-equal
+  (genuinely centered), and after zooming in to explicitly target the board's own top-left corner
+  `(0, 0)`, the canvas's own left edge lines up exactly flush with `#board_scroll`'s — no
+  overflow-centering offset sneaking into the math anywhere.
   **Real bug, reported as "the board goes black and I can't play anymore"**: `sizePlayerCanvas()`
   reassigns the canvas's backing `width`/`height` attributes whenever the cell size actually changes —
   which the HTML canvas spec defines as clearing its contents outright, same as every OTHER resize call
