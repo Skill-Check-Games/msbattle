@@ -738,107 +738,58 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   Only the 1v1 (`.ranked-result`) shape needed handling — the 6-player standings-list variant never
   shows here, this layout is duo-only. Desktop and portrait mobile (which have real vertical headroom)
   are untouched, same reasoning as every other `body.duel-landscape-mode`-gated rule in this file.
-  **Whole-board overview during the countdown, zooming into the opening cascade at GO**: the 56px-floor
-  zoom (above) is great for tapping accurately mid-round, but useless for getting your bearings before
-  the round even starts — nothing's clickable yet, so `fitDesktopCellPx` (`MobileLayout.js`) now only
-  applies that floor once `roundStartTime > 0` (stamped the instant GO fires, `countDown`'s onDone,
-  Overlay.js). Before that it floors at `1` instead — effectively no floor, just whatever cell size
-  fits the WHOLE board on screen — so the player can size up what they're about to solve during the
-  countdown. `localRoundStartReveal` (Main.js — the shared onDone for every racing mode, fires the
-  guaranteed opening cascade from the board's exact center, `Math.floor(rows/2), Math.floor(cols/2)`,
-  the same cell every player's board shares) now also calls `sizePlayerCanvas()` right before its own
-  `renderPlayerBoard()`, gated on `isDuelLandscapeMobile()` — draws the reveal at the FINAL (zoomed)
-  backing resolution once, so nothing needs to be redrawn again as the zoom below plays out.
-  **Animated, not instant** — a first version just snapped straight to the new size/scroll position, but
-  that read as an abrupt cut, not "zooming in on where you're starting." `animateDuelZoomIn(centerR,
-  centerC, fromCellPx)` (`MobileLayout.js`, called right after `sizePlayerCanvas()`) is a plain
-  `requestAnimationFrame` loop, ~450ms, ease-out cubic: each frame recomputes an interpolated `cellPx`
-  between the overview size and the final one, writes it straight to `playerCanvas.style.width/height`
-  (CSS display size only — the backing resolution/raster was already fixed by the one `sizePlayerCanvas`
-  call above, so this never re-renders, just rescales the existing frame each tick, cheap), and
-  re-centers `#board_scroll`'s `scrollLeft`/`scrollTop` on `(centerR, centerC)` at that frame's cell
-  size (same math as `scrollToCell`, just re-run every tick against the moving cell size instead of
-  once) — clamps harmlessly to the scroll range's own bounds early on, when the board's still too small
-  to overflow at all. `fromCellPx` has to be captured BEFORE `sizePlayerCanvas()` runs (it overwrites
-  `playerCanvas.style.width` with the final value) — the animation's own first frame immediately
-  overrides it back down to the start size before the browser's next paint, so there's no flash of the
-  final huge size first. `queueRevealAnimations`/`cellAnims` only ever store `(r,c)` + a start timestamp
-  (not pixel coordinates), and every repaint recomputes cell position from the CURRENT cell size —
-  confirmed safe to resize (and, now, animate the size of) mid-reveal-animation.
-  **The zoom-in target isn't always the true center, either**: the opening cascade always originates
-  from the board's exact center (a game rule — every player's board shares the same opening, computed
-  from `Math.floor(rows/2), Math.floor(cols/2)`) but by the time a big cascade finishes flooding
-  outward, that center cell is usually deep inside the newly-revealed blob — all-clear, nothing left to
-  click, a boring first thing to see. `pickZoomTarget(state, centerR, centerC, viewCols, viewRows)`
-  (`MobileLayout.js`, called from `localRoundStartReveal` right after `sizePlayerCanvas()` — needs the
-  FINAL zoomed cell size to convert `#board_scroll`'s pixel dimensions into a cell-count viewport
-  footprint first) scans the reveal's own boundary (a `KNOWN` cell touching at least one still-`UNKNOWN`
-  neighbor — interior cells are skipped outright, their neighborhood is nearly always all-revealed
-  regardless of window size) for whichever boundary cell's own immediate viewport-sized neighborhood
-  comes closest to an even 50/50 split of revealed vs covered — some clues already up to read, some
-  cells right there to act on. Falls back to the true center only in the degenerate case where nothing
-  qualifies as a boundary at all (the cascade cleared the entire board); a small distance-to-center term
-  in the score breaks near-ties toward the more central candidate, purely for predictability when
-  several spots score about the same. Verified against a deliberately large all-clear blob (the "boring
-  center" case reproduced on purpose): the true center scored a 100%-revealed window, `pickZoomTarget`
-  landed on a boundary cell scoring 62.5% instead — and against a realistically-sized small opening,
-  landed right at its own edge, same as expected. `centerR`/`centerC` themselves are untouched — they
-  still drive the actual cascade origin (`BoardLogic.cascadeReveal`) and every opponent's identical
-  reveal (`startOpponentRevealAnim`'s `targets`); only the local camera's landing spot (`zoomR`/`zoomC`
-  in `localRoundStartReveal`) is redirected.
-  **Slowed down on request**: `animateDuelZoomTo`'s (renamed from `animateDuelZoomIn` — see the manual
-  zoom toggle below, it's no longer only ever zooming IN) `DURATION_MS` went 450 → 900. This is the one
-  moment (GO, or the manual zoom toggle) meant to be watched rather than reacted to instantly, unlike
-  every other animation in this layout — worth the extra time specifically here.
-  **Reported as jagged — "starts to zoom into a spot and then changes course a bit," fixed**: the scroll
-  half of the animation used to be DERIVED from `cellPx` every frame (the same formula `scrollToCell`
-  uses, just re-run continuously) instead of interpolated as its own thing. Early on, the canvas is
-  still too small to overflow `#board_scroll` at all, so the browser silently clamps any `scrollLeft`/
-  `scrollTop` assignment down to `0` regardless of what the formula actually asked for — every early
-  frame landed on the same clamped value, going nowhere, until the canvas finally grew large enough to
-  overflow, at which point the real (often already-large) target became reachable and the position had
-  to visibly race to catch up in the animation's remaining frames — exactly the reported kink. Fixed by
-  computing two REAL endpoints once, up front — `fromScrollLeft/Top` (`#board_scroll`'s actual current
-  position) and `toScrollLeft/Top` (the fully-grown final canvas's own clamped target) — and easing
-  directly between those two fixed points every frame, same `t`/curve the cell-size interpolation
-  already uses, instead of re-deriving a moving target from a formula that only becomes valid partway
-  through. Verified by sampling `scrollLeft`/`scrollTop` on every frame of an off-center zoom and
-  checking the single largest frame-to-frame delta across the whole animation — a few px, consistent
-  with ordinary eased motion, no outlier spike anywhere.
-  **That fix alone wasn't enough — reported again as "zooming out begins in the upper-left corner
-  instead of where you are," and zoom-in "goes top-left first too"**: the two-endpoint approach above is
-  correct in principle, but `animateDuelZoomTo` was still reading `fromScrollLeft`/`Top` off the LIVE
-  `boardScroll.scrollLeft`/`Top` itself, at the top of its own body — which callers only ever invoke
-  AFTER already calling `sizePlayerCanvas()` (needed first, to compute `toCellPx`/lock in the final
-  backing resolution). `sizePlayerCanvas`'s pannable-board branch resizes `#board_scroll`'s OWN box
-  width to fit the FINAL cell size — when zooming OUT, that's narrower than before, and the instant it
-  shrinks, the browser silently re-clamps whatever `#board_scroll`'s existing (possibly large)
-  `scrollLeft`/`Top` was down to whatever's still in range for the new, narrower box. So by the time
-  `animateDuelZoomTo` read it, it wasn't reading where the player actually was anymore — it was reading
-  an already-clamped-to-near-0 value, and animating FROM there. Confirmed empirically: sampling
-  `boardScroll.scrollLeft` immediately after `zoomDuelOut()` (before its own first animation frame even
-  had a chance to run) showed it had already snapped to `0`, even though the real pre-call position was
-  `588`. Fixed by having each caller (`zoomDuelOut`, `zoomDuelIn`, `localRoundStartReveal`) capture
-  `fromScrollLeft`/`Top` itself, BEFORE calling `sizePlayerCanvas()`, and pass them into
-  `animateDuelZoomTo` as explicit parameters instead of letting it read the (by-then-corrupted) live
-  value on its own. `zoomDuelIn`/the GO transition (both zoom IN, growing `#board_scroll`) were never
-  actually broken this way — growing a container can't invalidate an existing in-range `scrollLeft` — but
-  they were switched to the same explicit-parameter pattern for consistency and because the fix is free
-  insurance either way. Re-verified with the same sampling approach: the trajectory now starts exactly at
-  the pre-call position and eases smoothly all the way to the target, with no corruption anywhere in the
-  first frame.
+  **Whole-board overview through GO — no auto-zoom-in, on request**: an earlier version had
+  `localRoundStartReveal` auto-zoom in on a picked spot the instant GO fired (see below for the history
+  of that mechanism — `pickZoomTarget`, an early attempt at picking an "interesting" landing spot, and
+  several rounds of animation bugs). Removed entirely on request: the player now stays at the
+  whole-board overview right through the opening reveal, and picks where to zoom in themselves
+  (double-tap/click, `zoomDuelIn` below) instead of the camera deciding for them. `fitDesktopCellPx`
+  (`MobileLayout.js`) already renders the overview automatically whenever `duelZoomedOut` is true — GO
+  just sets that flag (`localRoundStartReveal`, Main.js) instead of clearing it, so the round-is-live
+  floor never takes back over. `pickZoomTarget` was deleted outright (dead code with the auto-zoom gone,
+  not kept around unused) — everything else about the reveal itself (the cascade's origin, every
+  opponent's identical reveal) is untouched, this only ever affected where the local camera looked.
+  **`animateDuelZoomTo` — the manual zoom toggle's (below) animation, and formerly the GO transition's
+  too**: went through several rounds of fixes before landing on its current form, worth understanding
+  since the reasoning generalizes to anything else that might animate this board in the future. First
+  version animated `playerCanvas.style.width`/`height` directly (the actual layout size) every frame,
+  re-deriving `#board_scroll`'s `scrollLeft`/`Top` from a `scrollToCell`-style formula each tick —
+  reported as jagged ("starts toward a spot, then changes course"): early on the canvas doesn't yet
+  overflow `#board_scroll`, so the browser silently clamps any scroll assignment to `0` regardless of
+  what the formula asked for, and once the canvas grew large enough to actually need scrolling, the
+  position had to visibly race to catch up. Interpolating between two precomputed REAL endpoints instead
+  of re-deriving one every frame fixed the "changes course" kink, but not a second bug reported right
+  after — "zoom-out begins in the top-left, zoom-in goes top-left first too": the "current" endpoint was
+  still being read off live `#board_scroll.scrollLeft`/`Top` AFTER the caller had already called
+  `sizePlayerCanvas()`, which resizes `#board_scroll`'s own box to the FINAL size and — when zooming
+  OUT, a narrower one — silently re-clamps whatever scroll position it had down to whatever's still
+  valid the instant it shrinks, before the animation's own first frame ever ran. Both bugs, plus the
+  general cost of animating a layout-affecting property every frame (a synchronous reflow each tick,
+  worse right as the canvas crosses the "fits/doesn't fit `#board_scroll`" boundary — which happens
+  PARTWAY THROUGH a zoom-IN but only at the very end of a zoom-OUT, a real asymmetry that lined up with
+  zoom-out being fixed sooner than zoom-in), went away together by switching to a GPU-composited CSS
+  `transform: scale()` instead of animating `width`/`height` at all: `#board_scroll.scrollLeft`/`Top`
+  jump straight to the FINAL centered position ONCE, immediately valid since the canvas's real layout
+  size is already final by then (no clamping edge case left to get wrong), `transform-origin` is set to
+  the anchor cell's own pixel position in that final-size canvas, and only `scale` animates, from
+  `fromCellPx/toCellPx` up to `1`. CSS scales an element around its `transform-origin` without moving the
+  element's own layout box, so the origin point stays visually fixed on screen for the whole animation —
+  and since the scroll jump already centered that exact point, "fixed on screen" here means "stays
+  centered," the same end result as the old interpolation, just guaranteed by transform semantics
+  instead of hand-rolled math, with no reflow and no scroll-clamping class of bug left to reintroduce.
+  `DURATION_MS` (900, slowed from an initial 450 on request — this is the one moment meant to be watched,
+  not reacted to instantly) and the ease-out-cubic curve are unchanged from the very first version.
   **Manual pinch-style zoom toggle, double-tap/double-click**: `duelZoomedOut` (`MobileLayout.js`) is a
-  standalone boolean `fitDesktopCellPx` now also checks (alongside `roundLive`) when deciding whether to
-  apply the 56px floor — lets a player zoom back OUT to the whole-board overview mid-round to get their
-  bearings, then back IN, reusing the exact same two cell sizes and the exact same `animateDuelZoomTo`
-  the GO transition uses, just triggered on demand instead of automatically. `zoomDuelOut()` anchors the
-  zoom-out on whatever's currently centered in the viewport (read back from `#board_scroll`'s own
-  scroll position) so it feels anchored on "here" rather than jumping to recenter on something else;
-  `zoomDuelIn(targetR, targetC)` takes an explicit target — wherever the player just tapped/clicked.
-  Both call `sizePlayerCanvas()` (which re-reads `duelZoomedOut` through `fitDesktopCellPx`) before
-  `animateDuelZoomTo`, same "final state first, then animate the display size backwards from where it
-  was" pattern the GO transition established. Reset to `false` at the start of every round
-  (`localRoundStartReveal`, Main.js) so a round never inherits the previous one's zoom state.
+  standalone boolean `fitDesktopCellPx` checks (alongside `roundLive`) when deciding whether to apply
+  the 56px floor — lets a player zoom back OUT to the whole-board overview mid-round to get their
+  bearings, then back IN, reusing the exact same two cell sizes and `animateDuelZoomTo` above, just
+  triggered on demand. `zoomDuelOut()` anchors the zoom-out on whatever's currently centered in the
+  viewport (read back from `#board_scroll`'s own scroll position) so it feels anchored on "here" rather
+  than jumping to recenter on something else; `zoomDuelIn(targetR, targetC)` takes an explicit target —
+  wherever the player just tapped/clicked. Both call `sizePlayerCanvas()` (which re-reads `duelZoomedOut`
+  through `fitDesktopCellPx`) before `animateDuelZoomTo`. Reset to `true` at the start of every round
+  (`localRoundStartReveal`, Main.js — see the overview-through-GO bullet above) so a round never
+  inherits the previous one's zoom state.
   **Real bug, reported as "the board goes black and I can't play anymore"**: `sizePlayerCanvas()`
   reassigns the canvas's backing `width`/`height` attributes whenever the cell size actually changes —
   which the HTML canvas spec defines as clearing its contents outright, same as every OTHER resize call

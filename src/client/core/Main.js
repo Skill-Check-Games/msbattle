@@ -2050,41 +2050,19 @@ function localRoundStartReveal() {
 	queueRevealAnimations(initialState);
 	myState = initialState;
 	prevPlayerState = cloneState(initialState);
-	// Mobile duel: fitDesktopCellPx renders a whole-board OVERVIEW right up until the round is live
-	// (roundStartTime, which this same countDown/onDone sequence just stamped a moment ago, in
-	// Overlay.js — gates its own floor, see the comment there) so the player can size up what they're
-	// about to solve during the countdown, then zoom into the same 56px-floor cell size as before once
-	// there's actually a round to play. Re-fit to the FINAL zoomed cell size first (sizePlayerCanvas —
-	// sets the canvas's real backing resolution once, and #board_scroll's own width/margin) so the
-	// reveal below draws at that resolution, THEN animate the DISPLAY size + scroll position back from
-	// the overview up to it (animateDuelZoomTo, MobileLayout.js) — a visual-only CSS/scroll animation
-	// over the already-drawn raster, so GO reads as zooming into the cascade's own origin instead of an
-	// instant cut. fromCellPx has to be captured before sizePlayerCanvas overwrites it with the final
-	// value. Where it lands isn't always centerR/centerC itself — pickZoomTarget (MobileLayout.js) finds
-	// a more useful spot along the reveal's own boundary instead; see its own comment. duelZoomedOut
-	// resets here too — the player's own zoom toggle (below the board, MobileLayout.js) shouldn't carry
-	// over from whatever they left the PREVIOUS round zoomed to.
+	// Mobile duel: stay at the whole-board OVERVIEW through GO instead of auto-zooming in on a picked
+	// spot — the player gets an unobstructed view of the newly-revealed opening and chooses where to
+	// zoom in themselves (a double-tap/click, zoomDuelIn — MobileLayout.js), rather than the camera
+	// deciding for them. fitDesktopCellPx already renders the overview automatically whenever
+	// duelZoomedOut is true (alongside its pre-round-only roundLive check) — setting it here just keeps
+	// that going past GO instead of letting the round-is-live floor take back over. Still reset on every
+	// round (not just left however the PREVIOUS round ended) so a round never inherits stale zoom state.
 	var duelMobile = typeof isDuelLandscapeMobile === "function" && isDuelLandscapeMobile();
-	var fromCellPx = duelMobile ? parseFloat(playerCanvas.style.width) / cols : 0;
-	// Captured before sizePlayerCanvas runs below — it can resize #board_scroll's own box (the
-	// pannable-board branch, MobileLayout.js), which would otherwise silently re-clamp these out from
-	// under us. See animateDuelZoomTo's own comment for the bug this avoids.
-	var fromScrollLeft = duelMobile && boardScroll ? boardScroll.scrollLeft : 0;
-	var fromScrollTop = duelMobile && boardScroll ? boardScroll.scrollTop : 0;
-	var zoomR = centerR, zoomC = centerC;
 	if (duelMobile) {
-		duelZoomedOut = false;
+		duelZoomedOut = true;
 		sizePlayerCanvas();
-		var toCellPx = parseFloat(playerCanvas.style.width) / cols;
-		if (boardScroll && toCellPx > 0 && typeof pickZoomTarget === "function") {
-			var target = pickZoomTarget(initialState, centerR, centerC,
-				boardScroll.clientWidth / toCellPx, boardScroll.clientHeight / toCellPx);
-			zoomR = target.r;
-			zoomC = target.c;
-		}
 	}
 	renderPlayerBoard();
-	if (duelMobile) animateDuelZoomTo(zoomR, zoomC, fromCellPx, fromScrollLeft, fromScrollTop);
 	if (targets.length && typeof startOpponentRevealAnim === "function") startOpponentRevealAnim(targets);
 }
 

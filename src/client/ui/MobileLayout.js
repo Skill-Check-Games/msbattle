@@ -166,73 +166,34 @@ function sizePlayerCanvas() {
 	}
 }
 
-// Picks WHERE the GO zoom-in (below) actually lands — not always the board's exact geometric center,
-// even though that's where the opening cascade itself always originates from (localRoundStartReveal,
-// Main.js — a game rule, every player's board shares the same opening, unrelated to where the camera
-// ends up looking). By the time the cascade's done flooding outward, the center is usually deep inside
-// the newly-revealed blob: all clear, nothing left to click, a boring first view. Scans `state`'s own
-// reveal BOUNDARY (a KNOWN cell touching at least one still-UNKNOWN neighbor — an interior cell is
-// skipped outright, its neighborhood is nearly always all-revealed regardless of window size, so it can
-// never score well) for whichever boundary cell's own immediate viewCols×viewRows neighborhood — the
-// same footprint the final zoomed-in viewport will actually show — comes closest to an even 50/50 mix
-// of revealed vs still-covered cells: some clues already up to read, some cells right there to act on,
-// the most "interesting" place to actually start playing. `centerR`/`centerC` (the true geometric
-// center) is only the fallback for the degenerate case where nothing qualifies as a boundary at all
-// (the cascade happened to clear the entire board). A small distance-to-center term breaks near-ties in
-// favor of the more central candidate, purely for predictability when several spots score about the same.
-function pickZoomTarget(state, centerR, centerC, viewCols, viewRows) {
-	var halfC = viewCols / 2, halfR = viewRows / 2;
-	var best = null, bestScore = Infinity;
-	for (var r = 0; r < rows; r++) {
-		for (var c = 0; c < cols; c++) {
-			if (state[r][c] !== KNOWN) continue;
-			var onBoundary = false;
-			for (var dr = -1; dr <= 1 && !onBoundary; dr++) {
-				for (var dc = -1; dc <= 1 && !onBoundary; dc++) {
-					if (dr === 0 && dc === 0) continue;
-					var nr = r + dr, nc = c + dc;
-					if (nr < 0 || nr >= rows || nc < 0 || nc >= cols) continue;
-					if (state[nr][nc] !== KNOWN) onBoundary = true;
-				}
-			}
-			if (!onBoundary) continue;
-			var r0 = Math.max(0, Math.round(r - halfR)), r1 = Math.min(rows - 1, Math.round(r + halfR));
-			var c0 = Math.max(0, Math.round(c - halfC)), c1 = Math.min(cols - 1, Math.round(c + halfC));
-			var total = 0, known = 0;
-			for (var wr = r0; wr <= r1; wr++) {
-				for (var wc = c0; wc <= c1; wc++) {
-					total++;
-					if (state[wr][wc] === KNOWN) known++;
-				}
-			}
-			if (!total) continue;
-			var dCenter = (r - centerR) * (r - centerR) + (c - centerC) * (c - centerC);
-			var score = Math.abs(known / total - 0.5) + 0.0001 * dCenter;
-			if (score < bestScore) { bestScore = score; best = { r: r, c: c }; }
-		}
-	}
-	return best || { r: centerR, c: centerC };
-}
-
-// Animates the mobile duel board between cell sizes — the GO transition (whole-board OVERVIEW ->
-// opening cascade's zoomed-in size, fitDesktopCellPx) and the manual zoomDuelOut/zoomDuelIn toggle
-// (below) both go through this, converging on (centerR, centerC) either way — so both read as
-// "zooming toward" a point instead of an instant cut from one cell size/scroll position to another.
-// Caller must call sizePlayerCanvas() FIRST so the canvas's backing resolution/#board_scroll's own
-// width/margin are already at their FINAL, correct state before this runs (the pannable-board branch,
-// above, sized #board_scroll to its final, viewport-cropped value) — only the CANVAS's DISPLAY size and
-// the scroll position animate here, board_scroll's own box does not need to change size, and nothing
-// needs to be redrawn mid-animation since the backing raster doesn't change.
-// fromCellPx/fromScrollLeft/fromScrollTop are a snapshot of the board's state before sizePlayerCanvas
-// ran — the caller has to capture ALL THREE itself, and specifically BEFORE calling sizePlayerCanvas,
-// not after: sizePlayerCanvas's pannable-board branch resizes #board_scroll's OWN box width to match
-// the FINAL cell size (visW, computed from the target cellPx) — when zooming OUT, that new width is
-// narrower than the old one, and the instant it shrinks, the browser silently re-clamps #board_scroll's
-// existing (possibly large) scrollLeft/Top down to whatever's still in range for the NEW, narrower box —
-// synchronously, before this function ever runs. Reading boardScroll.scrollLeft/Top from IN HERE, after
-// the caller already resized things, would silently read that already-clamped-to-near-0 value instead of
-// where the player actually was — exactly the reported "zooming out snaps to the top-left corner first."
-function animateDuelZoomTo(centerR, centerC, fromCellPx, fromScrollLeft, fromScrollTop) {
+// Animates the mobile duel board zooming toward (centerR, centerC) — the manual zoomDuelOut/zoomDuelIn
+// toggle (below) goes through this. Caller must call sizePlayerCanvas() FIRST so the canvas's backing
+// resolution/#board_scroll's own width/margin are already at their FINAL, correct state before this
+// runs — this function itself never resizes anything, only animates a CSS transform over the
+// already-correctly-sized board.
+// fromCellPx is a snapshot of the cell size the board was AT before sizePlayerCanvas ran (the caller
+// has to capture it first — sizePlayerCanvas immediately overwrites playerCanvas.style.width with the
+// final value) — the animation's start point.
+//
+// Deliberately a `transform: scale()`, NOT an animated `width`/`height` (an earlier version did that,
+// interpolating scrollLeft/Top alongside it to keep the target centered at each frame's cell size) —
+// width/height are layout-affecting properties, so animating them forces a synchronous reflow on every
+// single frame, and that cost visibly spikes right as the canvas crosses from "fits #board_scroll, no
+// scrolling needed" to "overflows, needs a real scrollable region" — which happens PARTWAY THROUGH a
+// zoom-IN (starts small/non-overflowing, grows into overflowing) but only ever at the very END of a
+// zoom-OUT (starts already overflowing, shrinks out of it right at the finish) — a real asymmetry, and
+// exactly why zoom-out could look fine while zoom-in still visibly hitched. A transform never touches
+// layout, only compositing, so it's smooth in both directions regardless of that crossing.
+// The technique: jump #board_scroll's scrollLeft/Top straight to the FINAL centered position (valid
+// immediately — the canvas's real layout size is ALREADY final, from sizePlayerCanvas above, so nothing
+// clamps), set `transform-origin` to the anchor cell's own pixel position within that final-size canvas,
+// then animate `scale` from `fromCellPx/toCellPx` up to `1`. CSS transforms scale an element AROUND its
+// transform-origin without moving the element's own layout box — so the origin point stays visually
+// fixed on screen for the whole animation, and since the scroll jump already centered that exact point,
+// "fixed on screen" here means "stays centered," the same end result as the old scroll-interpolation
+// approach, just achieved for free by transform semantics instead of hand-rolled math (and with no
+// scroll-clamping edge case left to get wrong — scroll is set once, to its one valid final value).
+function animateDuelZoomTo(centerR, centerC, fromCellPx) {
 	var toCellPx = parseFloat(playerCanvas.style.width) / cols; // sizePlayerCanvas already set this
 	if (!boardScroll || !(fromCellPx > 0) || Math.abs(toCellPx - fromCellPx) < 0.5) return; // nothing worth animating
 	// Slower than a typical UI transition on purpose — this is the one moment (GO, or a manual zoom
@@ -243,25 +204,23 @@ function animateDuelZoomTo(centerR, centerC, fromCellPx, fromScrollLeft, fromScr
 	// "zooming toward" the destination rather than mechanically interpolating toward it.
 	function ease(t) { return 1 - Math.pow(1 - t, 3); }
 	function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
-	// Real start AND end scroll positions, eased directly between the two — NOT re-derived from cellPx
-	// via the scrollToCell-style formula every frame, which would fight the browser's own scrollLeft/Top
-	// clamping (only really scrollable once the canvas has grown enough to overflow #board_scroll) and
-	// produce a "catch up" kink partway through. fromScrollLeft/Top are the CALLER's pre-resize snapshot
-	// (see the comment above — this function must not read boardScroll.scrollLeft/Top itself, that's the
-	// whole bug this is fixing); toScrollLeft/Top is the fully-grown final canvas's own clamped target.
-	var toScrollLeft = clamp((centerC + 0.5) * toCellPx - boardScroll.clientWidth / 2, 0, Math.max(0, cols * toCellPx - boardScroll.clientWidth));
-	var toScrollTop = clamp((centerR + 0.5) * toCellPx - boardScroll.clientHeight / 2, 0, Math.max(0, rows * toCellPx - boardScroll.clientHeight));
+	boardScroll.scrollLeft = clamp((centerC + 0.5) * toCellPx - boardScroll.clientWidth / 2, 0, Math.max(0, cols * toCellPx - boardScroll.clientWidth));
+	boardScroll.scrollTop = clamp((centerR + 0.5) * toCellPx - boardScroll.clientHeight / 2, 0, Math.max(0, rows * toCellPx - boardScroll.clientHeight));
+	playerCanvas.style.transformOrigin = ((centerC + 0.5) * toCellPx) + "px " + ((centerR + 0.5) * toCellPx) + "px";
+	playerCanvas.style.willChange = "transform";
+	var startScale = fromCellPx / toCellPx;
 	var t0 = null;
 	function frame(now) {
 		if (t0 === null) t0 = now;
 		var t = Math.min(1, (now - t0) / DURATION_MS);
-		var e = ease(t);
-		var cellPx = fromCellPx + (toCellPx - fromCellPx) * e;
-		playerCanvas.style.width = (cols * cellPx) + "px";
-		playerCanvas.style.height = (rows * cellPx) + "px";
-		boardScroll.scrollLeft = fromScrollLeft + (toScrollLeft - fromScrollLeft) * e;
-		boardScroll.scrollTop = fromScrollTop + (toScrollTop - fromScrollTop) * e;
-		if (t < 1) requestAnimationFrame(frame);
+		var scale = startScale + (1 - startScale) * ease(t);
+		playerCanvas.style.transform = "scale(" + scale + ")";
+		if (t < 1) { requestAnimationFrame(frame); return; }
+		// Done — scale(1) and no transform at all render identically, so clearing these is invisible;
+		// leaving them set would keep the canvas painted on its own GPU layer indefinitely for no reason.
+		playerCanvas.style.transform = "";
+		playerCanvas.style.transformOrigin = "";
+		playerCanvas.style.willChange = "";
 	}
 	requestAnimationFrame(frame);
 }
@@ -281,9 +240,8 @@ function zoomDuelOut() {
 	if (!isDuelLandscapeMobile() || duelZoomedOut || !boardScroll) return;
 	var fromCellPx = parseFloat(playerCanvas.style.width) / cols;
 	if (!(fromCellPx > 0)) return;
-	var fromScrollLeft = boardScroll.scrollLeft, fromScrollTop = boardScroll.scrollTop;
-	var anchorC = (fromScrollLeft + boardScroll.clientWidth / 2) / fromCellPx - 0.5;
-	var anchorR = (fromScrollTop + boardScroll.clientHeight / 2) / fromCellPx - 0.5;
+	var anchorC = (boardScroll.scrollLeft + boardScroll.clientWidth / 2) / fromCellPx - 0.5;
+	var anchorR = (boardScroll.scrollTop + boardScroll.clientHeight / 2) / fromCellPx - 0.5;
 	duelZoomedOut = true;
 	sizePlayerCanvas();
 	// sizePlayerCanvas reassigns the canvas's backing width/height whenever the cell size actually
@@ -295,7 +253,7 @@ function zoomDuelOut() {
 	// flight (the common case once a round's been idle a beat) nothing ever repainted it again — a real
 	// "board goes black and stays black" bug, not just a one-frame flicker.
 	if (typeof redrawOwnBoardWithFocus === "function") redrawOwnBoardWithFocus();
-	animateDuelZoomTo(anchorR, anchorC, fromCellPx, fromScrollLeft, fromScrollTop);
+	animateDuelZoomTo(anchorR, anchorC, fromCellPx);
 	if (navigator.vibrate) navigator.vibrate(8);
 }
 
@@ -306,12 +264,11 @@ function zoomDuelIn(targetR, targetC) {
 	if (!isDuelLandscapeMobile() || !duelZoomedOut || !boardScroll) return;
 	var fromCellPx = parseFloat(playerCanvas.style.width) / cols;
 	if (!(fromCellPx > 0)) return;
-	var fromScrollLeft = boardScroll.scrollLeft, fromScrollTop = boardScroll.scrollTop;
 	duelZoomedOut = false;
 	sizePlayerCanvas();
 	// Same repaint-after-resize requirement as zoomDuelOut above — see its comment.
 	if (typeof redrawOwnBoardWithFocus === "function") redrawOwnBoardWithFocus();
-	animateDuelZoomTo(targetR, targetC, fromCellPx, fromScrollLeft, fromScrollTop);
+	animateDuelZoomTo(targetR, targetC, fromCellPx);
 	if (navigator.vibrate) navigator.vibrate(8);
 }
 
