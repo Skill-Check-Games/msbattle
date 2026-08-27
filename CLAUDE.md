@@ -822,6 +822,28 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   (genuinely centered), and after zooming in to explicitly target the board's own top-left corner
   `(0, 0)`, the canvas's own left edge lines up exactly flush with `#board_scroll`'s — no
   overflow-centering offset sneaking into the math anywhere.
+  **Still jank right at the trigger instant even after the game-area fix above — a genuinely dropped
+  frame, not a coordinate bug this time**: `zoomDuelOut`/`zoomDuelIn` called the FULL `sizePlayerCanvas()`
+  synchronously, in the same tick as starting the animation — which reassigns the canvas's backing
+  `width`/`height` (clearing it) and demanded an immediate full-resolution redraw of the entire board
+  before the transform animation's first frame could even run. Confirmed by sampling `requestAnimationFrame`
+  timing across the trigger: a steady ~16-17ms between every frame, except exactly ONE ~32ms gap landing
+  precisely on the frame the zoom was triggered — a genuinely dropped frame from synchronous work, not
+  eyeballed jank. Fixed by splitting `sizePlayerCanvas` into two calls: `duelZoomLayoutOnly()` (new,
+  `MobileLayout.js`) at the trigger — cheap, only updates `playerCanvas.style.width`/`height` (CSS layout
+  size), leaving the backing store untouched, so the browser just CSS-stretches the existing raster for
+  now — and the real `sizePlayerCanvas()` (backing store resize + `redrawOwnBoardWithFocus()`) deferred to
+  `animateDuelZoomTo`'s own completion (`finish()`, called whether the animation actually ran or bailed
+  out via its own early-return guard). The "black canvas" fix above still holds — the ONE place that now
+  resizes the backing store is still always immediately followed by a redraw, just later than before.
+  Side effect that turned out favorable, not just a workaround: displaying an under/over-resolved raster
+  via `transform: scale()` during a sub-second transition looks fine in both directions — zooming OUT only
+  ever DOWNSCALES the still-high-res backing store (crisp the whole time, downscaling never blurs), and
+  zooming IN starts close to native resolution (small `scale` on a still-small raster) and only trends
+  soft right at the very end, immediately masked by the deferred crisp redraw landing the instant the
+  transform clears. Re-verified with the same frame-timing sample: max gap dropped to ~20ms (ordinary
+  frame-to-frame variance, no outlier), and confirmed the final backing-store resolution still matches
+  the true DPR-correct target exactly.
   **Real bug, reported as "the board goes black and I can't play anymore"**: `sizePlayerCanvas()`
   reassigns the canvas's backing `width`/`height` attributes whenever the cell size actually changes —
   which the HTML canvas spec defines as clearing its contents outright, same as every OTHER resize call

@@ -181,13 +181,35 @@ function sizePlayerCanvas() {
 	}
 }
 
+// Cheap pre-animation counterpart to sizePlayerCanvas, used only by zoomDuelOut/zoomDuelIn (below):
+// recomputes the target cell size and applies it to the canvas's CSS width/height ONLY — never its
+// backing store (canvas.width/height). Reassigning the backing store is what actually clears the
+// canvas and demands an immediate full-resolution redraw (sizePlayerCanvas does exactly that on every
+// OTHER call site) — cheap on its own, but doing it synchronously in the same tick as the zoom trigger
+// was a real, measured cost (sampled: a single frame taking ~32ms instead of the usual ~16ms, right at
+// the trigger instant — a dropped frame, not just eyeballed jank) severe enough to visibly stutter the
+// very first frame of the animation. The existing (still old-resolution) backing store just gets
+// CSS-stretched to this new layout size for the animation's duration instead — combined with the
+// transform-based `scale` animation below starting from `fromCellPx/toCellPx`, the very first frame
+// still renders at close to native resolution either way (zooming in starts small — near 1:1 with the
+// still-small backing store — and only stretches thinner toward the very end, right before the real
+// redraw below swaps back to crisp; zooming out starts by displaying the same already-high-res backing
+// store at its original size, then only ever DOWNSCALES it, which never blurs). animateDuelZoomTo calls
+// the real sizePlayerCanvas (full resize + redraw) once, after the transform has already settled — so
+// the expensive part still always happens, just deferred to a moment with no simultaneous motion to
+// stutter.
+function duelZoomLayoutOnly() {
+	var cellPx = fitDesktopCellPx();
+	playerCanvas.style.width = (cols * cellPx) + "px";
+	playerCanvas.style.height = (rows * cellPx) + "px";
+	return cellPx;
+}
+
 // Animates the mobile duel board zooming toward (centerR, centerC) — the manual zoomDuelOut/zoomDuelIn
-// toggle (below) goes through this. Caller must call sizePlayerCanvas() FIRST so the canvas's backing
-// resolution/#board_scroll's own width/margin are already at their FINAL, correct state before this
-// runs — this function itself never resizes anything, only animates a CSS transform over the
-// already-correctly-sized board.
-// fromCellPx is a snapshot of the cell size the board was AT before sizePlayerCanvas ran (the caller
-// has to capture it first — sizePlayerCanvas immediately overwrites playerCanvas.style.width with the
+// toggle (below) goes through this, right after duelZoomLayoutOnly (above) has already applied the
+// target CSS size.
+// fromCellPx is a snapshot of the cell size the board was AT before duelZoomLayoutOnly ran (the caller
+// has to capture it first — duelZoomLayoutOnly immediately overwrites playerCanvas.style.width with the
 // final value) — the animation's start point.
 //
 // Deliberately a `transform: scale()`, NOT an animated `width`/`height` (an earlier version did that,
@@ -200,17 +222,26 @@ function sizePlayerCanvas() {
 // exactly why zoom-out could look fine while zoom-in still visibly hitched. A transform never touches
 // layout, only compositing, so it's smooth in both directions regardless of that crossing.
 // The technique: jump #board_scroll's scrollLeft/Top straight to the FINAL centered position (valid
-// immediately — the canvas's real layout size is ALREADY final, from sizePlayerCanvas above, so nothing
-// clamps), set `transform-origin` to the anchor cell's own pixel position within that final-size canvas,
-// then animate `scale` from `fromCellPx/toCellPx` up to `1`. CSS transforms scale an element AROUND its
-// transform-origin without moving the element's own layout box — so the origin point stays visually
-// fixed on screen for the whole animation, and since the scroll jump already centered that exact point,
-// "fixed on screen" here means "stays centered," the same end result as the old scroll-interpolation
-// approach, just achieved for free by transform semantics instead of hand-rolled math (and with no
-// scroll-clamping edge case left to get wrong — scroll is set once, to its one valid final value).
+// immediately — the canvas's real layout size is ALREADY final, from duelZoomLayoutOnly above, so
+// nothing clamps), set `transform-origin` to the anchor cell's own pixel position within that final-size
+// canvas, then animate `scale` from `fromCellPx/toCellPx` up to `1`. CSS transforms scale an element
+// AROUND its transform-origin without moving the element's own layout box — so the origin point stays
+// visually fixed on screen for the whole animation, and since the scroll jump already centered that
+// exact point, "fixed on screen" here means "stays centered," the same end result as the old
+// scroll-interpolation approach, just achieved for free by transform semantics instead of hand-rolled
+// math (and with no scroll-clamping edge case left to get wrong — scroll is set once, to its one valid
+// final value).
 function animateDuelZoomTo(centerR, centerC, fromCellPx) {
-	var toCellPx = parseFloat(playerCanvas.style.width) / cols; // sizePlayerCanvas already set this
-	if (!boardScroll || !(fromCellPx > 0) || Math.abs(toCellPx - fromCellPx) < 0.5) return; // nothing worth animating
+	var toCellPx = parseFloat(playerCanvas.style.width) / cols; // duelZoomLayoutOnly already set this
+	// Full resize (backing store + redraw) + repaint, deferred here from the trigger instant — see
+	// duelZoomLayoutOnly's own comment for why. Runs whether or not the animation below actually starts
+	// (the early-return guard just below still leaves the canvas's CSS size at the new target with a
+	// stale backing store otherwise).
+	function finish() {
+		if (typeof sizePlayerCanvas === "function") sizePlayerCanvas();
+		if (typeof redrawOwnBoardWithFocus === "function") redrawOwnBoardWithFocus();
+	}
+	if (!boardScroll || !(fromCellPx > 0) || Math.abs(toCellPx - fromCellPx) < 0.5) { finish(); return; } // nothing worth animating
 	// Slower than a typical UI transition on purpose — this is the one moment (GO, or a manual zoom
 	// toggle) meant to be watched rather than reacted to instantly, giving the player a real sense of
 	// motion toward where they're headed rather than just registering a before/after.
@@ -236,6 +267,7 @@ function animateDuelZoomTo(centerR, centerC, fromCellPx) {
 		playerCanvas.style.transform = "";
 		playerCanvas.style.transformOrigin = "";
 		playerCanvas.style.willChange = "";
+		finish();
 	}
 	requestAnimationFrame(frame);
 }
@@ -258,16 +290,7 @@ function zoomDuelOut() {
 	var anchorC = (boardScroll.scrollLeft + boardScroll.clientWidth / 2) / fromCellPx - 0.5;
 	var anchorR = (boardScroll.scrollTop + boardScroll.clientHeight / 2) / fromCellPx - 0.5;
 	duelZoomedOut = true;
-	sizePlayerCanvas();
-	// sizePlayerCanvas reassigns the canvas's backing width/height whenever the cell size actually
-	// changes (nearly always true here — that's the whole point) — which, per the HTML canvas spec,
-	// clears its contents outright, same as every other resize call site (e.g. refreshPlayerBoardSize,
-	// below) already has to repaint after. Missing this left the board solid black until SOMETHING else
-	// happened to trigger a repaint — usually masked in quick testing by the reveal-animation RAF loop
-	// (startAnimLoop, Animations.js) still running from a moment earlier, but with no animation in
-	// flight (the common case once a round's been idle a beat) nothing ever repainted it again — a real
-	// "board goes black and stays black" bug, not just a one-frame flicker.
-	if (typeof redrawOwnBoardWithFocus === "function") redrawOwnBoardWithFocus();
+	duelZoomLayoutOnly(); // cheap — CSS size only; the real resize+redraw happens once the zoom settles
 	animateDuelZoomTo(anchorR, anchorC, fromCellPx);
 	if (navigator.vibrate) navigator.vibrate(8);
 }
@@ -280,9 +303,7 @@ function zoomDuelIn(targetR, targetC) {
 	var fromCellPx = parseFloat(playerCanvas.style.width) / cols;
 	if (!(fromCellPx > 0)) return;
 	duelZoomedOut = false;
-	sizePlayerCanvas();
-	// Same repaint-after-resize requirement as zoomDuelOut above — see its comment.
-	if (typeof redrawOwnBoardWithFocus === "function") redrawOwnBoardWithFocus();
+	duelZoomLayoutOnly(); // cheap — CSS size only; the real resize+redraw happens once the zoom settles
 	animateDuelZoomTo(targetR, targetC, fromCellPx);
 	if (navigator.vibrate) navigator.vibrate(8);
 }
