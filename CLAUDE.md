@@ -1132,6 +1132,17 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   start — the two are provably impossible to have simultaneously with a scroll position that's set once,
   since exact anchor-pinning for the WHOLE animation requires scroll to be exactly the anchor's own literal
   position — the opposite of what continuity at t=0 needs in general).
+  **Left panel decluttered, on request**: `#duel_bar_you_corner` (the pct+bar+"N cells left" card,
+  `.duel-bar-corner`) had become a straight duplicate of `#duel_top_progress` once that was added
+  (front-and-center above the board itself, an earlier bullet) — same "you" percentage shown twice.
+  Hidden via `body.duel-landscape-mode .game-view.duo #duel_bar_you_corner { display: none; }` (an ID
+  selector so it beats the shared `.duel-bar-corner` rule regardless of source order) rather than
+  removing the element or its `setDuelBar` mirroring — `#duel_bar_opp_corner` (the opponent's own card,
+  same shared class) has no such duplicate anywhere in this layout and stays exactly as before. The
+  fullscreen button (`#duel_fullscreen_btn`) moved from right next to the back button (both crowded into
+  the panel's top-left) to the panel's top-right corner instead — just `left: calc(...)` swapped for
+  `right: 0.5rem` on its otherwise-unchanged `position: absolute` rule; the back button keeps `left: 0.5rem`
+  unchanged, so the two now sit at opposite corners of the same top strip.
   **6-player battle layout** (`isMultiRacing()`, 3-6 racing players): the same TetrisFriends idea
   scaled up — one big own board on the left with your identity panel (`#duel_id_you`) above it, the
   round timer centered up top (shared `#duel_timer`), and **every** opponent's live board tiled in a
@@ -1258,6 +1269,17 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   `achtung-royale` codebase (a React component — the UX/positioning logic was translated to plain DOM,
   not the JSX itself); `Countries.js`'s `Intl.DisplayNames`-based data layer already matched that approach
   independently, so it needed no changes beyond adding `countryFlagSrcSquare`.
+  **Bots get a random avatar, on request** — makes an "Add bot"-filled casual room preview a genuinely
+  varied-looking match instead of a wall of identical default red flags. `randomBotAvatar()`
+  (`src/server/runtime/bots.js`) draws from the same value set Profile.js's own picker builds client-side
+  (`"anon"`/`"mine"` + `Cosmetics.AVATAR_COLORS` + `"img:"`-prefixed `Cosmetics.AVATAR_IMAGES` keys) —
+  unlike a real player, a bot has no account/ownership to gate against, so it draws from the WHOLE
+  catalogue, purchasable items included; there's nothing to sell a bot. Set into `appState.avatars[botId]`
+  in `addBotToRoom`, before `createPlayerGame` runs (which reads `avatars[playerID]` once, immediately, to
+  populate `game.avatar` — has to happen in that order) and cleaned up in `removeBotEntirely` alongside the
+  rest of a bot's per-id state, matching how real players' entries get cleared on disconnect. Verified by
+  adding a bot to 12 fresh rooms over real sockets and reading each one's `avatar` back off the `room_state`
+  broadcast: 5 distinct values across image presets, `"mine"`, and the purchasable flag colour, never null.
   **Locked items open a purchase modal, not `/shop`:** clicking an unowned avatar/skin inside the
   appearance modal calls `openItemPurchaseModal(item)` (Profile.js) instead of navigating away — a small
   `.cr-modal` stacked on top (`#item_purchase_modal`) showing the item + `buyShopItem` (Shop.js, shared

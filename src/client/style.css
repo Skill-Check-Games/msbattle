@@ -4286,7 +4286,8 @@ body.duel-landscape-mode .game-view.duo .duel-back-btn {
 }
 body.duel-landscape-mode .game-view.duo .duel-back-btn:hover { color: var(--text); border-color: var(--duel-you); }
 
-/* Fullscreen entry, right next to the back button — same size/look, just offset one slot over.
+/* Fullscreen entry — top-right corner of the panel, opposite the back button (originally right next to
+   it, top-left; moved on request so the two don't crowd the same corner). Same size/look either way.
    Hidden the instant body.game-fullscreen is set (wireDuelFullscreenButton/syncFullscreenChrome,
    Fullscreen.js) instead of swapping to a "compress" icon the way the header's own #fullscreen_btn
    does — this one only ever needs to get IN, .duel-back-btn is already the way out. Also hidden
@@ -4298,7 +4299,7 @@ body.duel-landscape-mode .game-view.duo .duel-fullscreen-btn {
 	justify-content: center;
 	position: absolute;
 	top: 0.5rem;
-	left: calc(0.5rem + 28px + 6px);
+	right: 0.5rem;
 	width: 28px;
 	height: 28px;
 	border-radius: 8px;
@@ -4385,6 +4386,12 @@ body.duel-landscape-mode .game-view.duo .duel-bar-corner-row { width: 100%; just
 body.duel-landscape-mode .game-view.duo .duel-bar-corner-pct { font-size: 1rem; }
 body.duel-landscape-mode .game-view.duo .duel-bar-corner-track { flex: 1; width: auto; }
 body.duel-landscape-mode .game-view.duo .duel-bar-corner-left { text-align: center; }
+/* Your own corner card specifically (not the opponent's, which has no equivalent) is redundant with
+   #duel_top_progress — the same "you" percentage already sits front-and-center above the board itself
+   (added after this card, see its own comment in index.html). Still mirrored into by setDuelBar
+   (Main.js, unchanged) for whatever other layout still shows it — this only hides it here. ID selector
+   to beat the shared .duel-bar-corner rule above regardless of source order. */
+body.duel-landscape-mode .game-view.duo #duel_bar_you_corner { display: none; }
 
 /* Timer, relocated here from the old center column — see index.html's comment on
    #duel_timer_landscape_box for why (no VS/meter column left to sit next to any more). */

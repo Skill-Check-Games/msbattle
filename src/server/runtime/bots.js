@@ -10,10 +10,12 @@
 var appState = require("./appState");
 var botPlayer = require("../engine/BotPlayer");
 var gameUtil = require("./gameUtil");
+var Cosmetics = require("../../common/Cosmetics");
 
 // Per-bot state (same objects the server holds).
 var bots = appState.bots, botTickHandles = appState.botTickHandles, botLastClick = appState.botLastClick;
 var games = appState.games, rooms = appState.rooms, roomMapping = appState.roomMapping, names = appState.names;
+var avatars = appState.avatars;
 var botDifficulty = appState.botDifficulty, botSpeedMs = appState.botSpeedMs, botDifficultyMs = appState.botDifficultyMs;
 var botDistanceMult = appState.botDistanceMult, botMaxDifficulty = appState.botMaxDifficulty, botRating = appState.botRating;
 var botMistake = appState.botMistake, botChord = appState.botChord;
@@ -129,6 +131,17 @@ function applyBotConfigToGame(botId) {
 	g.botChordRate = botChord[botId];
 }
 
+// Every avatar value a real player could end up with — same "anon"/"mine" + colours + "img:<id>" set
+// Profile.js's own avatar picker builds client-side (AVATAR_COLORS/AVATAR_IMAGES, Cosmetics.js) — bots
+// have no account/ownership to gate against, so unlike a real player they draw from the WHOLE catalogue,
+// purchasable items included. Picking one per bot (instead of leaving them all on the default) means a
+// casual room filled out with Add Bot actually previews a varied-looking match, not a wall of identical
+// red flags.
+function randomBotAvatar() {
+	var values = ["anon", "mine"].concat(Cosmetics.AVATAR_COLORS).concat(Object.keys(Cosmetics.AVATAR_IMAGES).map(function(id) { return "img:" + id; }));
+	return values[Math.floor(Math.random() * values.length)];
+}
+
 function addBotToRoom(room, config, prechosenName) {
 	if (room.phase !== "planning") return false;
 	if (room.isFull()) return false;
@@ -136,6 +149,7 @@ function addBotToRoom(room, config, prechosenName) {
 	var botId = "bot:" + newBotId();
 	bots[botId] = true;
 	names[botId] = prechosenName || botPlayer.pickBotName(getRoomBotNames(room));
+	avatars[botId] = randomBotAvatar(); // must be set before createPlayerGame, which reads it below
 	games[botId] = createPlayerGame(botId, room.rows, room.cols);
 	if (config) {
 		// Elo-tuned bot (ranked, from the pool): explicit per-move variables + rating.
@@ -180,6 +194,7 @@ function removeBotEntirely(botId) {
 	delete roomMapping[botId];
 	delete games[botId];
 	delete names[botId];
+	delete avatars[botId];
 	delete bots[botId];
 	delete botDifficulty[botId];
 	delete botSpeedMs[botId];
