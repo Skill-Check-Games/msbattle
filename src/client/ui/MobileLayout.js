@@ -251,26 +251,43 @@ function animateDuelZoomTo(centerR, centerC, fromCellPx) {
 	function ease(t) { return 1 - Math.pow(1 - t, 3); }
 	function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 	// transform-origin must match scrollLeft/Top's own clamping exactly, axis by axis — not just use the
-	// raw anchor-cell position. If the anchor is near an edge, the "ideal" (pre-clamp) scroll position goes
-	// negative (or past the max), so scrollLeft ends up somewhere the origin formula didn't account for;
-	// scaling around a point the scroll wasn't actually built around opens a gap between the canvas's real
-	// edge and the viewport's edge that's widest at the start of the animation and closes to 0 only at
-	// scale=1 (verified empirically: zooming into the board's (0,0) corner showed a 20px gap at the first
-	// frame, shrinking to 0 as the animation settled — an ugly "floating board" wedge of empty background
-	// for most of the animation, worse the closer the target is to an edge). Fix: whichever axis's scroll
-	// got clamped, anchor that axis's transform-origin at the SAME edge (0 or the full canvas extent)
-	// instead of the anchor cell's own position, so scale-around-origin and the fixed scroll agree at every
-	// t, not just t=1 — the edge itself never moves, so there is no gap to open in the first place. The
-	// non-clamped axis (or a center-ish target on both axes) is unaffected and keeps the original,
-	// precisely-centered anchor-cell math.
+	// raw anchor-cell position — but ONLY when zooming IN. If the anchor is near an edge, the "ideal"
+	// (pre-clamp) scroll position goes negative (or past the max), so scrollLeft ends up somewhere the
+	// origin formula didn't account for; scaling AROUND a point the scroll wasn't actually built around
+	// opens a gap between the canvas's real edge and the viewport's edge that's widest at the start of the
+	// animation and closes to 0 only at scale=1 (verified empirically: zooming into the board's (0,0)
+	// corner showed a 20px gap at the first frame, shrinking to 0 as the animation settled — an ugly
+	// "floating board" wedge of empty background for most of the animation, worse the closer the target is
+	// to an edge). Fix: whichever axis's scroll got clamped, anchor that axis's transform-origin at the
+	// SAME edge (0 or the full canvas extent) instead of the anchor cell's own position, so scale-around-
+	// origin and the fixed scroll agree at every t, not just t=1 — the edge itself never moves, so there is
+	// no gap to open in the first place. The non-clamped axis (or a center-ish target on both axes) is
+	// unaffected and keeps the original, precisely-centered anchor-cell math.
+	// Zooming OUT is the mirror image and does NOT have this problem, so must NOT get this edge-pull: at
+	// the overview's tiny toCellPx, `cols*toCellPx`/`rows*toCellPx` is frequently smaller than the
+	// viewport itself (the whole board already fits), which pins scrollLeft/Top's max at 0 regardless of
+	// the anchor — under the same "match the clamp" rule that'd yank transform-origin to a board corner for
+	// nearly EVERY zoom-out, not just edge-anchored ones, which is exactly the "zooming out always looks
+	// like it starts from the corner instead of your actual point" bug this was found to cause. It doesn't
+	// need the substitution in the first place: for zoom-out, scale only ever runs from >1 down to 1 with
+	// scrollLeft/Top pinned at their (already fully-determined, not "clamped away from ideal") final value,
+	// and `x_visible(scale) = Ox + (scroll-Ox)/scale` stays within the canvas's valid range for every scale
+	// in that direction regardless of Ox — no mismatch, no gap, so the plain anchor-cell position is both
+	// correct and exactly what keeps the anchor visually anchored under the player rather than sliding to
+	// a corner.
+	var zoomingIn = toCellPx > fromCellPx;
 	var idealLeft = (centerC + 0.5) * toCellPx - boardScroll.clientWidth / 2;
 	var maxScrollLeft = Math.max(0, cols * toCellPx - boardScroll.clientWidth);
 	var idealTop = (centerR + 0.5) * toCellPx - boardScroll.clientHeight / 2;
 	var maxScrollTop = Math.max(0, rows * toCellPx - boardScroll.clientHeight);
 	boardScroll.scrollLeft = clamp(idealLeft, 0, maxScrollLeft);
 	boardScroll.scrollTop = clamp(idealTop, 0, maxScrollTop);
-	var originX = idealLeft < 0 ? 0 : (idealLeft > maxScrollLeft ? cols * toCellPx : (centerC + 0.5) * toCellPx);
-	var originY = idealTop < 0 ? 0 : (idealTop > maxScrollTop ? rows * toCellPx : (centerR + 0.5) * toCellPx);
+	var originX = (centerC + 0.5) * toCellPx;
+	var originY = (centerR + 0.5) * toCellPx;
+	if (zoomingIn) {
+		if (idealLeft < 0) originX = 0; else if (idealLeft > maxScrollLeft) originX = cols * toCellPx;
+		if (idealTop < 0) originY = 0; else if (idealTop > maxScrollTop) originY = rows * toCellPx;
+	}
 	playerCanvas.style.transformOrigin = originX + "px " + originY + "px";
 	playerCanvas.style.willChange = "transform";
 	var startScale = fromCellPx / toCellPx;

@@ -1051,6 +1051,29 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   exactly `0` for every sampled `t` from `0` through `1` (previously 20px→0px), and a separate control case
   with a genuinely centered, non-edge anchor confirmed `clamped: false` there, falling through to the
   original unmodified anchor-cell math with no regression.
+  **That edge-clamp fix (previous bullet) then broke zoom-OUT specifically — "starts from the corner
+  instead of the middle of your screen"**: the substitution above was written direction-agnostic, applied
+  identically whichever way the zoom was going — but zoom-OUT's destination is the whole-board overview,
+  where `cols*toCellPx`/`rows*toCellPx` is very often SMALLER than the viewport itself (the whole board
+  already fits with room to spare) — which pins `maxScrollLeft`/`maxScrollTop` at `0` regardless of the
+  anchor. Under the "match the clamp" rule that meant nearly EVERY zoom-out's `idealLeft`/`idealTop` read as
+  "clamped low" (since half of a board that fits inside the viewport is almost always less than half the
+  viewport itself), yanking `transform-origin` to a board corner for virtually any anchor, not just
+  edge-anchored ones — exactly the reported bug. Fixed by gating the substitution on direction
+  (`zoomingIn = toCellPx > fromCellPx`) and only applying it when actually zooming in; zoom-out uses the
+  plain anchor-cell position unconditionally. This is provably safe, not just "happens to look fine": for
+  zoom-out, scale only ever runs from `>1` down to `1` with scroll pinned at its already-fully-determined
+  final value (not an "ideal value that got clamped away from" — it's simply what the fixed overview
+  requires), and `x_visible(scale) = Ox + (scroll-Ox)/scale` stays within the canvas's valid range for
+  every scale `>= 1` regardless of `Ox` — the gap failure mode literally cannot occur in that direction, so
+  there's nothing to clamp against; the previous bullet's fix was solving a problem specific to the
+  zoom-in direction. Verified two ways: sampling where an anchor cell's own pixel position actually renders
+  on screen across a full zoom-out (`t` from `0` to `1`) for both a near-corner anchor (cell (2,2) of a
+  20×15 board) and a true-center anchor (cell (7,10)) shows it stays essentially pinned in place the entire
+  time (sub-pixel drift only, from `boardScroll`'s own `clientWidth` shifting a hair as a scrollbar
+  appears/disappears) — no longer sliding toward a corner; and re-ran the untouched zoom-IN-to-`(0,0)`-
+  corner case from the previous fix and confirmed `gapLeft`/`gapTop` are still exactly `0` at every sampled
+  `t`, so the direction gate didn't regress that fix.
   **6-player battle layout** (`isMultiRacing()`, 3-6 racing players): the same TetrisFriends idea
   scaled up — one big own board on the left with your identity panel (`#duel_id_you`) above it, the
   round timer centered up top (shared `#duel_timer`), and **every** opponent's live board tiled in a
