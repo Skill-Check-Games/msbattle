@@ -1201,6 +1201,20 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   on every affected element: `.opponent-searching` correctly present, `#duel_id_opp` shows the placeholder,
   the board label/`#game1`/both progress readouts all compute to `display:none`, and `.duel-opp-searching`
   computes to `display:flex` — confirmed visually in a screenshot too.
+  **Show your own display name instead of a hardcoded "You", on request ("for all modes")** — `fillDuelId`
+  (the duel identity panels, both 1v1 and 6-player) took an `isYou` flag purely to force the text to "You";
+  dropped it (and the now-unused parameter/call-site argument) in favor of just `p.name || "Anonymous"` —
+  the roster entry for yourself already carries your real name (the same `names[pid]` value opponents see),
+  so there was nothing else to plumb through. Two static labels flanking the VS meter (mobile's compact
+  strip and the landscape meter header, `.mobile-duel-progress-label`/`.duel-meter-label-you`) had the
+  same problem from the other direction — a literal `>You<` baked into index.html that nothing ever
+  replaced, while the opponent's own label right next to it WAS dynamically named (`updateDuelHud` already
+  looks up `#player_name1`'s text for that side) — gave both an id (`#mobile_duel_you_name`/
+  `#duel_meter_label_you`) and filled them the same place, using the same fallback chain Profile.js's own
+  summary header already uses (`myName || account.name || "You"`, "You" only as the very last resort with
+  zero name data at all, not a deliberate default). Verified by faking a room roster + calling
+  `buildDuelIdentity()`/`updateDuelHud()` directly (the real functions, not reimplemented logic) with a
+  distinct test name and reading back all three elements' text.
   **6-player battle layout** (`isMultiRacing()`, 3-6 racing players): the same TetrisFriends idea
   scaled up — one big own board on the left with your identity panel (`#duel_id_you`) above it, the
   round timer centered up top (shared `#duel_timer`), and **every** opponent's live board tiled in a

@@ -193,7 +193,7 @@ function setOppIdentity(i, p) {
 
 // --- 1v1 duel battle HUD: identity panels (avatar + name + rank badge), per-board progress bars,
 // and the center VS/tug-of-war meter. ---
-function fillDuelId(el, p, isYou) {
+function fillDuelId(el, p) {
 	if (!el) return;
 	el.innerHTML = "";
 	if (!p) return;
@@ -206,7 +206,7 @@ function fillDuelId(el, p, isYou) {
 	info.className = "duel-id-info";
 	var nm = document.createElement("div");
 	nm.className = "duel-id-name";
-	nm.textContent = isYou ? "You" : (p.name || "Anonymous");
+	nm.textContent = p.name || "Anonymous";
 	info.appendChild(nm);
 	if (typeof p.rating === "number" && typeof tierFor === "function") {
 		var t = tierFor(p.rating, p.provisional);
@@ -248,13 +248,13 @@ function buildDuelIdentity() {
 		var p = roster[i];
 		if (p.id === id || p.isYou) { if (!me) me = p; } else if (!opp) opp = p;
 	}
-	fillDuelId(document.getElementById("duel_id_you"), me, true);
+	fillDuelId(document.getElementById("duel_id_you"), me);
 	if (isDuoRacing()) {
-		// No opponent matched yet mid-search — fillDuelId(el, null, ...) would just wipe #duel_id_opp
-		// blank (an empty red-bordered box); same "Searching…" placeholder setOppIdentity already gives
-		// the other opponent-slot layouts (paintOpponentCovered, above) instead.
+		// No opponent matched yet mid-search — fillDuelId(el, null) would just wipe #duel_id_opp blank
+		// (an empty red-bordered box); same "Searching…" placeholder setOppIdentity already gives the
+		// other opponent-slot layouts (paintOpponentCovered, above) instead.
 		var searchingNoOpp = !opp && !!(rankedSearch && rankedSearch.race);
-		fillDuelId(document.getElementById("duel_id_opp"), opp || (searchingNoOpp ? { name: "Searching…", avatar: "anon" } : null), false);
+		fillDuelId(document.getElementById("duel_id_opp"), opp || (searchingNoOpp ? { name: "Searching…", avatar: "anon" } : null));
 	}
 }
 function setDuelBar(barId, progress, cellsLeft) {
@@ -358,10 +358,18 @@ function updateDuelHud(meGame, oppGame) {
 	var oppNameEl = document.getElementById("player_name1");
 	var mobileOppNameEl = document.getElementById("mobile_duel_opp_name");
 	if (mobileOppNameEl) mobileOppNameEl.textContent = (oppNameEl && oppNameEl.textContent) || "Opponent";
+	// Your own name, same fallback chain Profile.js's summary header uses — was a static "You" label
+	// (both here and the landscape meter label below) while the opponent's own name was always shown
+	// alongside it; changed on request to show your actual name everywhere instead.
+	var myDisplayName = myName || (typeof account !== "undefined" && account && account.name) || "You";
+	var mobileYouNameEl = document.getElementById("mobile_duel_you_name");
+	if (mobileYouNameEl) mobileYouNameEl.textContent = myDisplayName;
 	// Landscape's YOU/opponent labels flanking the VS mark (see .duel-meter-header) — same name lookup
 	// the mobile strip above and updateDuelMeter's callout both already use.
 	var meterLabelOpp = document.getElementById("duel_meter_label_opp");
 	if (meterLabelOpp) meterLabelOpp.textContent = (oppNameEl && oppNameEl.textContent) || "Opponent";
+	var meterLabelYou = document.getElementById("duel_meter_label_you");
+	if (meterLabelYou) meterLabelYou.textContent = myDisplayName;
 }
 // Center VS meter: a horizontal gauge whose diamond marker slides toward whoever's ahead (50/50 =
 // centered), plus a plain-language "X is ahead" / "Tied up" callout beneath it. Driven off the same
@@ -1366,7 +1374,7 @@ function playTournamentRoundEnd(data, onComplete) {
 
 		var nameEl = document.createElement("div");
 		nameEl.className = "tro-name";
-		nameEl.textContent = (s.id === id) ? "You" : (s.name || "Unknown");
+		nameEl.textContent = s.name || "Unknown";
 		row.appendChild(nameEl);
 
 		var detailEl = document.createElement("div");

@@ -572,7 +572,7 @@ function showTournamentChampionPanel(data) {
 
 	var nameLine = document.createElement("div");
 	nameLine.className = "champion-name";
-	nameLine.textContent = won ? "You" : (winnerEntry.name || "Unknown");
+	nameLine.textContent = winnerEntry.name || "Unknown";
 	panel.appendChild(nameLine);
 
 	if (typeof winnerEntry.rating === "number") {
