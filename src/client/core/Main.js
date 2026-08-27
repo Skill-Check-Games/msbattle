@@ -249,7 +249,13 @@ function buildDuelIdentity() {
 		if (p.id === id || p.isYou) { if (!me) me = p; } else if (!opp) opp = p;
 	}
 	fillDuelId(document.getElementById("duel_id_you"), me, true);
-	if (isDuoRacing()) fillDuelId(document.getElementById("duel_id_opp"), opp, false);
+	if (isDuoRacing()) {
+		// No opponent matched yet mid-search — fillDuelId(el, null, ...) would just wipe #duel_id_opp
+		// blank (an empty red-bordered box); same "Searching…" placeholder setOppIdentity already gives
+		// the other opponent-slot layouts (paintOpponentCovered, above) instead.
+		var searchingNoOpp = !opp && !!(rankedSearch && rankedSearch.race);
+		fillDuelId(document.getElementById("duel_id_opp"), opp || (searchingNoOpp ? { name: "Searching…", avatar: "anon" } : null), false);
+	}
 }
 function setDuelBar(barId, progress, cellsLeft) {
 	var bar = document.getElementById(barId);
@@ -1842,6 +1848,14 @@ function startBattleSearch(mode) {
 	currentRoom = null;
 	inRoom = false;
 	roundResultShown = false; // fresh search — clear the previous result so the new field re-covers
+	// A whole match just ending (not "leave", which already resets this via teardownRoomUI) leaves
+	// roundStartTime stamped from the last round played — searching again straight from there, without
+	// ever routing through teardownRoomUI, inherited that stale nonzero value. fitDesktopCellPx's duel-
+	// landscape floor (MobileLayout.js) reads it as "a round is still live" and applies the 56px zoomed-
+	// in floor to the idle/covered board this function is about to paint, instead of the overview it's
+	// supposed to get pre-round — showed up as the board looking zoomed in for a few seconds every time
+	// a new search started, until a real round eventually re-stamped it correctly at GO.
+	roundStartTime = 0;
 	applyBoardDims(16, 20);   // ranked race boards are the medium preset — covered-placeholder size
 	showGameView();
 	resetGameUI();

@@ -1162,6 +1162,45 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   `getImageData` directly — thousands of non-background pixels present) — a capture-tooling artifact, not a
   real rendering bug (an actual browser frame updates normally; nothing here is deferred or conditional on
   anything a real player's session would ever wait on).
+  **Two search/queue bugs, on request ("board shows zoomed in for a while" + "doesn't make sense to show
+  progress bar and board" for an opponent who doesn't exist yet)**:
+  1) **Board opened at the zoomed-in floor instead of the pre-round overview.** `startBattleSearch` (a
+  fresh ranked search) never reset `roundStartTime` — only `teardownRoomUI` (leaving) and the per-round
+  reset inside a live series did. Starting a new search straight from a just-ended match (not via "leave")
+  inherited the LAST round's real, nonzero `roundStartTime`. `fitDesktopCellPx`'s duel-landscape floor
+  (MobileLayout.js) reads `roundStartTime > 0` as "a round is live" and applies its 56px zoomed floor to
+  whatever `startBattleSearch` paints — which is the idle/covered board, not a real one — instead of the
+  overview floor (`minCell=1`) it's supposed to get pre-round. Fixed with one line, `roundStartTime = 0;`,
+  added at the top of `startBattleSearch` alongside its other fresh-search resets. Verified by calling the
+  real function with `roundStartTime` deliberately pre-seeded to a stale nonzero value (the exact scenario)
+  and reading back the resulting cell size: 26px (fit-to-available overview) instead of the 56px floor.
+  2) **Right panel showed a covered board + a static 0% for an opponent who doesn't exist yet.**
+  `buildDuelIdentity()` called `fillDuelId(#duel_id_opp, null, false)` whenever no opponent had matched
+  yet, which just wipes the element blank (`fillDuelId` returns early on a falsy `p`) — an empty panel,
+  not "waiting". Fixed by passing a `{name:"Searching…", avatar:"anon"}` placeholder instead whenever
+  `rankedSearch` is active and no opponent has matched (mirrors the placeholder `setOppIdentity` already
+  gives every OTHER opponent-slot layout via `paintOpponentCovered`). Separately, the board-preview
+  canvas/label and both progress-bar readouts (`.duel-bar-row`, `#duel_bar_opp_corner`) get hidden
+  whenever `.opponent_div` carries `.opponent-searching` — a class ALREADY toggled correctly through this
+  whole flow by `paintOpponentCovered` (no new JS needed for that part) — replaced by a new
+  `.duel-opp-searching` block (index.html, right after the board-preview markup): the same
+  `.battle-search-spinner` already used by the header's own "Finding match…" indicator (hidden in this
+  layout, `.game-header` itself is) plus a "Waiting for a challenger…" line, for a consistent look.
+  **Two CSS specificity traps hit along the way**: (a) a plain `.opponent_div.opponent-searching canvas`
+  descendant selector also matched the IDENTITY avatar's own nested `<canvas>` (`#duel_id_opp .duel-id-
+  avatar canvas`, several levels deep) — not just the intended board-preview one — hiding the "Searching…"
+  placeholder's avatar along with it; fixed by targeting `#game1` specifically (this panel only ever shows
+  duo's single opponent slot, matching how the rest of this duo-specific CSS section already references
+  other IDs directly) instead of a bare `canvas` descendant selector. (b) `#game1` still didn't hide even
+  after that fix — a separate, pre-existing `#game0, #game1, … { display: block; }` ID-selector rule
+  elsewhere in the file always wins over ANY class-chain selector on the `display` property, regardless of
+  how many classes the challenger stacks (an ID always outranks classes on specificity, full stop); fixed
+  by adding `#game1` directly into this rule's own selector too, the same "needs its own ID to actually
+  win here" idiom already used elsewhere in this file (e.g. `#duel_id_opp`'s override, above). Verified via
+  a real `startBattleSearch('duo')` call (not a hand-assembled synthetic state) plus computed-style checks
+  on every affected element: `.opponent-searching` correctly present, `#duel_id_opp` shows the placeholder,
+  the board label/`#game1`/both progress readouts all compute to `display:none`, and `.duel-opp-searching`
+  computes to `display:flex` — confirmed visually in a screenshot too.
   **6-player battle layout** (`isMultiRacing()`, 3-6 racing players): the same TetrisFriends idea
   scaled up — one big own board on the left with your identity panel (`#duel_id_you`) above it, the
   round timer centered up top (shared `#duel_timer`), and **every** opponent's live board tiled in a

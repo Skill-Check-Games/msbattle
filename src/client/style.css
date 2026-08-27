@@ -3979,6 +3979,7 @@ body.touch .find-next-arrow { display: inline-flex; }
 .duel-back-btn { display: none; }
 .duel-fullscreen-btn { display: none; }
 .duel-opp-board-label { display: none; }
+.duel-opp-searching { display: none; }
 .duel-top-progress { display: none; }
 
 /* Landscape-phone progress readout — a separate, purpose-built element (not a repositioned
@@ -4445,6 +4446,38 @@ body.duel-landscape-mode .game-view.duo .opponent_div canvas {
 	height: auto !important;
 	max-width: 100%;
 	max-height: 14vh;
+}
+/* While searching with no opponent matched yet (.opponent-searching, already toggled by
+   paintOpponentCovered for every layout — see its own comment), the board preview + progress bar above
+   don't have a real player to describe — a covered board and a static 0% read as broken, not "waiting
+   for someone". Swap them for a simple animated placeholder instead; #duel_bar_opp_corner (the identity
+   panel's own progress card, further up) gets the same treatment for the same reason. */
+/* #game1 needs its own ID in the selector, not just a class chain — the base #game0,#game1,...
+   { display: block; } rule (further up) is an ID selector too and otherwise always wins regardless of
+   how many classes this side stacks (an ID beats any number of classes on specificity). */
+body.duel-landscape-mode .game-view.duo .opponent_div.opponent-searching .duel-opp-board-label,
+body.duel-landscape-mode .game-view.duo .opponent_div.opponent-searching #game1,
+body.duel-landscape-mode .game-view.duo .opponent_div.opponent-searching .duel-bar-row,
+body.duel-landscape-mode .game-view.duo .opponent_div.opponent-searching #duel_bar_opp_corner {
+	display: none;
+}
+body.duel-landscape-mode .game-view.duo .opponent_div.opponent-searching .duel-opp-searching {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 0.6rem;
+	flex: 1 1 auto;
+	padding: 1rem 0.25rem;
+}
+body.duel-landscape-mode .game-view.duo .duel-opp-searching .battle-search-spinner {
+	width: 20px;
+	height: 20px;
+}
+body.duel-landscape-mode .game-view.duo .duel-opp-searching-text {
+	font-size: 0.78rem;
+	color: var(--muted);
+	text-align: center;
 }
 
 /* ── The board itself — carries the neon "arena" card look now, since .player-board (which used

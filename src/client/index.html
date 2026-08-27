@@ -784,6 +784,18 @@
 								<span id="duel_cells_left_opp" class="duel-cells-left"></span>
 								<div id="duel_bar_opp" class="duel-bar"><span class="duel-bar-fill"></span><b class="duel-bar-pct"></b></div>
 							</div>
+							<!-- Landscape-phone only: swapped in for the label/board/bar-row above while searching
+							     and no opponent has been matched yet — reuses the existing
+							     .opponent_div.opponent-searching class (already toggled by paintOpponentCovered,
+							     Main.js, for the dimmed-board treatment every other layout gets) rather than a
+							     new one, and the same .battle-search-spinner already used by the header's own
+							     "Finding match…" status (hidden in this layout, .game-header itself is) for a
+							     consistent look. A covered board + a static 0% bar for a player who doesn't
+							     exist yet read as broken, not "waiting". -->
+							<div class="duel-opp-searching" aria-hidden="true">
+								<span class="battle-search-spinner"></span>
+								<span class="duel-opp-searching-text">Waiting for a challenger…</span>
+							</div>
 						</div>
 						<div class="opponent_div" data-slot>
 							<div class="opp-head"><span class="opp-avatar" id="opp_avatar2"></span><span class="opp-id"><p id="player_name2" class="player-name"></p><span class="opp-tier" id="opp_tier2"></span></span></div>
