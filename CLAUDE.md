@@ -1074,6 +1074,23 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   appears/disappears) — no longer sliding toward a corner; and re-ran the untouched zoom-IN-to-`(0,0)`-
   corner case from the previous fix and confirmed `gapLeft`/`gapTop` are still exactly `0` at every sampled
   `t`, so the direction gate didn't regress that fix.
+  **Still janky right at the start of every zoom-in, worse near an edge — "the board immediately takes full
+  width instead of gradually expanding"**: the easing curve itself, not a geometry bug this time.
+  `animateDuelZoomTo`'s `ease(t)` was ease-out-cubic (`1 - (1-t)^3`), deliberately front-loaded ("fast
+  start, settling in gently" — its own comment) — but "fast start" is quantitatively very fast: its
+  derivative at `t=0` is `3`, three times the animation's average rate, so by just `t=0.1` (90ms into the
+  900ms duration) it had already covered 27% of the total scale change. Confirmed with rAF-sampled
+  frame-by-frame `getBoundingClientRect()` width deltas right after a real trigger: strictly DEcreasing
+  per-frame growth (`40px, 39px, 37.5px, 36px, 34px, …` — fastest at the very first painted frame, then
+  coasting the rest of the way) — the opposite of "gradually expanding." For a center anchor that burst of
+  growth spreads across all four edges at once, easy to miss; for an edge/corner anchor (`transform-origin`
+  pinned at the literal edge, previous fix) every bit of it pushes out in a single direction, reading as a
+  sudden snap. Fixed by switching to ease-in-out-cubic (`4t^3` below the midpoint, mirrored above it) —
+  zero velocity at `t=0`, so the very first frames barely move, ramping up smoothly instead of front-
+  loading. Verified the same way: re-sampled frame-by-frame width deltas at trigger and got strictly
+  INcreasing growth at the start (`0.02px, 0.13px, 0.36px, 0.7px, 1.15px, 1.7px, 2.4px, …`) — genuinely
+  gradual now — while still settling smoothly into the destination at the end (symmetric curve, so the
+  "eases into place" quality at the finish is unchanged, only the opening beat).
   **6-player battle layout** (`isMultiRacing()`, 3-6 racing players): the same TetrisFriends idea
   scaled up — one big own board on the left with your identity panel (`#duel_id_you`) above it, the
   round timer centered up top (shared `#duel_timer`), and **every** opponent's live board tiled in a

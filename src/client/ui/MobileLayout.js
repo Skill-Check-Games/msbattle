@@ -246,9 +246,19 @@ function animateDuelZoomTo(centerR, centerC, fromCellPx) {
 	// toggle) meant to be watched rather than reacted to instantly, giving the player a real sense of
 	// motion toward where they're headed rather than just registering a before/after.
 	var DURATION_MS = 900;
-	// Ease-out cubic: fast start, settling in gently right as it reaches the target cell — reads as
-	// "zooming toward" the destination rather than mechanically interpolating toward it.
-	function ease(t) { return 1 - Math.pow(1 - t, 3); }
+	// Ease-in-out cubic, not ease-out: ease-out's velocity is already at 3x the animation's AVERAGE speed
+	// at the very first instant (its derivative at t=0 is 3, vs ease-in-out's 0) — 90% front-loaded enough
+	// that by just t=0.1 (90ms into a 900ms animation) it had already covered 27% of the total scale
+	// change. For a center-anchored zoom that reads as brisk; for an edge/corner-anchored one (transform-
+	// origin pinned at the literal edge, above) ALL of that burst of growth pushes out in one direction
+	// only, not spread across four — reported as "the board immediately takes full width instead of
+	// gradually expanding." Verified with rAF-sampled frame-by-frame width deltas at trigger: ease-out
+	// produced a monotonically DEcreasing per-frame growth (40px, 39px, 37.5px, 36px, ... — fastest at the
+	// very first painted frame, coasting the rest of the way); ease-in-out starts near 0 and ramps up
+	// smoothly instead, matching what "gradually expanding" actually looks like frame to frame. Still
+	// settles gently into the destination either direction, so the "reads as zooming toward, not
+	// mechanically interpolating" quality above is unaffected — only the abrupt opening beat is gone.
+	function ease(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
 	function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 	// transform-origin must match scrollLeft/Top's own clamping exactly, axis by axis — not just use the
 	// raw anchor-cell position — but ONLY when zooming IN. If the anchor is near an edge, the "ideal"
