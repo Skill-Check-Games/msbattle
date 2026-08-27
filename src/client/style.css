@@ -4182,6 +4182,17 @@ body.duel-landscape-mode .game-view.duo .game-grid { min-height: 0; }
 body.duel-landscape-mode .game-view.duo .duel-center { display: none; }
 body.duel-landscape-mode .game-view.duo .game-grid {
 	grid-template-columns: minmax(0, 158px) minmax(0, 1fr) minmax(0, 158px);
+	/* Explicit row track, not left to the implicit grid-auto-rows:auto default — an "auto" row's height
+	   is still influenced by its items' max-content contribution even with min-height:0 set on them
+	   (that only clamps the automatic MINIMUM size, not this), so #board_scroll's own canvas child
+	   growing taller than the panel — exactly what happens transiently while zooming (MobileLayout.js's
+	   duelZoomLayoutOnly sets the canvas's real CSS height to the target size immediately, before the
+	   transform animation visually shrinks it back down) — could still nudge the row's own computed
+	   height by a sub-pixel amount, which every sibling sharing the row (both side panels, the board
+	   card itself) then visibly inherited via align-items:stretch. A single explicit `1fr` row divorces
+	   the row's height entirely from any child's content — it's simply 100% of the grid's own definite
+	   height (from the height:100dvh/min-height:0 chain above), full stop, regardless of what's inside. */
+	grid-template-rows: minmax(0, 1fr);
 	grid-template-areas: "left board right";
 	align-items: stretch;
 	gap: 0.6rem;

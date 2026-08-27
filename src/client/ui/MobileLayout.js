@@ -250,9 +250,28 @@ function animateDuelZoomTo(centerR, centerC, fromCellPx) {
 	// "zooming toward" the destination rather than mechanically interpolating toward it.
 	function ease(t) { return 1 - Math.pow(1 - t, 3); }
 	function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
-	boardScroll.scrollLeft = clamp((centerC + 0.5) * toCellPx - boardScroll.clientWidth / 2, 0, Math.max(0, cols * toCellPx - boardScroll.clientWidth));
-	boardScroll.scrollTop = clamp((centerR + 0.5) * toCellPx - boardScroll.clientHeight / 2, 0, Math.max(0, rows * toCellPx - boardScroll.clientHeight));
-	playerCanvas.style.transformOrigin = ((centerC + 0.5) * toCellPx) + "px " + ((centerR + 0.5) * toCellPx) + "px";
+	// transform-origin must match scrollLeft/Top's own clamping exactly, axis by axis — not just use the
+	// raw anchor-cell position. If the anchor is near an edge, the "ideal" (pre-clamp) scroll position goes
+	// negative (or past the max), so scrollLeft ends up somewhere the origin formula didn't account for;
+	// scaling around a point the scroll wasn't actually built around opens a gap between the canvas's real
+	// edge and the viewport's edge that's widest at the start of the animation and closes to 0 only at
+	// scale=1 (verified empirically: zooming into the board's (0,0) corner showed a 20px gap at the first
+	// frame, shrinking to 0 as the animation settled — an ugly "floating board" wedge of empty background
+	// for most of the animation, worse the closer the target is to an edge). Fix: whichever axis's scroll
+	// got clamped, anchor that axis's transform-origin at the SAME edge (0 or the full canvas extent)
+	// instead of the anchor cell's own position, so scale-around-origin and the fixed scroll agree at every
+	// t, not just t=1 — the edge itself never moves, so there is no gap to open in the first place. The
+	// non-clamped axis (or a center-ish target on both axes) is unaffected and keeps the original,
+	// precisely-centered anchor-cell math.
+	var idealLeft = (centerC + 0.5) * toCellPx - boardScroll.clientWidth / 2;
+	var maxScrollLeft = Math.max(0, cols * toCellPx - boardScroll.clientWidth);
+	var idealTop = (centerR + 0.5) * toCellPx - boardScroll.clientHeight / 2;
+	var maxScrollTop = Math.max(0, rows * toCellPx - boardScroll.clientHeight);
+	boardScroll.scrollLeft = clamp(idealLeft, 0, maxScrollLeft);
+	boardScroll.scrollTop = clamp(idealTop, 0, maxScrollTop);
+	var originX = idealLeft < 0 ? 0 : (idealLeft > maxScrollLeft ? cols * toCellPx : (centerC + 0.5) * toCellPx);
+	var originY = idealTop < 0 ? 0 : (idealTop > maxScrollTop ? rows * toCellPx : (centerR + 0.5) * toCellPx);
+	playerCanvas.style.transformOrigin = originX + "px " + originY + "px";
 	playerCanvas.style.willChange = "transform";
 	var startScale = fromCellPx / toCellPx;
 	var t0 = null;

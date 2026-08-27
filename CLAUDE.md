@@ -1003,6 +1003,54 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   `fitMobileCellPx`, chosen by the `mobileLayout` boolean off that same width media query) doesn't know
   about force-rotate either, so a force-rotated board still sizes/paginates using the portrait touch-pan
   logic instead of this layout's own approach — a JS-side fix, not just more CSS, left for later.
+  **Two more bugs found in the manual zoom toggle, both only visible under precise measurement, not by
+  eyeballing screenshots** (reported as "still a slight layout shift" and "still looks bad near an edge or
+  border" after the fixes above already shipped — tracked down by instrumenting real DOM geometry with
+  `getBoundingClientRect()` sampled across `requestAnimationFrame` ticks rather than trusting a handful of
+  spot-check screenshots, plus a control run with no zoom triggered at all to separate a real effect from
+  measurement noise):
+  **1) Sub-pixel layout shift, `.game-grid`'s implicit row height**: `body.duel-landscape-mode .game-view.duo
+  .game-grid` had no explicit `grid-template-rows` — its one row fell back to the implicit
+  `grid-auto-rows: auto` default. An `auto` track's height is still influenced by its items' max-content
+  contribution even with `min-height: 0` set on every element down the chain (`.board-wrap`, `#board_scroll`)
+  — that property only clamps the automatic MINIMUM, not the max-content figure auto-tracks size against.
+  `duelZoomLayoutOnly()` sets `playerCanvas`'s real CSS height to the full target size immediately, before
+  the transform animation visually shrinks it back down — so for one frame the canvas's max-content
+  contribution genuinely is huge, and could nudge the row's own computed height by ~0.2-0.4px, which every
+  sibling sharing that row (both side panels, the toggle row, top progress bar, back/fullscreen buttons)
+  then visibly inherited via `align-items: stretch`. Root-caused by a comprehensive sweep — measuring 13
+  different elements' rects across a real trigger, rAF-sampled — narrowing to exactly `.board-wrap`/
+  `#board_scroll`/both side panels moving in lockstep, then isolating the specific property
+  (`playerCanvas.style.height`, not width) that caused it. Fixed with an explicit
+  `grid-template-rows: minmax(0, 1fr);` — a single explicit track divorces the row's height entirely from
+  any child's content; it's just 100% of the grid's own definite height (from the `height: 100dvh` /
+  `min-height: 0` chain above it), full stop. Verified with the same 13-element rAF-sampled sweep: every
+  previously-nonzero delta (`bwY`, `bwH`, `leftY`, `leftH`, `rightY`, `rightH`) reads exactly `0` after the
+  fix, across the real trigger sequence.
+  **2) Visible gap during edge/corner-anchored zooms, `transform-origin` vs. clamped scroll mismatch**:
+  `animateDuelZoomTo` always set `transform-origin` to the anchor cell's own raw pixel position
+  (`(centerC+0.5)*toCellPx`), independent of whatever `scrollLeft`/`scrollTop` actually ended up being. For
+  a center-ish anchor those agree (the scroll target isn't clamped, so it's built from the exact same
+  formula) — but for an anchor near an edge, the *ideal* (pre-clamp) scroll goes negative or past the max,
+  gets clamped to `0`/the max, while `transform-origin` keeps using the un-clamped anchor position anyway.
+  Scaling around a point the actual scroll position was never built to match opens a gap between the
+  canvas's real edge and the viewport's edge — worst at the start of the animation, shrinking to `0` only
+  once scale reaches `1`. Confirmed by freezing the animation at specific `t` values (`page.evaluate`
+  replicating the exact scroll/origin/scale math synchronously for a chosen `t` and screenshotting
+  immediately — plain `waitForTimeout` + `screenshot()` bursts don't work here, screenshot's own latency is
+  long enough relative to the 900ms animation that a sequence of them often all land after it's already
+  settled) — zooming into the board's true `(0,0)` corner measured a 20px gap at the first frame, shrinking
+  through 12px/4px/0.5px down to 0 as the animation completed, on BOTH axes simultaneously. Fixed by
+  computing `transform-origin` from the *same* clamping the scroll position uses, per axis: if the ideal
+  scroll target for an axis is negative, anchor that axis's origin at `0` (the canvas's true edge) instead
+  of the raw anchor position; if it overshoots the max, anchor at that axis's full extent
+  (`cols*toCellPx`/`rows*toCellPx`); otherwise (the normal, non-edge case) keep the original anchor-cell
+  formula unchanged. Anchoring the origin at the same edge the scroll is pinned to means that edge never
+  visually moves at any point in the animation, so there's no gap to open in the first place. Verified two
+  ways: re-running the exact same frozen-frame `(0,0)`-corner measurement showed `gapLeft`/`gapTop` at
+  exactly `0` for every sampled `t` from `0` through `1` (previously 20px→0px), and a separate control case
+  with a genuinely centered, non-edge anchor confirmed `clamped: false` there, falling through to the
+  original unmodified anchor-cell math with no regression.
   **6-player battle layout** (`isMultiRacing()`, 3-6 racing players): the same TetrisFriends idea
   scaled up — one big own board on the left with your identity panel (`#duel_id_you`) above it, the
   round timer centered up top (shared `#duel_timer`), and **every** opponent's live board tiled in a
