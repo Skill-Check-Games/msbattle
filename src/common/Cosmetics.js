@@ -48,9 +48,13 @@
 		},
 		BOARD_SKIN_LIST: ["classic", "tactical", "gold"],
 		// Avatar cloth colour — the in-game flag. The first entry (matching DEFAULT_AVATAR_COLOR) is
-		// free/default; any other colour here is a purchasable shop item (see ShopCatalog.js) — e.g.
-		// the pirate flag.
-		AVATAR_COLORS: ["#ef4444", "#111111"],
+		// free/default; any other colour here would be a purchasable shop item (ShopCatalog.js derives
+		// one from every entry past this first one automatically). Deliberately just the one entry for
+		// now — flag colours and avatars are conceptually separate things (the flag is tied to
+		// country/identity, not a costume), so this isn't where more variety should get added; that's
+		// what AVATAR_IMAGES below is for. Used to carry a second, purchasable "Pirate Flag" colour
+		// (#111111) — removed outright, not just unlisted, since it blurred exactly that line.
+		AVATAR_COLORS: ["#ef4444"],
 		DEFAULT_AVATAR_COLOR: "#ef4444",
 		// The default avatar shown anywhere a player hasn't chosen one — the anonymous silhouette.
 		DEFAULT_AVATAR: "anon",

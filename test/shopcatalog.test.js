@@ -15,11 +15,6 @@ test("every avatar preset in Cosmetics has a catalog entry, and vice versa", () 
 	assert.deepStrictEqual(catalogAvatarIds.sort(), avatarIds.sort());
 });
 
-test("the pirate flag colour is a purchasable avatar item", () => {
-	assert.strictEqual(ShopCatalog.isPurchasable("avatar", "#111111"), true);
-	assert.strictEqual(ShopCatalog.byId("#111111").label, "Pirate Flag");
-});
-
 test("tactical skin is purchasable, classic is not (free/default)", () => {
 	assert.strictEqual(ShopCatalog.isPurchasable("skin", "tactical"), true);
 	assert.strictEqual(ShopCatalog.isPurchasable("skin", "classic"), false);

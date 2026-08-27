@@ -131,14 +131,15 @@ function applyBotConfigToGame(botId) {
 	g.botChordRate = botChord[botId];
 }
 
-// Every avatar value a real player could end up with — same "anon"/"mine" + colours + "img:<id>" set
-// Profile.js's own avatar picker builds client-side (AVATAR_COLORS/AVATAR_IMAGES, Cosmetics.js) — bots
-// have no account/ownership to gate against, so unlike a real player they draw from the WHOLE catalogue,
-// purchasable items included. Picking one per bot (instead of leaving them all on the default) means a
-// casual room filled out with Add Bot actually previews a varied-looking match, not a wall of identical
-// red flags.
+// "anon"/"mine"/every image preset (Cosmetics.AVATAR_IMAGES) — bots have no account/ownership to gate
+// against, so unlike a real player they draw from the WHOLE image catalogue, purchasable items included.
+// Deliberately excludes AVATAR_COLORS (the flag pennant colours): a flag is tied to identity/country, a
+// separate concept from a costume avatar, so it isn't part of this "which avatar does the bot look like"
+// pool at all, the same reasoning that keeps AVATAR_COLORS down to just the one free default colour now
+// (Cosmetics.js). Picking one per bot (instead of leaving them all on the default) means a casual room
+// filled out with Add Bot actually previews a varied-looking match, not a wall of identical silhouettes.
 function randomBotAvatar() {
-	var values = ["anon", "mine"].concat(Cosmetics.AVATAR_COLORS).concat(Object.keys(Cosmetics.AVATAR_IMAGES).map(function(id) { return "img:" + id; }));
+	var values = ["anon", "mine"].concat(Object.keys(Cosmetics.AVATAR_IMAGES).map(function(id) { return "img:" + id; }));
 	return values[Math.floor(Math.random() * values.length)];
 }
 

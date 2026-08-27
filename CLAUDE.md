@@ -1143,6 +1143,25 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   the panel's top-left) to the panel's top-right corner instead — just `left: calc(...)` swapped for
   `right: 0.5rem` on its otherwise-unchanged `position: absolute` rule; the back button keeps `left: 0.5rem`
   unchanged, so the two now sit at opposite corners of the same top strip.
+  **Panels given more visual "pop", on request** ("larger avatars, among other things") — with the corner
+  progress card gone (previous bullet), both `.duel-header-row`/`.opponent_div` cards had gotten a bit flat
+  and empty-feeling. Three changes, same treatment mirrored for both the you/blue and opponent/red side via
+  `var(--duel-you)`/`var(--duel-opp)`: (1) `.duel-id-avatar` grew from 50px to 68px, still comfortably inside
+  the 158px panel; (2) the flat `var(--surface)` card background became a top-down accent tint fading into
+  plain surface colour (`linear-gradient` + `color-mix`, the same idiom the match-history cards already use
+  elsewhere in this file), giving the panel some depth with no new content needed; (3) the avatar's single
+  hairline border became a proper "portrait frame" — a solid 3px inner ring plus a soft `color-mix`-tinted
+  halo just outside it (`box-shadow`'s spread-radius trick, 0 blur) — and the name gained a size bump
+  (0.92rem → 1.05rem) plus a matching soft text-shadow glow, so it reads as a focal point rather than
+  small print. Verified the CSS itself thoroughly (computed border-colour/background/size/position matched
+  spec exactly, symmetric between the two sides) — actually screenshotting it hit an unrelated Playwright/
+  headless-Chromium quirk: an image-avatar's `<canvas>` (`buildAvatarCanvas`, BoardRender.js) draws
+  asynchronously once its `<img>` finishes loading, and for the opponent panel specifically the compositor
+  sometimes doesn't pick up that late canvas repaint for `page.screenshot()` even seconds later, though the
+  canvas's own backing store demonstrably has the correct pixels the whole time (confirmed by reading
+  `getImageData` directly — thousands of non-background pixels present) — a capture-tooling artifact, not a
+  real rendering bug (an actual browser frame updates normally; nothing here is deferred or conditional on
+  anything a real player's session would ever wait on).
   **6-player battle layout** (`isMultiRacing()`, 3-6 racing players): the same TetrisFriends idea
   scaled up — one big own board on the left with your identity panel (`#duel_id_you`) above it, the
   round timer centered up top (shared `#duel_timer`), and **every** opponent's live board tiled in a
@@ -1252,8 +1271,16 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   carries `avatarColor`/`country`; disconnect clears the maps. Besides `#rrggbb` and `img:<id>`, two procedural
   avatar values are drawn on the canvas in `buildAvatarCanvas`: `"anon"` (a head-and-shoulders **anonymous
   silhouette**) and `"mine"` (the game's iconic spiky **sea-mine** — shaded body + rim light + shine). The
-  flag-pennant colour palette (`AVATAR_COLORS`) is the free/default classic **red** flag plus any purchasable
-  colours (currently the black **pirate flag**, see Shop below). **Guests** with no chosen
+  flag-pennant colour palette (`AVATAR_COLORS`) is just the free/default classic **red** flag now — it
+  briefly also had a purchasable black "Pirate Flag" colour, **removed outright on request** ("flags should
+  be a separate thing"; also the reported cause of bot opponents seeming to always draw it): flag colour and
+  avatar are conceptually different concerns (identity/country vs. costume) and blurring them into one
+  purchasable pool was the wrong call. Removed from `Cosmetics.AVATAR_COLORS` itself (not just delisted),
+  which automatically dropped its `ShopCatalog` entry too (`ShopCatalog.js` derives one purchasable item per
+  `AVATAR_COLORS` entry *past* the free/default first one — an empty remainder derives zero items, no
+  separate catalog edit needed) and its dedicated `shopcatalog.test.js` case, removed alongside it. Existing
+  owners/selections of the removed colour aren't migrated (same no-grandfathering stance as every other
+  catalog change here) — it simply stops appearing as a pickable swatch. **Guests** with no chosen
   avatar default to `"anon"` (`loginSocket` substitutes it when `is_guest` and `avatar_color` is null —
   display-only, not persisted). The home identity avatar is **click-to-edit**: clicking it opens
   `openAvatarEditor` (a `.cr-modal` reusing `renderAppearance` + a live preview); `setAvatarColor`/
@@ -1271,15 +1298,17 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   independently, so it needed no changes beyond adding `countryFlagSrcSquare`.
   **Bots get a random avatar, on request** — makes an "Add bot"-filled casual room preview a genuinely
   varied-looking match instead of a wall of identical default red flags. `randomBotAvatar()`
-  (`src/server/runtime/bots.js`) draws from the same value set Profile.js's own picker builds client-side
-  (`"anon"`/`"mine"` + `Cosmetics.AVATAR_COLORS` + `"img:"`-prefixed `Cosmetics.AVATAR_IMAGES` keys) —
-  unlike a real player, a bot has no account/ownership to gate against, so it draws from the WHOLE
-  catalogue, purchasable items included; there's nothing to sell a bot. Set into `appState.avatars[botId]`
-  in `addBotToRoom`, before `createPlayerGame` runs (which reads `avatars[playerID]` once, immediately, to
+  (`src/server/runtime/bots.js`) draws from `"anon"`/`"mine"` + `"img:"`-prefixed `Cosmetics.AVATAR_IMAGES`
+  keys — unlike a real player, a bot has no account/ownership to gate against, so for images it draws from
+  the WHOLE set, purchasable ones included; there's nothing to sell a bot. Deliberately excludes
+  `AVATAR_COLORS` (the flag pennant colours) even though a real player's picker doesn't draw a line there —
+  same "flags are a separate thing" reasoning as the pirate-flag removal just above: a flag isn't a costume,
+  so it isn't part of "which avatar does this bot look like" either. Set into `appState.avatars[botId]` in
+  `addBotToRoom`, before `createPlayerGame` runs (which reads `avatars[playerID]` once, immediately, to
   populate `game.avatar` — has to happen in that order) and cleaned up in `removeBotEntirely` alongside the
   rest of a bot's per-id state, matching how real players' entries get cleared on disconnect. Verified by
   adding a bot to 12 fresh rooms over real sockets and reading each one's `avatar` back off the `room_state`
-  broadcast: 5 distinct values across image presets, `"mine"`, and the purchasable flag colour, never null.
+  broadcast: 5 distinct values across every image preset and `"mine"`, never a flag colour, never null.
   **Locked items open a purchase modal, not `/shop`:** clicking an unowned avatar/skin inside the
   appearance modal calls `openItemPurchaseModal(item)` (Profile.js) instead of navigating away — a small
   `.cr-modal` stacked on top (`#item_purchase_modal`) showing the item + `buyShopItem` (Shop.js, shared

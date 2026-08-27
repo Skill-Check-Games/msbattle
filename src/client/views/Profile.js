@@ -44,10 +44,10 @@ function shopPriceLabel(id) {
 function buildAvatarSwatchesGrid() {
 	var swatches = document.createElement("div"); swatches.className = "avatar-swatches";
 	var current = (account.avatarColor || DEFAULT_AVATAR).toLowerCase();
-	// Unowned image presets (and colours, e.g. the pirate flag) render locked (dimmed, priced, still
-	// clickable) instead of being hidden, so the picker doubles as a discovery surface for the shop;
-	// clicking one opens the purchase modal instead of selecting it. Free values (anon/mine/the
-	// default flag colour) are never gated — shopItemUnlocked returns true for anything not in the catalog.
+	// Unowned image presets render locked (dimmed, priced, still clickable) instead of being hidden, so
+	// the picker doubles as a discovery surface for the shop; clicking one opens the purchase modal
+	// instead of selecting it. Free values (anon/mine/the default flag colour) are never gated —
+	// shopItemUnlocked returns true for anything not in the catalog.
 	function swatch(value) {
 		var unlocked = shopItemUnlocked("avatar", value);
 		var b = document.createElement("button"); b.type = "button";
@@ -64,10 +64,9 @@ function buildAvatarSwatchesGrid() {
 		});
 		swatches.appendChild(b);
 	}
-	// Sorted so everything owned from the start (anon, mine, and any free flag colours) comes before
-	// anything purchasable (locked colours like the pirate flag, and the image presets) — sorted by
-	// lock status, not by which array a value came from, since a colour can be free (the default red)
-	// or paid (the pirate flag) same as an image preset can.
+	// Sorted so everything owned from the start (anon, mine, the default flag colour) comes before
+	// anything purchasable (currently just the image presets) — sorted by lock status, not by which
+	// array a value came from, so a future purchasable colour would slot in the same way an image does.
 	var allAvatarValues = ["anon", "mine"]
 		.concat(AVATAR_COLORS)
 		.concat(typeof AVATAR_IMAGES !== "undefined" ? Object.keys(AVATAR_IMAGES).map(function(id) { return "img:" + id; }) : []);
