@@ -231,7 +231,11 @@ function duelZoomLayoutOnly() {
 // scroll-interpolation approach, just achieved for free by transform semantics instead of hand-rolled
 // math (and with no scroll-clamping edge case left to get wrong — scroll is set once, to its one valid
 // final value).
-function animateDuelZoomTo(centerR, centerC, fromCellPx) {
+// gapLeftPre/gapTopPre: the canvas-vs-#board_scroll on-screen gap (canvasRect.left - boardScrollRect.left,
+// and the top equivalent) measured by the caller BEFORE duelZoomLayoutOnly resized the canvas — see this
+// function's own transform-origin comment for why that specific, easy-to-get-wrong measurement moment
+// matters.
+function animateDuelZoomTo(centerR, centerC, fromCellPx, gapLeftPre, gapTopPre) {
 	var toCellPx = parseFloat(playerCanvas.style.width) / cols; // duelZoomLayoutOnly already set this
 	// Full resize (backing store + redraw) + repaint, deferred here from the trigger instant — see
 	// duelZoomLayoutOnly's own comment for why. Runs whether or not the animation below actually starts
@@ -260,44 +264,46 @@ function animateDuelZoomTo(centerR, centerC, fromCellPx) {
 	// mechanically interpolating" quality above is unaffected — only the abrupt opening beat is gone.
 	function ease(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
 	function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
-	// transform-origin must match scrollLeft/Top's own clamping exactly, axis by axis — not just use the
-	// raw anchor-cell position — but ONLY when zooming IN. If the anchor is near an edge, the "ideal"
-	// (pre-clamp) scroll position goes negative (or past the max), so scrollLeft ends up somewhere the
-	// origin formula didn't account for; scaling AROUND a point the scroll wasn't actually built around
-	// opens a gap between the canvas's real edge and the viewport's edge that's widest at the start of the
-	// animation and closes to 0 only at scale=1 (verified empirically: zooming into the board's (0,0)
-	// corner showed a 20px gap at the first frame, shrinking to 0 as the animation settled — an ugly
-	// "floating board" wedge of empty background for most of the animation, worse the closer the target is
-	// to an edge). Fix: whichever axis's scroll got clamped, anchor that axis's transform-origin at the
-	// SAME edge (0 or the full canvas extent) instead of the anchor cell's own position, so scale-around-
-	// origin and the fixed scroll agree at every t, not just t=1 — the edge itself never moves, so there is
-	// no gap to open in the first place. The non-clamped axis (or a center-ish target on both axes) is
-	// unaffected and keeps the original, precisely-centered anchor-cell math.
-	// Zooming OUT is the mirror image and does NOT have this problem, so must NOT get this edge-pull: at
-	// the overview's tiny toCellPx, `cols*toCellPx`/`rows*toCellPx` is frequently smaller than the
-	// viewport itself (the whole board already fits), which pins scrollLeft/Top's max at 0 regardless of
-	// the anchor — under the same "match the clamp" rule that'd yank transform-origin to a board corner for
-	// nearly EVERY zoom-out, not just edge-anchored ones, which is exactly the "zooming out always looks
-	// like it starts from the corner instead of your actual point" bug this was found to cause. It doesn't
-	// need the substitution in the first place: for zoom-out, scale only ever runs from >1 down to 1 with
-	// scrollLeft/Top pinned at their (already fully-determined, not "clamped away from ideal") final value,
-	// and `x_visible(scale) = Ox + (scroll-Ox)/scale` stays within the canvas's valid range for every scale
-	// in that direction regardless of Ox — no mismatch, no gap, so the plain anchor-cell position is both
-	// correct and exactly what keeps the anchor visually anchored under the player rather than sliding to
-	// a corner.
-	var zoomingIn = toCellPx > fromCellPx;
-	var idealLeft = (centerC + 0.5) * toCellPx - boardScroll.clientWidth / 2;
-	var maxScrollLeft = Math.max(0, cols * toCellPx - boardScroll.clientWidth);
-	var idealTop = (centerR + 0.5) * toCellPx - boardScroll.clientHeight / 2;
-	var maxScrollTop = Math.max(0, rows * toCellPx - boardScroll.clientHeight);
-	boardScroll.scrollLeft = clamp(idealLeft, 0, maxScrollLeft);
-	boardScroll.scrollTop = clamp(idealTop, 0, maxScrollTop);
-	var originX = (centerC + 0.5) * toCellPx;
-	var originY = (centerR + 0.5) * toCellPx;
-	if (zoomingIn) {
-		if (idealLeft < 0) originX = 0; else if (idealLeft > maxScrollLeft) originX = cols * toCellPx;
-		if (idealTop < 0) originY = 0; else if (idealTop > maxScrollTop) originY = rows * toCellPx;
-	}
+	var scrollLeftNew = clamp((centerC + 0.5) * toCellPx - boardScroll.clientWidth / 2, 0, Math.max(0, cols * toCellPx - boardScroll.clientWidth));
+	var scrollTopNew = clamp((centerR + 0.5) * toCellPx - boardScroll.clientHeight / 2, 0, Math.max(0, rows * toCellPx - boardScroll.clientHeight));
+	boardScroll.scrollLeft = scrollLeftNew;
+	boardScroll.scrollTop = scrollTopNew;
+	var startScale = fromCellPx / toCellPx;
+	// transform-origin, derived from "frame0 must render pixel-identical to whatever was already on screen
+	// the instant before this ran" — not from the anchor cell's own position (two earlier attempts both
+	// used that directly: first the raw anchor pixel unconditionally, then clamped to the nearest edge
+	// whenever scroll itself got clamped, then that clamp gated to zoom-in only once it broke zoom-out's
+	// anchoring — see git history). Both got the DESTINATION right but never actually solved for the
+	// START: nothing tied transform-origin to whatever the canvas's pre-trigger on-screen position and
+	// margin actually were, so the very first painted frame could land somewhere else entirely — reported
+	// as "an instantaneous shift... small near the center, a lot near the left/right borders" (bigger
+	// wherever the previous formula's origin happened to diverge furthest from the true pre-trigger
+	// layout). Solving directly for zero jump at t=0 instead: with the canvas already resized to its final
+	// (toCellPx) layout box (duelZoomLayoutOnly, by the caller, before this runs) and scrollLeft jumped to
+	// scrollLeftNew above, the on-screen position of local x=0 is `boardScrollLeft - scrollLeftNew +
+	// marginLeftNew + Ox*(1-scale)` (marginLeftNew from `margin: 0 auto`'s CSS auto-centering, 0 whenever
+	// the new size overflows #board_scroll, e.g. always true zooming in). Requiring that to equal the
+	// pre-trigger position `boardScrollLeft - scrollLeftPre + marginLeftPre` at scale=startScale, and
+	// substituting gapLeftPre = canvasRect.left - boardScrollRect.left = marginLeftPre - scrollLeftPre
+	// (the caller's pre-resize measurement) makes every scrollLeftPre/marginLeftPre term cancel, leaving:
+	// Ox = (scrollLeftNew + gapLeftPre - marginLeftNew) / (1 - startScale) — no separate "which edge did
+	// scroll clamp to" reasoning needed at all. At scale=1 this Ox has literally zero effect (the (x-Ox)
+	// term's own multiplier hits 1, so Ox itself cancels out of the sum) — the correct, already-verified
+	// endpoint (previous two fixes) is untouched; only the trajectory getting there changes. And since
+	// x_visible(scale) is an affine function of 1/scale for a fixed origin, matching (gap-free, valid)
+	// endpoints at BOTH t=0 (by this construction) and t=1 (unchanged, already-verified) guarantees no gap
+	// can open in between either — monotonic between two valid points can't dip invalid. Verified: sampling
+	// the canvas's real rect on the very first painted frame after a live trigger now matches the
+	// pre-trigger rect exactly (previously off by tens of pixels, worse the closer to a board edge), for
+	// both zoom directions and both edge- and center-anchored targets, with the corner-anchored zoom-in's
+	// gap-free-throughout property (previous fix) and the zoom-out anchor-tracking property (previous fix)
+	// both re-confirmed unaffected.
+	var csAfterResize = getComputedStyle(playerCanvas);
+	var marginLeftNew = parseFloat(csAfterResize.marginLeft) || 0;
+	var marginTopNew = parseFloat(csAfterResize.marginTop) || 0;
+	var denom = 1 - startScale;
+	var originX = (scrollLeftNew + (gapLeftPre || 0) - marginLeftNew) / denom;
+	var originY = (scrollTopNew + (gapTopPre || 0) - marginTopNew) / denom;
 	playerCanvas.style.transformOrigin = originX + "px " + originY + "px";
 	playerCanvas.style.willChange = "transform";
 	var startScale = fromCellPx / toCellPx;
@@ -335,9 +341,15 @@ function zoomDuelOut() {
 	if (!(fromCellPx > 0)) return;
 	var anchorC = (boardScroll.scrollLeft + boardScroll.clientWidth / 2) / fromCellPx - 0.5;
 	var anchorR = (boardScroll.scrollTop + boardScroll.clientHeight / 2) / fromCellPx - 0.5;
+	// Must be read before duelZoomLayoutOnly resizes the canvas below — animateDuelZoomTo's transform-
+	// origin needs this exact pre-resize on-screen gap to keep frame0 visually continuous with right now.
+	var preCanvasRect = playerCanvas.getBoundingClientRect();
+	var preBoardScrollRect = boardScroll.getBoundingClientRect();
+	var gapLeftPre = preCanvasRect.left - preBoardScrollRect.left;
+	var gapTopPre = preCanvasRect.top - preBoardScrollRect.top;
 	duelZoomedOut = true;
 	duelZoomLayoutOnly(); // cheap — CSS size only; the real resize+redraw happens once the zoom settles
-	animateDuelZoomTo(anchorR, anchorC, fromCellPx);
+	animateDuelZoomTo(anchorR, anchorC, fromCellPx, gapLeftPre, gapTopPre);
 	if (navigator.vibrate) navigator.vibrate(8);
 }
 
@@ -348,9 +360,14 @@ function zoomDuelIn(targetR, targetC) {
 	if (!isDuelLandscapeMobile() || !duelZoomedOut || !boardScroll) return;
 	var fromCellPx = parseFloat(playerCanvas.style.width) / cols;
 	if (!(fromCellPx > 0)) return;
+	// Must be read before duelZoomLayoutOnly resizes the canvas below — see zoomDuelOut's own comment.
+	var preCanvasRect = playerCanvas.getBoundingClientRect();
+	var preBoardScrollRect = boardScroll.getBoundingClientRect();
+	var gapLeftPre = preCanvasRect.left - preBoardScrollRect.left;
+	var gapTopPre = preCanvasRect.top - preBoardScrollRect.top;
 	duelZoomedOut = false;
 	duelZoomLayoutOnly(); // cheap — CSS size only; the real resize+redraw happens once the zoom settles
-	animateDuelZoomTo(targetR, targetC, fromCellPx);
+	animateDuelZoomTo(targetR, targetC, fromCellPx, gapLeftPre, gapTopPre);
 	if (navigator.vibrate) navigator.vibrate(8);
 }
 

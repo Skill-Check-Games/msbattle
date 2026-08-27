@@ -1091,6 +1091,47 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   INcreasing growth at the start (`0.02px, 0.13px, 0.36px, 0.7px, 1.15px, 1.7px, 2.4px, …`) — genuinely
   gradual now — while still settling smoothly into the destination at the end (symmetric curve, so the
   "eases into place" quality at the finish is unchanged, only the opening beat).
+  **Still an instantaneous shift right at the trigger, on both directions — "small near the center, a lot
+  near the left/right borders"**: root cause, finally, wasn't geometry OR easing — it was that
+  `transform-origin` had never actually been solved for the right thing. Both earlier attempts (raw anchor
+  position; then anchor clamped to the nearest edge whenever scroll itself clamped) chose origin to get the
+  DESTINATION (t=1) right, and origin happened to also determine the very first frame's appearance as a
+  side effect nobody had solved for directly — so frame 0 could land anywhere, and how far off depended on
+  how far that formula's origin happened to be from the board's true pre-trigger layout, which is
+  incidentally correlated with anchor distance from center (matching "small near the center, a lot near the
+  edges"). Re-derived from the actual requirement instead: frame 0 must render pixel-for-pixel identical to
+  whatever was already on screen the instant before triggering. With the canvas already resized to its
+  final layout box and `boardScroll.scrollLeft` already jumped to its target value (both happen before any
+  scale is applied), the on-screen position of local `x=0` works out to
+  `boardScrollLeft - scrollLeftNew + marginLeftNew + Ox*(1-scale)` (`marginLeftNew` from `margin: 0 auto`'s
+  CSS centering, `0` whenever the new size overflows `#board_scroll`). Setting that equal to the actual
+  pre-trigger position (`boardScrollLeft - scrollLeftPre + marginLeftPre`) at `scale = startScale`, and
+  substituting `gapLeftPre = canvasRect.left - boardScrollRect.left = marginLeftPre - scrollLeftPre` (a
+  single measurement the caller takes right before resizing — `zoomDuelIn`/`zoomDuelOut`, before calling
+  `duelZoomLayoutOnly`) makes every `scrollLeftPre`/`marginLeftPre` term cancel algebraically, leaving:
+  `Ox = (scrollLeftNew + gapLeftPre - marginLeftNew) / (1 - startScale)` — no per-axis edge-detection or
+  direction gating needed at all; this single formula replaces both of the last two fixes' `transform-
+  origin` logic entirely (same substitution, `Oy`, for the vertical axis). Two things fall out of this for
+  free: at `scale = 1` the `(x-Ox)` term's own multiplier hits `1`, so `Ox` cancels completely out of the
+  sum — meaning this only changes the animation's TRAJECTORY, never its (already-correct, already-verified)
+  DESTINATION; and since `x_visible(scale)` is an affine function of `1/scale` for any fixed origin, having
+  BOTH endpoints valid (t=0 by this construction, t=1 unchanged) guarantees no gap can open at any point in
+  between either — a monotonic function between two valid values can't dip invalid, so the corner-anchored
+  zoom-in's gap-free property (two fixes ago) survives this rewrite for free, without needing its own
+  separate case. Verified three ways: (1) triggered the REAL animation and compared `playerCanvas`'s
+  `getBoundingClientRect()` on the very first painted `requestAnimationFrame` against an immediately-prior
+  measurement — deltas of 0 (a few sub-pixel/0.5px rounding artifacts) across zoom-in to a true corner, a
+  center cell, and the opposite far corner, and zoom-out from three different pan positions (left edge,
+  middle, right edge) — where before the fix these were off by tens of pixels, worse the closer to an edge;
+  (2) re-sampled the corner-anchored zoom-in across the full real animation and confirmed the gap stays
+  bounded by the small, genuinely pre-existing overview margin (not a NEW artifact opening up) and returns
+  to exactly `0` by the end; (3) re-sampled a near-edge-anchored zoom-out's anchor-cell screen position
+  across the full real animation and found it traces a smooth, monotonic curve with no jump or wobble
+  (some drift over the course of the animation toward the anchor's natural resting spot in the fixed,
+  unscrollable overview is an accepted, correctly-smooth trade-off for eliminating the instant snap at the
+  start — the two are provably impossible to have simultaneously with a scroll position that's set once,
+  since exact anchor-pinning for the WHOLE animation requires scroll to be exactly the anchor's own literal
+  position — the opposite of what continuity at t=0 needs in general).
   **6-player battle layout** (`isMultiRacing()`, 3-6 racing players): the same TetrisFriends idea
   scaled up — one big own board on the left with your identity panel (`#duel_id_you`) above it, the
   round timer centered up top (shared `#duel_timer`), and **every** opponent's live board tiled in a
