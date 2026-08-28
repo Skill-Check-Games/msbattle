@@ -1109,6 +1109,22 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   still in the pre-reveal window) specifically to close this gap — don't drop that call when touching this code.
   The site footer is hidden whenever a game is on screen via a `body.in-game` class (added by the
   game entry points, removed in `hideAllViews`).
+  **Landscape-phone layout** (`body.multi-landscape-mode`, the `.multi` sibling of the duel's own
+  `duel-landscape-mode`, both driven by `applyDuelLandscapeClass`/style.css — same media query, same
+  shared `duel-force-rotate` fallback for a phone stuck physically portrait): reuses the duel layout's
+  own left-panel/board markup and CSS verbatim (`.duel-header-row`, `.duel-id`, `.board-wrap`, the
+  whole zoom/pan/gesture chain — `MobileLayout.js`'s `isDuelLandscapeMobile()` now recognizes either
+  mode, so none of that machinery needed per-mode branches), since a single player's own identity +
+  board card looks identical either way. The one real difference is the right panel: instead of a
+  single opponent's board+identity (there are up to 5 here, not 1), it shows the live `#scoreboard`
+  (`renderScoreboard`, GameRoom.js — already ranks/updates every frame and folds a big field into
+  top-5 + neighbours-around-you) restyled into a compact list, with a small avatar added per row
+  (`.score-avatar`, hidden everywhere else). `updateMultiHud` now also mirrors "you" progress into the
+  shared `duel-bar` elements and fills the timer's mode-badge text (factored out of `updateDuelHud`
+  into `updateDuelTimerModeLabel`, shared by both HUDs). Unlike the duel (only ever entered through the
+  ranked queue, so `body.ranked-game`'s `main{padding:0}` reset is already guaranteed), a 6-player
+  battle can also be a casual room — needs its own `body.multi-landscape-mode main{padding:0}` reset or
+  `main`'s ordinary 2rem padding pushes the board/toggle row below the viewport.
 - **Mobile in-game (portrait phones)**: `.opponents` and the desktop `.duel-bar`/`#duel_id_you` panel
   are all hidden below the `max-width: 700px` breakpoint (no room) — past that width, phones wide
   enough to be in landscape get their own dedicated layout instead (see the 1v1 duel layout bullet
@@ -1362,6 +1378,19 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   redirect that lands on the lobby and opens the modal, same as `/ranked/sprint`|`standard`. The home
   card itself shows the **Puzzle Ladder tier** (`#puzzle_ladder_tier`, `puzzleLadderLabel`) instead of the
   hidden puzzle rating or a solved count — same "tier only" treatment Sprint/Standard use.
+  **In-game puzzle board on landscape phones**: the board uses a fixed-size box
+  (`sizePlayerCanvas`'s `fixedBox` branch, MobileLayout.js — `PUZZLE_BOARD_PX`/`PUZZLE_CELL_MAX`,
+  480px/75px desktop, 320px/56px portrait `mobileLayout`) that picked the DESKTOP size on a landscape
+  phone (width > 700 fails the portrait check) even though its viewport is often under 400px tall,
+  overflowing off screen. Unlike the duel/6-player battle layouts, this didn't need a new grid shape —
+  the existing board-beside-ladder-card arrangement is already right — just a third, smaller tier
+  (`PUZZLE_BOARD_PX_LANDSCAPE` = 300 / `PUZZLE_CELL_MAX_LANDSCAPE`, `isPuzzleLandscapeMobile()`, reusing
+  the battle layouts' own landscape-phone media query directly with no body-class/force-rotate
+  machinery — portrait already has a correctly-sized board via the plain `mobileLayout` branch, so only
+  the one genuinely broken case needed handling) plus a plain `@media` CSS block (style.css) that hides
+  the header/topbar, keeps board+card side by side (overriding the width-based stacking breakpoint a
+  landscape phone's own narrow width would otherwise still trip) and resets `main`'s padding (puzzle
+  play is never a `body.ranked-game` room either, same gap the 6-player fix needed to close).
 - **Puzzle Ladder** (the renamed "Rated" mode) — a chess.com-style **monotonic points progression** layered
   on the rated trainer. `users.puzzle_points` only ever goes **up** (awarded server-side in `finalizePuzzle`
   on a rated *solve*, scaled by difficulty: `puzzlePointsFor(puzzleRating − playerRating)` → 15 regular /
