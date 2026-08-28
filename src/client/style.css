@@ -4429,6 +4429,9 @@ body.duel-force-rotate .game-view.duo .game-side { display: contents !important;
 	display: block;
 	text-align: center;
 	min-width: 5ch;
+	/* Same empty-box-collapses-to-0-height issue as .game-view.duo #duel_timer above — this is the
+	   same element, just a different layout's copy of the rule, so it needs the same min-height. */
+	min-height: 1em;
 	font-family: var(--font-display);
 	font-size: 1.3rem;
 	font-weight: 800;
