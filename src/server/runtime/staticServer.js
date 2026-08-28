@@ -8,9 +8,14 @@
 // Compression + caching: text assets are gzipped/brotli'd on the fly (streamed through
 // zlib, not buffered in memory — this runs on a 256MB instance, so per-request streaming
 // beats holding a compressed-copy cache) based on the request's Accept-Encoding. Static
-// JS/CSS/SVG/PNG get a modest Cache-Control (they have no cache-busting query string, so
-// this is intentionally short); index.html itself is never cached, so a deploy is always
-// picked up on the next navigation without a hard refresh.
+// JS/CSS/SVG/PNG get a modest Cache-Control at their bare URL (a direct request for e.g.
+// /bundle.js with no query string — an old service worker still holding that exact request
+// in its own CacheStorage, a curl, whatever — still gets a bounded, non-immutable lifetime);
+// index.html's own references to /bundle.js and /style.css additionally carry a `?v=`
+// DEPLOY_VERSION query string (applyAssetVersioning, below) so a normal page load always
+// asks for a genuinely new URL after a deploy, not just an eventually-expiring one. index.html
+// itself is never cached, so a deploy is always picked up on the next navigation without a
+// hard refresh.
 
 var fs = require("fs");
 var path = require("path");
@@ -46,7 +51,20 @@ function applyBundleSwap(html) {
 	var startIdx = html.indexOf(BUNDLE_START);
 	var endIdx = html.indexOf(BUNDLE_END);
 	if (startIdx === -1 || endIdx === -1 || !fs.existsSync(BUNDLE_PATH)) return html;
-	return html.slice(0, startIdx) + '<script defer src="/bundle.js"></script>' + html.slice(endIdx + BUNDLE_END.length);
+	// ?v=DEPLOY_VERSION busts both the browser's HTTP cache and any intermediate proxy/CDN cache for
+	// this exact URL — see DEPLOY_VERSION's own comment for why max-age alone isn't enough.
+	return html.slice(0, startIdx) + '<script defer src="/bundle.js?v=' + DEPLOY_VERSION + '"></script>' + html.slice(endIdx + BUNDLE_END.length);
+}
+
+// Same cache-busting as the bundle swap above, for the one other long-lived static asset index.html
+// always references regardless of dev/prod: the stylesheet link isn't inside the BUNDLE:START/END
+// block (it's not one of the swapped-out script tags), so it needs its own rewrite. A plain string
+// replace is safe here — the href is a fixed, single-occurrence literal in the template, not
+// per-request content.
+var STYLE_LINK = '<link rel="stylesheet" type="text/css" href="/style.css">';
+function applyAssetVersioning(html) {
+	if (DEV) return html;
+	return html.replace(STYLE_LINK, '<link rel="stylesheet" type="text/css" href="/style.css?v=' + DEPLOY_VERSION + '">');
 }
 
 // HTML injection ("SSR-lite"): give the client real data before the deferred bundle even runs, so
@@ -247,14 +265,20 @@ function serveBuffer(res, body, headers, encoding) {
 	});
 }
 
-// Service worker: __SW_VERSION__ (in the real sw.js source) is replaced with this process's start
-// timestamp — every deploy is a fresh process, so every deploy gets a fresh cache name and the
-// worker's `activate` step purges whatever the previous version cached. Computed once at startup,
-// not per-request. Dev serves a small self-unregistering "kill switch" worker instead of the real
-// one — even the source file's cache-first behavior has no place in dev's always-fresh iteration
-// loop, and this also cleans up any real worker a dev previously registered while testing a prod
-// build against this same origin.
-var SW_VERSION = String(Date.now());
+// This process's own boot identity — every deploy is a fresh process, so every deploy gets a fresh
+// value. Two uses: (1) __SW_VERSION__ (in the real sw.js source) is replaced with it, so every deploy
+// gets a fresh CacheStorage name and the worker's `activate` step purges whatever the previous version
+// cached; (2) index.html's own asset links (applyAssetVersioning, below) carry it as a `?v=` query
+// string, so /bundle.js and /style.css are a genuinely NEW url per deploy — otherwise their fixed URL
+// + `Cache-Control: max-age=3600` (below) means the browser's own HTTP cache (a layer neither the
+// service worker nor its CacheStorage has any control over) can legitimately keep serving an old copy
+// for up to an hour after a deploy, regardless of how promptly the service worker itself updates.
+// Computed once at startup, not per-request. Dev serves a small self-unregistering "kill switch"
+// worker instead of the real one — even the source file's cache-first behavior has no place in dev's
+// always-fresh iteration loop, and this also cleans up any real worker a dev previously registered
+// while testing a prod build against this same origin — and skips the query-string versioning too
+// (DEV's JS/CSS Cache-Control is already `no-cache`, so there's no staleness to bust in the first place).
+var DEPLOY_VERSION = String(Date.now());
 var SW_SOURCE_PATH = path.join(__dirname, "..", "..", "client", "sw.js");
 var SW_KILL_SWITCH = [
 	'self.addEventListener("install", function() { self.skipWaiting(); });',
@@ -278,7 +302,7 @@ function serveServiceWorker(res, req) {
 		// split/join, not .replace() — a plain string search only swaps the FIRST occurrence, and
 		// this placeholder appears more than once (verified against the current source, but this
 		// makes the substitution correct regardless of future edits to sw.js).
-		body = swSourceCache.split("__SW_VERSION__").join(SW_VERSION);
+		body = swSourceCache.split("__SW_VERSION__").join(DEPLOY_VERSION);
 	}
 	var headers = { "Content-Type": "text/javascript", "Cache-Control": "no-cache" };
 	serveBuffer(res, Buffer.from(body), headers, pickEncoding(req));
@@ -307,7 +331,7 @@ function serve(res, pathname, req) {
 	if (path.basename(filePath) === "index.html") {
 		fs.readFile(filePath, "utf8", function(err, html) {
 			if (err) { res.writeHead(500); res.end("Error while loading " + filePath); return; }
-			html = applyHydration(applyRouteReveal(applyBundleSwap(html), pathname), req);
+			html = applyHydration(applyRouteReveal(applyAssetVersioning(applyBundleSwap(html)), pathname), req);
 			serveBuffer(res, Buffer.from(html), headers, encoding);
 		});
 		return;

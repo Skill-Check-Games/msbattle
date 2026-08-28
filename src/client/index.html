@@ -1115,6 +1115,29 @@ if ("serviceWorker" in navigator) {
 	window.addEventListener("load", function() {
 		navigator.serviceWorker.register("/sw.js");
 	});
+	// sw.js's own skipWaiting()+clients.claim() means a new worker takes over almost immediately after
+	// a deploy — but that only changes what the NEXT fetch gets. This tab's JS is already loaded and
+	// running; without reloading, it keeps executing the old version indefinitely (the classic "why
+	// didn't my update show up" — the first refresh is what triggers the takeover, so only the SECOND
+	// refresh actually shows new code). Reload once the new worker actually takes control instead of
+	// waiting on the player to stumble into a second manual refresh.
+	// Not forced mid-match though — reloading out from under an active game would drop the player from
+	// it the same as navigating away (leaveRoom/teardownRoomUI, Main.js). Deferred via a MutationObserver
+	// on body's class list (cheap, and self-contained — doesn't need to hook into every game-end path
+	// across the app) until body.in-game clears, then reloads.
+	var swReloadPending = false;
+	function reloadForNewServiceWorker() {
+		if (swReloadPending) return;
+		swReloadPending = true;
+		if (!document.body.classList.contains("in-game")) { window.location.reload(); return; }
+		var obs = new MutationObserver(function() {
+			if (document.body.classList.contains("in-game")) return;
+			obs.disconnect();
+			window.location.reload();
+		});
+		obs.observe(document.body, { attributes: true, attributeFilter: ["class"] });
+	}
+	navigator.serviceWorker.addEventListener("controllerchange", reloadForNewServiceWorker);
 }
 </script>
 </body>
