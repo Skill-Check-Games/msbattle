@@ -4441,6 +4441,336 @@ body.duel-force-rotate .game-view.duo .game-side { display: contents !important;
 	text-shadow: 0 0 18px rgba(230, 233, 245, 0.25);
 }
 
+/* ===== 6-player battle, landscape phones =====
+   Same idea as the 1v1 duel's landscape layout above (see its big intro comment for the full
+   reasoning behind min-width:701px / the shared force-rotate class) — a landscape phone is too short
+   for the desktop grid's two-column board+opponent-tiles layout to read well. Reuses the exact same
+   left-panel/board markup and CSS as the duel version (.duel-header-row, .duel-id, .board-wrap,
+   .duel-mode-toggle, the whole board-scroll zoom/pan machinery, …) since a single player's own
+   identity+progress+board card looks identical either way and MobileLayout.js's isDuelLandscapeMobile
+   already treats both modes the same for sizing purposes. The one real difference is the right panel:
+   instead of a single opponent's board+identity (there are up to 5 here, not 1 — five simultaneous
+   live mini-boards would be unreadable at this width), it shows a scrollable RANKED LIST — the exact
+   same live #scoreboard the desktop lobby/casual views already use (renderScoreboard, GameRoom.js,
+   which already ranks/updates every frame and folds a big field into top-5 + neighbours-around-you),
+   just restyled to fit a narrow column, with a small avatar added per row (.score-avatar) to match.
+   Driven by body.multi-landscape-mode (applyDuelLandscapeClass, Main.js), the .multi sibling of
+   body.duel-landscape-mode. */
+/* The duel layout above never needs this itself — it's only ever entered through the ranked queue
+   (enterDuelMobileFullscreen is called from findRanked), so body.ranked-game's own "main{padding:0}"
+   (further up) is already guaranteed true by the time it applies. A 6-player battle can ALSO be a
+   casual custom room (3-6 players, no ranked-game class) that just happens to already be in real
+   landscape orientation — without this, main's own 2rem padding pushes #game_view's content down past
+   the viewport (measured: body 64px taller than the window, the board/toggle row's own bottom edge
+   rendering off-screen) since height:100dvh below sizes the element itself but can't undo an ancestor's
+   padding pushing it down first. Redundant (harmless) whenever ranked-game is also set. */
+body.multi-landscape-mode main { max-width: none; padding: 0; }
+body.multi-landscape-mode .game-view.multi .game-header { display: none; }
+body.multi-landscape-mode .game-view.multi {
+	height: 100dvh; min-height: 0; overflow: hidden;
+	display: flex; flex-direction: column;
+}
+body.multi-landscape-mode .game-view.multi .game-grid {
+	display: grid;
+	grid-template-columns: minmax(0, 158px) minmax(0, 1fr) minmax(0, 190px);
+	grid-template-rows: minmax(0, 1fr);
+	grid-template-areas: "left board right";
+	align-items: stretch;
+	gap: 0.6rem;
+	min-height: 0;
+	flex: 1 1 auto;
+	max-width: none;
+	width: 100%;
+	margin: 0;
+	/* Same notch/curved-corner allowance as the duel layout — see its own comment above. */
+	padding-left: calc(1.5rem + env(safe-area-inset-left, 0px));
+	padding-right: calc(1.5rem + env(safe-area-inset-right, 0px));
+}
+body.multi-landscape-mode .game-view.multi .game-left { display: contents; }
+body.multi-landscape-mode .game-view.multi .player-board { display: contents; }
+body.multi-landscape-mode .game-view.multi .duel-header-row { grid-area: left; }
+body.multi-landscape-mode .game-view.multi .board-wrap { grid-area: board; }
+
+/* ── Left panel: identical card treatment to the duel version — border/glow tinted to --duel-you,
+   which .game-view.multi already sets to the same blue (see above), so this needs no colour changes,
+   just the duo block's rules re-scoped to .multi. No opponent-panel equivalent here (that's the whole
+   point of the right-panel rewrite below), so none of the duo block's #duel_id_opp-specific overrides
+   apply — this player only ever has ONE identity panel to style. ── */
+body.multi-landscape-mode .game-view.multi .duel-header-row {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
+	gap: 0.6rem;
+	padding: 0.6rem 0.5rem;
+	border-radius: 14px;
+	border: 1px solid var(--duel-you);
+	background: linear-gradient(180deg, color-mix(in srgb, var(--duel-you) 12%, var(--surface)), var(--surface) 60%);
+	box-shadow: 0 0 26px -6px var(--duel-you), inset 0 0 22px -14px var(--duel-you);
+	position: relative;
+	overflow-y: auto;
+	min-height: 0;
+}
+body.multi-landscape-mode .game-view.multi .duel-back-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	position: absolute;
+	top: 0.5rem;
+	left: 0.5rem;
+	width: 28px;
+	height: 28px;
+	border-radius: 8px;
+	border: 1px solid var(--border);
+	background: rgba(255, 255, 255, 0.05);
+	color: var(--muted);
+	cursor: pointer;
+	z-index: 1;
+}
+body.multi-landscape-mode .game-view.multi .duel-back-btn:hover { color: var(--text); border-color: var(--duel-you); }
+body.multi-landscape-mode .game-view.multi .duel-fullscreen-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	position: absolute;
+	top: 0.5rem;
+	right: 0.5rem;
+	width: 28px;
+	height: 28px;
+	border-radius: 8px;
+	border: 1px solid var(--border);
+	background: rgba(255, 255, 255, 0.05);
+	color: var(--muted);
+	cursor: pointer;
+	z-index: 1;
+}
+body.multi-landscape-mode .game-view.multi .duel-fullscreen-btn:hover { color: var(--text); border-color: var(--duel-you); }
+
+body.multi-landscape-mode .game-view.multi .duel-id {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
+	gap: 0.5rem;
+	min-height: 0;
+	margin-bottom: 0;
+}
+body.multi-landscape-mode .game-view.multi #duel_id_you { margin-top: 1.6rem; margin-bottom: 0; align-self: center; }
+body.multi-landscape-mode .game-view.multi .duel-id-info { align-items: center; }
+body.multi-landscape-mode .game-view.multi .duel-id-tier-pill {
+	flex-direction: row;
+	border: none;
+	background: transparent;
+	padding: 0;
+	gap: 0.15rem;
+}
+body.multi-landscape-mode .game-view.multi .duel-id-tier-badge.rank-badge {
+	font-size: 5px;
+	transform: scale(1.4);
+	margin: 0 3px;
+}
+body.multi-landscape-mode .game-view.multi .duel-id-name {
+	font-size: 1.05rem;
+	text-shadow: 0 0 12px color-mix(in srgb, var(--duel-you) 55%, transparent);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	max-width: 100%;
+}
+body.multi-landscape-mode .game-view.multi .duel-id-avatar,
+body.multi-landscape-mode .game-view.multi .duel-id-avatar canvas {
+	width: 68px !important;
+	height: 68px !important;
+	border-radius: 50%;
+}
+body.multi-landscape-mode .game-view.multi .duel-id-avatar {
+	border: 3px solid var(--duel-you);
+	box-shadow: 0 0 20px -3px var(--duel-you), 0 0 0 4px color-mix(in srgb, var(--duel-you) 20%, transparent);
+}
+/* Redundant with #duel_top_progress (front-and-center above the board, below) — same reasoning as the
+   duel layout hiding its own "you" copy of this card. */
+body.multi-landscape-mode .game-view.multi #duel_bar_you_corner { display: none; }
+
+body.multi-landscape-mode .game-view.multi .duel-timer-landscape-box {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0.15rem;
+	width: 100%;
+	padding: 0.4rem;
+	border-radius: 10px;
+	border: 1px solid transparent;
+	/* Solid tint instead of the duel's cyan-to-red gradient border — there's no "opponent colour" to
+	   gradient toward here, every player shares the one blue accent. */
+	background:
+		linear-gradient(var(--surface), var(--surface)) padding-box,
+		linear-gradient(90deg, var(--duel-you), var(--duel-you)) border-box;
+}
+body.multi-landscape-mode .game-view.multi .duel-timer-landscape-row { justify-content: center; }
+body.multi-landscape-mode .game-view.multi .duel-timer-landscape { display: block; font-size: 1.15rem; }
+
+/* ── The board — same neon-card treatment + zoom/pan/scroll machinery as the duel version. ── */
+body.multi-landscape-mode .game-view.multi .board-wrap {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	border-radius: 14px;
+	border: 1px solid var(--duel-you);
+	background: var(--surface);
+	box-shadow: 0 0 22px -6px var(--duel-you), inset 0 0 22px -14px var(--duel-you);
+	padding: 0.5rem;
+}
+body.multi-landscape-mode .game-view.multi .duel-top-progress {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	flex: 0 0 auto;
+	margin-bottom: 0.4rem;
+}
+body.multi-landscape-mode .game-view.multi .duel-top-progress-track {
+	position: relative;
+	flex: 1;
+	height: 10px;
+	border-radius: 999px;
+	background: rgba(255, 255, 255, 0.08);
+	overflow: visible;
+}
+body.multi-landscape-mode .game-view.multi .duel-top-progress-fill {
+	display: block;
+	height: 100%;
+	width: 0;
+	border-radius: 999px;
+	background: linear-gradient(90deg, var(--duel-you), #7db8ff);
+	transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+body.multi-landscape-mode .game-view.multi .duel-top-progress-fill.duel-top-progress-pulse {
+	animation: duelTopProgressPulse 0.5s ease-out;
+}
+body.multi-landscape-mode .game-view.multi .duel-top-progress-pct {
+	font-size: 0.85rem;
+	font-weight: 800;
+	color: var(--text);
+	font-variant-numeric: tabular-nums;
+	min-width: 2.4em;
+	text-align: right;
+}
+body.multi-landscape-mode .game-view.multi .duel-top-progress-pop {
+	position: absolute;
+	top: 0;
+	transform: translate(-50%, 0);
+	font-size: 0.72rem;
+	font-weight: 800;
+	color: #bfdcff;
+	pointer-events: none;
+	white-space: nowrap;
+	animation: duelTopProgressPop 0.7s ease-out forwards;
+}
+body.multi-landscape-mode .game-view.multi .board-scroll {
+	flex: 1;
+	min-height: 0;
+	overflow: auto;
+	scrollbar-width: none;
+	-ms-overflow-style: none;
+}
+body.multi-landscape-mode .game-view.multi .board-scroll::-webkit-scrollbar { display: none; width: 0; height: 0; }
+body.multi-landscape-mode .game-view.multi .board-scroll canvas { display: block; margin: 0 auto; }
+body.multi-landscape-mode[data-board-skin="gold"] .game-view.multi .board-scroll::after { display: none; }
+body.multi-landscape-mode .game-view.multi .duel-bar-row { display: none; }
+
+body.multi-landscape-mode .game-view.multi .duel-mode-toggle {
+	display: flex;
+	flex: 0 0 auto;
+	gap: 0.5rem;
+	margin-top: 0.5rem;
+}
+body.multi-landscape-mode .game-view.multi .duel-mode-btn {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.4rem;
+	padding: 0.6rem;
+	border-radius: 10px;
+	border: 1px solid var(--border);
+	background: var(--surface);
+	color: var(--muted);
+	font-size: 0.95rem;
+	font-weight: 700;
+}
+body.multi-landscape-mode .game-view.multi .duel-mode-btn-icon { font-size: 1rem; }
+body.multi-landscape-mode .game-view.multi .duel-mode-btn-active {
+	border-color: var(--duel-you);
+	color: var(--text);
+	background: #14213d;
+}
+body.multi-landscape-mode .game-view.multi .duel-find-nav-btn { flex: 0 0 auto; padding: 0.6rem 0.7rem; }
+body.multi-landscape-mode .game-view.multi .duel-find-nav-btn .duel-mode-btn-icon { font-size: 1.3rem; font-weight: 700; }
+
+/* ── Right panel: the live scoreboard, restyled as a compact ranked list — rank, avatar, name+tier,
+   progress bar/pct (renderScoreboard, GameRoom.js, already keeps this current every frame and folds a
+   big field into top-5 + neighbours-around-you). Beats the unscoped desktop rule that otherwise hides
+   everything but #all_opponents_div here (.game-view.multi .game-side > *:not(#all_opponents_div),
+   above) via the extra body class + targeting #scoreboard_card by ID. ── */
+body.multi-landscape-mode .game-view.multi .game-side {
+	grid-area: right;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+}
+body.multi-landscape-mode .game-view.multi .game-side > #all_opponents_div { display: none; }
+body.multi-landscape-mode .game-view.multi .game-side > #scoreboard_card {
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	flex: 1;
+	width: 100%;
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: 14px;
+	padding: 0.6rem 0.5rem;
+}
+body.multi-landscape-mode .game-view.multi .side-title { margin: 0 0 0.5rem; font-size: 0.66rem; text-align: center; }
+body.multi-landscape-mode .game-view.multi .scoreboard {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	gap: 0.3rem;
+	scrollbar-width: none;
+	-ms-overflow-style: none;
+}
+body.multi-landscape-mode .game-view.multi .scoreboard::-webkit-scrollbar { display: none; width: 0; height: 0; }
+/* The rigid 4-column grid (.score-row's base rule) doesn't have room for a 5th (avatar) column at
+   this width — flex + explicit order lets rank/avatar share a line and the name wrap to its own full-
+   width line below them, with the progress bar + pct on a third line, instead of fighting the grid
+   template. Excludes .score-row-gap (the "···" folded-field marker) — it's plain centered text, not a
+   player row, and has no avatar/name/progress children to reflow. */
+body.multi-landscape-mode .game-view.multi .score-row:not(.score-row-gap) {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.3rem;
+	padding: 0.4rem 0.5rem;
+}
+body.multi-landscape-mode .game-view.multi .score-rank { order: -2; flex: 0 0 auto; }
+body.multi-landscape-mode .game-view.multi .score-avatar { display: inline-flex; order: -1; }
+body.multi-landscape-mode .game-view.multi .score-name {
+	order: 1;
+	flex: 1 1 100%;
+	font-size: 0.8rem;
+}
+body.multi-landscape-mode .game-view.multi .score-progress { order: 2; flex: 1 1 auto; width: auto; }
+body.multi-landscape-mode .game-view.multi .score-pct,
+body.multi-landscape-mode .game-view.multi .score-meta,
+body.multi-landscape-mode .game-view.multi .score-points { order: 3; flex: 0 0 auto; font-size: 0.72rem; }
+body.multi-landscape-mode .game-view.multi .score-tier { order: 1; }
+
+/* Same portrait-phone force-rotate override the duel layout needs (see its own comment, above the
+   forced-landscape section) — the @media(max-width:700px) block's own "body.in-game .game-side {
+   display:none }" rule (further down) would otherwise still win on a phone that's stuck physically
+   portrait, since that width media query keeps matching regardless of the CSS rotation trick. */
+body.duel-force-rotate.in-game .game-view.multi .game-side,
+body.duel-force-rotate .game-view.multi .game-side { display: flex !important; }
+
 /* ===== Clean waiting-room lobby (custom casual room, planning phase) =====
    No board, no scoreboard/bots framing. A two-column layout: the slot-based player roster on the
    left (empty seats carry an "Add bot" button), the ruleset on the right (equal height), and a
@@ -4674,6 +5004,11 @@ body.duel-force-rotate .game-view.duo .game-side { display: contents !important;
 	font-size: 0.85rem;
 	text-align: right;
 }
+
+/* Hidden everywhere except the 6-player landscape-mobile layout (below), which reuses this same
+   live scoreboard as its opponents list and wants a small avatar per row to match — every other
+   place .score-row appears (desktop lobby/casual scoreboard) has no room budgeted for one. */
+.score-avatar { display: none; flex: 0 0 auto; width: 22px; height: 22px; }
 
 .score-name {
 	font-weight: 500;

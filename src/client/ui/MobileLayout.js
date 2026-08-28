@@ -27,12 +27,18 @@ var PUZZLE_BOARD_PX_MOBILE = 320;
 var PUZZLE_CELL_MAX = 75;
 var PUZZLE_CELL_MAX_MOBILE = 56;
 
-// True on the mobile landscape 1v1 duel layout (body.duel-landscape-mode, style.css) — a wide
-// (width > 700) viewport, so it fails the width-based mobileLayout check even though it's a phone
-// held sideways and needs the same fixed-size, panned-by-hand canvas as the real mobileLayout branch
-// below (fitMobileCellPx's board-scroll gets exactly that treatment for portrait phones).
+// True on either mobile landscape battle layout — 1v1 duel (body.duel-landscape-mode) or 6-player
+// (body.multi-landscape-mode), style.css — a wide (width > 700) viewport, so it fails the width-based
+// mobileLayout check even though it's a phone held sideways and needs the same fixed-size, panned-by-
+// hand canvas as the real mobileLayout branch below (fitMobileCellPx's board-scroll gets exactly that
+// treatment for portrait phones). Both layouts share the same board-wrap/board-scroll markup and the
+// same panning/zoom/gesture machinery below — only the CSS around them differs per mode — so every
+// consumer of this flag (boardIsPannable, fitDesktopCellPx, the zoom toggle, touch-pan wiring, the
+// countdown overlay) treats them identically without needing its own per-mode branch.
 function isDuelLandscapeMobile() {
-	return (typeof isDuoRacing === "function") && isDuoRacing() && document.body.classList.contains("duel-landscape-mode");
+	if ((typeof isDuoRacing === "function") && isDuoRacing() && document.body.classList.contains("duel-landscape-mode")) return true;
+	if ((typeof isMultiRacing === "function") && isMultiRacing() && document.body.classList.contains("multi-landscape-mode")) return true;
+	return false;
 }
 
 // True whenever the board is the fixed-size, hand-panned kind — portrait mobileLayout, or duel-

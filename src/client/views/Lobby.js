@@ -7,10 +7,11 @@
 
 function findRanked(mode) {
 	autoEnterGameFullscreen();
-	// The 1v1 duel specifically forces fullscreen on mobile even without the opt-in — see
-	// enterDuelMobileFullscreen's comment (Fullscreen.js) for why just this mode is worth it.
-	// 1v1 only (mode.replace(/_duo$/, mode) === mode would be six-player).
-	if (/_duo$/.test(mode) && typeof enterDuelMobileFullscreen === "function") enterDuelMobileFullscreen();
+	// Both battle modes (1v1 duel, 6-player) force fullscreen on mobile even without the opt-in — see
+	// enterDuelMobileFullscreen's comment (Fullscreen.js) for why just these are worth it (their
+	// landscape layouts are built specifically to use the reclaimed space). Any other mode (mode.replace
+	// wouldn't match _duo/_six) keeps the plain windowed-on-mobile behavior.
+	if (/_(duo|six)$/.test(mode) && typeof enterDuelMobileFullscreen === "function") enterDuelMobileFullscreen();
 	currentRankedMode = mode;
 	socket.emit("find_ranked", { mode: mode });
 	startBattleSearch(mode);

@@ -391,6 +391,15 @@ function renderScoreboard() {
 		rank.textContent = row.rank + ".";
 		li.appendChild(rank);
 
+		// Hidden by default (see .score-avatar, style.css) — only the landscape-mobile 6-player layout
+		// shows it, reusing this same live-updating scoreboard as its opponents list (see the "multi
+		// landscape" CSS section) rather than building a separate roster component from scratch.
+		if (typeof buildAvatarChip === "function") {
+			var avatar = buildAvatarChip(p.avatar || DEFAULT_AVATAR, p.country || null, 22);
+			avatar.classList.add("score-avatar");
+			li.appendChild(avatar);
+		}
+
 		var name = document.createElement("span");
 		name.className = "score-name";
 		name.textContent = p.name + (p.isOwner ? " ★" : "");

@@ -34,12 +34,12 @@ function autoEnterGameFullscreen() {
 	if (autoFullscreenEnabled()) enterGameFullscreen();
 }
 
-// The 1v1 duel's landscape layout is built around reclaiming every bit of vertical space (see
-// .game-view.duo's landscape media query, style.css) — the browser's own chrome (address bar, home
-// indicator) eats exactly the height that layout is fighting for, so unlike everywhere else on
-// mobile, going fullscreen there is worth the jump even without the opt-in. Must be called from the
-// same synchronous click handler that commits to the match (findRanked) — requestFullscreen() needs
-// that transient user gesture, same constraint as enterGameFullscreen() itself.
+// Both battle layouts' (1v1 duel, 6-player) landscape modes are built around reclaiming every bit of
+// vertical space (see .game-view.duo/.multi's landscape media query, style.css) — the browser's own
+// chrome (address bar, home indicator) eats exactly the height those layouts are fighting for, so
+// unlike everywhere else on mobile, going fullscreen there is worth the jump even without the opt-in.
+// Must be called from the same synchronous click handler that commits to the match (findRanked) —
+// requestFullscreen() needs that transient user gesture, same constraint as enterGameFullscreen() itself.
 //
 // isMobileViewport() alone isn't the right check here — it's narrow-width (<=700px), true for a
 // portrait phone but false for the SAME phone already turned sideways (700-930px wide), which is
@@ -56,10 +56,10 @@ function enterDuelMobileFullscreen() {
 	if ((isTouch && phoneSized) || isMobileViewport()) enterGameFullscreen(true);
 }
 
-// `force` bypasses the mobile skip below — used only for the 1v1 duel (enterDuelMobileFullscreen),
-// where the landscape layout is built specifically to use the reclaimed space (no browser chrome,
-// no address bar) rather than just "windowed but bigger". Every other mobile entry point (solo,
-// casual rooms, 6-player, …) keeps the plain windowed-on-mobile behavior below.
+// `force` bypasses the mobile skip below — used only for the two battle modes
+// (enterDuelMobileFullscreen), where the landscape layout is built specifically to use the reclaimed
+// space (no browser chrome, no address bar) rather than just "windowed but bigger". Every other
+// mobile entry point (solo, casual rooms, puzzles, …) keeps the plain windowed-on-mobile behavior below.
 function enterGameFullscreen(force) {
 	try {
 		if (isMobileViewport() && !force) return; // skip fullscreen on mobile — play windowed

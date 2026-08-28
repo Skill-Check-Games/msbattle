@@ -93,9 +93,11 @@ function applyDuoClass() {
 	}
 	applyDuelLandscapeClass();
 }
-// Drives body.duel-landscape-mode (style.css) — the class the whole landscape-duel layout hangs off,
-// in place of a plain @media query, specifically so it can ALSO apply when force-rotating a portrait
-// phone (body.duel-force-rotate below), which a media query has no way to see (a CSS transform
+// Drives body.duel-landscape-mode / body.multi-landscape-mode (style.css) — the classes the two
+// landscape battle layouts (1v1 duel, 6-player) hang off, in place of a plain @media query,
+// specifically so they can ALSO apply when force-rotating a portrait phone (body.duel-force-rotate
+// below — shared by both modes, since the rotation trick itself just rotates whatever's in #game_view
+// regardless of which battle mode is active), which a media query has no way to see (a CSS transform
 // doesn't change what orientation/dimensions media queries themselves observe). See the big comment
 // above body.duel-landscape-mode in style.css for the full picture.
 var duelLandscapeMQL = window.matchMedia
@@ -110,13 +112,15 @@ function phoneSizedDevice() {
 }
 function applyDuelLandscapeClass() {
 	var inDuoBattle = !!(typeof gameView !== "undefined" && gameView && gameView.classList.contains("duo"));
+	var inMultiBattle = !!(typeof gameView !== "undefined" && gameView && gameView.classList.contains("multi"));
 	var realLandscape = !!(duelLandscapeMQL && duelLandscapeMQL.matches);
 	// Only a phone genuinely stuck in portrait needs the CSS rotation fallback — a real landscape
-	// phone (realLandscape already true) needs none of it, and outside a duel there's nothing here
-	// to force in the first place (this runs on every resize/orientationchange, not just in-battle).
+	// phone (realLandscape already true) needs none of it, and outside a battle mode there's nothing
+	// here to force in the first place (this runs on every resize/orientationchange, not just in-battle).
 	var stillPortrait = !!(window.matchMedia && window.matchMedia("(orientation: portrait)").matches);
-	var forceRotate = inDuoBattle && !realLandscape && stillPortrait && phoneSizedDevice();
+	var forceRotate = (inDuoBattle || inMultiBattle) && !realLandscape && stillPortrait && phoneSizedDevice();
 	document.body.classList.toggle("duel-landscape-mode", inDuoBattle && (realLandscape || forceRotate));
+	document.body.classList.toggle("multi-landscape-mode", inMultiBattle && (realLandscape || forceRotate));
 	document.body.classList.toggle("duel-force-rotate", forceRotate);
 }
 if (duelLandscapeMQL) {
@@ -326,21 +330,26 @@ function bumpDuelTopProgress(gained) {
 // updateDuelMeter). The old leader-glow border treatment stays gone (removed as too noisy — see
 // task history); this meter is a deliberately different, calmer way to show the same "who's ahead"
 // info, called out explicitly in the redesign this HUD is based on.
+// Fills the header's #duel_timer_mode badge (and its landscape-panel mirror, #duel_timer_landscape_mode)
+// with "RANKED · SPRINT"-style text derived from currentRankedMode — shared by both battle HUDs (duo's
+// updateDuelHud, multi's updateMultiHud) since the badge/element pair is the same physical DOM either
+// way, just positioned differently per mode's CSS. Strips whichever roster-size suffix the mode actually
+// has ("sprint_duo" / "sprint_six" -> "sprint") rather than assuming one. Set once per match — the
+// empty-check skips redoing the lookup on every one of the HUD's frames (currentRankedMode doesn't
+// change mid-round).
+function updateDuelTimerModeLabel() {
+	var modeEl = document.getElementById("duel_timer_mode");
+	if (!modeEl || modeEl.textContent || !currentRankedMode) return;
+	var style = currentRankedMode.replace(/_(duo|six)$/, "");
+	var label = (typeof styleLabelOf === "function") ? styleLabelOf(style) : style;
+	var modeText = "RANKED · " + label.toUpperCase();
+	modeEl.textContent = modeText;
+	var modeElLandscape = document.getElementById("duel_timer_landscape_mode");
+	if (modeElLandscape) modeElLandscape.textContent = modeText;
+}
 function updateDuelHud(meGame, oppGame) {
 	if (!isDuoRacing()) return;
-	var modeEl = document.getElementById("duel_timer_mode");
-	if (modeEl && !modeEl.textContent && currentRankedMode) {
-		// "sprint_duo" -> "Sprint"; set once per match (currentRankedMode doesn't change mid-round) —
-		// the empty-check above skips redoing this lookup on every one of updateDuelHud's frames.
-		var style = currentRankedMode.replace(/_duo$/, "");
-		var label = (typeof styleLabelOf === "function") ? styleLabelOf(style) : style;
-		var modeText = "RANKED · " + label.toUpperCase();
-		modeEl.textContent = modeText;
-		// Landscape's boxed timer (its own element — see #duel_timer_landscape_box) mirrors the same
-		// mode line, same idea as #duel_timer_landscape mirroring #duel_timer's digits.
-		var modeElLandscape = document.getElementById("duel_timer_landscape_mode");
-		if (modeElLandscape) modeElLandscape.textContent = modeText;
-	}
+	updateDuelTimerModeLabel();
 	var myP = meGame ? (meGame.progress || 0) : 0;
 	var opP = oppGame ? (oppGame.progress || 0) : 0;
 	var myLeft = meGame ? Math.max(0, (meGame.totalSafe || 0) - (meGame.safeCount || 0)) : null;
@@ -403,10 +412,17 @@ function setMobileDuelBar(fillId, pctId, progress) {
 	if (fill) fill.style.width = p;
 	if (pct) pct.textContent = p;
 }
-// 6-player battle: mark finished opponents. Opponent slots are filled in sorted order, so
-// slot[i] ↔ opponents[i].
+// 6-player battle: mark finished opponents (opponent slots are filled in sorted order, so
+// slot[i] ↔ opponents[i]) and, same as the duel HUD, mirror your own progress into the shared
+// duel-bar elements (#duel_bar_you, its landscape corner/top-progress copies) and fill the
+// header's mode-badge text — both are populated here for the landscape-mobile layout (below),
+// which reuses the exact same left-panel identity/progress markup the duo layout already has.
 function updateMultiHud(meGame, opponents) {
 	if (!isMultiRacing()) return;
+	updateDuelTimerModeLabel();
+	var myP = meGame ? (meGame.progress || 0) : 0;
+	var myLeft = meGame ? Math.max(0, (meGame.totalSafe || 0) - (meGame.safeCount || 0)) : null;
+	setDuelBar("duel_bar_you", myP, myLeft);
 	var slots = document.querySelectorAll("#all_opponents_div .opponent_div");
 	for (var i = 0; i < slots.length; i++) {
 		slots[i].classList.toggle("finished", !!(opponents[i] && opponents[i].finished));
