@@ -1633,6 +1633,44 @@ input[type="range"]:disabled { opacity: 0.55; cursor: not-allowed; }
 	.game-view.puzzle .board-scroll { height: 320px; }
 }
 
+/* ===== Puzzle play, landscape phones =====
+   A landscape phone (wide — over 700px — so it never trips the two WIDTH-based breakpoints above,
+   which are aimed at a genuinely narrow/portrait viewport) falls through to the plain desktop sizing:
+   a 480×480 fixed board box (sizePlayerCanvas's fixedBox branch, MobileLayout.js). That's taller than
+   a typical landscape phone's own viewport (often well under 400px), so the board simply overflows off
+   screen. Unlike the two battle layouts above, this doesn't need a bespoke grid rebuild — the existing
+   board-beside-ladder-card shape is already right — just a smaller fixed box (PUZZLE_BOARD_PX_LANDSCAPE,
+   MobileLayout.js) plus hiding the header/nav to reclaim the vertical room that box needs. No force-
+   rotate/body-class machinery either: a portrait phone already gets a correctly-sized board via the
+   plain mobileLayout branch, so this only handles the one genuinely broken case (a real landscape
+   phone), which a plain media query already sees directly — nothing here needs to survive a CSS
+   rotation trick the way the battle layouts' force-rotate fallback does. */
+@media (orientation: landscape) and (max-height: 500px) and (min-width: 701px) {
+	/* Same "main's own 2rem padding pushes content below the viewport" fix the 6-player layout needs
+	   (see its own comment) — puzzle play is never a body.ranked-game room, so there's no existing
+	   reset to lean on here either. */
+	body.in-game:has(.game-view.puzzle) main { max-width: none; padding: 0; }
+	body.in-game:has(.game-view.puzzle) .topbar { display: none; }
+	.game-view.puzzle .game-header { display: none; }
+	.game-view.puzzle {
+		height: 100dvh;
+		min-height: 0;
+		overflow: hidden;
+		display: flex;
+		align-items: center;
+	}
+	/* Overrides the max-width:900px block's flex-direction:column further up — a landscape phone is
+	   often under 900px WIDE despite having width to spare (the constraint here is height, not width),
+	   so without this it would stack the board above the card instead of beside it, needing far more
+	   vertical room than this viewport has. */
+	.game-view.puzzle .game-grid { flex-direction: row; align-items: center; gap: 0.8rem; }
+	.game-view.puzzle .board-scroll,
+	.game-view.puzzle .board-wrap { width: 300px; }
+	.game-view.puzzle .board-scroll { height: 300px; }
+	.game-view.puzzle .game-side { flex: 0 0 230px; }
+	.game-view.puzzle #puzzle_card { height: 300px; width: 100%; }
+}
+
 /* Marathon boards reuse the puzzle-play path (see puzzlePlay.js) but are full-size boards
    (24x30-30x40), not small curriculum puzzles — undo the fixed small-puzzle box above so they
    size and scroll like a normal game board instead of being clipped to 480x480 (320x320 mobile). */

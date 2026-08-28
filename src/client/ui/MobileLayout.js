@@ -26,6 +26,25 @@ var PUZZLE_BOARD_PX = 480;
 var PUZZLE_BOARD_PX_MOBILE = 320;
 var PUZZLE_CELL_MAX = 75;
 var PUZZLE_CELL_MAX_MOBILE = 56;
+// A landscape PHONE (wide, but short — see isPuzzleLandscapeMobile below) is neither of the above: it
+// fails the portrait mobileLayout check (width > 700) so falls through to the full 480px desktop box,
+// which doesn't fit a viewport that's often under 400px tall — the board simply overflows off screen.
+// Sized well under the shortest common landscape-phone height (iPhone SE ~375px) with room left for
+// the hidden-header's reclaimed padding either side; cell cap kept generous (matches the portrait
+// floor) since a puzzle board is small enough that the box size, not the cap, is almost always what
+// actually constrains the cell size here.
+var PUZZLE_BOARD_PX_LANDSCAPE = 300;
+var PUZZLE_CELL_MAX_LANDSCAPE = 56;
+
+// True whenever a (non-marathon) puzzle board is up on a landscape phone — reuses the exact same
+// media query the two battle layouts key off (duelLandscapeMQL, Main.js: a wide-but-short viewport),
+// just without their body-class/force-rotate dance, since portrait puzzle play already has a working,
+// appropriately-sized board via the plain mobileLayout branch below — this only ever needs to handle
+// the ONE genuinely broken case (a real landscape phone hitting the desktop-sized box).
+function isPuzzleLandscapeMobile() {
+	var inPuzzle = (typeof puzzleSession !== "undefined") && puzzleSession && !puzzleSession.marathon;
+	return !!(inPuzzle && typeof duelLandscapeMQL !== "undefined" && duelLandscapeMQL && duelLandscapeMQL.matches);
+}
 
 // True on either mobile landscape battle layout — 1v1 duel (body.duel-landscape-mode) or 6-player
 // (body.multi-landscape-mode), style.css — a wide (width > 700) viewport, so it fails the width-based
@@ -137,8 +156,9 @@ function sizePlayerCanvas() {
 	var fixedBox = inPuzzle && !puzzleSession.marathon;
 	var cellPx;
 	if (fixedBox) {
-		var target = mobileLayout ? PUZZLE_BOARD_PX_MOBILE : PUZZLE_BOARD_PX;
-		var cap = mobileLayout ? PUZZLE_CELL_MAX_MOBILE : PUZZLE_CELL_MAX;
+		var puzzleLandscape = isPuzzleLandscapeMobile();
+		var target = mobileLayout ? PUZZLE_BOARD_PX_MOBILE : (puzzleLandscape ? PUZZLE_BOARD_PX_LANDSCAPE : PUZZLE_BOARD_PX);
+		var cap = mobileLayout ? PUZZLE_CELL_MAX_MOBILE : (puzzleLandscape ? PUZZLE_CELL_MAX_LANDSCAPE : PUZZLE_CELL_MAX);
 		cellPx = Math.min(cap, Math.floor(target / Math.max(rows, cols)));
 	} else {
 		cellPx = mobileLayout ? fitMobileCellPx() : fitDesktopCellPx();
