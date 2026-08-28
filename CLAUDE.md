@@ -1215,6 +1215,31 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   zero name data at all, not a deliberate default). Verified by faking a room roster + calling
   `buildDuelIdentity()`/`updateDuelHud()` directly (the real functions, not reimplemented logic) with a
   distinct test name and reading back all three elements' text.
+  **Round timer height jump (desktop), on request** — "the timer changes height when it stops displaying
+  a time." Turned out to be literal: `RoundTimer.js` sets `#round_timer`/`#duel_timer`'s `textContent` to
+  `""` between rounds/matches, and a completely empty inline/flex-item box — no text node at all — has no
+  line box to measure, so its rendered height collapses to exactly `0`; the instant real text lands, it
+  jumps to the font's natural line-height (measured: `0px` → `28.8px` for `#round_timer`'s "⏱ MM:SS" at
+  1.2rem — almost exactly `1.5em`, confirming the default `line-height:normal` ratio at play; `#duel_timer`
+  measured `0px` → `20.8px`, matching its own explicit `line-height:1` at 1.3rem). Since both sit in
+  `align-items:center` rows, that height jump shifts the element (and the text once it's populated)
+  vertically by half its own eventual height relative to where it sat empty — genuinely "changes height,"
+  not a hypothetical. `#duel_timer` already had an explicit `line-height:1` set, which turned out not to
+  matter — line-height only affects a line box that exists, and an empty string produces none at all,
+  regardless of what line-height is set to. Fixed both with `min-height` (`1.5em`/`1em`, matching each
+  element's own measured ratio) so the box reserves that height unconditionally instead of only when
+  populated — `min-width` (already present on both, for the earlier ranked-search-era width-shift fixes)
+  guards the same failure mode in the other axis, `min-height` is the missing counterpart. Verified by
+  measuring both elements' `height` and `top` empty vs. populated: identical in both states after the fix
+  (previously `0` vs `28.8`/`20.8` and a matching `top` delta).
+  **Investigation note, in case this resurfaces differently**: initially misread the report as a
+  *horizontal* shift and chased the duo-battle-header grid instead — ranked matches turned out to already
+  be shift-free there (the header's own min-width guards work correctly), and the one real horizontal jump
+  found was custom/casual rooms deliberately staying on the plain room layout through "planning" (so the
+  room config controls stay visible) before switching to the duo battle header the instant a match starts
+  (`applyDuoClass`'s own comment: "custom rooms keep the normal layout in planning so their config controls
+  stay visible") — a real structural difference between two intentionally different screens, not a bug,
+  and NOT what turned out to be reported. Left that path alone entirely.
   **6-player battle layout** (`isMultiRacing()`, 3-6 racing players): the same TetrisFriends idea
   scaled up — one big own board on the left with your identity panel (`#duel_id_you`) above it, the
   round timer centered up top (shared `#duel_timer`), and **every** opponent's live board tiled in a

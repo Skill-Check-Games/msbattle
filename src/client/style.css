@@ -2800,6 +2800,14 @@ body.no-fullscreen-support .fullscreen-btn { display: none; }
 	font-variant-numeric: tabular-nums;
 	color: var(--text);
 	min-width: 5ch;
+	/* min-width alone doesn't stop the vertical shift: a completely empty inline/flex-item box (no text
+	   node at all, RoundTimer.js sets textContent="" between rounds) has NO line box to measure, so its
+	   height collapses to 0 — then jumps to the font's natural ~1.5em line height the instant real text
+	   appears. Since .game-progress vertically centers its children, that 0->1.5em jump shifts this
+	   element (and the "⏱ MM:SS" text once it's populated) up by half its own eventual height relative to
+	   where it sat while empty — a real, visible jump, not just a hypothetical one (measured: 0px vs
+	   28.8px tall for identical 1.2rem text). min-height reserves the same height unconditionally. */
+	min-height: 1.5em;
 	text-align: right;
 }
 
@@ -4123,6 +4131,11 @@ body.touch .find-next-arrow { display: inline-flex; }
 	display: block;
 	text-align: center;
 	min-width: 5ch;
+	/* Same empty-box-collapses-to-0-height issue as .round-timer above (see its own comment) — an
+	   explicit line-height alone doesn't help; there's simply no line box to apply it to when
+	   textContent is "" (RoundTimer.js, between rounds/matches). min-height, matching this element's own
+	   line-height:1 ratio, reserves the height unconditionally instead. */
+	min-height: 1em;
 	font-family: var(--font-display);
 	font-variant-numeric: tabular-nums;
 	font-feature-settings: "tnum" 1;
