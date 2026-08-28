@@ -2,9 +2,9 @@
 // (#leaderboard_list) and the full /leaderboard view (#leaderboard_full_list)
 // — from the same dataset, painting tier + rating + "you" highlight per row.
 
-// Which mode's ladder the /leaderboard page is showing (Sprint or Standard — Overall/Tournament/
-// Territory tabs were dropped, though the server still supports those modes for get_leaderboard).
-// The server returns the chosen mode's rating as `rating`, so renderLeaderboard stays mode-agnostic.
+// Which mode's ladder the /leaderboard page is showing (Sprint or Standard — an "Overall" tab was
+// dropped). The server returns the chosen mode's rating as `rating`, so renderLeaderboard stays
+// mode-agnostic.
 var currentLeaderboardMode = "sprint";
 
 // Open/refresh the leaderboard for a mode: highlight the tab, show a loading row,

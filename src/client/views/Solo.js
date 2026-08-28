@@ -134,7 +134,7 @@ function beginSolo() {
 	var session = soloSession; // guard against a new board replacing it mid-countdown
 	// Solo has no server round-trip to defer to, so its "ready to start" budget is just the sweep +
 	// digit sequence's own natural length (naturalCountdownTotalMs, Animations.js) rather than a
-	// server-provided startDelayMs like a real match (Main.js) or territory (Territory.js) uses.
+	// server-provided startDelayMs like a real match (Main.js) uses.
 	var delayMs = (typeof naturalCountdownTotalMs === "function") ? naturalCountdownTotalMs() : 3000;
 	countDown(delayMs, function() { if (soloSession === session) soloSession.started = true; });
 }
@@ -200,7 +200,7 @@ function showSoloOutcome(won) {
 	panel.appendChild(header);
 
 	var time = document.createElement("div");
-	time.className = "tournament-place";
+	time.className = "result-detail-line";
 	time.style.color = won ? "#4ade80" : "#f87171";
 	var elapsed = (soloSession.finishTime || Date.now()) - (soloSession.startTime || soloSession.finishTime || Date.now());
 	time.textContent = formatSoloTime(elapsed);

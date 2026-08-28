@@ -436,7 +436,7 @@ function showMarathonOutcome(result) {
 	panel.appendChild(starsRow);
 
 	var detail = document.createElement("div");
-	detail.className = "tournament-place";
+	detail.className = "result-detail-line";
 	detail.style.color = result.solved ? "#4ade80" : "#f87171";
 	detail.textContent = result.solved
 		? (result.livesLost > 0 ? "Lost " + result.livesLost + " life" + (result.livesLost > 1 ? "s" : "") : "Flawless clear!")
@@ -510,7 +510,7 @@ function showDailyOutcome(data) {
 	panel.appendChild(header);
 
 	var line = document.createElement("div");
-	line.className = "tournament-place";
+	line.className = "result-detail-line";
 	line.style.color = data.solved ? "#4ade80" : "#f87171";
 	line.textContent = "Streak · " + data.streak;
 	panel.appendChild(line);
@@ -591,7 +591,7 @@ function showPuzzleRunOutcome(data) {
 	panel.appendChild(header);
 
 	var scoreLine = document.createElement("div");
-	scoreLine.className = "tournament-place";
+	scoreLine.className = "result-detail-line";
 	scoreLine.style.color = data.score > data.bestBefore ? "#4ade80" : "#cbd5e1";
 	scoreLine.textContent = data.mode === "streak"
 		? data.score + " peak rating · " + data.solves + " solved"

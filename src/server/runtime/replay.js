@@ -7,7 +7,7 @@
 // replay. A whole match is a few KB gzipped.
 //
 // Lifecycle (driven from minesweeperServer):
-//   startMatch(room)                  -> at series start, for ranked non-territory rooms
+//   startMatch(room)                  -> at series start, for ranked rooms
 //   startRound(room, template, r, c)  -> at each round's startGame, snapshots the mine bitmask
 //   attach(room, game, pid)           -> wires game.onMove for one player's game this round
 //   finishMatch(room, standings)      -> at series end: serialize + gzip + persist, then clear
@@ -23,7 +23,7 @@ var gameUtil = require("./gameUtil");
 var REPLAY_VERSION = 3;
 
 function shouldCapture(room) {
-	return !!(room && room.ranked && room.rankedMode !== "territory" && room.gameMode !== "territory");
+	return !!(room && room.ranked);
 }
 
 // Resolve a stable descriptor for a player id (name / bot flag / signed-in user id).

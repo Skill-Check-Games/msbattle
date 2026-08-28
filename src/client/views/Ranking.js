@@ -34,8 +34,7 @@ function tierFor(rating, provisional) {
 // anything that wants one headline number (topbar chip, profile summary) uses this.
 function overallRating(account) {
 	if (!account) return 0;
-	return Math.max(account.ratingSprint || 0, account.ratingStandard || 0,
-		account.ratingTournament || 0, account.ratingTerritory || 0);
+	return Math.max(account.ratingSprint || 0, account.ratingStandard || 0);
 }
 // SSR_INLINE:END
 

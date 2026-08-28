@@ -114,8 +114,9 @@ function getPoolMeta() { return botPoolMeta || {}; }
 // is missing entirely (bots-pool.json absent) it returns null, and addBotToRoom
 // degrades to a casual-preset bot so matchmaking can never fail to fill a seat.
 // `ratingKey` selects which measured rating to match on: undefined → the overall racing `rating`;
-// otherwise a per-mode rating in `b.ratings` (e.g. "territory"), falling back to `b.rating` for any
-// bot that predates that calibration. The returned bot's `rating` is set to the matched value so the
+// otherwise a per-mode rating in `b.ratings` (no current ranked mode uses this — kept generic for a
+// future one that might), falling back to `b.rating` for any bot that predates that calibration.
+// The returned bot's `rating` is set to the matched value so the
 // rest of matchmaking (display, Elo seeding) uses the right ladder; the pool entry isn't mutated.
 function pickBotFromPool(targetElo, window, ratingKey) {
 	if (!botPool || !botPool.length) return null;
@@ -234,7 +235,7 @@ function pickFrontierGuess(game) {
 	for (var r = 0; r < rows; r++) {
 		for (var c = 0; c < cols; c++) {
 			if (state[r][c] !== UNKNOWN) continue;
-			if (game.canTarget && !game.canTarget(r, c)) continue; // territory: only its own frontier
+			if (game.canTarget && !game.canTarget(r, c)) continue; // a mode that restricts targets to its own frontier
 			var nbrs = neighbors(r, c, rows, cols);
 			for (var k = 0; k < nbrs.length; k++) {
 				var rr = nbrs[k][0], cc = nbrs[k][1];
@@ -333,8 +334,8 @@ function computeBestMove(game) {
 	// Even trivial counting moves carry their real CSP difficulty: counting against more
 	// covered cells / mines is genuinely harder, so those cells cost a little more and the
 	// locality picker treats them as slightly less attractive.
-	// Territory restricts reveals to the bot's own frontier (game.canTarget) and never flags
-	// (game.revealsOnly); both are absent for the racing modes, leaving their behaviour unchanged.
+	// game.canTarget/game.revealsOnly let a mode restrict reveals to a target subset and/or disable
+	// flagging entirely; both are absent for the racing modes, leaving their behaviour unchanged.
 	var actions = [];
 	for (var ks in safeSet) { if (!game.canTarget || game.canTarget(safeSet[ks][0], safeSet[ks][1])) actions.push({ type: "left", r: safeSet[ks][0], c: safeSet[ks][1], certain: true, difficulty: cellDifficulty(game, safeSet[ks][0], safeSet[ks][1]) }); }
 	if (!game.revealsOnly) for (var ms in mineSet) actions.push({ type: "right", r: mineSet[ms][0], c: mineSet[ms][1], certain: true, difficulty: cellDifficulty(game, mineSet[ms][0], mineSet[ms][1]) });
@@ -348,7 +349,7 @@ function computeBestMove(game) {
 	// No trivial move. Find the easiest deducible move (uncapped probe — fast), then
 	// gate on the bot's max difficulty using the board's precomputed difficulty map.
 	// A bot that can't reason that hard never sees the move and falls through to a guess.
-	// `game.canTarget` is passed straight into the solver (territory only) so it searches for a safe
+	// `game.canTarget`, when a mode sets it, is passed straight into the solver so it searches for a safe
 	// move the bot can actually make — a safe deduction off the bot's frontier won't be returned and
 	// then discarded into a guess; the solver keeps looking for a frontier-safe move instead.
 	var maxDifficulty = (typeof game.botMaxDifficulty === "number") ? game.botMaxDifficulty : TRIVIAL_DIFFICULTY;
@@ -356,7 +357,7 @@ function computeBestMove(game) {
 	if (hint) {
 		var hintCells = (hint.safeCells && hint.safeCells.length) ? hint.safeCells : (hint.mineCells || []);
 		var hintType = (hint.safeCells && hint.safeCells.length) ? "left" : "right";
-		if (game.revealsOnly && hintType === "right") hintCells = []; // territory never flags
+		if (game.revealsOnly && hintType === "right") hintCells = []; // mode never flags
 		if (hintCells.length) {
 			// The move's difficulty is the easiest (min) of its cells on the CSP map;
 			// fall back to a per-kind estimate if a cell wasn't keyed (e.g. cascade-only).

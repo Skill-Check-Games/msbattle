@@ -1,6 +1,5 @@
 // Elo / rating math, extracted from minesweeperServer. The pairwise-Elo formula that
-// turns a round's standings into rating changes, the per-style rating reader, and the
-// tournament per-player variants (so a cut player is rated the moment they're eliminated).
+// turns a round's standings into rating changes, and the per-style rating reader.
 // Pure math over db + the in-memory accounts cache; the standings it consumes are built in
 // the core (which reads game state). isBot + the rating constants are injected via init(deps)
 // to avoid a circular require; accounts/botRating come from appState.
@@ -33,8 +32,8 @@ function kFactor(played, style) { return Math.max(40, 150 - played * 14) * style
 // Margin-of-victory: a dominant finish boosts the rating GAIN by up to the style's margin bonus. The
 // margin is the gap between this player's progress (avg fraction of board cleared across the series) and
 // the best progress among the players they outranked — so clearing far ahead of the next player pays more
-// than a photo-finish. Standard rewards blowouts harder (longer games, fewer of them). Progress absent
-// (e.g. territory) → factor 1 (no bonus).
+// than a photo-finish. Standard rewards blowouts harder (longer games, fewer of them). Progress absent →
+// factor 1 (no bonus).
 var MARGIN_BONUS = 0.6;
 var STANDARD_MARGIN_BONUS = 1.1;
 function marginFactor(part, parts, style) {
@@ -49,22 +48,20 @@ function marginFactor(part, parts, style) {
 	return 1 + bonus * gap;
 }
 
-// Read the rating column matching this match's playstyle so Sprint /
-// Standard / Tournament each evolve independently.
+// Read the rating column matching this match's playstyle so Sprint / Standard each evolve
+// independently.
 function readUserRating(u, style) {
 	if (!u) return RANKED_BOT_RATING;
 	if (style === "sprint") return u.rating_sprint;
 	if (style === "standard") return u.rating_standard;
-	if (style === "tournament") return u.rating_tournament;
-	if (style === "territory") return u.rating_territory;
 	// No style → overall is the best rating across modes (there is no legacy `rating` column).
-	return Math.max(u.rating_sprint || 0, u.rating_standard || 0, u.rating_tournament || 0, u.rating_territory || 0);
+	return Math.max(u.rating_sprint || 0, u.rating_standard || 0);
 }
 
-// Compute and apply Elo for a single player against a known set of standings.
-// Used by tournament mode so eliminated players get their rating change the
-// moment they're cut, instead of waiting for the survivor to be crowned. The
-// math is the same pairwise formula as applyRankedElo. Returns the delta info
+// Compute and apply Elo for a single player against a known set of standings. Used when a
+// player bails on a live ranked match early (applyEarlyLeavePenalty, minesweeperServer.js) so
+// they get their rating change immediately rather than waiting for the series to finish
+// normally. The math is the same pairwise formula as applyRankedElo. Returns the delta info
 // (or null if the player isn't a persisted human).
 function applyEloForPlayer(targetPid, allParts, style) {
 	var target = null;
@@ -84,7 +81,6 @@ function applyEloForPlayer(targetPid, allParts, style) {
 	var newRating = Math.max(0, target.rating + delta); // Bronze I floors at 0
 	var provisional = (target.played + 1) < PROVISIONAL_GAMES;
 	db.updateRating(target.userId, newRating, target.rank === 1, style);
-	// Record for the profile history (tournament has many players → no single opponent label).
 	db.recordMatch({
 		userId: target.userId, style: style, ratingBefore: target.rating, ratingAfter: newRating,
 		placement: target.rank, players: n, won: target.rank === 1, opponent: null
@@ -94,40 +90,9 @@ function applyEloForPlayer(targetPid, allParts, style) {
 		// lobby tile updates the right tier badge.
 		if (style === "sprint") accounts[targetPid].ratingSprint = newRating;
 		else if (style === "standard") accounts[targetPid].ratingStandard = newRating;
-		else if (style === "tournament") accounts[targetPid].ratingTournament = newRating;
-			else if (style === "territory") accounts[targetPid].ratingTerritory = newRating;
 		accounts[targetPid].played = target.played + 1;
 	}
 	return { delta: delta, newRating: newRating, provisional: provisional };
-}
-
-// Build the pairwise-Elo parts snapshot for a tournament room from the
-// perspective of a single eliminated/finishing player. Survivors are slotted
-// at rank 1 (they outranked anyone already eliminated); the focused player
-// keeps their just-determined rank; previously-eliminated players retain
-// their stored places.
-function tournamentEloParts(room, focusedPid, focusedRank) {
-	var participants = room.tournamentParticipants || [];
-	var style = room.rankedStyle || "tournament";
-	return participants.map(function(pid) {
-		var rank;
-		if (pid === focusedPid) {
-			rank = focusedRank;
-		} else if (room.tournamentEliminated[pid]) {
-			rank = room.tournamentEliminated[pid].place;
-		} else {
-			rank = 1; // survivor — will outrank the focused player
-		}
-		var bot = isBot(pid);
-		var acc = accounts[pid];
-		var rating = bot ? (botRating[pid] || RANKED_BOT_RATING) : RANKED_BOT_RATING;
-		var userId = null, played = 0;
-		if (!bot && acc) {
-			var u = db.getUserById(acc.userId);
-			if (u) { rating = readUserRating(u, style); userId = acc.userId; played = u.played; }
-		}
-		return { id: pid, rank: rank, rating: rating, bot: bot, userId: userId, played: played };
-	});
 }
 
 // PURE pairwise-Elo math (P0-4): given the match `parts` — one per player, each
@@ -202,8 +167,6 @@ function applyRankedElo(standings, style) {
 				var acc = accounts[standings[k].id];
 				if (style === "sprint") acc.ratingSprint = parts[k].newRating;
 				else if (style === "standard") acc.ratingStandard = parts[k].newRating;
-				else if (style === "tournament") acc.ratingTournament = parts[k].newRating;
-					else if (style === "territory") acc.ratingTerritory = parts[k].newRating;
 				acc.played = parts[k].played + 1;
 			}
 		}
@@ -251,7 +214,6 @@ module.exports = {
 	init: init,
 	readUserRating: readUserRating,
 	applyEloForPlayer: applyEloForPlayer,
-	tournamentEloParts: tournamentEloParts,
 	computeRankedElo: computeRankedElo,
 	applyRankedElo: applyRankedElo,
 	applyRankedEloFromReport: applyRankedEloFromReport

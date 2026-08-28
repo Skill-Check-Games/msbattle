@@ -59,7 +59,7 @@ test("game core (engine/ + common/) never imports runtime, db, or socket.io", ()
 // The game-plane runtime modules must not import the DB. They run the live match on the (future) game
 // server, which has no DB access — match data arrives via the MatchConfig and results leave via
 // persistResult. If one of these starts importing db, that's a leak across the split boundary.
-const GAME_PLANE_MODULES = ["territory", "bots", "roomState", "gameUtil"].map(
+const GAME_PLANE_MODULES = ["bots", "roomState", "gameUtil"].map(
 	n => path.join(ROOT, "src/server/runtime", n + ".js")
 );
 

@@ -31,7 +31,6 @@ function buildAccountPayload(user) {
 	return {
 		name: db.displayNameOf(user),
 		ratingSprint: user.rating_sprint, ratingStandard: user.rating_standard,
-		ratingTournament: user.rating_tournament, ratingTerritory: user.rating_territory,
 		avatarUrl: user.avatar_url,
 		avatarColor: avatarColor,
 		country: user.country || null,
@@ -73,7 +72,6 @@ function buildPublicProfilePayload(user) {
 		country: user.country || null,
 		createdAt: user.created_at,
 		ratingSprint: user.rating_sprint, ratingStandard: user.rating_standard,
-		ratingTournament: user.rating_tournament, ratingTerritory: user.rating_territory,
 		wins: user.wins, played: user.played,
 		provisional: user.played < PROVISIONAL_GAMES,
 		puzzlePoints: user.puzzle_points || 0,
@@ -88,8 +86,7 @@ function buildPublicProfilePayload(user) {
 function loginSocket(socket, playerID, user, token, sendToken) {
 	accounts[playerID] = {
 		userId: user.id, token: token, played: user.played,
-		ratingSprint: user.rating_sprint, ratingStandard: user.rating_standard,
-		ratingTournament: user.rating_tournament, ratingTerritory: user.rating_territory
+		ratingSprint: user.rating_sprint, ratingStandard: user.rating_standard
 	};
 	var displayName = db.displayNameOf(user); // editable display_name, falling back to the legacy/guest name
 	var isFirst = !names[playerID];

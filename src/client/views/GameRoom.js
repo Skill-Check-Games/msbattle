@@ -217,12 +217,11 @@ function renderRoomState(state) {
 	allOpponentsDiv.style.display = (playing || battleActive) ? "" : "none";
 
 	// Clean waiting-room lobby: a custom casual room sitting in its planning phase (not the ranked
-	// battle layout, not territory). Drops the empty board and the "Scoreboard" framing for a two-column
+	// battle layout). Drops the empty board and the "Scoreboard" framing for a two-column
 	// layout — a slot-based player roster (empty slots carry an "Add bot" button) on the left, the
 	// ruleset on the right, and a full-width Ready bar below. No separate bots card.
 	var lobbyMode = !playing && !battleActive && !state.ranked
-		&& (state.gameMode || "race") === "race"
-		&& !(typeof territoryActive !== "undefined" && territoryActive);
+		&& (state.gameMode || "race") === "race";
 	if (typeof gameView !== "undefined" && gameView) gameView.classList.toggle("lobby", lobbyMode);
 	var scoreTitleEl = scoreboardCard ? scoreboardCard.querySelector(".side-title") : null;
 	if (scoreTitleEl) scoreTitleEl.textContent = lobbyMode ? "Players" : "Scoreboard";
@@ -272,35 +271,28 @@ function renderRoomState(state) {
 	var me = state.players.find(function(p) { return p.id === id; });
 	var ownName = (me || {}).name || myName;
 	document.getElementById("player_name0").textContent = ownName;
-	// player_div is shared with puzzle play AND territory, but this function only ever runs off a
-	// room_state broadcast — which only reaches sockets actually seated in a room, never during
-	// solo/puzzle play — so no separate "are we really looking at the mp lobby" check is needed
-	// beyond excluding territory (territory rooms broadcast room_state too, but have no series and
-	// should never go idle). Was previously also gated on `location.pathname === "/"`, which broke
-	// idle for every custom room joined from /custom (the whole custom-lobby flow never navigates the
-	// URL to "/" — showGameView() just swaps which view is visible) — that gate never matched, so
-	// idle silently never activated for casual custom rooms. Stays on through the WHOLE planning
-	// phase now, not just the under-filled stretch — waiting on players to join and waiting on Ready
-	// clicks read the same visually, and cutting it off the moment enough players show up left a dead,
-	// static gap between "idle stops" and "the go sweep starts" instead of one continuous transition.
-	// The sweep (Animations.js, paintBoardGoWithIdle) is what actually turns it off now, by settling
-	// into it as the round starts. Actually leaving the room is handled by teardownRoomUI, not here.
-	// EXCEPT while a result is showing (!roundResultShown): the room flips back to "planning" the
-	// moment a series ends (waiting on Play another / Leave), which would otherwise restart idle —
-	// a continuous RAF loop repainting every cell of both boards, every frame, forever — for the
-	// entire time the result modal sits on screen fully covering them. Pointless work with no visual
-	// payoff, and a real source of jank on a weak machine. roundResultShown is reset the moment a new
-	// round/search actually begins (start_game, startBattleSearch), so this doesn't affect the
-	// legitimate wait-for-players/ready cases at all.
-	var inTerritory = (typeof territoryActive !== "undefined" && territoryActive);
+	// player_div is shared with puzzle play, but this function only ever runs off a room_state
+	// broadcast — which only reaches sockets actually seated in a room, never during solo/puzzle
+	// play — so no separate "are we really looking at the mp lobby" check is needed. Was previously
+	// also gated on `location.pathname === "/"`, which broke idle for every custom room joined from
+	// /custom (the whole custom-lobby flow never navigates the URL to "/" — showGameView() just swaps
+	// which view is visible) — that gate never matched, so idle silently never activated for casual
+	// custom rooms. Stays on through the WHOLE planning phase now, not just the under-filled stretch —
+	// waiting on players to join and waiting on Ready clicks read the same visually, and cutting it
+	// off the moment enough players show up left a dead, static gap between "idle stops" and "the go
+	// sweep starts" instead of one continuous transition. The sweep (Animations.js,
+	// paintBoardGoWithIdle) is what actually turns it off now, by settling into it as the round
+	// starts. Actually leaving the room is handled by teardownRoomUI, not here. EXCEPT while a result
+	// is showing (!roundResultShown): the room flips back to "planning" the moment a series ends
+	// (waiting on Play another / Leave), which would otherwise restart idle — a continuous RAF loop
+	// repainting every cell of both boards, every frame, forever — for the entire time the result
+	// modal sits on screen fully covering them. Pointless work with no visual payoff, and a real
+	// source of jank on a weak machine. roundResultShown is reset the moment a new round/search
+	// actually begins (start_game, startBattleSearch), so this doesn't affect the legitimate
+	// wait-for-players/ready cases at all.
 	var stillPlanning = state.phase === "planning" && !roundResultShown;
-	if (!inTerritory) {
-		document.getElementById("player_div").classList.toggle("idle", stillPlanning);
-		if (typeof setBoardIdleActive === "function") setBoardIdleActive(stillPlanning);
-	} else {
-		document.getElementById("player_div").classList.remove("idle");
-		if (typeof setBoardIdleActive === "function") setBoardIdleActive(false);
-	}
+	document.getElementById("player_div").classList.toggle("idle", stillPlanning);
+	if (typeof setBoardIdleActive === "function") setBoardIdleActive(stillPlanning);
 
 	if (state.phase === "playing" && me && me.finished && !roundResultShown) {
 		showOverlay("Cleared — waiting for others", "win");
@@ -393,15 +385,6 @@ function renderScoreboard() {
 		li.className = "score-row";
 		li.dataset.pid = p.id;
 		if (p.id === id) li.classList.add("score-row-me");
-		// Spectator: clickable rows that switch the big-board target.
-		// Mark the current target so it reads as "watching".  Skip your
-		// own row (already self-styled) and only enable during play.
-		if (iAmEliminated && playing && p.id !== id) {
-			li.classList.add("score-row-spectatable");
-			if (typeof spectatorTarget !== "undefined" && p.id === spectatorTarget) {
-				li.classList.add("score-row-watching");
-			}
-		}
 
 		var rank = document.createElement("span");
 		rank.className = "score-rank";

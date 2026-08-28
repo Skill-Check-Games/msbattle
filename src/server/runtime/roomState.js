@@ -60,7 +60,6 @@ function buildRoomState(room) {
 		gameCount: room.gameCount,
 		gamesPlayed: room.gamesPlayed,
 		scoreTarget: room.scoreTarget || null,
-		tournamentSchedule: room.tournamentSchedule || null,
 		roundSeconds: room.roundSeconds,
 		deathPenalty: room.deathPenalty,
 		mineDensity: room.mineDensity,

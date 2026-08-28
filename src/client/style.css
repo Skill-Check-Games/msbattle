@@ -25,8 +25,6 @@
 	/* Per-mode accents — each mode's identity colour (card edge, hover glow, in-game chrome). */
 	--mode-sprint: #fbbf24;      /* amber */
 	--mode-standard: #a78bfa;    /* violet */
-	--mode-tournament: #fb7185;  /* rose */
-	--mode-territory: #22d3ee;   /* cyan */
 	--mode-custom: #6366f1;      /* indigo (house accent) */
 
 	/* Energy accents — wins / streaks / rank-ups. Used rarely so they punch. */
@@ -817,8 +815,7 @@ main {
    leaving a lot of visibly unused space on either side. Lift the cap the same way
    body.game-fullscreen main already does, for every "active board" layout, not just fullscreen ones. */
 main:has(.game-view.duo),
-main:has(.game-view.multi),
-main:has(.game-view.territory) { max-width: none; }
+main:has(.game-view.multi) { max-width: none; }
 
 .view { animation: fade 180ms ease; }
 
@@ -1048,7 +1045,7 @@ main:has(.game-view.territory) { max-width: none; }
 
 .ranked-mode-buttons .btn { min-width: 96px; }
 
-/* Home page cards: 1v1, 6-player, Tournament, Custom. */
+/* Home page cards: 1v1, 6-player, Custom. */
 .home-cards {
 	display: grid;
 	grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1170,17 +1167,6 @@ main:has(.game-view.territory) { max-width: none; }
 	background: rgba(94, 234, 212, 0.15);
 	color: #5eead4;
 	border-color: rgba(94, 234, 212, 0.45);
-}
-
-.home-card-tournament {
-	background: linear-gradient(160deg, rgba(251, 191, 36, 0.16), rgba(192, 132, 252, 0.06) 70%);
-	border-color: rgba(251, 191, 36, 0.45);
-}
-
-.home-card-tag-tournament {
-	background: rgba(251, 191, 36, 0.18);
-	color: #fbbf24;
-	border-color: rgba(251, 191, 36, 0.5);
 }
 
 .home-card-title {
@@ -1977,253 +1963,6 @@ input[type="range"]:disabled { opacity: 0.55; cursor: not-allowed; }
 .pattern-card-canvas {
 	display: block;
 }
-/* Tournament elimination — pulse on every DOM node tagged with the
- * cut player's id (board slots + scoreboard rows), plus a centered
- * banner with names and final places. Pure CSS animation, removed
- * after ~2.4s so the survivors' board view returns to normal. */
-@keyframes elimFlash {
-	0%   { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.0); background: transparent; }
-	15%  { box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.85); background: rgba(248, 113, 113, 0.22); }
-	60%  { box-shadow: 0 0 0 4px rgba(248, 113, 113, 0.65); background: rgba(248, 113, 113, 0.18); }
-	100% { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.0); background: transparent; opacity: 0.55; }
-}
-.elim-flash { animation: elimFlash 2.4s ease-out forwards; position: relative; }
-.elim-flash::after {
-	content: "ELIMINATED";
-	position: absolute;
-	inset: 0;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	color: #fecaca;
-	font-weight: 900;
-	letter-spacing: 0.18em;
-	font-size: 0.9rem;
-	text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
-	pointer-events: none;
-	animation: elimFlashLabel 2.4s ease-out forwards;
-}
-@keyframes elimFlashLabel {
-	0%   { opacity: 0; transform: scale(0.85); }
-	20%  { opacity: 1; transform: scale(1.05); }
-	80%  { opacity: 1; transform: scale(1); }
-	100% { opacity: 0; transform: scale(1); }
-}
-.elim-banner {
-	position: fixed;
-	left: 50%;
-	top: 28%;
-	transform: translate(-50%, -50%);
-	background: rgba(248, 113, 113, 0.92);
-	color: #1f2937;
-	padding: 0.9rem 1.6rem;
-	border-radius: 12px;
-	box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
-	z-index: 9999;
-	text-align: center;
-	font-family: var(--ui-font, system-ui, sans-serif);
-	animation: elimBanner 2.6s ease-out forwards;
-}
-.elim-banner-label { font-size: 0.85rem; font-weight: 900; letter-spacing: 0.2em; text-transform: uppercase; opacity: 0.85; }
-.elim-banner-names { font-size: 1.2rem; font-weight: 800; margin-top: 0.3rem; }
-@keyframes elimBanner {
-	0%   { opacity: 0; transform: translate(-50%, -60%) scale(0.85); }
-	15%  { opacity: 1; transform: translate(-50%, -50%) scale(1.05); }
-	30%  { transform: translate(-50%, -50%) scale(1); }
-	80%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-	100% { opacity: 0; transform: translate(-50%, -45%) scale(0.95); }
-}
-
-/* === Tournament round-end sequence ====================================
-   COTD-style overlay: scrim fades in, full standings list materialises,
-   eliminated rows flash red on a stagger, a glowing cutline divider
-   draws between survivors and cuts, then the local player gets a
-   "SURVIVED" / "ELIMINATED" verdict badge.  The board behind it stays
-   visible but dimmed so the next round still feels in-context. */
-.tournament-round-overlay {
-	position: fixed; inset: 0; z-index: 9000;
-	display: flex; align-items: center; justify-content: center;
-	background: rgba(8, 12, 24, 0); /* animated to dark */
-	pointer-events: none;
-	opacity: 0;
-	transition: opacity 0.28s ease, background-color 0.28s ease;
-}
-.tournament-round-overlay[hidden] { display: none; }
-.tournament-round-overlay.visible {
-	opacity: 1;
-	background: rgba(8, 12, 24, 0.78);
-	backdrop-filter: blur(4px);
-	-webkit-backdrop-filter: blur(4px);
-}
-.tournament-round-overlay .tro-frame {
-	width: min(560px, 88vw);
-	max-height: 86vh;
-	display: flex; flex-direction: column; gap: 0.7rem;
-	padding: 1.1rem 1.4rem 1.3rem;
-	border-radius: 0.9rem;
-	background: linear-gradient(180deg, rgba(30, 41, 65, 0.95), rgba(15, 23, 42, 0.95));
-	border: 1px solid rgba(148, 163, 184, 0.18);
-	box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55);
-	transform: translateY(14px);
-	transition: transform 0.32s cubic-bezier(0.2, 0.8, 0.25, 1);
-}
-.tournament-round-overlay.visible .tro-frame { transform: translateY(0); }
-
-.tro-header { display: flex; align-items: baseline; gap: 0.7rem; justify-content: space-between; }
-.tro-round {
-	font-size: 0.72rem; font-weight: 800; letter-spacing: 0.16em;
-	text-transform: uppercase; color: #cbd5e1;
-}
-.tro-sub { font-size: 0.7rem; font-weight: 700; color: #94a3b8; letter-spacing: 0.06em; }
-
-.tro-rows {
-	display: flex; flex-direction: column; gap: 0.25rem;
-	max-height: 60vh; overflow: hidden;
-	position: relative;
-}
-.tro-row {
-	display: grid;
-	grid-template-columns: 2.1rem 1fr auto;
-	align-items: center;
-	padding: 0.42rem 0.65rem;
-	border-radius: 0.45rem;
-	background: rgba(30, 41, 59, 0.65);
-	border: 1px solid transparent;
-	font-size: 0.92rem;
-	opacity: 0;
-	transform: translateX(-12px);
-	animation: troRowIn 0.32s ease forwards;
-	transition: background-color 0.25s ease, border-color 0.25s ease, transform 0.45s cubic-bezier(0.2, 0.8, 0.25, 1);
-	position: relative;
-}
-@keyframes troRowIn {
-	to { opacity: 1; transform: translateX(0); }
-}
-.tro-row .tro-rank { font-weight: 800; color: #94a3b8; }
-.tro-row .tro-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tro-row .tro-detail { font-size: 0.78rem; color: #94a3b8; font-variant-numeric: tabular-nums; }
-
-/* The "you" row: stays subtly highlighted at neutral state so the eye
-   tracks your card through the reorder without it screaming. */
-.tro-row.tro-row-me {
-	background: rgba(99, 102, 241, 0.18);
-	border-color: rgba(129, 140, 248, 0.45);
-}
-
-/* Cut rows: triggered ~150ms apart from bottom up. Flash, then settle
-   to a muted red so the eye can still parse who was eliminated. */
-.tro-row.tro-cut {
-	animation: troRowIn 0.32s ease forwards, troCutFlash 0.6s ease forwards;
-}
-@keyframes troCutFlash {
-	0%   { background: rgba(248, 113, 113, 0.0); border-color: transparent; }
-	18%  { background: rgba(248, 113, 113, 0.55); border-color: rgba(252, 165, 165, 0.9); transform: translateX(2px); }
-	36%  { transform: translateX(-2px); }
-	60%  { transform: translateX(0); }
-	100% { background: rgba(127, 29, 29, 0.30); border-color: rgba(248, 113, 113, 0.35); }
-}
-.tro-row.tro-cut .tro-rank,
-.tro-row.tro-cut .tro-name,
-.tro-row.tro-cut .tro-detail { color: #fca5a5; }
-.tro-row.tro-cut .tro-name { text-decoration: line-through; text-decoration-color: rgba(252, 165, 165, 0.55); }
-
-/* Survivor highlight: fires once all cuts are flashed, single green
-   pulse on every surviving row. */
-.tro-row.tro-survive {
-	animation: troRowIn 0.32s ease forwards, troSurviveGlow 0.9s ease forwards;
-}
-@keyframes troSurviveGlow {
-	0%   { background: rgba(34, 197, 94, 0.0); }
-	35%  { background: rgba(34, 197, 94, 0.32); border-color: rgba(134, 239, 172, 0.7); }
-	100% { background: rgba(22, 101, 52, 0.22); border-color: rgba(74, 222, 128, 0.35); }
-}
-
-/* Cutline divider — animated horizontal rule between the last survivor
-   and the first cut. Glows briefly when drawn. */
-.tro-cutline {
-	position: relative;
-	height: 0; margin: 0;
-	border: 0;
-	border-top: 1px dashed rgba(248, 113, 113, 0.65);
-	opacity: 0;
-	transform: scaleX(0.5);
-	transition: opacity 0.3s ease, transform 0.4s ease;
-}
-.tro-cutline.visible { opacity: 1; transform: scaleX(1); }
-.tro-cutline::after {
-	content: "CUT"; position: absolute; right: 0; top: -0.6rem;
-	font-size: 0.6rem; font-weight: 900; letter-spacing: 0.18em;
-	color: #fca5a5; background: rgba(127, 29, 29, 0.7);
-	padding: 0.15rem 0.4rem; border-radius: 0.3rem;
-}
-
-/* Verdict badge: SURVIVED / ELIMINATED, slides in after the row work
-   is done.  The .close variant grows + shakes a little — used when the
-   player squeaked through within 1 rank of the cut. */
-.tro-verdict {
-	margin-top: 0.4rem;
-	text-align: center;
-	font-size: 1.4rem; font-weight: 900; letter-spacing: 0.18em;
-	text-transform: uppercase;
-	opacity: 0;
-	transform: translateY(8px);
-	transition: opacity 0.3s ease, transform 0.45s cubic-bezier(0.2, 0.8, 0.25, 1);
-}
-.tro-verdict.show { opacity: 1; transform: translateY(0); }
-.tro-verdict.survived { color: #4ade80; text-shadow: 0 0 24px rgba(34, 197, 94, 0.6); }
-.tro-verdict.eliminated { color: #f87171; text-shadow: 0 0 22px rgba(239, 68, 68, 0.55); }
-.tro-verdict.close { animation: troClose 0.7s ease; font-size: 1.6rem; }
-.tro-verdict-sub {
-	display: block; font-size: 0.7rem; font-weight: 700;
-	letter-spacing: 0.08em; opacity: 0.8; margin-top: 0.3rem;
-	color: #cbd5e1;
-}
-@keyframes troClose {
-	0%   { transform: translateY(8px) scale(0.9); }
-	30%  { transform: translateY(0)   scale(1.08); }
-	60%  { transform: translateY(0)   scale(0.98); }
-	100% { transform: translateY(0)   scale(1); }
-}
-
-/* Escalation: later rounds (when the field is small) get a tighter,
-   redder frame so the stakes read visually. Driven by data-round on
-   the overlay element. */
-.tournament-round-overlay[data-stage="late"].visible {
-	background: rgba(20, 8, 12, 0.82);
-}
-.tournament-round-overlay[data-stage="late"] .tro-frame {
-	border-color: rgba(248, 113, 113, 0.35);
-	box-shadow: 0 30px 80px rgba(127, 29, 29, 0.45);
-}
-.tournament-round-overlay[data-stage="final"].visible {
-	background: rgba(28, 6, 10, 0.86);
-}
-.tournament-round-overlay[data-stage="final"] .tro-frame {
-	border-color: rgba(248, 113, 113, 0.55);
-	box-shadow: 0 30px 90px rgba(127, 29, 29, 0.55), 0 0 0 1px rgba(248, 113, 113, 0.25) inset;
-}
-
-/* Pre-round preview: "N eliminations this round" — a quiet label that
-   floats above the countdown digits.  Muted by design; the round overlay
-   sequence already does the loud talking. */
-.round-cut-preview {
-	position: absolute;
-	left: 50%; top: 12%;
-	transform: translate(-50%, 0);
-	padding: 0.3rem 0.7rem;
-	color: rgba(203, 213, 225, 0.7);
-	font-size: 0.78rem; font-weight: 600;
-	letter-spacing: 0.08em;
-	text-transform: uppercase;
-	white-space: nowrap;
-	animation: roundCutIn 0.45s cubic-bezier(0.2, 0.8, 0.25, 1);
-	z-index: 5;
-	pointer-events: none;
-}
-@keyframes roundCutIn {
-	0%   { opacity: 0; transform: translate(-50%, -6px); }
-	100% { opacity: 1; transform: translate(-50%, 0); }
-}
 .pattern-card-method {
 	font-size: 0.65rem;
 	letter-spacing: 0.08em;
@@ -2362,48 +2101,6 @@ input[type="range"]:disabled { opacity: 0.55; cursor: not-allowed; }
 .section-page-subtitle { font-size: 1rem; margin: 1.6rem 0 0.7rem; color: var(--text); }
 .combined-section-blurb { color: var(--muted); font-size: 0.82rem; margin: -0.3rem 0 0.9rem; max-width: 60ch; }
 
-/* Territory (versus) mode — plays on the shared game board, with racing chrome hidden. */
-/* Territory breaks out of the 1200px content column to use the full viewport width below the nav. */
-body.territory-fullscreen main { max-width: none; padding: 0.6rem; }
-/* Territory uses the whole width below the nav: drop the racing side column and chrome, and
-   let the board card hug and centre the (fit-to-space) board. */
-.game-view.territory .game-side { display: none; }
-.game-view.territory .player-controls { display: none; }
-.game-view.territory #player_name0 { display: none; }
-.game-view.territory .game-grid { grid-template-columns: minmax(0, 1fr); gap: 0; }
-.game-view.territory .game-left { text-align: center; }
-.game-view.territory .player-board { display: inline-block; text-align: center; padding: 0.6rem; max-width: 100%; }
-.game-view.territory #territory_hud { max-width: none; }
-.game-view.territory .board-wrap { display: inline-block; }
-#territory_hud { margin: 0 0 0.7rem; }
-.tv-result-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(11,18,32,0.62); border-radius: 8px; z-index: 6; }
-.tv-elo { color: var(--muted); font-size: 0.85rem; }
-.tv-hud { display: flex; align-items: center; gap: 0.8rem; width: 100%; max-width: 560px; }
-.tv-hud-multi { flex-direction: column; align-items: stretch; gap: 0.4rem; }
-.tv-hud-multi .tv-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.4rem 1.2rem; }
-.tv-chip { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; white-space: nowrap; }
-.tv-swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
-.tv-name { color: var(--text); }
-.tv-score { font-weight: 700; color: var(--text); }
-.tv-energy { font-weight: 700; font-variant-numeric: tabular-nums; }
-.tv-bomb-btn { margin-left: auto; padding: 0.3rem 0.7rem; font-size: 0.82rem; font-weight: 600; white-space: nowrap;
-	border: 1px solid rgba(120, 150, 200, 0.35); background: rgba(30, 41, 66, 0.6); color: var(--text); }
-.tv-bomb-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-.tv-bomb-btn.aiming { background: #b91c1c; border-color: #fca5a5; color: #fff; animation: tv-bomb-pulse 1s ease-in-out infinite; }
-@keyframes tv-bomb-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.5); } 50% { box-shadow: 0 0 0 6px rgba(248, 113, 113, 0); } }
-body.tv-aiming #game0, body.tv-aiming .board-wrap canvas { cursor: crosshair; }
-.tv-bar { flex: 1; height: 10px; background: #1b2742; border-radius: 6px; display: flex; justify-content: space-between; overflow: hidden; }
-.tv-bar-fill { height: 100%; transition: width 0.2s ease; }
-.tv-board-wrap { position: relative; line-height: 0; }
-#tv_canvas { border-radius: 8px; background: #0b1220; cursor: pointer; }
-.tv-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(11,18,32,0.55); border-radius: 8px; }
-.tv-count { font-size: 4rem; font-weight: 800; color: var(--text); text-shadow: 0 2px 12px rgba(0,0,0,0.6); }
-.tv-result { text-align: center; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.4rem 1.8rem; }
-.tv-result h2 { margin: 0 0 0.5rem; }
-.tv-result p { margin: 0 0 1rem; color: var(--muted); }
-.tv-result-actions { display: flex; gap: 0.6rem; justify-content: center; flex-wrap: wrap; }
-.tv-result-pill { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); z-index: 6; }
-.tv-status { color: var(--muted); font-size: 0.8rem; margin: 0; }
 .combined-unsat-note { margin-top: 1.8rem; }
 .combined-unsat-list { color: var(--muted); font-size: 0.85rem; line-height: 1.6; margin: 0; padding-left: 1.2rem; }
 .puzzle-card .learn-puzzle-title { display: none; }
@@ -2830,7 +2527,7 @@ body.no-fullscreen-support .fullscreen-btn { display: none; }
    edge — the reclaimed vertical (and horizontal) space goes to the boards. Driven by
    body.ranked-game, toggled off the same "is this room ranked" signal #ranked_tag already uses
    (see renderRoomState in GameRoom.js and startBattleSearch in Main.js), so it covers every ranked
-   mode (racing, territory, tournament), windowed or fullscreen. */
+   mode, windowed or fullscreen. */
 body.ranked-game .topbar { display: none; }
 body.ranked-game main { max-width: none; padding: 0; }
 body.ranked-game .game-header {
@@ -2938,8 +2635,8 @@ body.ranked-game .game-grid { padding: 1.25rem 1.5rem 1.5rem; }
 .board-overlay-lose { color: var(--danger); font-size: 2rem; background: rgba(239, 68, 68, 0.18); padding: 1rem; }
 
 /* Round / series results panel. Lifted out of the board-wrap to a fixed
-   centered modal so big lobbies (16-player tournament final) can list every
-   player without bleeding past the board edges. */
+   centered modal so big lobbies can list every player without bleeding
+   past the board edges. */
 .board-overlay-panel {
 	/* Result panels are centered on the whole VIEWPORT (position: fixed), not just the player's
 	   board, so the modal reads as a proper screen-centered dialog. The big spread box-shadow
@@ -3132,89 +2829,6 @@ body.ranked-game .game-grid { padding: 1.25rem 1.5rem 1.5rem; }
 .board-place-2 { color: #e2e8f0; text-shadow: 0 2px 0 rgba(0, 0, 0, 0.5), 0 0 22px rgba(226, 232, 240, 0.35); }
 .board-place-3 { color: #f0b486; text-shadow: 0 2px 0 rgba(0, 0, 0, 0.5), 0 0 22px rgba(240, 180, 134, 0.35); }
 
-/* === Tournament champion panel ====================================
-   Single-subject celebration shown after the final round.  No ladder,
-   just the winner, their tier, and the rating bump.  Trophy gets a
-   gentle bounce-in + slow rotation; the champion's name uses a gold
-   gradient so it pops without needing confetti effects. */
-.champion-panel {
-	align-items: center;
-	gap: 0.45rem;
-	padding: 1.4rem 1.4rem 1.1rem;
-	text-align: center;
-	position: relative;
-	overflow: hidden;
-}
-.champion-panel::before {
-	content: "";
-	position: absolute; inset: 0;
-	background: radial-gradient(ellipse at top, rgba(251, 191, 36, 0.22), transparent 65%);
-	pointer-events: none;
-	z-index: 0;
-}
-.champion-panel > * { position: relative; z-index: 1; }
-.champion-trophy {
-	font-size: 5rem;
-	line-height: 1;
-	animation: championTrophyIn 0.8s cubic-bezier(0.2, 0.8, 0.25, 1.4);
-	filter: drop-shadow(0 6px 18px rgba(251, 191, 36, 0.55));
-}
-@keyframes championTrophyIn {
-	0%   { opacity: 0; transform: scale(0.4) rotate(-18deg); }
-	60%  { opacity: 1; transform: scale(1.15) rotate(4deg); }
-	100% { opacity: 1; transform: scale(1)   rotate(0); }
-}
-.champion-tagline {
-	font-size: 0.78rem;
-	font-weight: 800;
-	letter-spacing: 0.22em;
-	text-transform: uppercase;
-	color: #fbbf24;
-	opacity: 0;
-	animation: championFadeUp 0.45s ease 0.35s forwards;
-}
-.champion-name {
-	font-size: 2.2rem;
-	font-weight: 900;
-	line-height: 1;
-	letter-spacing: -0.01em;
-	background: linear-gradient(135deg, #fde68a, #f59e0b 55%, #fbbf24);
-	-webkit-background-clip: text;
-	background-clip: text;
-	color: transparent;
-	opacity: 0;
-	animation: championFadeUp 0.55s ease 0.5s forwards;
-	text-shadow: 0 0 32px rgba(251, 191, 36, 0.35);
-}
-.champion-rating {
-	font-size: 0.95rem;
-	font-weight: 600;
-	color: var(--text);
-	opacity: 0;
-	animation: championFadeUp 0.45s ease 0.75s forwards;
-}
-.champion-tier { font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
-.champion-delta.up   { color: #4ade80; font-weight: 800; }
-.champion-delta.down { color: #f87171; font-weight: 800; }
-.champion-yours {
-	margin-top: 0.4rem;
-	font-size: 0.82rem;
-	color: var(--muted);
-	letter-spacing: 0.04em;
-	opacity: 0;
-	animation: championFadeUp 0.45s ease 0.9s forwards;
-}
-.champion-actions {
-	margin-top: 0.7rem;
-	display: flex; gap: 0.6rem; justify-content: center;
-	opacity: 0;
-	animation: championFadeUp 0.4s ease 1.05s forwards;
-}
-@keyframes championFadeUp {
-	from { opacity: 0; transform: translateY(8px); }
-	to   { opacity: 1; transform: translateY(0); }
-}
-
 .result-list {
 	list-style: none;
 	margin: 0;
@@ -3222,8 +2836,8 @@ body.ranked-game .game-grid { padding: 1.25rem 1.5rem 1.5rem; }
 	display: flex;
 	flex-direction: column;
 	gap: 0.25rem;
-	/* The modal panel already caps at 90vh; let the list grow so 16-row
-	   tournament finals fit without scrolling on a normal-sized screen. */
+	/* The modal panel already caps at 90vh; let the list grow so a big lobby's
+	   full standings fit without scrolling on a normal-sized screen. */
 	max-height: 70vh;
 	overflow-y: auto;
 }
@@ -3354,7 +2968,9 @@ body.ranked-game .game-grid { padding: 1.25rem 1.5rem 1.5rem; }
 	.six-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
-.tournament-place {
+/* Shared result-detail line — a big centered stat under a result-panel heading. Used by Solo.js
+   (time/cells), PuzzlePlay.js (score lines), and MatchPanels.js. */
+.result-detail-line {
 	text-align: center;
 	font-weight: 800;
 	font-size: 1.5rem;
@@ -3362,9 +2978,6 @@ body.ranked-game .game-grid { padding: 1.25rem 1.5rem 1.5rem; }
 	margin: 0.5rem 0;
 	letter-spacing: 0.02em;
 }
-.tournament-delta { text-align: center; font-weight: 700; font-size: 1.05rem; margin-bottom: 0.6rem; }
-.tournament-delta-up   { color: #4ade80; }
-.tournament-delta-down { color: #f87171; }
 
 /* Result panel body: rank-swap column on the left, standings on the right. */
 .result-body {
@@ -3655,10 +3268,9 @@ body[data-board-skin="gold"] .board-scroll::after {
 .mobile-mode-icon { font-size: 1.4rem; line-height: 1; }
 .mobile-mode-hint { font-size: 0.8rem; font-weight: 600; opacity: 0.78; }
 /* The action bar drives reveal/flag for ALL reveal-based modes — solo, puzzle, and racing (1v1/6P)
-   share the exact same buttons + performAction() path. Hidden only where it doesn't apply: the lobby
-   (no live board) and territory (a different claim/fire interaction). */
-.game-view.lobby .mobile-action-bar,
-.game-view.territory .mobile-action-bar { display: none !important; }
+   share the exact same buttons + performAction() path. Hidden only where it doesn't apply: the
+   lobby (no live board). */
+.game-view.lobby .mobile-action-bar { display: none !important; }
 
 /* Mobile solo strip (timer + mine count + ⚙ settings button) */
 .mobile-solo-strip {
@@ -4117,7 +3729,7 @@ body.touch .find-next-arrow { display: inline-flex; }
 	font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em;
 	color: var(--muted);
 	text-align: center;
-	/* Reserves width for the longest real label ("RANKED · TERRITORY", ~130px at this size) even
+	/* Reserves width for the longest real label ("RANKED · STANDARD", ~130px at this size) even
 	   while empty (it's only filled in once the first live frame arrives, updateDuelHud in Main.js)
 	   so the badge doesn't visibly widen out from under #duel_timer's own reserved 5ch and shift
 	   the whole header — the same min-width guard that element already has below, just sized for
@@ -6588,24 +6200,16 @@ input[type="range"].sound-lab-rate-slider { grid-column: 1 / -1; grid-row: 2; wi
 .mode-card-sprint:hover { border-color: rgba(251, 191, 36, 0.55); box-shadow: 0 12px 32px rgba(251, 191, 36, 0.18); }
 .mode-card-standard .mode-card-icon { background: linear-gradient(135deg, #a78bfa, #7c3aed); color: white; }
 .mode-card-standard:hover { border-color: rgba(167, 139, 250, 0.55); box-shadow: 0 12px 32px rgba(124, 58, 237, 0.18); }
-.mode-card-tournament .mode-card-icon { background: linear-gradient(135deg, #f87171, #b91c1c); color: white; }
-.mode-card-tournament:hover { border-color: rgba(248, 113, 113, 0.55); box-shadow: 0 12px 32px rgba(239, 68, 68, 0.18); }
 .mode-card-custom .mode-card-icon { background: linear-gradient(135deg, #34d399, #059669); color: #07261c; }
 .mode-card-custom:hover { border-color: rgba(52, 211, 153, 0.55); box-shadow: 0 12px 32px rgba(16, 185, 129, 0.18); }
 .mode-card-puzzles .mode-card-icon { background: linear-gradient(135deg, #60a5fa, #2563eb); color: white; }
 .mode-card-puzzles:hover { border-color: rgba(96, 165, 250, 0.55); box-shadow: 0 12px 32px rgba(37, 99, 235, 0.18); }
 .mode-card-streak .mode-card-icon { background: linear-gradient(135deg, #fb923c, #ea580c); color: white; }
 .mode-card-streak:hover { border-color: rgba(251, 146, 60, 0.55); box-shadow: 0 12px 32px rgba(234, 88, 12, 0.20); }
-.mode-card-storm .mode-card-icon { background: linear-gradient(135deg, #22d3ee, #0891b2); color: #052029; }
-.mode-card-storm:hover { border-color: rgba(34, 211, 238, 0.55); box-shadow: 0 12px 32px rgba(8, 145, 178, 0.20); }
-.mode-card-territory .mode-card-icon { background: linear-gradient(135deg, #22d3ee, #0e7490); color: #052029; }
-.mode-card-territory:hover { border-color: rgba(34, 211, 238, 0.55); box-shadow: 0 12px 32px rgba(8, 145, 178, 0.20); }
 
 /* Persistent left accent edge so each mode's colour reads at rest, not only on hover. */
 .mode-card-sprint { --mode-accent: var(--mode-sprint); }
 .mode-card-standard { --mode-accent: var(--mode-standard); }
-.mode-card-tournament { --mode-accent: var(--mode-tournament); }
-.mode-card-territory, .mode-card-storm { --mode-accent: var(--mode-territory); }
 .mode-card-custom { --mode-accent: var(--mode-custom); }
 .mode-card-puzzles { --mode-accent: #60a5fa; }
 .mode-card-streak { --mode-accent: var(--energy-streak); }
@@ -6624,8 +6228,7 @@ input[type="range"].sound-lab-rate-slider { grid-column: 1 / -1; grid-row: 2; wi
 }
 
 /* === Ranked mode picker modal (Sprint/Standard — 1v1 vs 6-player) ===
-   Reuses .cr-modal/.cr-dialog chrome plus the .ranked-picker-* content classes below (originally
-   built for the old standalone picker page, still used there for Territory). */
+   Reuses .cr-modal/.cr-dialog chrome plus the .ranked-picker-* content classes below. */
 .ranked-picker-dialog { width: min(620px, 100%); }
 .ranked-picker-dialog .ranked-picker-head { margin-top: 0; }
 
@@ -6709,174 +6312,6 @@ input[type="range"].sound-lab-rate-slider { grid-column: 1 / -1; grid-row: 2; wi
 .opponent_div.opponent-searching canvas { animation: battle-slot-pulse 1.4s ease-in-out infinite; }
 @keyframes battle-slot-pulse { 0%, 100% { opacity: 0.45; } 50% { opacity: 0.85; } }
 
-/* === Match-search toast (fixed bottom-right) ====================== */
-/* Full-viewport dimming backdrop that centres the waiting-room card. */
-.match-overlay {
-	position: fixed;
-	inset: 0;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	padding: 1rem;
-	background: rgba(8, 10, 18, 0.62);
-	backdrop-filter: blur(3px);
-	-webkit-backdrop-filter: blur(3px);
-	z-index: 80;
-	animation: match-overlay-in 0.18s ease-out;
-}
-.match-overlay[hidden] { display: none; }
-@keyframes match-overlay-in {
-	from { opacity: 0; }
-	to   { opacity: 1; }
-}
-.match-toast {
-	--match-accent: var(--accent);
-	width: 23rem;
-	max-width: 100%;
-	position: relative;
-	background: linear-gradient(180deg, color-mix(in srgb, var(--match-accent) 7%, var(--surface)), var(--surface) 38%);
-	border: 1px solid var(--border);
-	border-radius: 1rem;
-	box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.02) inset;
-	padding: 1.15rem 1.3rem 1.25rem;
-	color: var(--text);
-	overflow: hidden;
-	animation: match-toast-in 0.2s ease-out;
-}
-/* Crisp accent hairline across the top, tinted to the queue's mode colour. */
-.match-toast::before {
-	content: "";
-	position: absolute; top: 0; left: 0; right: 0; height: 2px;
-	background: linear-gradient(90deg, transparent, var(--match-accent), transparent);
-	opacity: 0.9;
-}
-.match-toast[data-style="sprint"]     { --match-accent: var(--mode-sprint); }
-.match-toast[data-style="standard"]   { --match-accent: var(--mode-standard); }
-.match-toast[data-style="tournament"] { --match-accent: var(--mode-tournament); }
-.match-toast[data-style="territory"]  { --match-accent: var(--mode-territory); }
-.match-toast.match-toast-ready        { --match-accent: var(--energy-win, #4ade80); }
-@keyframes match-toast-in {
-	from { transform: translateY(12px) scale(0.98); opacity: 0; }
-	to   { transform: translateY(0) scale(1);       opacity: 1; }
-}
-.match-toast-head { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
-.match-toast-title {
-	display: flex; align-items: center; gap: 0.55rem;
-	font-weight: 700; font-size: 1.02rem; letter-spacing: -0.01em; color: var(--text);
-}
-/* Animated dots while searching; gone once the match is found. */
-.match-toast:not(.match-toast-ready) #ranked_searching_text::after {
-	content: ""; animation: match-dots 1.4s steps(1, end) infinite;
-}
-@keyframes match-dots { 0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75% { content: "..."; } }
-.match-toast-spinner {
-	width: 1rem; height: 1rem; flex: 0 0 auto;
-	border: 2px solid color-mix(in srgb, var(--match-accent) 28%, transparent);
-	border-top-color: var(--match-accent);
-	border-radius: 50%;
-	animation: match-toast-spin 0.8s linear infinite;
-}
-.match-toast-ready .match-toast-spinner { animation: none; border-color: var(--match-accent); border-top-color: var(--match-accent); }
-@keyframes match-toast-spin { to { transform: rotate(360deg); } }
-.match-toast-cancel {
-	height: 1.7rem; padding: 0 0.7rem;
-	border: 1px solid var(--border); border-radius: 0.45rem;
-	background: rgba(255, 255, 255, 0.03); color: var(--muted);
-	cursor: pointer; line-height: 1;
-	font-size: 0.72rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
-	transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
-}
-.match-toast-cancel:hover { background: rgba(239, 68, 68, 0.14); color: var(--danger); border-color: var(--danger); }
-.match-toast-meta {
-	display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem;
-	margin: 0.6rem 0 0.1rem;
-	font-size: 0.82rem;
-}
-.match-toast-mode { font-weight: 700; color: var(--match-accent); letter-spacing: 0.01em; }
-.match-toast-elapsed {
-	flex: 0 0 auto; font-variant-numeric: tabular-nums; font-weight: 700; font-size: 0.74rem;
-	color: var(--text); background: rgba(255, 255, 255, 0.06); padding: 0.12rem 0.45rem; border-radius: 0.35rem;
-}
-.match-toast-bar {
-	height: 0.5rem;
-	background: rgba(255, 255, 255, 0.07);
-	border-radius: 999px;
-	overflow: hidden;
-}
-.match-toast-bar-fill {
-	display: block; height: 100%;
-	background: linear-gradient(90deg, color-mix(in srgb, var(--match-accent) 70%, #fff 0%), var(--match-accent));
-	border-radius: 999px;
-	box-shadow: 0 0 12px -2px var(--match-accent);
-	transition: width 0.35s var(--ease, ease);
-	width: 0%;
-}
-.match-toast-counts {
-	margin-top: 0.5rem; text-align: center;
-	font-size: 0.78rem; color: var(--muted);
-	font-variant-numeric: tabular-nums;
-}
-.match-toast-counts #search_count_text, .match-toast-counts #search_size_text { color: var(--text); font-weight: 700; }
-
-/* Waiting-room roster: the list of players/bots in the forming lobby, filling
-   in live as they arrive (built by renderMatchRoster() in Lobby.js). */
-.match-toast-tagline {
-	margin: 0.1rem 0 0.65rem;
-	font-size: 0.76rem; color: var(--muted);
-}
-.match-roster {
-	list-style: none; margin: 0 0 0.6rem; padding: 0;
-	display: flex; flex-direction: column; gap: 0.32rem;
-	/* Fits a full 6-player lobby without scrolling; 16-player tournament
-	   scrolls, which is expected. */
-	max-height: 16.5rem; overflow-y: auto;
-}
-.match-roster-row {
-	display: flex; align-items: center; gap: 0.5rem;
-	/* Fixed height (not min-height) so an empty "Waiting…" row and a filled row with a rank badge
-	   are exactly the same size — otherwise the centred modal re-centres and jumps as players join. */
-	height: 2.6rem;
-	padding: 0 0.6rem;
-	background: rgba(255, 255, 255, 0.035);
-	border: 1px solid rgba(255, 255, 255, 0.06);
-	border-radius: 0.6rem;
-	font-size: 0.84rem;
-}
-.match-roster-row-new { animation: match-roster-in 0.28s ease both; }
-.match-roster-row-you {
-	background: color-mix(in srgb, var(--match-accent) 16%, transparent);
-	border-color: color-mix(in srgb, var(--match-accent) 45%, transparent);
-	box-shadow: inset 3px 0 0 var(--match-accent);
-}
-.match-roster-badge { flex: 0 0 auto; font-size: 6px; }
-.match-roster-name {
-	font-weight: 700; color: var(--text);
-	white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-	flex: 1 1 auto; min-width: 0;
-}
-.match-roster-you-tag {
-	flex: 0 0 auto;
-	background: var(--match-accent); color: #0b1020;
-	font-size: 0.58rem; font-weight: 800; letter-spacing: 0.08em;
-	padding: 0.1rem 0.4rem; border-radius: 999px;
-}
-/* Empty slot: a quiet muted placeholder — no animation. */
-.match-roster-slot-empty {
-	background: rgba(255, 255, 255, 0.02);
-	border-color: rgba(255, 255, 255, 0.05);
-}
-.match-roster-waiting { color: var(--muted); font-size: 0.78rem; }
-@keyframes match-roster-in {
-	from { opacity: 0; transform: translateY(6px) scale(0.97); }
-	to   { opacity: 1; transform: none; }
-}
-/* On narrow phones the centred card fills most of the width (the overlay's
-   padding keeps a small margin) and the roster scrolls if the lobby is large. */
-@media (max-width: 600px) {
-	.match-toast { width: 100%; }
-	.match-roster { max-height: 12rem; }
-}
-
 /* Fullscreen game chrome: hide the site navbar and let the game fill the space. The in-game "Exit game"
    button (#leave_button) stays as the single way out. Driven by body.game-fullscreen, kept in sync with
    the real fullscreen state in Fullscreen.js (so Esc reverts it too). */
@@ -6888,7 +6323,7 @@ body.in-game .site-footer { display: none; }
 /* Windowed, the game grid is a left-aligned board (1fr) + a 320px sidebar inside a
    max-width container. In fullscreen `main` loses its max-width, so that board would
    sit jammed against the left edge with a big empty gap. Center the play area instead.
-   (Territory and puzzle keep their own bespoke fullscreen layouts.) */
+   (Puzzle keeps its own bespoke fullscreen layout.) */
 body.game-fullscreen .game-view.solo .game-grid {
 	/* Board fills the remaining width (a measurable 1fr track, not an auto column that hugs the canvas)
 	   with the Free-play controls in a fixed sidebar — so the board uses the whole screen but the timer
@@ -6897,7 +6332,7 @@ body.game-fullscreen .game-view.solo .game-grid {
 	align-items: start;
 	gap: 1.25rem;
 }
-body.game-fullscreen .game-view:not(.territory):not(.puzzle):not(.solo):not(.duo):not(.multi) .game-grid {
+body.game-fullscreen .game-view:not(.puzzle):not(.solo):not(.duo):not(.multi) .game-grid {
 	grid-template-columns: auto 320px;
 	justify-content: center;
 }

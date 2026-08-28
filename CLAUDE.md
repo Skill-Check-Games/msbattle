@@ -38,10 +38,10 @@ else is grouped:
 - **`src/server/engine/`** — pure game logic / generators / solvers / benches, no http/socket/db
   coupling (`GameCreator`, `NoGuessGenerator`, `RoomCreator`, `BotPlayer`, `CSPSolver`,
   `PuzzleGenerator`, `InsideOutGenerator`, `RingSeedGenerator`, `StartPatterns`, `Patterns`,
-  `TerritoryGame`, `TerritoryGenerator`, `BotBench`, `TerritoryBench`). The files `scripts/` import.
+  `BotBench`). The files `scripts/` import.
 - **`src/server/runtime/`** — the http + socket runtime: shared state + the socket-handler modules
   (`appState`, `gameUtil`, `ranked`, `elo`, `bots`, `puzzlePlay`, `botDemo`, `standings`,
-  `roomState`, `session`, `territory`, `staticServer`, `oauth`, `puzzleApi`, plus the Phase 0 split
+  `roomState`, `session`, `staticServer`, `oauth`, `puzzleApi`, plus the Phase 0 split
   seams `results`, `lifecycle`, `matchToken`). **Phase 0 boundary prep** (see `PHASE0_TICKETS.md`,
   `ARCHITECTURE_PLAN.md`): `engine/`+`common/` are the pure game-core (barrel `engine/index.js`; never
   import runtime/db/socket — guarded by `test/boundary.test.js`); `runtime/results.js` is the single
@@ -64,7 +64,7 @@ else is grouped:
   with the SPA fallback (extensionless unknown paths serve `index.html`).
 - `appState.js` — the server's shared mutable state in one place: the live collections
   the socket handlers operate on (`rooms`, `games`, `sockets`, `names`, `accounts`,
-  round/series timers, the bot registries, the ranked queues, territory/puzzle timers),
+  round/series timers, the bot registries, the ranked queues, puzzle timers),
   plus `io`. A singleton — `minesweeperServer` aliases each locally (`var rooms =
   appState.rooms`, mutated in place, never reassigned), and the handler modules split
   out of the server share the same objects by requiring it. Primitive id counters
@@ -74,26 +74,23 @@ else is grouped:
   Owns the `RANKED_MODES` catalogue + bot-join timings. When a match forms it emits `match_reveal`
   then, after a short `MATCH_REVEAL_MS` beat (no roster modal — the search waiting room already
   showed the field), starts the series; the client drops straight into the game layout with a
-  covered board. Coupled to the core
-  like territory, so its core services (`createPlayerGame`, `addBotToRoom`,
+  covered board. Coupled to the core, so its core services (`createPlayerGame`, `addBotToRoom`,
   `broadcastRoomState`, `startSeries`, `readUserRating`, a room-id source, `RANKED_RULES`,
   `MAX_BOTS_PER_ROOM`, `PROVISIONAL_GAMES`, `io`) are injected via `ranked.init(deps)`; queue
   state is `appState` and `botCount` comes from `gameUtil`. The server delegates
   `find_ranked`/`cancel_ranked`/disconnect to `ranked.isValidMode`/`enqueue`/`dequeue`.
-- `elo.js` — the rating math: the pairwise-Elo formula (`applyRankedElo`), the per-style
-  rating reader (`readUserRating`), and the tournament per-player variants
-  (`applyEloForPlayer`/`tournamentEloParts`, so a cut player is rated the moment they're
-  eliminated). Pure math over `db` + the `appState` accounts/botRating; the standings it
+- `elo.js` — the rating math: the pairwise-Elo formula (`applyRankedElo`) and the per-style
+  rating reader (`readUserRating`). Pure math over `db` + the `appState` accounts/botRating; the standings it
   consumes are built in the core. `RANKED_BOT_RATING`/`PROVISIONAL_GAMES` are injected via
-  `elo.init(deps)` (`isBot` comes from `gameUtil`). Consumed by the core endgame, `ranked`, and `territory`.
+  `elo.init(deps)` (`isBot` comes from `gameUtil`). Consumed by the core endgame and `ranked`.
   **Ladder & gains:** ratings run **0 → 3000+** with the tier bands at 200 each (Bronze I = 0;
   Master from 3000 — see `Ranking.js`); a new rating floors at 0 (Bronze I). `kFactor(played)`
   gives big placement swings that settle (K=150 game 1 → 40 from ~game 8), so first matches move
   you fast. `marginFactor` adds a **margin-of-victory bonus** (up to +60%) to a *positive* swing,
   scaled by how far your `progress` (avg fraction of board cleared across the series) beat the
   player you outranked — so a dominant clear pays more than a photo-finish. Progress is summed per
-  round on the room (`progressSum`/`progressRounds`) and averaged in `buildSeriesStandings`; it's
-  absent for territory (→ no margin bonus). **Standard is boosted** (`kFactor`/`marginFactor` take
+  round on the room (`progressSum`/`progressRounds`) and averaged in `buildSeriesStandings`.
+  **Standard is boosted** (`kFactor`/`marginFactor` take
   the style): its games take far longer than Sprint so a session yields fewer, and `styleKMultiplier`
   scales Standard's K by 1.5× in game 1 easing to a steady 1.3× (extra placement push), while its
   margin bonus rises to +110% (`STANDARD_MARGIN_BONUS`) — so a Standard blowout climbs ~2× a Sprint one. NB the bot pool is still calibrated on the old ~1000
@@ -102,8 +99,8 @@ else is grouped:
   config to the game, and the per-move tick (`decideMove` → a delayed `handleLeftClick`, then
   reschedule). The bots play through the same game objects + move path as humans; `createPlayerGame`
   is injected via `bots.init(deps)`, and the game-loop helpers (`updateDraw`) + shared predicates
-  (`isBot`/`botCount`/`getRoomBotNames`) come from `gameUtil`. Per-bot state is `appState`. (Territory
-  has its own bot tick in `territory.js`.) NB the server requires it as `botMgr` to avoid colliding
+  (`isBot`/`botCount`/`getRoomBotNames`) come from `gameUtil`. Per-bot state is `appState`. NB the
+  server requires it as `botMgr` to avoid colliding
   with the `bots` state map (`botId → true`) that `isBot` reads.
 - `puzzlePlay.js` — single-player puzzle play (rated / streak / storm / daily): the run
   lifecycle, serving puzzles near the player's rating, building the game, the hint pointer,
@@ -120,8 +117,8 @@ else is grouped:
   (`botDemos`) is `appState`. Server delegates `bot_demo_start`/`bot_demo_stop`
   (`registerSocketHandlers`) and disconnect (`stopBotDemo`).
 - `standings.js` — turns a room's game results into ranked arrays: per-round standings
-  (finishers first, then by finish time / safe count), the series winner, the cumulative-score
-  series standings, and the tournament final standings. Reads game/room state + the accounts
+  (finishers first, then by finish time / safe count), the series winner, and the cumulative-score
+  series standings. Reads game/room state + the accounts
   cache; the rating constants are injected via `standings.init(deps)` (`isBot` comes from `gameUtil`).
 - `roomState.js` — room serialization + broadcast: the lobby summary (`room_list`) and the
   full `room_state` payload the client renders, pushed over socket.io. Reads room/game/account
@@ -169,8 +166,9 @@ else is grouped:
   rates a whole board and serves the next move). `analyzeBoard(board, state, {revealCell, maxComplexity})`
   returns per-move numeric `complexity` and `solved`; `findNextSafeStep(board, state, {maxComplexity, allow})`
   returns the single easiest forced move (`{kind, clueCells, safeCells, mineCells, componentSize}`) — used by
-  the in-game hint pointer and by bots (with `allow = canTarget` to restrict to a bot's reachable frontier in
-  territory). It absorbed `constraintAt` + `findEnumSteps` so it has no dependency on any other solver.
+  the in-game hint pointer and by bots (`allow` can restrict the search to a bot's reachable frontier — a
+  generic hook, unused by any mode today). It absorbed `constraintAt` + `findEnumSteps` so it has no
+  dependency on any other solver.
   The `maxComplexity` cap prunes the search —
   it's both the generation difficulty ceiling and the model for a bot's skill ceiling. Hard deductions
   (beyond trivial/subset) use, in order: a **sound 1-cell case split** (`findCaseSplitStep`, cost
@@ -237,8 +235,7 @@ else is grouped:
   `verified`, GitHub on primary+verified, Google on `email_verified`). Caveat: this links a *new* provider
   to an existing account — it does **not** merge two accounts both created separately before the identity
   existed (no auto-merge of pre-existing duplicates). Existing rows are backfilled into `user_identities`
-  on startup. NB the `create_room` socket still creates a Territory room for `{mode:"territory"}` (ranked +
-  the territory test use it), even though the custom UI is race-only.
+  on startup.
 - `StartPatterns.js` — size-parametric enumeration of starting-cascade positions (any H×W
   block) and the unique first-deduction patterns they yield, reusing `Patterns.js`'s
   canonicalisation. Driven by `scripts/generate-patterns.js`, which catalogues into
@@ -308,152 +305,6 @@ else is grouped:
   `corners4-edges2` rings sharing a seam reach cx 9.7 (past 8, though it stalls before a full
   solve). Some pairs (`#15⊕#16`, `#16⊕#16` at a shared seam) have **no consistent mine layout** —
   the clue rings conflict at the seam — surfaced as a note on the page since they can't be a board.
-- `TerritoryGenerator.js` / `TerritoryGame.js` — the **Territory (versus)** mode: players grow from
-  the corners of ONE shared board, claiming cells (vs the racing modes where each player has a private
-  state matrix over a shared layout). Supported with **2 players** (opposite corners, 18×30) or **4**
-  (one per corner — `generate({corners: 4})`, on a bigger 24×40 board; `territoryDims(players)` picks
-  the size). The generator is generate-and-test: a random
-  board with the top-left corner block mirrored onto every other corner (180° for 2; the full
-  horizontal/vertical/180° set for 4) and every cascade capped, so all start openings are **identical**,
-  plus a mine-free **start zone** (Chebyshev radius 3) at each corner, kept only if it's **no-guess
-  solvable from EVERY corner** (verified per-corner with `NoGuessGenerator.analyzeSolvability`) — the
-  interior is independent, not symmetric. `TerritoryGame` is N-player throughout (per-player owner /
-  scores / capture); it holds the single `state` + an `owner` matrix,
-  enforces contiguous growth (you may only reveal a covered cell adjacent to your own territory). Hitting
-  a mine now simply **freezes** you for `FREEZE_MS` (3 s) via `g.hitMine` — the old self-explosion (which
-  re-covered a patch of your own territory) was removed; the cell stays a covered mine. The ONLY thing
-  that re-covers territory now is an opponent's **energy bomb** (see below). A re-cover that leaves a cell
-  next to a revealed 0 is auto-revealed (`fillUncascaded`) but claimed by the OWNER OF THAT 0-cell, so a
-  blast only ever feeds the player whose own open ground forced the reveal.
-  **Energy bombs** (`g.requestBomb` / `g.detonateBomb`): spend `BOMB_COST` (1000) energy to launch a missile
-  from a random generator (structure) you own at a target cell. After a distance-scaled flight the blast
-  re-covers a Euclidean `BOMB_RADIUS` (≈2.6) circle as **neutral** ground, wiping flags + infrastructure
-  (structures/lines) there. The mines under it are re-rolled at board density to a **no-guess-solvable**
-  layout (`regenPatch` — border-constrained backtracking + `solvableFromBorder`, ≤`BOMB_REGEN_TRIES` tries;
-  falls back to the existing layout if none found) and the changed clues are patched to clients. **Claim
-  lock:** for `BOMB_CLAIM_LOCK_MS` (5 s) after impact only the launcher may take the crater — each crater
-  cell gets `g.bombClaim["r,c"] = {pid, until}`, and `g.claimLocked(pid,r,c)` blocks everyone else in
-  `canReveal`, the reveal cascade, and `fillUncascaded` (so neither a click nor a cascade nor an auto-fill
-  can grab it); after 5 s it opens to anyone. `g.claimList(now)` (broadcast as `claims`, also prunes
-  expired) drives the client overlay. Wiring: `territory_bomb` socket event → `requestBomb` (validate energy
-  / pick silo / stage `_missile`) + broadcast, then a `setTimeout(flightMs)` → `detonateBomb(tr,tc,pid,now)`
-  + broadcast. The blast reuses the `_explosion` payload (`{origin, recovered, clues, bomb:true}`);
-  `bomb:true` makes the client clear EVERYONE's flags in the area. Client: HUD `tv-bomb-btn`
-  (cost + affordability, `territoryToggleAim`) or the **S** hotkey → aiming mode (crosshair, Esc cancels) →
-  next board click emits the bomb (`territoryLaunchBomb`, intercepted in `performAction`); the missile
-  animates via `territoryMissiles`/`drawTerritoryMissiles`, and the claim lock pulses in the launcher's
-  colour via `territoryClaims`/`drawTerritoryClaims`.
-  Server wiring lives in `territory.js` (extracted from `minesweeperServer`): it owns the
-  territory socket handlers + helpers (start/end/broadcast/bot-tick/world-tick) and the
-  territory board sizes/density. Because it's both called from the core (start/leave/click)
-  and calls back into it (`clearRoundTimer`, `applyRankedElo`, `broadcastRoomState`/`List`), those
-  few callbacks + `io`/`COUNT_DOWN_TIME` are injected once via `territory.init(deps)` to avoid a
-  circular require; `obfuscateBoard`/`isBot` come from `gameUtil` and everything else is `appState`. The server
-  delegates: `room.gameMode === "territory"` →
-  `territory.startGame` builds one shared game; `left_click` routes to `territory.handleReveal` → `tg.reveal(pid,r,c,now)`
-  and broadcasts `territory_board` (`state`+`owner`+`scores`+`frozenUntil`); **there is no round clock**
-  (`roundSeconds: 0` — and ranked formation now honors an explicit `0` via
-  `typeof modeDef.roundSeconds === "number"`, so territory no longer silently inherits the
-  300s default). **The game ends only on elimination** — when just one player still holds any ground
-  (`maybeEndTerritory` → `tg.alive() <= 1`, "eliminated") — or a player leaves, or a genuine deadlock
-  (`tg.deadlocked()`: nobody can expand AND no fort stands to re-open the board, "deadlock"). Clearing
-  every safe cell is NOT an end — that's when the invasion war begins. Winner = most cells. **Entry points:** "Create
-  Territory (1v1)" and "Create Territory (4-player)" buttons in the custom lobby (`create_room` with
-  `players: 2|4`; `startTerritoryGame` accepts 2 or 4 and seeds one player per corner from
-  `TERRITORY_COLORS = [cyan, amber, violet, rose]`), and **ranked** `territory_duo` (2-player) /
-  `territory_quad` (4-player) modes chosen from the territory ranked picker (`RANKED_PICKER_META`,
-  style `"territory"`, filled with bots like the other ranked modes) — both share the one
-  `rating_territory` Elo ladder; `endTerritoryGame` applies rank-based Elo across all players (so it
-  works for 4 as well as 2) and reports the delta in `territory_result`. **Client:
-  `Territory.js` renders on the SHARED game board** (`#game0` / `renderPlayerBoard` / `drawCell`),
-  not a bespoke canvas — it sets `myState` from the shared state, feeds an owner-colour grid that
-  `drawCell` tints (via `view.getOwner`, null in other modes) — and applies **fog-of-clues**: clue numbers
-  show only on cells you own PLUS opponent cells that border one of yours (the contested frontier);
-  opponent cells deeper in their territory show their owner tint but no number (`view.hideClue`), so you
-  can't read your opponent's board — and routes clicks through
-  `Input.performAction`'s `"territory"` mode. Like the other modes it **predicts locally** — the
-  client decodes the board, so `territoryLocalReveal` reveals+cascades+claims a safe move instantly
-  and then emits; the server still owns mine hits (explosions), enclosure capture and validation. The
-  next `territory_board` **merge-reconciles** rather than overwrites: a cell you've already revealed is
-  never un-revealed by a server board unless that board's `explosion.recovered` list actually re-covered
-  it — so a broadcast that races ahead of your reveal's echo (an opponent moving) can't flicker your
-  cells back to covered, and the reverse-cascade animation is driven off that same `recovered` list
-  (never a diff), so it only ever plays on the exploder's cells. Reusing the real board means keyboard focus, right-click `preventDefault`, hit-testing
-  and animations all work for free. Racing chrome is hidden via a `.territory` class on `#game_view`
-  plus a small territory score-bar HUD (chip · bar · chip for 2; a chips row over a segmented bar for
-  4, built from `territoryInfo.players`). **Bots** use the same `BotPlayer.decideMove` AI as the
-  racing modes, fed a game view with two extra knobs (no-ops for racing): `canTarget(r,c)` limits
-  reveals to the bot's own frontier (`tg.canReveal` + excluding mines it has detonated) and
-  `revealsOnly` drops flags/chords. `scheduleTerritoryBot` ticks it on a speed/difficulty-scaled
-  cadence; `tg.mineKnown` keeps it from re-hitting a mine. Bots are picked for territory by a
-  **separate measured rating** (`b.ratings.territory`): `TerritoryBench` replays a bot's decision loop
-  clearing a no-guess territory board against a non-moving opponent on a virtual clock (mirroring
-  `BotBench`, but mine hits cost a re-cover + freeze instead of a flat penalty), and
-  `scripts/calibrate-territory.js` (fanned across `territory-bench-worker.js`) maps clear time to an Elo
-  and writes `ratings.territory` onto every pool bot; matchmaking calls `pickBotFromPool(elo, w,
-  "territory")` and targets the lobby's territory Elo. So the bot doesn't needlessly guess into mines,
-  `CSPSolver.findNextSafeStep` takes the bot's `canTarget` predicate via its `allow` option (territory only)
-  and only counts a
-  safe deduction as a result when it has a cell on the bot's own frontier — a safe move the bot can't
-  reach no longer short-circuits it into a guess; it keeps searching for a frontier-safe move. This
-  both cuts territory mine-hits and gives the calibration real resolution across the Elo range.
-  **Enclosure capture**
-  (`tg.captureEnclosed`, run after every reveal): a region you've sealed off so that **only you can
-  reach it** — two reachability floods (each spreads **8-connected** from a player's land through covered
-  cells only, matching `canReveal`'s 8-adjacency expansion — using 4-connectivity under-counted reach and
-  let the capture STEAL cells the opponent could still grab diagonally, ending games early; the
-  opponent's land AND neutral dead ground are walls), capture = cells your flood reaches but the
-  opponent's doesn't — is claimed. This captures regions pinned against a **board edge** too, not just
-  interior pockets (the edge isn't an escape). Captured covered non-mines are revealed and claimed,
-  mines stay a covered dead pocket. **Enemy pockets flip too** (second pass, connectivity-based):
-  "freedom" = reaching the board border through any NON-your cell (your cells are the only walls). A
-  player starts on the border, so they stay free until you wall their land off from every edge; anything
-  you seal into the interior — opponent cells AND the neutral/covered ground trapped with them (e.g. bomb
-  craters) — can no longer reach the border and is captured (enemy land revealed + claimed, sealed mines
-  become your covered structures). A covered/neutral boundary cell no longer saves an island; only a real
-  escape route to the open edge does. Both passes skip cells under a bomb claim lock (`g.claimLocked`).
-  Fully surrounding an opponent away from the edges captures their territory and can eliminate them.
-  **Structures + offensive beams (PvP invasion).** A connected blob of covered mines whose entire outer
-  boundary you own becomes your **structures** (`g.updateStructures`, run after every board change — it
-  flood-fills each 8-connected mine group and claims the whole group if one player rings it, so clusters
-  of mines count, not just lone ones): owned by you (counts toward
-  score, NOT toward `claimedSafe`), auto-flagged, rendered as a coloured flag with a charge gauge. Each
-  has a **cooldown** that recharges faster the more territory you hold (`cooldownFor` ∝ your cell count).
-  Left-clicking your charged structure fires `g.fireStructure` → a **directional beam** at the nearest
-  enemy cell: it travels over your land/neutral, then re-covers a 3-wide channel of the enemy's territory
-  (`BEAM_LEN` deep) — those cells go neutral and you re-claim them by expanding in. An enemy **structure
-  in the path ABSORBS** the beam: it's destroyed (reverts to a neutral mine) and the beam stops there, so
-  forts are sacrificial defence. Re-cover stays consistent via the shared `fillUncascaded` (reused from
-  explosions). Wiring: `territory_fire` socket event; `broadcastTerritory` sends `structures`
-  (`{r,c,owner,readyInMs,cooldownMs}`, client interpolates the gauge) and a one-shot `fire`
-  (`{pid,from,to,recovered,destroyed}`) for the breach + beam-streak animation (`territoryBeams` /
-  `drawTerritoryBeams`, a fading glowing line from fort to impact in the firer's colour). NB: beams
-  re-open cleared cells to NEUTRAL (claimable by either side), so they don't permanently capture — a
-  defended core a bot keeps re-revealing can stalemate, since elimination is now the only win. A beam
-  that captures the channel for the firer (or a domination tiebreak) is the open follow-up.
-
-  **Energy infrastructure (`TerritoryGame.js`).** A structure (claimed mine) is also an energy
-  **extractor**: it spends `EXTRACTOR_BUILD_MS` (15s) under construction, then produces `EXTRACTOR_RATE`
-  (1/s) energy for its owner. `g.extractorStartedAt["r,c"]` is stamped when the cell is first claimed (in
-  `updateStructures`) and cleared when its enclosure breaks. Running extractors auto-wire **energy lines**
-  to their nearest same-owner running extractors (`g.recomputeLines`, ≤ `LINE_MAX_LINKS`=3 each within
-  `LINE_RADIUS`=6 Chebyshev), stored in `g.energyLines["r,c|r,c"] = {owner,startedAt}`; a line spends
-  `LINE_BUILD_MS` (10s) building then adds `LINE_RATE` (0.6/s). Energy banks per player in `g.energy`
-  (`g.accrueEnergy` integrates rate×Δt lazily; `g.energyRate` sums running extractors + completed lines).
-  A server `setInterval` (`startTerritoryWorldTick`, ~1/s, cleared in `endTerritoryGame`) calls
-  `g.tickWorld` (accrue + re-wire) and re-broadcasts so the economy advances even when nobody clicks.
-  `broadcastTerritory` adds `energyLines` (`energyLineList`: endpoints + `buildInMs`/`buildMs`), per-
-  structure `buildInMs`/`buildMs`, and `energy`/`energyRate` per player. **Client:** `territoryStructures`
-  entries carry `builtAt`/`buildMs`; `drawCell` shows a construction ring (`drawExtractorBuild`) until
-  built, then a glowing core (`drawExtractorCore`) + the beam gauge; `drawTerritoryEnergyLines` renders the
-  grid as **faint orthogonal (Manhattan) traces** along the grid axes (`territoryGridPoint` routes
-  horizontal-then-vertical; dashed while building, very low alpha when done) with occasional **energy
-  packets** (`territoryPackets`) blipping along them — spawned on a randomised cadence by
-  `territorySpawnPackets` from the 250ms tick (`territoryEnergyTickFn`), which kicks the rAF loop while a
-  packet is in flight. The HUD chip shows banked energy (`territoryEnergy` +
-  `territoryEnergyNow` interpolation, ticked every 250ms by `territoryEnergyTick`). Banked energy is the
-  resource for the planned **energy explosions** (area wipe → re-covered cells, up for grabs) — not yet
-  built; board re-randomisation of the wiped area is a later idea.
 - `RingSeedGenerator.js` — turns a "4s and 2s" ring start (corners4-edges2) into a real solvable
   puzzle. That ring has exactly **2 symmetric solutions** and no single clue change breaks it (every
   change either over-constrains to 0 or loosens to 7–9 solutions), so it searches clue-change sets of
@@ -479,9 +330,9 @@ else is grouped:
 transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main.js`):
 - **`core/`** — the live-game runtime (`Main`, `Input`, `BoardRender`, `Animations`, `BoardDecoder`).
 - **`ui/`** — cross-cutting UI infra (`Router`, `Auth`, `Overlay`, `Sound`, `Music`, `MobileLayout`,
-  `Fullscreen`, `RoundTimer`, `DangerWarning`, `Keybindings`).
+  `Fullscreen`, `RoundTimer`, `Keybindings`).
 - **`views/`** — page/feature views (`Lobby`, `GameRoom`, `Profile`, `Leaderboard`, `Learn`, `Solo`,
-  `Territory`, `PuzzlePlay`, `Ranking`, `MatchPanels`).
+  `PuzzlePlay`, `Ranking`, `MatchPanels`).
 - **`admin/`** — admin views (`AdminList`, `BotsAdmin`, `PatternsView`, `StartPatternsView`,
   `StartingPositionsView`, `CombinedPuzzlesView`, `PuzzleLab`, `Puzzles`, `DesignView`). `DesignView`
   (`/admin/design`) is a living design reference — renders the full rank ladder (every tier + sub-tier)
@@ -494,7 +345,7 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
 - `index.html` — entry page: markup only. Every client module is a plain `<script>`
   tag (each becomes a global); they load in dependency order, with `Main.js` last.
 - `Main.js` — the client entry / live-game core: the socket connection and all its
-  `socket.on(...)` handlers (puzzle / solo / ranked / territory / game / tournament),
+  `socket.on(...)` handlers (puzzle / solo / ranked / game),
   the shared live-game state (`rows`, `cols`, `myState`, `playerCanvas`, the cell-state
   sentinels) the feature modules read as globals, and the top-level DOM/state wiring.
   Loaded last so those globals exist before anything uses them.
@@ -523,7 +374,7 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   `currentRankedMode` and left alone after — the empty-string check in `updateDuelHud` guards that);
   `#ranked_tag`/`#game_progress_text` are hidden for duo specifically since their info moved into that
   badge. Both `#duel_timer` (`min-width: 5ch`) and `.duel-timer-mode` (`min-width: 140px`, sized for
-  the longest real label, "RANKED · TERRITORY") reserve their width even while empty — the mode line
+  the longest real label, "RANKED · STANDARD") reserve their width even while empty — the mode line
   in particular starts empty and is far wider than the timer digits once populated, so without its own
   reserve the badge (sized to fit its widest child) visibly widens and shifts the whole header the
   instant the first live frame arrives and fills it in. Driven by a `duo` class on `#game_view` (CSS
@@ -679,7 +530,7 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   is panned, works at any zoom/scroll position by construction. `countDown` branches on `mobileDuel` once,
   up front, calling `mobileCountdownDigitCycle` instead of `countdownDigitCycle` and showing `"GO"` in the
   same overlay (auto-hides after 550ms) instead of relying on the (still-unchanged, still-running for its
-  sound/decorative sweep) `startBoardGoAnimation`. Elsewhere (desktop, solo, territory, the 6-player
+  sound/decorative sweep) `startBoardGoAnimation`. Elsewhere (desktop, solo, the 6-player
   layout) `mobileDuel` is always false, so this is strictly additive — the canvas glyph path is completely
   untouched or reachable.
   **Opponent panel clipped by a notch/curved corner on real devices, fixed**: reported as "the opponent's
@@ -1248,8 +1099,7 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   Driven by a `multi` class on `#game_view` (CSS `.game-view.multi`); toggled alongside `duo` in `applyDuoClass`.
   Unlike the duel, opponent canvases keep their small `OPP_CELL` render resolution and are scaled to
   the grid cell by CSS (`width:100%`), so `sizeOpponentCanvases` needs no special case. The fullscreen
-  re-center rule excludes `.multi` (like `.duo`) so it keeps its own two-column grid. Tournaments
-  (larger lobbies) stay on the scoreboard layout with top-2 opponent thumbnails.
+  re-center rule excludes `.multi` (like `.duo`) so it keeps its own two-column grid.
   **Gotcha**: `applyDuoClass` re-measures/resizes opponent canvases a frame later via `requestAnimationFrame`
   (the `.duo`/`.multi` class needs a frame to actually affect layout before `clientWidth` reads correctly —
   see its comment). Reassigning a canvas's `width`/`height` attribute always clears it (`sizeBoardCanvas`),
@@ -1409,7 +1259,7 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
 - `Input.js` — pointer/touch/keyboard handlers, local reveal/chord mirrors. Keyboard
   actions are resolved through `keybindings.actionFor()`. A chord that **detonates** clears every
   incorrect flag around that number (flagged but not actually a mine) in all modes — locally, and via
-  a `right_click` per cleared flag in server-tracked modes (and via `territoryToggleFlag` in territory).
+  a `right_click` per cleared flag in server-tracked modes.
 - `Keybindings.js` — rebindable in-game keyboard controls (persisted to `ms_keybinds`)
   and the Controls section rendered on the Profile page.
 - `BotsAdmin.js` — admin bot browser (`#/admin/bots`): paginated/sortable/Elo-filterable
@@ -1419,16 +1269,16 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   fullscreen when a game starts (any mode) and releases it on leave. Because the
   Fullscreen API needs a transient user gesture, `enterGameFullscreen()` is called straight
   from the committing click handlers (`readyButton` for casual, `findRanked` for ranked,
-  `startSolo`, `renderPuzzlePlay`, territory create), never from a later socket/board
+  `startSolo`, `renderPuzzlePlay`), never from a later socket/board
   callback; it's idempotent and fails silently if the browser blocks/doesn't support it.
   Exit is wired into every leave path (`leave_button`, `cancelRanked`, `exitSolo`,
-  `exitPuzzle`, territory teardown, and the Router's navigate-away teardown). The **game header has a
+  `exitPuzzle`, and the Router's navigate-away teardown). The **game header has a
   fullscreen toggle** (`#fullscreen_btn`, icon-only, next to the progress text) so a player who pressed
   Esc can re-enter — `toggleGameFullscreen` enters/exits off the live state (the click is the needed
   gesture); its expand/compress icon swaps off `body.game-fullscreen`, and the button is hidden
   (`body.no-fullscreen-support`) where the Fullscreen API is unavailable (iOS Safari).
   Fullscreen chrome (driven by `body.game-fullscreen`) hides the navbar + footer and, for the
-  non-territory/non-puzzle modes, re-centers the play area (the windowed grid left-aligns the
+  non-puzzle modes, re-centers the play area (the windowed grid left-aligns the
   board in a `1fr` column + 320px sidebar, which jams it against the edge once `main`'s
   max-width is dropped in fullscreen).
   NB the "leaving counts as a loss" prompt (in `leave_button` and the Router navigate-away path)
@@ -1473,7 +1323,7 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   whichever next game type happens to call it, e.g. `applyPuzzleBoard`) since `#game_view` is shared
   across every mode and a leftover `duel-force-rotate` would otherwise rotate whatever opens next.
 - `MobileLayout.js`, `Sound.js`, `Overlay.js`, `RoundTimer.js`,
-  `DangerWarning.js`, `BoardDecoder.js`, `Router.js`, `Auth.js`,
+  `BoardDecoder.js`, `Router.js`, `Auth.js`,
   `Ranking.js`, `Leaderboard.js`, `Profile.js`, `Lobby.js`,
   `MatchPanels.js`, `GameRoom.js`, `Solo.js`, `Learn.js`,
   `StartPatternsView.js`, `CombinedPuzzlesView.js` — one feature each.
@@ -1529,7 +1379,7 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   `db.resetPuzzleProgress` (rating→0, points→0, peak cleared) → echoes `puzzles_reset` so the client
   updates without a reload.
 - **In-game button groups** (keyboard): any container tagged `.kbd-btn-group` (the puzzle fail actions
-  `#puzzle_fail_actions`, the `.result-actions` rows in the series/tournament/result panels) is
+  `#puzzle_fail_actions`, the `.result-actions` rows in the series/result panels) is
   keyboard-driven — `focusButtonGroup` (Main.js) focuses its primary button when shown (e.g. "Try again"
   on a puzzle miss; `presentPanel` does it for overlay panels), the **arrow keys move focus between** the
   group's buttons, and Enter/Space activates the focused one. The board key handler (Input.js) and the
@@ -1636,7 +1486,7 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   baseline before the first game.
   **Style-challenge achievements** ("No Flags" / "Chord Master") are event-driven, not cumulative-stat
   derived: Input.js tracks per-board `clearNoFlag`/`clearNoReveal` (a flag placement / a direct reveal of
-  a covered cell flips them — chords don't), **only in solo + racing, never puzzles/territory**; reset at
+  a covered cell flips them — chords don't), **only in solo + racing, never puzzles**; reset at
   each board start (`resetClearChallenge` in `setCoveredBoard` + `solo_board`); on a clear (`reportClear`
   from solo win / racing `me.finished`) the client emits `record_clear {noFlag,noReveal}` →
   `db.recordClear` bumps `player_stats.noflag_clears`/`noreveal_clears` (these have no history source, so
@@ -1645,7 +1495,7 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
 - **Match history** (rating graph + recent games on the profile). A `match_history` table
   (`db.js`: `user_id, style, rating_before, rating_after, placement, players, won, opponent, created_at`)
   gets one row per human per completed ranked match, written wherever Elo persists: `elo.js`
-  `applyRankedElo` (racing + territory) and `applyEloForPlayer` (tournament), right after
+  `applyRankedElo` (a completed series) and `applyEloForPlayer` (an early-leave penalty), right after
   `db.updateRating`. `db.recordMatch` (swallows its own errors so it can't break match-end),
   `getMatchHistory(userId,limit)` (recent, desc — the games list), `getRatingHistory(userId,limit)`
   (asc — bucketed per style for the graph). The `get_match_history` socket handler (session.js) returns
@@ -1671,8 +1521,8 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   legacy rows), and never surfaced by `Replay.js`. Format is versioned (`REPLAY_VERSION`,
   currently **3**; v2 added the skin, v3 the avatar+country — readers version-gate so older replays still
   decode, defaulting to classic). A whole 1v1 sprint is ~300-350 B raw, gzipped to a BLOB. Capture rides three seams in
-  `minesweeperServer.js`: `startSeries`→`replay.startMatch` (arms `room.replay` for ranked non-territory
-  rooms), `startGame`→`replay.startRound` (snapshots the two bitmasks) + `replay.attach` (wires
+  `minesweeperServer.js`: `startSeries`→`replay.startMatch` (arms `room.replay` for any ranked
+  room), `startGame`→`replay.startRound` (snapshots the two bitmasks) + `replay.attach` (wires
   `game.onMove` per player), and `endSeries`→`replay.finishMatch` (serialize + gzip + persist, then clear).
   Moves are captured via a **`game.onMove(button,r,c)`** hook in `engine/GameCreator.js`, fired *after* the
   `playing && !frozen` guard in `handleLeftClick`/`handleRightClick` — so only real in-play moves are
@@ -1784,8 +1634,8 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   `rankedSearch` is set (so "Play another"'s `leave_room`+re-queue doesn't bounce you to the lobby).
   NB the picker (`Router.js`) must NOT `navigate("/")` for race modes — that would hide the battle UI;
   it only routes home for the overlay modes.
-- **Custom rooms.** The Custom page (`#custom_view`) is casual race-only — Territory is **not** creatable
-  here (it lives in Ranked). A "+ Create room" button opens the create-room modal (`#create_room_modal`,
+- **Custom rooms.** The Custom page (`#custom_view`) is casual race-only. A "+ Create room" button opens
+  the create-room modal (`#create_room_modal`,
   wired in `wireCreateRoomModal` in Main.js): segmented `.cr-seg` controls (one `.active` per group) pick
   players (2–6), board size, round time, mine penalty, series length, and a **gameplay Modifier** up front,
   plus a **10%–30% mine-density slider** (`#cr_density`). "Create room" emits `create_room` with those options; the server
@@ -1814,7 +1664,7 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   list (`roomRow` in Lobby.js) shows each room's full ruleset as `.room-chip`s (players X/Y — red when full,
   board dims, % mines, round time, series); `roomSummary` (roomState.js) now includes `boardSize`+`mineDensity`.
   Once you're in a casual room, the **planning phase uses a clean waiting-room lobby** (`.game-view.lobby`,
-  toggled in `renderRoomState` when `!playing && !battleActive && !ranked && gameMode==="race" && !territory`):
+  toggled in `renderRoomState` when `!playing && !battleActive && !ranked && gameMode==="race"`):
   a two-column layout — a **slot-based roster** (`renderLobbySlots`, one seat per `maxPlayers`) fills the
   left, the **Series** ruleset card sits on the right (equal height), and a **full-width Ready bar** spans
   both below. Empty seats carry an **"+ Add bot"** button (owner, until `maxBots`); bot seats get an inline
@@ -1823,11 +1673,6 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   spans `grid-column: 1 / -1`.) No empty board, no "Scoreboard". `buildRoomState` exposes `maxPlayers` for
   the seat count. The ranked race battle layout (duo/multi) is `battleActive`, so it
   is unaffected; starting the game removes the `lobby` class and the duel/multi layout takes over.
-- **Territory & Tournament** still use the legacy **waiting-room overlay** (`#ranked_searching`, a centred
-  full-viewport card): `renderMatchRoster(info)` turns the `members` roster into a filling slot list
-  (name + tier chip, "YOU" tag, "Waiting for player…" placeholders) above a mode label + tagline
-  (`MODE_TAGLINES`), progress bar, count, and a Leave button. Only newly-arrived rows animate in
-  (`matchRosterShown` gate), so existing rows don't re-flash as bots trickle in.
 
 The Learn page is an interactive deduction trainer (`LEARN_COURSES` data
 array, ~16 puzzles + ~10 demos). No mine-count deductions — the game
@@ -1895,13 +1740,15 @@ multi-game-machine fleet, and Postgres/Redis (Phases 2–4). Tickets: `PHASE0_TI
   Dimensions are passed into `createGame`/`createTemplate`; the solver and bot derive
   them from the board array; the client receives `rows`/`cols` in room state.
 - Ranked uses a fixed ruleset (Best of 5, 5 min rounds by default (`RANKED_RULES.roundSeconds`) —
-  Standard's denser 20% board gets 6 min via `roundSeconds: 360`; territory has no clock, 5s mine penalty, medium board,
-  10% mines for Sprint / 20% Standard / 15% Tournament), pairwise Elo, tiers, and a leaderboard. Filler bots are tuned to the
+  Standard's denser 20% board gets 6 min via `roundSeconds: 360`; 5s mine penalty, medium board,
+  10% mines for Sprint / 20% Standard), pairwise Elo, tiers, and a leaderboard. Filler bots are tuned to the
   lobby's average rating and trickle into the queue like real players. The tier ladder runs
   0 → 3000 (Bronze I = 0, 200 per sub-tier, Master from 3000); everyone starts/floors at 0 and
   climbs. Gains are bigger for placement games and scale up with margin of victory (see `elo.js`).
-  Ratings are **per-style only** (`rating_sprint`/`rating_standard`/`rating_tournament`/
-  `rating_territory`) — there is no single legacy `rating` column. Anything needing one "overall"
+  Ratings are **per-style only** (`rating_sprint`/`rating_standard`) — there is no single legacy
+  `rating` column. (The DB also still carries `rating_tournament`/`rating_territory` columns from
+  the now-removed Tournament/Territory modes — kept untouched for existing accounts' historical data,
+  but nothing writes to them any more.) Anything needing one "overall"
   number uses the **max across modes**: `overallRating(account)` on the client (topbar chip, profile
   summary), `readUserRating(u)` with no style / `MAX(...)` in `topPlayers` on the server. Per-match
   payloads (scoreboard, search roster, result card) carry the relevant per-style rating via

@@ -1,12 +1,10 @@
 // Standings computation, extracted from minesweeperServer. Turns a room's game results
 // into ranked arrays: the per-round standings (rankCompare — finishers first, then by
-// finish time / safe count), the series winner, the cumulative-score series standings,
-// and the tournament final standings (by elimination place, pulling through stored Elo
-// deltas). Reads game/room state + the accounts cache; isBot + the rating constants are
-// injected via init to avoid a circular require.
+// finish time / safe count), the series winner, and the cumulative-score series standings.
+// Reads game/room state + the accounts cache; isBot + the rating constants are injected via
+// init to avoid a circular require.
 
 var appState = require("./appState");
-var db = require("../db");
 var gameUtil = require("./gameUtil");
 
 var roundStarts = appState.roundStarts, games = appState.games, accounts = appState.accounts;
@@ -127,44 +125,9 @@ function buildSeriesStandings(room) {
 	return entries;
 }
 
-// Tournament final standings: each participant's rank is their tournament-
-// elimination place (1 = winner, last = first eliminated). Eliminated players'
-// rating deltas were applied at elimination time and stored in room.tournamentElo
-// — pull them through so the final panel can show each row's delta.
-function buildTournamentStandings(room) {
-	var N = room.tournamentParticipants.length;
-	var entries = room.tournamentParticipants.map(function(pid) {
-		var elim = room.tournamentEliminated[pid];
-		var rank = elim ? elim.place : 1;
-		var entry = {
-			id: pid,
-			name: names[pid] || "Anonymous",
-			score: 0,
-			rank: rank,
-			points: N - rank + 1,
-			eliminatedRound: elim ? elim.round : null
-		};
-		var eloInfo = (room.tournamentElo || {})[pid];
-		if (eloInfo) {
-			entry.ratingDelta = eloInfo.delta;
-			entry.rating = eloInfo.newRating;
-			entry.provisional = eloInfo.provisional;
-		} else if (!isBot(pid)) {
-			// No stored Elo yet (likely the winner) — fall back to the persisted rating.
-			var acc = accounts[pid];
-			var u = acc ? db.getUserById(acc.userId) : null;
-			if (u) { entry.rating = u.rating_tournament; entry.provisional = u.played < PROVISIONAL_GAMES; }
-		}
-		return entry;
-	});
-	entries.sort(function(a, b) { return a.rank - b.rank; });
-	return entries;
-}
-
 module.exports = {
 	init: init,
 	computeSeriesWinner: computeSeriesWinner,
 	buildStandings: buildStandings,
-	buildSeriesStandings: buildSeriesStandings,
-	buildTournamentStandings: buildTournamentStandings
+	buildSeriesStandings: buildSeriesStandings
 };

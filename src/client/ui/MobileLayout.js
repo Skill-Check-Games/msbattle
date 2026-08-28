@@ -74,13 +74,13 @@ function fitDesktopCellPx() {
 	if (!(availW > 0)) availW = cols * PLAYER_CELL;
 	if (!(availH > 0)) availH = rows * PLAYER_CELL;
 	var cell = Math.floor(Math.min(availW / cols, availH / rows));
-	// Territory, solo, marathon, and 1v1 duo boards fill the whole area below the nav (duo splits it
-	// with exactly one opponent board, the same "just 1-2 boards" situation territory/solo are already
-	// in), so let their cells grow past the racing cap — the cap stays at 6-player multi, where that
-	// many boards' worth of cells genuinely do need to stay legible at once.
+	// Solo, marathon, and 1v1 duo boards fill the whole area below the nav (duo splits it with
+	// exactly one opponent board, the same "just 1-2 boards" situation solo is already in), so let
+	// their cells grow past the racing cap — the cap stays at 6-player multi, where that many
+	// boards' worth of cells genuinely do need to stay legible at once.
 	var inMarathon = (typeof puzzleSession !== "undefined") && puzzleSession && puzzleSession.marathon;
 	var inDuo = (typeof isDuoRacing === "function") && isDuoRacing();
-	var bigCell = (typeof territoryActive !== "undefined" && territoryActive) || ((typeof soloSession !== "undefined") && soloSession) || inMarathon || inDuo;
+	var bigCell = ((typeof soloSession !== "undefined") && soloSession) || inMarathon || inDuo;
 	var maxCell = bigCell ? 100 : DESKTOP_CELL_MAX;
 	// The mobile landscape duel (body.duel-landscape-mode, style.css) floors noticeably higher than
 	// the general-purpose DESKTOP_CELL_MIN once the round is actually live — on a viewport this short
@@ -104,7 +104,7 @@ function fitDesktopCellPx() {
 	return Math.max(minCell, Math.min(maxCell, cell));
 }
 
-// Mobile cell size for racing/solo/territory: the largest whole-pixel cell that lets a finger-friendly
+// Mobile cell size for racing/solo: the largest whole-pixel cell that lets a finger-friendly
 // number of columns (~MOBILE_PLAYER_CELL wide) fill the board viewport exactly. A board narrower than
 // that fits entirely (no panning); a wider board keeps big cells and pans. Returns an integer so cells
 // render crisp, and so the viewport can be sized to a whole number of them (no half-cut cells).

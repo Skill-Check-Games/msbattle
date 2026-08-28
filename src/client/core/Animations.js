@@ -2,7 +2,7 @@
 // per-cell timing (cellAnims keyed by "r,c"), pressed-cell + keyboard-focus
 // highlights, and the renderPlayerBoard function that paints the player's
 // own board each frame. Also owns drawBoardStatic for the opponent thumbnails
-// and liveBoardView, which builds the game's BoardView (board + territory hooks).
+// and liveBoardView, which builds the game's BoardView.
 
 var prevPlayerState = null;   // last-seen state of game0, for reveal diffing
 // "r,c" -> { type:"reveal"|"flag"|"mine"|"settle", start:ms }. "settle" (SETTLE_DUR, BoardRender.js)
@@ -376,9 +376,9 @@ function drawGlowGlyphCell(ctx, x, y, w, h, rad, alpha) {
 
 // "Go" board animation: a single wave that sweeps across the board once, the instant the game is
 // ready to start — right before the countdown begins, not after it finishes (see
-// startBoardGoAnimation's call sites: Main.js's start_game handler, Solo.js's beginSolo,
-// Territory.js's territoryStart) — a different, one-shot thing from the countdown digit above,
-// tunable separately from the same "Board animations" admin lab (CountdownLab.js). Purely
+// startBoardGoAnimation's call sites: Main.js's start_game handler, Solo.js's beginSolo) — a
+// different, one-shot thing from the countdown digit above, tunable separately from the same
+// "Board animations" admin lab (CountdownLab.js). Purely
 // decorative: roundStartTime, not this, is what actually unlocks input (Input.js), so nothing here
 // affects gameplay timing.
 var BOARD_GO_STYLE = {
@@ -407,8 +407,8 @@ function startBoardGoAnimation(boardRows, boardCols) {
 // How long to wait after startBoardGoAnimation before starting the countdown that follows it — the
 // sweep's own duration plus a beat of plain blue, so the countdown doesn't start over the sweep or
 // cut it off. Shared by every startBoardGoAnimation call site (Main.js's start_game handler,
-// Solo.js's beginSolo, Territory.js's territoryStart) so they can't drift on how it's computed —
-// same reasoning as countdownTickMs above.
+// Solo.js's beginSolo) so they can't drift on how it's computed — same reasoning as
+// countdownTickMs above.
 function boardGoTotalMs() {
 	return Math.max(0, BOARD_GO_STYLE.durationMs) + Math.max(0, BOARD_GO_STYLE.pauseAfterMs);
 }
@@ -691,59 +691,23 @@ function redrawOwnBoardWithFocus() {
 // Whether renderPlayerBoard can get away with repainting only the cells that changed this frame,
 // instead of the whole board. False whenever something paints across the board in a way that
 // isn't confined to specific grid cells the caller can enumerate — a continuous idle/countdown/
-// go-sweep animation, or any territory overlay (beam streaks, missiles, power lines) which are
-// drawn as free-form paths, not per-cell fills, so leftover pixels from a previous frame would
-// never get cleared without a full redraw. All of these are comparatively rare/short-lived
-// (round-start only, or a whole separate game mode), so falling back to a full repaint for them
-// isn't a regression — it's exactly what already happens today, every frame, regardless of mode.
+// go-sweep animation. These are comparatively rare/short-lived (round-start only), so falling
+// back to a full repaint for them isn't a regression — it's exactly what already happens today,
+// every frame.
 function canPartialRepaint() {
 	if (boardGoAnim || boardIdleActive) return false;
 	if (countdownGlyphs.length || Object.keys(countdownCells).length) return false;
-	if (typeof territoryActive !== "undefined" && territoryActive) return false;
 	if (typeof puzzleHintClues !== "undefined" && (puzzleHintClues.length || puzzleHintCovered.length)) return false;
 	return true;
 }
 
-// The live game's board: a BoardView over the decoded board (boardCell) plus the
-// territory-only accessors the renderer consults when present (no-ops in racing/
-// solo/puzzle, which share this path). Callers add per-cell animation and overlays.
+// The live game's board: a BoardView over the decoded board (boardCell). Callers add per-cell
+// animation and overlays. BoardView also accepts getOwner/hideClue/structureCharge/
+// structureBuild accessors (BoardRender.js) for a mode that owns/tints individual cells — none
+// currently do, so they're left unset (no-ops there).
 function liveBoardView(canvas, state, skinId) {
 	return new BoardView(canvas, rows, cols, state, boardCell, {
-		skin: skinId || null,
-		// Territory mode tints claimed cells by owner colour; gated on territoryActive so the
-		// colours never bleed into the racing/solo/puzzle boards (they share this render path).
-		getOwner: function(r, c) { return (typeof territoryActive !== "undefined" && territoryActive && territoryOwnerColors) ? territoryOwnerColors[r][c] : null; },
-		// Territory "fog of clues": you see clue numbers on cells YOU control, plus any opponent cell
-		// that borders one of yours (so the contested frontier is readable). Opponent cells deeper in
-		// their territory show their owner tint but no clue. Off (always show) in every other mode.
-		hideClue: function(r, c) {
-			if (typeof territoryActive === "undefined" || !territoryActive || !territoryOwnerColors || typeof territoryInfo === "undefined" || !territoryInfo) return false;
-			var mineColor = territoryColorHex(territoryColorOf(territoryInfo.myId));
-			if (territoryOwnerColors[r][c] === mineColor) return false; // your own cell — always shown
-			for (var dr = -1; dr <= 1; dr++) for (var dc = -1; dc <= 1; dc++) {
-				if (!dr && !dc) continue;
-				var nr = r + dr, nc = c + dc;
-				if (nr >= 0 && nc >= 0 && nr < rows && nc < cols && territoryOwnerColors[nr][nc] === mineColor) return false; // borders your territory
-			}
-			return true; // not yours and not touching you — hidden
-		},
-		// Territory structure charge (0..1), interpolated live from the last broadcast so the gauge fills
-		// smoothly between updates. null/1 when not a structure.
-		structureCharge: function(r, c) {
-			if (typeof territoryStructures === "undefined" || !territoryStructures) return 1;
-			var s = territoryStructures[r + "," + c];
-			if (!s || !s.cooldownMs) return 1;
-			var remaining = s.readyAt - performance.now();
-			return remaining <= 0 ? 1 : 1 - remaining / s.cooldownMs;
-		},
-		// Extractor construction progress (0..1). 1 = built/operational. Interpolated from the broadcast.
-		structureBuild: function(r, c) {
-			if (typeof territoryStructures === "undefined" || !territoryStructures) return 1;
-			var s = territoryStructures[r + "," + c];
-			if (!s || !s.buildMs) return 1;
-			var remaining = s.builtAt - performance.now();
-			return remaining <= 0 ? 1 : 1 - remaining / s.buildMs;
-		}
+		skin: skinId || null
 	});
 }
 
@@ -800,20 +764,13 @@ function renderPlayerBoard(dirtyAnimKeys) {
 	// countdown / ranked match-reveal board. A null myState clears the canvas (no game).
 	if (myState) {
 		var now = performance.now();
-		// Normally your own board uses your skin; while spectating (eliminated) slot 0 shows a
-		// rival's board, so paint it in their skin instead.
-		var ownSkin = (typeof iAmEliminated !== "undefined" && iAmEliminated && typeof spectatorTargetSkin !== "undefined" && spectatorTargetSkin) ? spectatorTargetSkin : localBoardSkin;
-		var bv = liveBoardView(playerCanvas, myState, ownSkin);
+		var bv = liveBoardView(playerCanvas, myState, localBoardSkin);
 		bv.animAt = function(r, c) {
 			var a = cellAnims[r + "," + c];
 			if (!a) return null;
 			return { type: a.type, t: (now - a.start) / cellAnimDur(a.type) };
 		};
 		bv.overlay(function(ctx, sw, sh) {
-			if (typeof drawTerritoryClaims === "function") drawTerritoryClaims(ctx, sw, sh); // territory: bomb claim locks
-			if (typeof drawTerritoryEnergyLines === "function") drawTerritoryEnergyLines(ctx, sw, sh); // territory: power grid
-			if (typeof drawTerritoryBeams === "function") drawTerritoryBeams(ctx, sw, sh); // territory: offensive beam streaks
-			if (typeof drawTerritoryMissiles === "function") drawTerritoryMissiles(ctx, sw, sh); // territory: bombs in flight
 			drawCountdownGlyph(ctx, sw, sh); // round-start countdown digit
 			var isRevealedFn = function(r, c) { return myState[r][c] === KNOWN; };
 			if (boardGoAnim) {
@@ -1070,8 +1027,6 @@ function startAnimLoop() {
 			if (now >= a.start + cellAnimDur(a.type)) { delete cellAnims[key]; }
 			else { alive = true; }
 		}
-		if (typeof territoryBeamsActive === "function" && territoryBeamsActive(now)) alive = true; // keep drawing beam streaks
-		if (typeof territoryInfraAnimating === "function" && territoryInfraAnimating()) alive = true; // animate extractor/line construction
 		if (countdownGlyphs.length || Object.keys(countdownCells).length) alive = true; // keep fading the countdown digit(s)
 		if (boardGoAnim) alive = true; // keep sweeping the "go" animation
 		if (boardIdleActive) alive = true; // keep looping the idle animation

@@ -3,16 +3,15 @@
 // the remaining seats; once a mode's seat count is met, formRankedMatch builds the room,
 // seats everyone, and hands off to the core's series start.
 //
-// Like territory, it's coupled to the room/game core (it creates games, adds bots, starts
-// the series), so those core services are injected via init(deps) to avoid a circular
-// require; queue state lives in appState. The server delegates find/cancel/disconnect to
-// isValidMode + enqueue + dequeue.
+// It's coupled to the room/game core (it creates games, adds bots, starts the series), so
+// those core services are injected via init(deps) to avoid a circular require; queue state
+// lives in appState. The server delegates find/cancel/disconnect to isValidMode + enqueue +
+// dequeue.
 
 var appState = require("./appState");
 var db = require("../db");
 var botPlayer = require("../engine/BotPlayer");
 var roomCreator = require("../engine/RoomCreator");
-var territory = require("./territory");
 var gameUtil = require("./gameUtil");
 var lifecycle = require("./lifecycle");
 var gameService = require("./gameService");
@@ -28,16 +27,12 @@ var avatars = appState.avatars, countries = appState.countries;
 var roomMapping = appState.roomMapping, games = appState.games, rooms = appState.rooms;
 
 // Ranked mode catalogue + timings (moved here from the server). Each playstyle carries its
-// own Elo ladder. territory_* reuse the territory module's density + the territory ladder.
+// own Elo ladder.
 var RANKED_MODES = {
 	sprint_duo: { size: 2, label: "1v1 Sprint", style: "sprint", mineDensity: 0.10, boardSize: "medium" },
 	sprint_six: { size: 6, label: "6P Sprint",  style: "sprint", mineDensity: 0.10, boardSize: "medium" },
 	standard_duo: { size: 2, label: "1v1 Standard", style: "standard", mineDensity: 0.20, boardSize: "medium", roundSeconds: 360 }, // denser board → longer round
-	standard_six: { size: 6, label: "6P Standard", style: "standard", mineDensity: 0.20, boardSize: "medium", roundSeconds: 360 },
-	// Cut 4 per round while many players are alive (16 → 12 → 8), then 2 per round to a 1v1 final.
-	tournament: { size: 16, label: "Tournament", style: "tournament", mineDensity: 0.15, boardSize: "medium", schedule: [12, 8, 6, 4, 2, 1] },
-	territory_duo: { size: 2, label: "1v1 Territory", style: "territory", mineDensity: territory.density, boardSize: "medium", gameMode: "territory", roundSeconds: 0, ratingKey: "territory" }, // no clock — ends when the board is played out; bots picked by their measured territory rating
-	territory_quad: { size: 4, label: "4P Territory", style: "territory", mineDensity: territory.density, boardSize: "medium", gameMode: "territory", roundSeconds: 0, ratingKey: "territory" } // 4 players, one per corner; shares the territory Elo ladder
+	standard_six: { size: 6, label: "6P Standard", style: "standard", mineDensity: 0.20, boardSize: "medium", roundSeconds: 360 }
 };
 // Short pause between forming a match and starting game 1 — just long enough to land in the
 // game layout (covered board) before the countdown. There's no roster modal to read anymore
@@ -278,7 +273,6 @@ function formRankedMatch(mode) {
 			gameCount: RANKED_RULES.gameCount,
 			modifier: null
 		},
-		tournament: (mode === "tournament") ? { schedule: modeDef.schedule } : null,
 		humans: humans,
 		bots: botSpecs,
 		maxBots: MAX_BOTS_PER_ROOM
@@ -293,7 +287,6 @@ function formRankedMatch(mode) {
 	}
 
 	for (var j = 0; j < room.players.length; j++) room.playerReady(room.players[j]);
-	if (mode === "tournament") room.tournamentParticipants = room.players.slice();
 	broadcastRoomState(room);
 
 	// Drop the players into the game layout (covered board) for a brief beat, then start the
@@ -341,7 +334,6 @@ function allocateMatchToGameServer(mode, modeDef, matchSize, humans, botSpecs) {
 			roundSeconds: (typeof modeDef.roundSeconds === "number") ? modeDef.roundSeconds : RANKED_RULES.roundSeconds,
 			deathPenalty: RANKED_RULES.deathPenalty, gameCount: RANKED_RULES.gameCount, modifier: null
 		},
-		tournament: (mode === "tournament") ? { schedule: modeDef.schedule } : null,
 		humanRoster: humanRoster,
 		bots: botSpecs
 	};

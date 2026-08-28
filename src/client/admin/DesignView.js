@@ -103,7 +103,7 @@ function renderDesign() {
 	}
 	var styleSel = document.createElement("select");
 	styleSel.className = "design-select";
-	[["all", "All modes"], ["sprint", "Sprint"], ["standard", "Standard"], ["tournament", "Tournament"], ["territory", "Territory"]].forEach(function(s) {
+	[["all", "All modes"], ["sprint", "Sprint"], ["standard", "Standard"]].forEach(function(s) {
 		var o = document.createElement("option");
 		o.value = s[0]; o.textContent = s[1];
 		styleSel.appendChild(o);

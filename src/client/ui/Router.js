@@ -80,9 +80,7 @@ function showNameView() {
 	setSiteNavActive(null);
 }
 
-// Sub-page that lets you pick 1v1 or 6P after choosing a Sprint /
-// Standard playstyle on the lobby. Tournament skips this and queues
-// directly; Custom has its own lobby.
+// Mode modal metadata for Sprint / Standard — Custom has its own lobby.
 var RANKED_PICKER_META = {
 	sprint:   { title: "Sprint",   sub: "Quick rounds, fewer mines",
 		pitch: "Wide cascades, blink-fast clears. Read the open spaces and out-click your opponent.",
@@ -91,67 +89,10 @@ var RANKED_PICKER_META = {
 	standard: { title: "Standard", sub: "Bigger boards, more mines",
 		pitch: "Dense boards reward careful reading. Bad guesses end your match — every flag matters.",
 		duoSub: "Head-to-head deduction", sixSub: "Dense free-for-all", color: "#a78bfa",
-		iconPath: "M12 3a9 9 0 109 9 9 9 0 00-9-9zm0 4a5 5 0 11-5 5 5 5 0 015-5zm0 3a2 2 0 102 2 2 2 0 00-2-2z" },
-	territory: { title: "Territory", sub: "claim a shared board",
-		pitch: "Grow from your corner and claim more cells than anyone. Mines re-cover your ground — wall opponents off to capture it.",
-		duoTitle: "1v1", duoSub: "Two corners, head-to-head",
-		sixTitle: "4-player", sixSub: "One per corner, free-for-all", color: "#22d3ee",
-		iconPath: "M3 3h8v8H3zm10 0h8v8h-8zM3 13h8v8H3zm10 0h8v8h-8z" }
+		iconPath: "M12 3a9 9 0 109 9 9 9 0 00-9-9zm0 4a5 5 0 11-5 5 5 5 0 015-5zm0 3a2 2 0 102 2 2 2 0 00-2-2z" }
 };
 
-function showRankedPickerView(style) {
-	var meta = RANKED_PICKER_META[style];
-	if (!meta) { navigate("/"); return; }
-	hideAllViews();
-	document.getElementById("ranked_picker_view").style.display = "";
-	setSiteNavActive("home");
-	var iconEl = document.getElementById("ranked_picker_icon");
-	if (iconEl) {
-		iconEl.style.color = meta.color;
-		iconEl.innerHTML = '<svg viewBox="0 0 24 24"><path d="' + meta.iconPath + '" fill="currentColor"/></svg>';
-	}
-	document.getElementById("ranked_picker_title").textContent = meta.title;
-	document.getElementById("ranked_picker_sub").textContent = meta.sub;
-	document.getElementById("ranked_picker_pitch").textContent = meta.pitch;
-	document.getElementById("ranked_picker_duo_sub").textContent = meta.duoSub;
-	document.getElementById("ranked_picker_six_sub").textContent = meta.sixSub;
-	document.getElementById("ranked_picker_duo_title").textContent = meta.duoTitle || "1v1";
-	document.getElementById("ranked_picker_six_title").textContent = meta.sixTitle || "6-player";
-	// Rating displayed up top reflects this playstyle's Elo so the
-	// player sees what's on the line for the match they're about to queue.
-	var rating = null;
-	if (account) {
-		if (style === "sprint") rating = account.ratingSprint;
-		else if (style === "standard") rating = account.ratingStandard;
-		else if (style === "territory") rating = account.ratingTerritory;
-	}
-	var tierEl = document.getElementById("ranked_picker_tier");
-	var ratingEl = document.getElementById("ranked_picker_num");
-	if (rating != null && typeof tierFor === "function") {
-		var t = tierFor(rating, account && account.provisional);
-		tierEl.textContent = t.name; tierEl.style.color = t.color;
-		ratingEl.textContent = rating;
-	} else {
-		tierEl.textContent = "—"; ratingEl.textContent = "";
-	}
-	var duoBtn = document.getElementById("ranked_picker_duo");
-	var sixBtn = document.getElementById("ranked_picker_six");
-	// Territory's larger match is 4-player (territory_quad), not the "_six" used by the racing styles.
-	var bigMode = style === "territory" ? "territory_quad" : style + "_six";
-	// Racing modes drop straight into the battle UI (findRanked shows the game view) — stay there.
-	// Territory/tournament show the search as an overlay over the lobby, so return to the lobby.
-	function startRanked(mode) {
-		findRanked(mode);
-		if (!(typeof isRaceRankedMode === "function" && isRaceRankedMode(mode))) navigate("/");
-	}
-	duoBtn.onclick = function() { startRanked(style + "_duo"); };
-	sixBtn.onclick = function() { startRanked(bigMode); };
-	document.getElementById("ranked_picker_back").onclick = function() { navigate("/"); };
-}
-
-// Sprint/Standard used to route to the same full-page picker as Territory (showRankedPickerView
-// above); they now open this modal instead — no page navigation, no "back to lobby" round trip.
-// Territory (admin-only entry point) keeps the page, since it's a rarer, more deliberate action.
+// Opens the mode modal over the lobby (no page navigation, no "back to lobby" round trip).
 function openRankedModeModal(style) {
 	var meta = RANKED_PICKER_META[style];
 	var modal = document.getElementById("ranked_mode_modal");
@@ -561,13 +502,11 @@ function applyRouteFromHash() {
 	if (typeof music !== "undefined") {
 		if (inGame) music.resume(); else music.pause();
 	}
-	// Ranked picker: /ranked/sprint, /ranked/standard, /ranked/tournament, /ranked/territory.
-	// Tournament has no size choice so it just queues immediately. Sprint/Standard open the mode
-	// modal over the lobby instead of a dedicated page (see openRankedModeModal) — this route is
-	// just a back-compat landing spot for old links/bookmarks; Territory keeps the real page.
+	// Ranked picker: /ranked/sprint, /ranked/standard. Opens the mode modal over the lobby instead
+	// of a dedicated page (see openRankedModeModal) — this route is just a back-compat landing spot
+	// for old links/bookmarks.
 	if (hash.indexOf("/ranked/") === 0) {
 		var style = hash.slice("/ranked/".length);
-		if (style === "tournament") { if (typeof findRanked === "function") findRanked("tournament"); navigate("/"); return; }
 		if ((style === "sprint" || style === "standard") && typeof openRankedModeModal === "function") {
 			history.replaceState(null, "", "/"); // no dedicated page for this anymore — land on the lobby
 			lastAppliedHash = "/";
@@ -575,7 +514,8 @@ function applyRouteFromHash() {
 			openRankedModeModal(style);
 			return;
 		}
-		if (typeof showRankedPickerView === "function") return showRankedPickerView(style);
+		navigate("/");
+		return;
 	}
 	// Puzzles picker: opens the mode modal over the lobby instead of a dedicated page (see
 	// openPuzzlesModal) — this route is just a back-compat landing spot for old links/bookmarks.

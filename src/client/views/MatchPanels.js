@@ -1,75 +1,13 @@
 // In-match result overlays: the on-board YOU WIN / YOU LOSE banners, the ranked result modal
-// (rating change + tier progression), the tournament champion / elimination cards, and the
-// ranking-delta UI. Driven by socket events dispatched in the main inline script (game_result,
-// series_ended, etc). The per-round and series-standings dialogues were removed; the pre-game
-// roster modal too (the search waiting room already shows who's joining).
+// (rating change + tier progression), and the ranking-delta UI. Driven by socket events
+// dispatched in the main inline script (game_result, series_ended, etc). The per-round and
+// series-standings dialogues were removed; the pre-game roster modal too (the search waiting
+// room already shows who's joining).
 //
 // Depends on Ranking.* helpers (tierFor, tierProgress, medal, buildRankBadge, ordinal,
 // formatClearTime) and a handful of live-game globals (account, id, socket, currentRoom,
 // ratingChip, findRanked, leaveRoom, ...) defined in the main inline script.
 
-function showTournamentEliminationPanel(data) {
-	var panel = document.createElement("div");
-	panel.className = "result-panel";
-
-	var header = document.createElement("div");
-	header.className = "result-header";
-	header.textContent = "You're out — round " + data.round + " of " + (data.totalRounds || "?");
-	panel.appendChild(header);
-
-	var place = document.createElement("div");
-	place.className = "tournament-place";
-	place.textContent = "Final place #" + data.place + " / " + data.totalParticipants;
-	panel.appendChild(place);
-
-	if (typeof data.ratingDelta === "number") {
-		var delta = document.createElement("div");
-		delta.className = "tournament-delta " + (data.ratingDelta >= 0 ? "tournament-delta-up" : "tournament-delta-down");
-		delta.textContent = (data.ratingDelta >= 0 ? "▲ +" : "▼ ") + data.ratingDelta + " rating";
-		panel.appendChild(delta);
-	}
-
-	var foot = document.createElement("div");
-	foot.className = "result-foot";
-	foot.textContent = "Spectate the rest of the tournament, or bounce.";
-	panel.appendChild(foot);
-
-	var actions = document.createElement("div");
-	actions.className = "result-actions kbd-btn-group";
-
-	// Primary CTA = spectate. Most players want to watch the bracket play
-	// out, especially after an early elimination.
-	var watch = document.createElement("button");
-	watch.className = "btn btn-primary";
-	watch.textContent = "Spectate";
-	watch.addEventListener("click", function() {
-		elimPanelDismissed = true;
-		hideOverlay();
-	});
-	actions.appendChild(watch);
-
-	var again = document.createElement("button");
-	again.className = "btn btn-secondary";
-	again.textContent = "Find new match";
-	again.addEventListener("click", function() {
-		socket.emit("leave_room");
-		findRanked("tournament");
-	});
-	actions.appendChild(again);
-
-	var back = document.createElement("button");
-	back.className = "btn btn-ghost";
-	back.textContent = "Back to menu";
-	back.addEventListener("click", function() {
-		socket.emit("leave_room");
-	});
-	actions.appendChild(back);
-
-	panel.appendChild(actions);
-
-	// No auto-hide — replaced when series_ended fires, dismissed via Spectate, or when the player leaves.
-	presentPanel(panel, "lose");
-}
 function resultRow(rankLabel, nameText, detailText, pointsText, opts) {
 	opts = opts || {};
 	var row = document.createElement("li");
@@ -166,9 +104,8 @@ function playResultMoment(won, ranked, oldRating, newRating) {
 
 // While a result panel is open, Enter triggers the primary action (the
 // first .btn-primary in the overlay). Every "play again" dialog —
-// puzzle run outcome, solo outcome, multiplayer series end, tournament
-// elimination — keeps its main CTA as the first btn-primary, so this
-// single handler covers all of them.
+// puzzle run outcome, solo outcome, multiplayer series end — keeps its
+// main CTA as the first btn-primary, so this single handler covers all of them.
 document.addEventListener("keydown", function(e) {
 	if (e.key !== "Enter") return;
 	if (!boardOverlay || boardOverlay.style.display === "none") return;
@@ -188,15 +125,13 @@ document.addEventListener("keydown", function(e) {
 // `opts.suppressBanner` skips the centered RANK UP / DOWN banner — useful when
 // the series-end panel is already showing the old → new icon swap in its
 // rank column, so the two indicators don't fight for attention.
-// Each ranked mode key (sprint_duo, standard_six, tournament, territory_quad…)
-// is prefixed by its playstyle; the home chips + mode-card badges read the
-// per-style rating, so the played style's field must be updated too.
+// Each ranked mode key (sprint_duo, standard_six…) is prefixed by its playstyle; the home
+// chips + mode-card badges read the per-style rating, so the played style's field must be
+// updated too.
 function styleFieldFromMode(mode) {
 	if (!mode) return null;
 	if (mode.indexOf("sprint") === 0) return "ratingSprint";
 	if (mode.indexOf("standard") === 0) return "ratingStandard";
-	if (mode.indexOf("tournament") === 0) return "ratingTournament";
-	if (mode.indexOf("territory") === 0) return "ratingTerritory";
 	return null;
 }
 
@@ -255,17 +190,15 @@ function showRankChangeBanner(promoted, tier) {
 	setTimeout(function() { if (el.parentNode) el.parentNode.removeChild(el); }, 2900);
 }
 
-// Entry point at series end. Tournament keeps its champion celebration; ranked shows the
-// rating / tier-progression modal; casual gets a minimal rematch/leave card.
+// Entry point at series end. Ranked shows the rating / tier-progression modal; casual gets a
+// minimal rematch/leave card.
 function showResultModal(data) {
-	if (data.mode === "tournament") { showTournamentChampionPanel(data); return; }
 	if (data.ranked) { showRankedResult(data); return; }
 	showCasualResult(data);
 }
 
 // Display label for a racing ranked mode key — shown under the outcome heading. Keep in
-// sync with RANKED_MODES' `label` field on the server (runtime/ranked.js); territory and
-// tournament have their own result UIs and never reach this panel.
+// sync with RANKED_MODES' `label` field on the server (runtime/ranked.js).
 var RANKED_RESULT_MODE_LABELS = {
 	sprint_duo: "1v1 Sprint", sprint_six: "6-Player Sprint",
 	standard_duo: "1v1 Standard", standard_six: "6-Player Standard"
@@ -544,91 +477,3 @@ function showCasualResult(data) {
 	presentPanel(panel, won ? "win" : "lose");
 }
 
-// Tournament championship panel — focused entirely on the winner.  No
-// ladder, no per-row deltas; the round overlay already showed who got
-// cut each round.  The win moment deserves a quiet, single-subject
-// celebration: big trophy, the champion's name, their rating bump
-// (if ranked), and a couple of CTAs.
-function showTournamentChampionPanel(data) {
-	var won = data.winnerId === id;
-	var resultOldRating = account ? account.ratingTournament : null; // tournament rating, before the update
-	var entries = (data.standings || []);
-	var winnerEntry = entries.find(function(s) { return s.id === data.winnerId; })
-		|| { id: data.winnerId, name: data.winnerName };
-	var meEntry = entries.find(function(s) { return s.id === id; });
-
-	var panel = document.createElement("div");
-	panel.className = "result-panel champion-panel" + (won ? " champion-panel-mine" : "");
-
-	var trophy = document.createElement("div");
-	trophy.className = "champion-trophy";
-	trophy.textContent = "🏆";
-	panel.appendChild(trophy);
-
-	var tagline = document.createElement("div");
-	tagline.className = "champion-tagline";
-	tagline.textContent = won ? "Tournament Champion" : "Tournament Champion";
-	panel.appendChild(tagline);
-
-	var nameLine = document.createElement("div");
-	nameLine.className = "champion-name";
-	nameLine.textContent = winnerEntry.name || "Unknown";
-	panel.appendChild(nameLine);
-
-	if (typeof winnerEntry.rating === "number") {
-		var tier = tierFor(winnerEntry.rating, winnerEntry.provisional);
-		var rating = document.createElement("div");
-		rating.className = "champion-rating";
-		rating.innerHTML = '<span class="champion-tier" style="color:' + tier.color + '">'
-			+ tier.name + "</span> · " + winnerEntry.rating;
-		if (typeof winnerEntry.ratingDelta === "number" && winnerEntry.ratingDelta !== 0) {
-			var d = document.createElement("span");
-			d.className = "champion-delta " + (winnerEntry.ratingDelta > 0 ? "up" : "down");
-			d.textContent = (winnerEntry.ratingDelta > 0 ? " ▲+" : " ▼") + Math.abs(winnerEntry.ratingDelta);
-			rating.appendChild(d);
-		}
-		panel.appendChild(rating);
-	}
-
-	// Sub-line for the player who didn't win — surfaces their own outcome
-	// in one line without dragging the whole leaderboard back in.
-	if (!won && meEntry) {
-		var yourLine = document.createElement("div");
-		yourLine.className = "champion-yours";
-		var deltaStr = "";
-		if (typeof meEntry.ratingDelta === "number" && meEntry.ratingDelta !== 0) {
-			deltaStr = " · " + (meEntry.ratingDelta > 0 ? "▲+" : "▼") + Math.abs(meEntry.ratingDelta);
-		}
-		yourLine.textContent = "You finished #" + (meEntry.rank || "?") + deltaStr;
-		panel.appendChild(yourLine);
-	}
-
-	// Apply ranked rating updates from standings (same as the series flow).
-	if (data.standings) updateRatingFromStandings(data.standings, { suppressBanner: true, mode: data.mode || "tournament" });
-
-	var actions = document.createElement("div");
-	actions.className = "result-actions champion-actions";
-	var again = document.createElement("button");
-	again.className = "btn btn-primary";
-	again.textContent = "Play another";
-	again.addEventListener("click", function() {
-		socket.emit("leave_room");
-		findRanked("tournament");
-	});
-	actions.appendChild(again);
-	var back = document.createElement("button");
-	back.className = "btn btn-secondary";
-	back.textContent = "Back to menu";
-	back.addEventListener("click", function() {
-		leaveRoom(); // leaving for good — exits fullscreen (Play another stays fullscreen)
-	});
-	actions.appendChild(back);
-	panel.appendChild(actions);
-
-	presentPanel(panel, won ? "win" : "lose");
-	playResultMoment(won, data.ranked, resultOldRating, account ? account.ratingTournament : null);
-	// preventScroll: the panel now scrolls internally on short viewports (see .board-overlay-panel's
-	// overflow-y:auto) — the default scrollIntoView behavior would otherwise yank it straight to this
-	// button, hiding the win/loss heading above it the instant the panel appears.
-	try { again.focus({ preventScroll: true }); } catch (e) {}
-}

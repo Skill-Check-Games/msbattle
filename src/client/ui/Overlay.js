@@ -113,15 +113,15 @@ function hideReadyButton() {
 // live — drifting the client out of sync with the server's own fixed-duration timer. Now there's
 // exactly one authoritative timer, sized directly from the server's real delay. The two decorative
 // pieces are paced independently against it: the "go" sweep plays IMMEDIATELY (it's the "the round
-// is ready" cue, so it should fire the instant this is called — right off the start_game/
-// territory_start event, not delayed), while the digit cycle is TIMED BACKWARDS FROM THE DEADLINE —
-// its own natural length (3 digits × countdownTickMs) is computed up front and it doesn't start
-// until delayMs minus that length has elapsed, so "1" finishes fading exactly as GO fires instead of
-// the countdown finishing early and leaving a dead gap of plain blue before the round actually goes
-// live. If the digit cycle alone is tuned longer than delayMs there's no lead-in to give — it starts
-// right away and simply gets cut off when GO fires. This is the one function every "ready to start"
-// call site (Main.js, Solo.js, Territory.js) should schedule everything through — none of them call
-// startBoardGoAnimation themselves anymore.
+// is ready" cue, so it should fire the instant this is called — right off the start_game event,
+// not delayed), while the digit cycle is TIMED BACKWARDS FROM THE DEADLINE — its own natural
+// length (3 digits × countdownTickMs) is computed up front and it doesn't start until delayMs minus
+// that length has elapsed, so "1" finishes fading exactly as GO fires instead of the countdown
+// finishing early and leaving a dead gap of plain blue before the round actually goes live. If the
+// digit cycle alone is tuned longer than delayMs there's no lead-in to give — it starts right away
+// and simply gets cut off when GO fires. This is the one function every "ready to start" call site
+// (Main.js, Solo.js) should schedule everything through — neither calls startBoardGoAnimation
+// themselves anymore.
 function countDown(delayMs, onDone) {
 	hideOverlay();
 	if (typeof startBoardGoAnimation === "function") startBoardGoAnimation(rows, cols);

@@ -51,14 +51,12 @@ function isBot(playerID) { return !!bots[playerID]; }
 // There is no single legacy `rating` field any more; "overall" always means max-across-modes.
 function maxAccountRating(acc) {
 	if (!acc) return null;
-	return Math.max(acc.ratingSprint || 0, acc.ratingStandard || 0, acc.ratingTournament || 0, acc.ratingTerritory || 0);
+	return Math.max(acc.ratingSprint || 0, acc.ratingStandard || 0);
 }
 function accountRating(acc, style) {
 	if (!acc) return null;
 	if (style === "sprint") return acc.ratingSprint;
 	if (style === "standard") return acc.ratingStandard;
-	if (style === "tournament") return acc.ratingTournament;
-	if (style === "territory") return acc.ratingTerritory;
 	return maxAccountRating(acc);
 }
 
@@ -80,8 +78,7 @@ function getRoomBotNames(room) {
 	return ret;
 }
 
-// Push each player in the room their own draw_board frame (their board first, then opponents),
-// and feed tournament spectators (cut players) a frame of the surviving boards.
+// Push each player in the room their own draw_board frame (their board first, then opponents).
 function updateDraw(room) {
 	for (var i = 0; i < room.players.length; i++) {
 		var playerID = room.players[i];
@@ -92,19 +89,6 @@ function updateDraw(room) {
 			}
 			var stripped = orderedIds.map(function(pid) { return gameForBroadcast(games[pid], pid); });
 			sockets[playerID].emit("draw_board", { games: stripped });
-		}
-	}
-	if (room.tournamentEliminated) {
-		var elimIds = Object.keys(room.tournamentEliminated);
-		if (elimIds.length) {
-			var spectatorGames = [null];
-			for (var sp = 0; sp < room.players.length; sp++) {
-				spectatorGames.push(gameForBroadcast(games[room.players[sp]], room.players[sp]));
-			}
-			for (var e = 0; e < elimIds.length; e++) {
-				var elimSock = sockets[elimIds[e]];
-				if (elimSock) elimSock.emit("draw_board", { games: spectatorGames });
-			}
 		}
 	}
 }

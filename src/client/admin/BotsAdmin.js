@@ -2,8 +2,10 @@
 //
 // Mirrors the All-puzzles browser (Puzzles.js): a sortable/filterable, paginated
 // grid backed by `GET /api/bots`. Each bot card shows its six per-move variables, its
-// overall Elo, and a row per ranked mode (Sprint/Tournament/Standard = 10/15/20%) with
-// the mode's measured Elo and a "Watch" button that opens a live demo modal. The demo
+// overall Elo, and a row per calibrated mine density (Sprint/15%/Standard = 10/15/20%,
+// generate-bot-pool.js always benchmarks all three regardless of which densities the
+// current ranked modes actually use) with the measured Elo at that density and a
+// "Watch" button that opens a live demo modal. The demo
 // itself is server-driven (bot_demo_start/stop + bot_demo_board/move sockets); this
 // module only renders the streamed frames on its own canvas.
 
@@ -13,7 +15,7 @@ var botListState = { sort: "rating", dir: "desc", minRating: null, maxRating: nu
 var BOT_SORT_OPTIONS = [
 	{ value: "rating", label: "Overall Elo" },
 	{ value: "r10", label: "Sprint Elo (10%)" },
-	{ value: "r15", label: "Tournament Elo (15%)" },
+	{ value: "r15", label: "15% density Elo" },
 	{ value: "r20", label: "Standard Elo (20%)" },
 	{ value: "speedMs", label: "Speed (ms/move)" },
 	{ value: "difficultyMs", label: "Thinking (ms/difficulty)" },
@@ -23,10 +25,12 @@ var BOT_SORT_OPTIONS = [
 	{ value: "chordRate", label: "Chord rate" }
 ];
 
-// Density → ranked mode. ratings/times in the pool are keyed by these density strings.
+// Density → label. ratings/times in the pool are keyed by these density strings. 15% has no
+// current ranked mode (generate-bot-pool.js still benchmarks it regardless) — labelled by its
+// density rather than a mode name.
 var BOT_MODES = [
 	{ density: 0.10, key: "0.10", label: "Sprint", pct: "10%" },
-	{ density: 0.15, key: "0.15", label: "Tournament", pct: "15%" },
+	{ density: 0.15, key: "0.15", label: "15% density", pct: "15%" },
 	{ density: 0.20, key: "0.20", label: "Standard", pct: "20%" }
 ];
 

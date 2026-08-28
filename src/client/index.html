@@ -206,44 +206,6 @@
 			</div>
 		</section>
 
-		<section id="ranked_picker_view" class="view section-view" style="display:none">
-			<button id="ranked_picker_back" class="btn btn-ghost learn-back-btn" type="button">← Back to lobby</button>
-			<header class="ranked-picker-head">
-				<div class="ranked-picker-icon" id="ranked_picker_icon" aria-hidden="true"></div>
-				<div>
-					<h1 id="ranked_picker_title" class="ranked-picker-title">Sprint</h1>
-					<p id="ranked_picker_sub" class="ranked-picker-sub">10% mines</p>
-				</div>
-				<div class="ranked-picker-rating" id="ranked_picker_rating">
-					<span class="ranked-picker-rating-tier" id="ranked_picker_tier">—</span>
-					<span class="ranked-picker-rating-num" id="ranked_picker_num"></span>
-				</div>
-			</header>
-			<p id="ranked_picker_pitch" class="ranked-picker-pitch"></p>
-			<h2 class="ranked-picker-prompt">Choose your match</h2>
-			<div class="ranked-picker-options">
-				<button id="ranked_picker_duo" class="ranked-picker-option" type="button">
-					<!-- Big text instead of a small icon glyph — two plain dots didn't read as "1v1" at a glance. -->
-					<span class="ranked-picker-option-title ranked-picker-option-title-big" id="ranked_picker_duo_title">1v1</span>
-					<span class="ranked-picker-option-sub" id="ranked_picker_duo_sub">Head-to-head race</span>
-				</button>
-				<button id="ranked_picker_six" class="ranked-picker-option" type="button">
-					<span class="ranked-picker-option-icon" aria-hidden="true">
-						<svg viewBox="0 0 24 24">
-							<circle cx="5" cy="8" r="2.4" fill="currentColor"/>
-							<circle cx="12" cy="6" r="2.4" fill="currentColor"/>
-							<circle cx="19" cy="8" r="2.4" fill="currentColor"/>
-							<circle cx="5" cy="17" r="2.4" fill="currentColor"/>
-							<circle cx="12" cy="19" r="2.4" fill="currentColor"/>
-							<circle cx="19" cy="17" r="2.4" fill="currentColor"/>
-						</svg>
-					</span>
-					<span class="ranked-picker-option-title" id="ranked_picker_six_title">6-player</span>
-					<span class="ranked-picker-option-sub" id="ranked_picker_six_sub">Free-for-all sprint</span>
-				</button>
-			</div>
-		</section>
-
 		<section id="custom_view" class="view section-view" style="display:none">
 			<div class="custom-head">
 				<div class="custom-head-text">
@@ -418,7 +380,6 @@
 		<section id="design_view" class="view section-view" style="display:none"></section>
 		<section id="countdown_lab_view" class="view section-view" style="display:none"></section>
 		<section id="sound_lab_view" class="view section-view" style="display:none"></section>
-		<section id="territory_view" class="view" style="display:none"></section>
 		<section id="puzzle_play_view" class="view section-view" style="display:none"></section>
 
 		<section id="privacy_view" class="view section-view" style="display:none">
@@ -643,7 +604,6 @@
 							<div id="solo_start_overlay" class="solo-start-overlay" style="display:none">
 								<button id="solo_start_btn" class="btn btn-primary solo-start-overlay-btn" type="button">Start</button>
 							</div>
-							<div id="round_cut_preview" class="round-cut-preview" style="display:none"></div>
 							<div id="puzzle_flash" class="puzzle-flash" style="display:none"></div>
 							<button id="find_next_arrow" class="find-next-arrow" type="button" aria-label="Pan to next unrevealed area">
 								<span class="find-next-arrow-glyph" aria-hidden="true">→</span>
@@ -949,52 +909,6 @@
 		</section>
 	</main>
 
-	<!-- Match-search waiting room — a centered overlay shown while the user is
-		 queued (a la achtungroyale.io's waiting room): a roster of the
-		 players/bots in the forming lobby fills in live as they arrive, above a
-		 progress bar + count and a Leave button. The roster is rendered by
-		 renderMatchRoster() in Lobby.js from the `members` list the server sends
-		 with every ranked_searching. The outer element is a full-viewport
-		 dimming backdrop that centres the card. -->
-	<div id="ranked_searching" class="match-overlay" hidden>
-		<div class="match-toast">
-			<div class="match-toast-head">
-				<div class="match-toast-title">
-					<span class="match-toast-spinner" aria-hidden="true"></span>
-					<span id="ranked_searching_text">Finding match…</span>
-				</div>
-				<button id="cancel_ranked_button" class="match-toast-cancel" type="button" aria-label="Leave search">Leave</button>
-			</div>
-			<div class="match-toast-meta">
-				<span id="match_toast_mode" class="match-toast-mode"></span>
-				<span id="match_toast_elapsed" class="match-toast-elapsed">0:00</span>
-			</div>
-			<div id="match_toast_tagline" class="match-toast-tagline"></div>
-			<ol id="match_roster" class="match-roster" aria-label="Players in this match"></ol>
-			<div class="match-toast-bar">
-				<div id="search_progress_fill" class="match-toast-bar-fill"></div>
-			</div>
-			<div class="match-toast-counts">
-				<span><span id="search_count_text">0</span>/<span id="search_size_text">0</span> players</span>
-			</div>
-		</div>
-	</div>
-
-	<!-- Tournament round-end sequence: full-screen scrim with the round
-		 standings, cutline divider, staggered elimination flashes, then a
-		 survival/elimination badge on the local player's row. Built and
-		 torn down per round by playTournamentRoundEnd(). -->
-	<div id="tournament_round_overlay" class="tournament-round-overlay" hidden>
-		<div class="tro-frame">
-			<div class="tro-header">
-				<span class="tro-round" id="tro_round_label">Round</span>
-				<span class="tro-sub" id="tro_sub_label"></span>
-			</div>
-			<div class="tro-rows" id="tro_rows"></div>
-			<div class="tro-verdict" id="tro_verdict"></div>
-		</div>
-	</div>
-
 	<footer class="site-footer">
 		<div class="site-footer-social">
 			<a class="site-footer-social-link" href="https://discord.gg/kx7zRfvZpS" target="_blank" rel="noopener noreferrer" aria-label="Discord">
@@ -1179,12 +1093,10 @@
 <script src="/admin/DesignView.js" defer></script>
 <script src="/admin/CountdownLab.js" defer></script>
 <script src="/admin/SoundLab.js" defer></script>
-<script src="/views/Territory.js" defer></script>
 <script src="/views/PuzzlePlay.js" defer></script>
 <script src="/ui/Overlay.js" defer></script>
 <script src="/ui/RoundTimer.js" defer></script>
 <script src="/core/BoardDecoder.js" defer></script>
-<script src="/ui/DangerWarning.js" defer></script>
 <script src="/ui/Auth.js" defer></script>
 <script src="/views/Learn.js" defer></script>
 <script src="/views/Solo.js" defer></script>

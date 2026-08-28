@@ -4,8 +4,7 @@
 // the same game objects + move path as humans, so the game-loop services they touch
 // (updateDraw, createPlayerGame) and the shared predicates (isBot/botCount/getRoomBotNames,
 // which stay in the core because they're used everywhere) are injected via init(deps).
-// Per-bot state lives in appState. Territory has its own bot tick (territory.js); this is
-// the racing/casual/ranked one.
+// Per-bot state lives in appState.
 
 var appState = require("./appState");
 var botPlayer = require("../engine/BotPlayer");

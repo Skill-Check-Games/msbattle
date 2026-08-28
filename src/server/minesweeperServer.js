@@ -11,8 +11,6 @@ var http = require("http")
   , noGuess = require("./engine/NoGuessGenerator")
   , puzzleGen = require("./engine/PuzzleGenerator")
   , roomCreator = require("./engine/RoomCreator")
-  , territoryGen = require("./engine/TerritoryGenerator")
-  , territoryGame = require("./engine/TerritoryGame")
   , botPlayer = require("./engine/BotPlayer")
   , db = require("./db")
   , BoardLogic = require("../common/BoardLogic")
@@ -23,7 +21,6 @@ var http = require("http")
   , shopApi = require("./runtime/shopApi")
   , staticServer = require("./runtime/staticServer")
   , appState = require("./runtime/appState")
-  , territory = require("./runtime/territory")
   , ranked = require("./runtime/ranked")
   , elo = require("./runtime/elo")
   , botMgr = require("./runtime/bots")
@@ -58,11 +55,6 @@ var COUNT_DOWN_TIME = 3; // digits shown to the client ("3, 2, 1") — NOT the s
 // the bug this constant fixes.
 var ROUND_START_DELAY_MS = 5000;
 var BETWEEN_GAMES_DELAY = 3000;
-// Tournament rounds run the elimination sequence (scrim → reorder → cut flashes
-// → survivor pulse → fade) over the same gap. The reveal lives in roughly
-// 3.6s, so we stretch the between-round delay to give players a beat to read
-// the survivor badge before the next countdown starts.
-var BETWEEN_GAMES_DELAY_TOURNAMENT_CUT = 4500;
 var SERIES_END_DELAY = 6000;
 var PROVISIONAL_GAMES = 5;
 
@@ -73,7 +65,7 @@ var PORT = process.env.PORT || 1337;
 // Last-resort safety net: keep the process alive on an unexpected error instead of crashing
 // and dropping every connected player. Socket handlers are already wrapped per-event (see the
 // connection handler); this catches the rest — chiefly errors thrown from timer callbacks (bot
-// ticks, round/ranked timers, the territory world tick). Log loudly so the real bug gets fixed.
+// ticks, round/ranked timers). Log loudly so the real bug gets fixed.
 process.on("uncaughtException", function(err) {
 	console.error("uncaughtException (kept alive):", err);
 });
@@ -87,16 +79,6 @@ var app = http.createServer(handler);
 // are same-origin, so no CORS needed there.
 var io = require("socket.io")(app, role.ROLE === "game" ? { cors: { origin: true, methods: ["GET", "POST"] } } : {});
 appState.io = io; // share the socket.io server with the handler modules
-// Wire the territory module with the core helpers it needs (breaks the circular require).
-territory.init({
-	io: io,
-	COUNT_DOWN_TIME: COUNT_DOWN_TIME,
-	ROUND_START_DELAY_MS: ROUND_START_DELAY_MS,
-	clearRoundTimer: clearRoundTimer,
-	applyRankedElo: elo.applyRankedElo,
-	broadcastRoomState: roomState.broadcastRoomState,
-	broadcastRoomList: roomState.broadcastRoomList
-});
 
 // The HTTP handler is a pure router: provider auth, then the /api admin surface,
 // then static client assets (each module early-returns if it owns the path).
@@ -152,10 +134,9 @@ var botLastClick = appState.botLastClick; // botId -> {r, c} of the bot's most r
 var nextBotId = 1;
 var MAX_BOTS_PER_ROOM = 15;
 
-// Ranked matchmaking — five modes split across two playstyles.
+// Ranked matchmaking — four modes split across two playstyles.
 //   sprint_*   → cascade-y races, 10% mines, fewer forced deductions.
 //   standard_* → dense boards (20%), favouring deduction over click speed.
-//   tournament → keeps the original 15% as the marquee event.
 var RANKED_RULES = { gameCount: 1, roundSeconds: 300, deathPenalty: 5 };
 var RANKED_BOT_RATING = 1000;
 
@@ -197,8 +178,7 @@ gameService.init({
 	onResult: results.persistResult,
 	createRoom: roomCreator.createRoom,
 	createPlayerGame: createPlayerGame,
-	addBotToRoom: botMgr.addBotToRoom,
-	territoryDims: territory.dims
+	addBotToRoom: botMgr.addBotToRoom
 });
 
 // Game-server role (P1-5): build + run matches handed over the internal API, and report outcomes back
@@ -300,53 +280,6 @@ function endIndividualGame(room, reason) {
 	}
 	room.recordRoundResult(roundStandings, winnerID);
 
-	// Tournament elimination: top N from this round's standings advance, the
-	// rest get a fixed final place (ranks below the survivor cut) and are
-	// removed from the room. Their final tournament place is just their rank
-	// in the standings of the round they were eliminated in.
-	var tournamentSurvivors = null;
-	var eliminatedThisRound = null;
-	if (room.ranked && room.rankedMode === "tournament" && room.tournamentSchedule) {
-		var roundIdx = room.gamesPlayed - 1;
-		var survivorsTarget = room.tournamentSchedule[roundIdx] || 1;
-		eliminatedThisRound = [];
-		// Walk highest rank → lowest so each .deletePlayer doesn't shift indices we care about.
-		if (!room.tournamentElo) room.tournamentElo = {};
-		for (var ei = roundStandings.length - 1; ei >= survivorsTarget; ei--) {
-			var sCut = roundStandings[ei];
-			var place = ei + 1;
-			room.tournamentEliminated[sCut.id] = { round: room.gamesPlayed, place: place };
-			eliminatedThisRound.push({ id: sCut.id, name: names[sCut.id] || sCut.name, place: place });
-			// Apply this player's Elo immediately against the current snapshot —
-			// survivors are pinned at rank 1 (they outranked this player) and the
-			// already-eliminated keep their fixed places, so the pairwise math
-			// gives them their real final delta right now.
-			var eloInfo = elo.applyEloForPlayer(sCut.id, elo.tournamentEloParts(room, sCut.id, place), room.rankedStyle || "tournament");
-			if (eloInfo) room.tournamentElo[sCut.id] = eloInfo;
-			if (sockets[sCut.id]) {
-				sockets[sCut.id].emit("tournament_eliminated", {
-					round: room.gamesPlayed,
-					totalRounds: room.tournamentSchedule.length,
-					place: place,
-					totalParticipants: room.tournamentParticipants.length,
-					ratingDelta: eloInfo ? eloInfo.delta : null,
-					rating: eloInfo ? eloInfo.newRating : null,
-					provisional: eloInfo ? eloInfo.provisional : null
-				});
-			}
-			if (isBot(sCut.id)) botMgr.clearBotTick(sCut.id);
-			room.deletePlayer(sCut.id);
-		}
-		tournamentSurvivors = room.players.length;
-	}
-
-	// Pass the survivor cut so the client can draw the cutline divider on the
-	// round-end overlay. null for non-tournament rounds (no cut to render).
-	var roundSurvivorsTarget = null;
-	if (room.ranked && room.rankedMode === "tournament" && room.tournamentSchedule) {
-		var rIdx = room.gamesPlayed - 1;
-		roundSurvivorsTarget = room.tournamentSchedule[rIdx] || null;
-	}
 	// Ranked Elo is computed once at series end — see endSeries — so the rating
 	// shown to the player only moves when the whole match finishes.
 	io.to("room:" + room.id).emit("game_result", {
@@ -355,19 +288,13 @@ function endIndividualGame(room, reason) {
 		gameNumber: room.gamesPlayed,
 		gameCount: room.gameCount,
 		scoreTarget: room.scoreTarget || null,
-		tournamentRemaining: tournamentSurvivors,
-		tournamentEliminated: eliminatedThisRound,
-		tournamentSurvivorsTarget: roundSurvivorsTarget,
-		tournamentSchedule: room.tournamentSchedule || null,
 		reason: reason || "cleared",
 		standings: roundStandings
 	});
 	roomState.broadcastRoomState(room);
 
 	var seriesOver;
-	if (tournamentSurvivors !== null) {
-		seriesOver = tournamentSurvivors <= 1;
-	} else if (room.scoreTarget) {
+	if (room.scoreTarget) {
 		seriesOver = Object.keys(room.scores).some(function(pid) { return (room.scores[pid] || 0) >= room.scoreTarget; });
 	} else {
 		seriesOver = room.gamesPlayed >= room.gameCount;
@@ -375,8 +302,6 @@ function endIndividualGame(room, reason) {
 	if (seriesOver) {
 		endSeries(room);
 	} else {
-		var hadCut = eliminatedThisRound && eliminatedThisRound.length > 0;
-		var nextDelay = hadCut ? BETWEEN_GAMES_DELAY_TOURNAMENT_CUT : BETWEEN_GAMES_DELAY;
 		nextGameTimers[room.id] = setTimeout(function() {
 			delete nextGameTimers[room.id];
 			if (rooms[room.id] && room.phase === "playing" && room.players.length > 1) {
@@ -384,7 +309,7 @@ function endIndividualGame(room, reason) {
 			} else if (rooms[room.id] && room.players.length <= 1) {
 				endSeries(room);
 			}
-		}, nextDelay);
+		}, BETWEEN_GAMES_DELAY);
 	}
 }
 
@@ -429,24 +354,9 @@ async function endSeries(room) {
 	// Apply Elo once at series end based on cumulative scoring. Mutates the
 	// standings entries with ratingDelta / rating / provisional so the client can
 	// show the bump on the series_ended panel.
-	var seriesStandings;
-	if (room.rankedMode === "tournament") {
-		// Apply Elo for the winner (the lone survivor) against the now-complete
-		// standings. The eliminated players already had theirs applied as they
-		// were cut, so they're skipped here.
-		var winnerPid = room.players[0];
-		if (winnerPid) {
-			if (!room.tournamentElo) room.tournamentElo = {};
-			var winnerInfo = elo.applyEloForPlayer(winnerPid, elo.tournamentEloParts(room, winnerPid, 1), room.rankedStyle || "tournament");
-			if (winnerInfo) room.tournamentElo[winnerPid] = winnerInfo;
-		}
-		seriesStandings = standings.buildTournamentStandings(room);
-		room.seriesWinner = seriesStandings[0] ? seriesStandings[0].id : null;
-	} else {
-		seriesStandings = standings.buildSeriesStandings(room);
-	}
-	// Single persistence seam: ranked racing Elo (tournament rated incrementally elsewhere) + the
-	// captured replay (no-op unless this was a ranked match being recorded). See runtime/results.js.
+	var seriesStandings = standings.buildSeriesStandings(room);
+	// Single persistence seam: ranked racing Elo + the captured replay (no-op unless this was a
+	// ranked match being recorded). See runtime/results.js.
 	// Awaited (not fire-and-forget): in-process (monolith/main) this resolves on the next microtask
 	// tick since persistResult already mutated seriesStandings in place synchronously — reportResult
 	// returns {applied, standings}, not an array, so the merge below is a no-op there. In the split
@@ -511,7 +421,7 @@ function gameWin(playerID) {
 	console.log("[round] gameWin pid=" + playerID + " isBot=" + isBot(playerID) + " finished=" + finishedNow + " active=" + countActivePlayers(room) + " players=" + room.players.length);
 	if (finishedNow === 1) {
 		var n = room.players.length;
-		var multiRace = (room.gameMode || "race") === "race" && room.rankedMode !== "tournament" && n >= 3 && n <= 6;
+		var multiRace = (room.gameMode || "race") === "race" && n >= 3 && n <= 6;
 		reduceRoundDeadline(room, multiRace ? 3 : 10);
 	}
 
@@ -543,7 +453,6 @@ function gameMineHit(playerID) {
 }
 
 function startGame(room) {
-	if (room.gameMode === "territory") return territory.startGame(room);
 	clearRoundTimer(room.id);
 	var mines = Math.round(room.mineDensity * room.rows * room.cols);
 	var centerR = Math.floor(room.rows / 2);
@@ -568,19 +477,6 @@ function startGame(room) {
 		games[pid].autoChordOnFlag = room.modifier === "onlyFlags";
 		replay.attach(room, games[pid], pid);
 	}
-	// For tournament rounds, compute how many will be cut this round so the
-	// client can show a "X to be eliminated" banner during the countdown.
-	// schedule[i] is the survivor target after round (i+1), so for the round
-	// about to start (gamesPlayed+1) we look up schedule[gamesPlayed].
-	var tournamentCutThisRound = null;
-	var tournamentSurvivorsThisRound = null;
-	if (room.ranked && room.rankedMode === "tournament" && room.tournamentSchedule) {
-		var thisRoundSurvivors = room.tournamentSchedule[room.gamesPlayed];
-		if (typeof thisRoundSurvivors === "number") {
-			tournamentSurvivorsThisRound = thisRoundSurvivors;
-			tournamentCutThisRound = Math.max(0, room.players.length - thisRoundSurvivors);
-		}
-	}
 	// Players share one shared no-guess map this round — obfuscate it once and
 	// hand the same blob to every client so reveals can be resolved locally.
 	var obf = obfuscateBoard(template.board, room.rows, room.cols);
@@ -591,49 +487,32 @@ function startGame(room) {
 	// it to a local delay against ITS OWN clock rather than trusting startDelayMs against whenever
 	// its own copy of this event happened to arrive over the network.
 	var startAt = Date.now() + ROUND_START_DELAY_MS;
-	function startPayload(forSpectator) {
-		return {
-			time: COUNT_DOWN_TIME,
-			// The actual server-side delay (ms) before this round goes live -- decoupled from
-			// time/COUNT_DOWN_TIME (see its definition above), since the client's own pre-round
-			// animation sequence is independently tunable. Anything that needs to know when input
-			// will really be accepted (rather than just how many digits to show) should read this,
-			// not derive a guess from `time`.
-			startDelayMs: ROUND_START_DELAY_MS,
-			// Absolute server wall-clock time this round goes live — see the comment on `startAt`
-			// above the client should prefer this (converted via its synced clock offset) over
-			// startDelayMs whenever it has one, so every player's countdown lands on GO together
-			// regardless of when their own copy of this event happened to arrive.
-			startAt: startAt,
-			gameNumber: room.gamesPlayed + 1,
-			gameCount: room.gameCount,
-			roundSeconds: room.roundSeconds,
-			deathPenalty: room.deathPenalty,
-			modifier: room.modifier || null,
-			rows: room.rows,
-			cols: room.cols,
-			boardData: obf.data,
-			boardMask: obf.mask,
-			tournamentCutThisRound: tournamentCutThisRound,
-			tournamentSurvivorsThisRound: tournamentSurvivorsThisRound,
-			spectator: !!forSpectator
-		};
-	}
+	var startPayload = {
+		time: COUNT_DOWN_TIME,
+		// The actual server-side delay (ms) before this round goes live -- decoupled from
+		// time/COUNT_DOWN_TIME (see its definition above), since the client's own pre-round
+		// animation sequence is independently tunable. Anything that needs to know when input
+		// will really be accepted (rather than just how many digits to show) should read this,
+		// not derive a guess from `time`.
+		startDelayMs: ROUND_START_DELAY_MS,
+		// Absolute server wall-clock time this round goes live — see the comment on `startAt`
+		// above the client should prefer this (converted via its synced clock offset) over
+		// startDelayMs whenever it has one, so every player's countdown lands on GO together
+		// regardless of when their own copy of this event happened to arrive.
+		startAt: startAt,
+		gameNumber: room.gamesPlayed + 1,
+		gameCount: room.gameCount,
+		roundSeconds: room.roundSeconds,
+		deathPenalty: room.deathPenalty,
+		modifier: room.modifier || null,
+		rows: room.rows,
+		cols: room.cols,
+		boardData: obf.data,
+		boardMask: obf.mask
+	};
 	for (var i = 0; i < room.players.length; i++) {
 		var pid = room.players[i];
-		if (sockets[pid]) sockets[pid].emit("start_game", startPayload(false));
-	}
-	// Tournament-eliminated players stay subscribed as spectators — they need
-	// the new round's boardData/boardMask so their decoder matches what the
-	// survivors are revealing, otherwise their slot-0 canvas would render
-	// the new state matrix against last round's mine layout (cells revealed
-	// to clue=0 would paint as mines, etc).
-	if (room.tournamentEliminated) {
-		var specIds = Object.keys(room.tournamentEliminated);
-		for (var si = 0; si < specIds.length; si++) {
-			var specSock = sockets[specIds[si]];
-			if (specSock) specSock.emit("start_game", startPayload(true));
-		}
+		if (sockets[pid]) sockets[pid].emit("start_game", startPayload);
 	}
 	setTimeout(function() {
 		if (!rooms[room.id] || room.phase !== "playing") {
@@ -695,29 +574,14 @@ function addPlayerToRoom(socket, room) {
 	roomState.broadcastRoomList();
 }
 
-// Apply a ranked-Elo loss to a player who's bailing on a live match. For 1v1
-// and 6-player we treat them as having come dead-last in a synthetic current-
-// series standings; for tournament we mark them eliminated this round and run
-// the same pairwise Elo math the regular elimination path uses. Returns the
-// eloInfo (delta / newRating / provisional) so the caller can echo it back to
-// the leaver, or null if the room isn't ranked or the player isn't persisted.
+// Apply a ranked-Elo loss to a player who's bailing on a live match — treat them as having
+// come dead-last in a synthetic current-series standings. Returns the eloInfo (delta /
+// newRating / provisional) so the caller can echo it back to the leaver, or null if the room
+// isn't ranked or the player isn't persisted.
 function applyEarlyLeavePenalty(playerID, room) {
 	if (!room.ranked) return null;
 	if (isBot(playerID)) return null;
 	if (!accounts[playerID]) return null;
-	if (room.rankedMode === "tournament") {
-		if (!room.tournamentEliminated) room.tournamentEliminated = {};
-		if (!room.tournamentElo) room.tournamentElo = {};
-		if (room.tournamentEliminated[playerID]) return null;
-		// place = the bottom of the current survivor field. They lose to every
-		// remaining survivor (pinned at rank 1 in tournamentEloParts) and to
-		// everyone already eliminated who placed above them.
-		var place = room.players.length;
-		room.tournamentEliminated[playerID] = { round: (room.gamesPlayed || 0) + 1, place: place };
-		var teloInfo = elo.applyEloForPlayer(playerID, elo.tournamentEloParts(room, playerID, place), room.rankedStyle || "tournament");
-		if (teloInfo) room.tournamentElo[playerID] = teloInfo;
-		return teloInfo;
-	}
 	// 1v1 / 6-player ranked: build a series standings snapshot with the leaver
 	// pinned at the worst rank, then apply Elo for the leaver only. The other
 	// players' Elo is still computed normally at endSeries.
@@ -778,14 +642,6 @@ function removePlayerFromRoom(playerID) {
 		}
 		if (newOwner) room.owner = newOwner;
 		else room.reassignOwnerIfNeeded();
-	}
-
-	if (wasPlaying && room.gameMode === "territory") {
-		// A territory game can't continue with a player gone — award it to whoever's left.
-		if (room.territory) territory.endGame(room, "opponent-left");
-		else { room.phase = "planning"; roomState.broadcastRoomState(room); }
-		roomState.broadcastRoomList();
-		return leaveEloInfo;
 	}
 
 	if (wasPlaying) {
@@ -873,7 +729,6 @@ function registerGameplayHandlers(socket, playerID) {
 		if (puzzleMode.handleRightClick(playerID, data)) return; // single-player puzzle in progress
 		var room = roomMapping[playerID];
 		if (!room || room.phase !== "playing") return;
-		if (room.gameMode === "territory") return; // no flags in territory v1
 		var game = games[playerID];
 		if (!game || !game.playing || Date.now() < game.frozenUntil) return;
 		if (hasSeqGap(game, data)) return;
@@ -885,7 +740,6 @@ function registerGameplayHandlers(socket, playerID) {
 		if (puzzleMode.handleLeftClick(playerID, data)) return; // single-player puzzle in progress
 		var room = roomMapping[playerID];
 		if (!room || room.phase !== "playing") return;
-		if (room.gameMode === "territory") { territory.handleReveal(playerID, data); return; }
 		var game = games[playerID];
 		if (!game || !game.playing || Date.now() < game.frozenUntil) return;
 		if (hasSeqGap(game, data)) return;
@@ -899,7 +753,7 @@ function registerGameplayHandlers(socket, playerID) {
 	// have caught it, but there might never BE a next click once the board's fully cleared.
 	socket.on("move_sync", function(data) {
 		var room = roomMapping[playerID];
-		if (!room || room.phase !== "playing" || room.gameMode === "territory") return;
+		if (!room || room.phase !== "playing") return;
 		var game = games[playerID];
 		if (!game || !game.playing) return;
 		checkMoveSync(game, data);
@@ -913,7 +767,7 @@ function registerGameplayHandlers(socket, playerID) {
 	// are — self-correcting rather than needing to get it right in one shot).
 	socket.on("resync_moves", function(data) {
 		var room = roomMapping[playerID];
-		if (!room || room.phase !== "playing" || room.gameMode === "territory") return;
+		if (!room || room.phase !== "playing") return;
 		var game = games[playerID];
 		if (!game || !game.playing) return;
 		var moves = (data && data.moves) || [];
@@ -1074,7 +928,6 @@ io.on("connection", function (socket) {
 		}
 		console.log("[conn] game attach OK pid=" + playerID + " matchId=" + (_p && _p.matchId) + " playerKey=" + (_p && _p.playerKey));
 		registerGameplayHandlers(socket, playerID);
-		territory.registerSocketHandlers(socket, playerID);
 		socket.on("leave_room", function() { if (roomMapping[playerID]) removePlayerFromRoom(playerID); });
 		socket.on("disconnect", function(reason) {
 			console.log("[conn] game disconnect pid=" + playerID + " reason=" + reason + " inRoom=" + (!!roomMapping[playerID]));
@@ -1115,15 +968,14 @@ io.on("connection", function (socket) {
 		if (!acc) return;
 		var rating = Math.round((data && data.rating) || 0);
 		rating = Math.max(0, Math.min(6000, rating));
-		var fieldByStyle = { sprint: "ratingSprint", standard: "ratingStandard", tournament: "ratingTournament", territory: "ratingTerritory" };
-		var styles = (data && fieldByStyle[data.style]) ? [data.style] : ["sprint", "standard", "tournament", "territory"];
+		var fieldByStyle = { sprint: "ratingSprint", standard: "ratingStandard" };
+		var styles = (data && fieldByStyle[data.style]) ? [data.style] : ["sprint", "standard"];
 		styles.forEach(function(st) {
 			db.setRating(acc.userId, rating, st);
 			acc[fieldByStyle[st]] = rating;
 		});
 		socket.emit("admin_rating_set", {
-			ratingSprint: acc.ratingSprint, ratingStandard: acc.ratingStandard,
-			ratingTournament: acc.ratingTournament, ratingTerritory: acc.ratingTerritory
+			ratingSprint: acc.ratingSprint, ratingStandard: acc.ratingStandard
 		});
 	});
 
@@ -1169,19 +1021,6 @@ io.on("connection", function (socket) {
 		if (!names[playerID]) return;
 		if (roomMapping[playerID]) return;
 		var id = nextRoomId++;
-		// Territory is a shared-board mode (2 or 4 seats). It's no longer offered in the custom UI
-		// (race-only there), but the socket still creates it — ranked territory and the territory tests
-		// rely on this wiring.
-		if (data && data.mode === "territory") {
-			var seats = parseInt(data.players, 10) === 4 ? 4 : 2;
-			var troom = roomCreator.createRoom(id, playerID, seats);
-			troom.gameMode = "territory";
-			var td = territory.dims(seats); troom.rows = td.rows; troom.cols = td.cols;
-			troom.roundSeconds = 0; // no clock — territory ends when the board is played out
-			rooms[id] = troom;
-			addPlayerToRoom(socket, troom);
-			return;
-		}
 		// Custom rooms are casual races configured up front in the create-room modal. Player count and
 		// each ruleset option are applied through the room's own validated setters, which silently
 		// ignore anything out of range — so a malformed payload just falls back to the defaults.
@@ -1347,10 +1186,9 @@ io.on("connection", function (socket) {
 
 	registerGameplayHandlers(socket, playerID); // left_click / right_click (shared with the game role)
 
-	// Single-player puzzle (rated / streak / storm / daily) + territory socket handlers.
+	// Single-player puzzle (rated / streak / storm / daily) socket handlers.
 	puzzleMode.registerSocketHandlers(socket, playerID);
 	botDemo.registerSocketHandlers(socket, playerID);
-	territory.registerSocketHandlers(socket, playerID);
 	marathonGen.registerSocketHandlers(socket, playerID);
 
 	socket.on("disconnect", function() {

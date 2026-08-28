@@ -1,6 +1,5 @@
-// Lobby UI: ranked queue panel (findRanked + setRankedSearching + status
-// text), the room list rendered for casual play, and the small formatters
-// that label room options (round time, death penalty, mine density, board
+// Lobby UI: ranked queue panel (findRanked), the room list rendered for casual play, and the
+// small formatters that label room options (round time, death penalty, mine density, board
 // size, series format).
 //
 // Top-level addEventListener bindings for the lobby buttons stay in the main
@@ -8,153 +7,18 @@
 
 function findRanked(mode) {
 	autoEnterGameFullscreen();
-	// Racing modes (1v1 + 6P Sprint/Standard) drop straight into the battle UI and slot opponents
-	// into the opponent boards as they're found; territory/tournament use the roster overlay.
-	var isRace = typeof isRaceRankedMode === "function" && isRaceRankedMode(mode);
 	// The 1v1 duel specifically forces fullscreen on mobile even without the opt-in — see
-	// enterDuelMobileFullscreen's comment (Fullscreen.js) for why just this mode is worth it. Racing
-	// only (not territory_duo, which is also "_duo" but a different layout that isn't built around
-	// reclaiming this space) and 1v1 only (mode.replace(/_duo$/, mode) === mode would be six-player).
-	if (isRace && /_duo$/.test(mode) && typeof enterDuelMobileFullscreen === "function") enterDuelMobileFullscreen();
+	// enterDuelMobileFullscreen's comment (Fullscreen.js) for why just this mode is worth it.
+	// 1v1 only (mode.replace(/_duo$/, mode) === mode would be six-player).
+	if (/_duo$/.test(mode) && typeof enterDuelMobileFullscreen === "function") enterDuelMobileFullscreen();
 	currentRankedMode = mode;
 	socket.emit("find_ranked", { mode: mode });
-	if (isRace) startBattleSearch(mode);
-	else setRankedSearching(true, mode);
+	startBattleSearch(mode);
 }
-var rankedSearchInfo = null;
 var MODE_LABELS = {
 	sprint_duo: "1v1 Sprint",   sprint_six: "6-player Sprint",
-	standard_duo: "1v1 Standard", standard_six: "6-player Standard",
-	tournament: "Tournament",
-	territory_duo: "1v1 Territory", territory_quad: "4-player Territory"
+	standard_duo: "1v1 Standard", standard_six: "6-player Standard"
 };
-
-// Short flavour line shown under the mode label in the waiting room — the
-// achtungroyale-style "what this match feels like" tag.
-var MODE_TAGLINES = {
-	sprint_duo: "Fast race · head-to-head",
-	sprint_six: "Fast race · free-for-all",
-	standard_duo: "Deduction · head-to-head",
-	standard_six: "Dense free-for-all",
-	tournament: "Battle royale · 16 → 1",
-	territory_duo: "Claim the board · 1v1",
-	territory_quad: "Claim the board · 4-player"
-};
-
-// Fixed match-search waiting room lives in the bottom-right while queued — it
-// survives navigation so the player can poke around the rest of the UI
-// without losing their place in line. The elapsed timer ticks while
-// the toast is visible, and the roster fills in as players/bots arrive.
-var rankedSearchStart = 0;
-var rankedSearchTickHandle = null;
-var matchToastModeEl = document.getElementById("match_toast_mode");
-var matchToastElapsedEl = document.getElementById("match_toast_elapsed");
-var matchToastTaglineEl = document.getElementById("match_toast_tagline");
-var matchRosterEl = document.getElementById("match_roster");
-var searchProgressFill = document.getElementById("search_progress_fill");
-var matchToastEl = document.querySelector("#ranked_searching .match-toast");
-// The waiting room takes the mode's accent colour (amber sprint / violet standard / gold
-// tournament / cyan territory) so each queue feels distinct; CSS maps the data-style.
-function searchStyleOf(mode) { return (mode || "").split("_")[0] || "sprint"; }
-// How many roster rows were filled on the previous render — lets us animate
-// only the newly-arrived rows, not re-flash everyone on each broadcast.
-var matchRosterShown = 0;
-
-function setRankedSearching(on, mode) {
-	if (on) rankedSearching.removeAttribute("hidden");
-	else rankedSearching.setAttribute("hidden", "");
-	if (on) {
-		rankedSearchStart = Date.now();
-		updateRankedSearchingText();
-		updateRankedSearchingElapsed();
-		if (rankedSearchTickHandle) clearInterval(rankedSearchTickHandle);
-		rankedSearchTickHandle = setInterval(updateRankedSearchingElapsed, 500);
-	} else {
-		rankedSearchInfo = null;
-		matchRosterShown = 0;
-		if (matchRosterEl) matchRosterEl.innerHTML = "";
-		if (rankedSearchTickHandle) { clearInterval(rankedSearchTickHandle); rankedSearchTickHandle = null; }
-	}
-	// currentRankedMode stays set after match formation so series-end can re-queue.
-}
-
-function updateRankedSearchingElapsed() {
-	if (!matchToastElapsedEl) return;
-	var s = Math.floor((Date.now() - rankedSearchStart) / 1000);
-	var m = Math.floor(s / 60);
-	matchToastElapsedEl.textContent = m + ":" + ((s % 60) < 10 ? "0" : "") + (s % 60);
-}
-
-function updateRankedSearchingText() {
-	var info = rankedSearchInfo || {};
-	var count = info.count || 1, size = info.size || 2;
-	var mode = info.mode || currentRankedMode;
-	var modeLabel = MODE_LABELS[mode] || "Ranked";
-	var ready = count >= size;
-	rankedSearchingText.textContent = ready ? "Match found" : "Finding match";
-	if (matchToastEl) {
-		matchToastEl.dataset.style = searchStyleOf(mode);
-		matchToastEl.classList.toggle("match-toast-ready", ready);
-	}
-	if (matchToastModeEl) matchToastModeEl.textContent = modeLabel;
-	if (matchToastTaglineEl) matchToastTaglineEl.textContent = MODE_TAGLINES[mode] || "";
-	if (searchCountText) searchCountText.textContent = count;
-	if (searchSizeText) searchSizeText.textContent = size;
-	if (searchProgressFill) {
-		var ratio = Math.max(0, Math.min(1, count / size));
-		searchProgressFill.style.width = (ratio * 100) + "%";
-	}
-	renderMatchRoster(info);
-}
-
-// The waiting-room roster: one row per match slot. Filled slots show the
-// player/bot name (+ a "YOU" tag for self) and a tier chip; the rest are muted
-// "Waiting…" placeholders. Re-rendered on every ranked_searching broadcast, so
-// the list visibly fills as bots/humans arrive. Only rows beyond the last
-// render's fill count get the entrance animation, so existing rows don't
-// re-flash each tick.
-function renderMatchRoster(info) {
-	if (!matchRosterEl) return;
-	var size = info.size || 2;
-	var members = info.members || [];
-	matchRosterEl.innerHTML = "";
-	for (var i = 0; i < size; i++) {
-		var row = document.createElement("li");
-		row.className = "match-roster-row";
-		var m = members[i];
-		if (m) {
-			if (m.isYou) row.classList.add("match-roster-row-you");
-			// Animate only freshly-arrived rows (index >= what we showed last time).
-			if (i >= matchRosterShown) row.classList.add("match-roster-row-new");
-
-			if (typeof m.rating === "number" && typeof buildRankBadge === "function") {
-				var badge = buildRankBadge(m.rating);
-				badge.classList.add("match-roster-badge");
-				row.appendChild(badge);
-			}
-
-			var name = document.createElement("span");
-			name.className = "match-roster-name";
-			name.textContent = m.name;
-			row.appendChild(name);
-			if (m.isYou) {
-				var youTag = document.createElement("span");
-				youTag.className = "match-roster-you-tag";
-				youTag.textContent = "YOU";
-				row.appendChild(youTag);
-			}
-			// The rank badge already conveys the tier, so no separate tier chip here.
-		} else {
-			row.classList.add("match-roster-slot-empty");
-			var waiting = document.createElement("span");
-			waiting.className = "match-roster-waiting";
-			waiting.textContent = "Waiting…";
-			row.appendChild(waiting);
-		}
-		matchRosterEl.appendChild(row);
-	}
-	matchRosterShown = Math.min(members.length, size);
-}
 
 function formatRoundTime(s) {
 	if (s <= 0) return "0:00";
@@ -206,19 +70,8 @@ function applyBoardDims(newRows, newCols) {
 // that the number hasn't settled yet.
 // Tier constants + rank helpers moved to Ranking.js.
 
-// Series progress label: ranked plays exactly one match per lobby; casual plays
-// a best-of-N. Tournament prints "Round N/M · K remaining".
+// Series progress label: ranked plays exactly one match per lobby; casual plays a best-of-N.
 function formatGameProgress(gameNumber, gameCount, scoreTarget) {
-	if (currentRoom && currentRoom.rankedMode === "tournament") {
-		var remaining = currentRoom.players ? currentRoom.players.length : 0;
-		// "X cut" is the COTD-style danger counter: at a glance you know how
-		// many heads are about to roll without scanning the standings.
-		var schedule = currentRoom.tournamentSchedule || [];
-		var nextSurvivors = schedule[gameNumber - 1];
-		var willCut = (typeof nextSurvivors === "number") ? Math.max(0, remaining - nextSurvivors) : 0;
-		var cutPart = willCut > 0 ? " · " + willCut + " cut" : "";
-		return "Round " + gameNumber + " of " + gameCount + " · " + remaining + " alive" + cutPart;
-	}
 	if (scoreTarget) return "Game " + gameNumber + " · First to " + scoreTarget;
 	if (gameCount === 1) {
 		var mode = currentRoom && currentRoom.rankedMode;
@@ -230,7 +83,6 @@ function formatGameProgress(gameNumber, gameCount, scoreTarget) {
 function formatSeriesFormat(gameCount, scoreTarget) {
 	if (scoreTarget) return "First to " + scoreTarget;
 	if (gameCount === 1) return "One match";
-	if (currentRoom && currentRoom.rankedMode === "tournament") return "Battle royale · 16 → 1";
 	return "Best of " + gameCount;
 }
 function renderRoomList(rooms) {

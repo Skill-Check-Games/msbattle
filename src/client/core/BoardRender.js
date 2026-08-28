@@ -124,7 +124,8 @@ function roundRectPath(ctx, x, y, w, h, r) {
 //   .markSafe(cells)              — green "proved safe" check on covered cells
 //   .animAt = fn(r, c)            — per-cell reveal/flag/mine animation (live game)
 //   .includeCell = fn(r, c)       — limit which cells are painted (pattern footprint)
-//   .getOwner/.hideClue/.structureCharge/.structureBuild — territory-only accessors
+//   .getOwner/.hideClue/.structureCharge/.structureBuild — optional per-cell-ownership accessors
+//     for a mode that claims/tints individual cells (none currently do; unset elsewhere, no-ops)
 // The sentinels/MINE are page globals assigned after the scripts load, so they're
 // only read inside these methods (at call time), never at module-eval time.
 function BoardView(canvas, rows, cols, state, cellAt, opts) {
@@ -254,8 +255,9 @@ function drawCell(ctx, r, c, view, sw, sh, anim) {
 		var revealing = anim && (anim.type === "reveal" || anim.type === "mine");
 		var t = revealing ? clamp01(anim.t) : 1;
 		drawKnownBase(ctx, w, h, rad);
-		// Territory mode: subtle per-owner tint behind the clue. getOwner returns a colour
-		// string for claimed cells and null otherwise, so other modes are unaffected.
+		// A mode that claims cells (getOwner, unset elsewhere): subtle per-owner tint behind the
+		// clue. getOwner returns a colour string for claimed cells and null otherwise, so other
+		// modes are unaffected.
 		var ownerColor = view.getOwner && view.getOwner(r, c);
 		if (ownerColor) {
 			ctx.save();
@@ -277,7 +279,8 @@ function drawCell(ctx, r, c, view, sw, sh, anim) {
 			drawMine(ctx, w, h, t);
 		} else {
 			var clue = view.getClue(r, c);
-			// hideClue (territory fog-of-clues): a revealed cell you don't own shows its tint but no number.
+			// hideClue: a mode with getOwner can also hide a revealed-but-unowned cell's number
+			// while still showing its tint (a "fog of clues"). Unset elsewhere, always shown.
 			if (clue > 0 && !(view.hideClue && view.hideClue(r, c))) drawNumber(ctx, clue, w, h, t);
 		}
 		// the unknown "cover" lifts off as the reveal plays
@@ -288,9 +291,9 @@ function drawCell(ctx, r, c, view, sw, sh, anim) {
 		}
 	} else if (view.isFlagged(r, c)) {
 		drawUnknown(ctx, w, h, rad);
-		// Territory structure: a flagged cell with an owner colour is a fort (a surrounded mine). Tint it
-		// in the owner colour, fly the flag in that colour, and show a charge gauge. A plain (ownerless)
-		// flag is a manual suspected-mine mark — the usual red flag.
+		// A mode's structure: a flagged cell with an owner colour is a fort (a surrounded mine).
+		// Tint it in the owner colour, fly the flag in that colour, and show a charge gauge. A
+		// plain (ownerless) flag is a manual suspected-mine mark — the usual red flag.
 		var flagOwner = view.getOwner && view.getOwner(r, c);
 		if (flagOwner) {
 			ctx.save();
@@ -315,17 +318,6 @@ function drawCell(ctx, r, c, view, sw, sh, anim) {
 				if (view.structureCharge) drawStructureCharge(ctx, w, h, view.structureCharge(r, c), flagOwner);
 			}
 		}
-	} else if (anim && anim.type === "unreveal") {
-		// Reverse cascade (territory explosion): the clue fades out as the cover drops back in.
-		var ut = clamp01(anim.t);
-		drawKnownBase(ctx, w, h, rad);
-		var uclue = view.getClue(r, c);
-		// Don't fade a number out for a cell whose clue is hidden (e.g. an opponent's cell re-covered by
-		// their own explosion) — that would briefly leak their clue.
-		if (uclue > 0 && !(view.hideClue && view.hideClue(r, c))) { ctx.globalAlpha = 1 - easeOutCubic(ut); drawNumber(ctx, uclue, w, h, 1); ctx.globalAlpha = 1; }
-		ctx.globalAlpha = easeOutCubic(ut);
-		drawUnknown(ctx, w, h, rad);
-		ctx.globalAlpha = 1;
 	} else {
 		drawUnknown(ctx, w, h, rad);
 	}
@@ -611,7 +603,7 @@ function buildAvatarChip(color, country, px) {
 	return wrap;
 }
 
-// Territory structure charge gauge: a thin bar across the bottom of the cell, filling 0..1 in the owner
+// Structure charge gauge: a thin bar across the bottom of the cell, filling 0..1 in the owner
 // colour. At full charge it's bright/solid (ready to fire); while charging it's dim.
 function drawStructureCharge(ctx, w, h, frac, color) {
 	frac = clamp01(frac == null ? 1 : frac);

@@ -2,7 +2,7 @@
 //
 // These are the live collections the socket handlers all operate on — rooms and
 // their games, per-socket bookkeeping, the bot registries, the ranked queues, and
-// the territory/puzzle timers. They used to be scattered as module-level vars in
+// the puzzle timers. They used to be scattered as module-level vars in
 // minesweeperServer; gathering them here gives a single owner so the handler modules
 // we split out can share the same objects (by requiring this singleton), and so
 // tests have one seam to inspect/reset.
@@ -63,15 +63,10 @@ module.exports = {
 	botLastClick: {},    // botId -> {r, c} of the bot's most recent click this round
 
 	// --- [control] ranked matchmaking --- (the matchmaker on main; → Redis when main is multi-replica)
-	rankedQueues: { sprint_duo: [], sprint_six: [], standard_duo: [], standard_six: [], tournament: [], territory_duo: [], territory_quad: [] },
-	pendingBotsLists: { sprint_duo: [], sprint_six: [], standard_duo: [], standard_six: [], tournament: [], territory_duo: [], territory_quad: [] },
-	rankedFillTimers: { sprint_duo: null, sprint_six: null, standard_duo: null, standard_six: null, tournament: null, territory_duo: null, territory_quad: null },
+	rankedQueues: { sprint_duo: [], sprint_six: [], standard_duo: [], standard_six: [] },
+	pendingBotsLists: { sprint_duo: [], sprint_six: [], standard_duo: [], standard_six: [] },
+	rankedFillTimers: { sprint_duo: null, sprint_six: null, standard_duo: null, standard_six: null },
 	rankedQueueMode: {}, // playerID -> mode key
-
-	// --- [game] territory --- (the territory match runtime + its world-tick, on the game server)
-	territoryBotTimers: {},  // roomId -> { botId: timeoutHandle }
-	territoryBotFocus: {},   // botId -> { r, c } locality focus persisted across ticks
-	territoryWorldTimers: {},// roomId -> intervalHandle
 
 	// --- [main-sp] single-player puzzle play + [main-sp] admin bot demos --- (DB-coupled / admin; stay on main)
 	puzzlePlay: {},      // playerID -> active puzzle play

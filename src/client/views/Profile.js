@@ -569,7 +569,7 @@ var ACH_ROMAN = ["", "I", "II", "III", "IV", "V"];
 function achTierName(rating) { return tierFor(rating).name.replace(/ I+$/, ""); } // bare tier (Silver/Gold/…)
 function modeWins(m, s) { return (m.perModeWins && m.perModeWins[s]) || 0; }
 function peakOf(m, s) { return (m.peak && m.peak[s]) || m["rating" + s.charAt(0).toUpperCase() + s.slice(1)] || 0; }
-function peakOverallOf(m) { return (m.peak && m.peak.overall) || Math.max(m.ratingSprint || 0, m.ratingStandard || 0, m.ratingTournament || 0, m.ratingTerritory || 0); }
+function peakOverallOf(m) { return (m.peak && m.peak.overall) || Math.max(m.ratingSprint || 0, m.ratingStandard || 0); }
 function minSolo(m, sizePrefix) {
 	var b = m.soloBests, min = Infinity;
 	if (b) Object.keys(b).forEach(function(k) { if ((!sizePrefix || k.indexOf(sizePrefix + "_") === 0) && b[k] < min) min = b[k]; });
@@ -691,7 +691,7 @@ function renderAchievements() {
 var matchHistory = { matches: [], ratings: [] };
 var profileStats = {}; // server's achievementStats bag, merged into the achievement metrics
 var ratingChartStyle = null; // which ladder the rating graph is showing
-var STYLE_LABELS = { sprint: "Sprint", standard: "Standard", tournament: "Tournament", territory: "Territory" };
+var STYLE_LABELS = { sprint: "Sprint", standard: "Standard" };
 function styleLabelOf(s) { return STYLE_LABELS[s] || s; }
 function ordinal(n) { var s = ["th", "st", "nd", "rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
 function relTime(ms) {
@@ -910,7 +910,6 @@ function renderHomeRankChips() {
 	}
 	var sprint = account ? account.ratingSprint : null;
 	var standard = account ? account.ratingStandard : null;
-	// Only Sprint + Standard are surfaced on the home page now; Tournament/Territory live under Admin.
 	applyTo(rankTierSprint, sprint, "rank_badge_sprint");
 	applyTo(rankTierStandard, standard, "rank_badge_standard");
 	// No skeleton on the mode rows' rank/rating corner — it's simply absent until account is

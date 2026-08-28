@@ -118,24 +118,20 @@ function applyLocalLeftClick(r, c) {
 function performAction(r, c, asFlag) {
 	var mode = currentActionMode();
 	if (!mode) return false;
-	// Spectators (tournament-eliminated) see opponents on slot-0 but can't
-	// affect their boards — drop clicks early so we don't corrupt local
-	// myState or emit illegal left_click events to the server.
-	if (iAmEliminated) return false;
 	if (Date.now() < frozenUntil) return false;
 	if (r < 0 || r >= rows || c < 0 || c >= cols) return false;
 	// Solo is locked until the player hits Start and the countdown finishes.
 	if (mode === "solo" && soloSession && !soloSession.started) return false;
-	// Racing/casual multiplayer and territory are locked the same way — currentRoom.phase flips to
-	// "playing" once at series start and stays there for every round, so on its own it doesn't tell
-	// us this SPECIFIC round has gone live yet. roundStartTime is only stamped at GO (see countDown's
-	// single authoritative timer in Overlay.js, scheduled from the server's own startDelayMs) and
-	// reset to 0 at the top of every round (start_game in Main.js / territoryStart in Territory.js),
-	// so it's the right signal — matches what the server itself gates on (game.playing flips true
-	// after that same server-side delay, ROUND_START_DELAY_MS in minesweeperServer.js), which already
-	// silently drops clicks sent before then; this just stops the client from predicting a move
-	// locally that the server was always going to ignore.
-	if ((mode === "multiplayer" || mode === "territory") && !roundStartTime) return false;
+	// Racing/casual multiplayer is locked the same way — currentRoom.phase flips to "playing" once
+	// at series start and stays there for every round, so on its own it doesn't tell us this
+	// SPECIFIC round has gone live yet. roundStartTime is only stamped at GO (see countDown's single
+	// authoritative timer in Overlay.js, scheduled from the server's own startDelayMs) and reset to 0
+	// at the top of every round (start_game in Main.js), so it's the right signal — matches what the
+	// server itself gates on (game.playing flips true after that same server-side delay,
+	// ROUND_START_DELAY_MS in minesweeperServer.js), which already silently drops clicks sent before
+	// then; this just stops the client from predicting a move locally that the server was always
+	// going to ignore.
+	if (mode === "multiplayer" && !roundStartTime) return false;
 	if (mode === "puzzle" && typeof clearPuzzleHints === "function") clearPuzzleHints();
 	// Custom-lobby modifiers: "noFlags" blocks flag/right-click; "onlyFlags" lets only the flag tool act.
 	if (mode === "multiplayer" && currentRoom && currentRoom.modifier) {
@@ -151,34 +147,6 @@ function performAction(r, c, asFlag) {
 	}
 	focusedR = r;
 	focusedC = c;
-	if (mode === "territory") {
-		// Shared board with local prediction (the client decodes the board, like the other modes):
-		// predict a safe reveal immediately, then emit for the server to validate/explode/capture and
-		// reconcile via territory_board. Clicking one of your own revealed numbers chords (client-driven,
-		// since flags are local-only). Flags are a local "suspected mine" mark; a flagged cell is
-		// protected from an accidental reveal.
-		// Aiming an energy bomb: the next left-click picks the target area (handled in Territory.js).
-		if (!asFlag && typeof territoryAiming !== "undefined" && territoryAiming) {
-			if (typeof territoryLaunchBomb === "function") territoryLaunchBomb(r, c);
-			redrawOwnBoardWithFocus();
-			return true;
-		}
-		var territoryChanged = true;
-		if (!asFlag && typeof territoryIsMyStructure === "function" && territoryIsMyStructure(r, c)) {
-			activeGameSocket().emit("territory_fire", { r: r, c: c }); // fire this fort's beam at the nearest enemy
-		} else if (myState && myState[r][c] === KNOWN) {
-			territoryChord(r, c);
-		} else if (asFlag) {
-			if (typeof territoryToggleFlag === "function") territoryToggleFlag(r, c);
-		} else if (!(myState && myState[r][c] === FLAGGED)) {
-			if (typeof territoryLocalReveal === "function") territoryLocalReveal(r, c); // optimistic predict
-			activeGameSocket().emit("left_click", { r: r, c: c, id: id });
-		} else {
-			territoryChanged = false; // left-click on a flagged (protected) cell — genuinely nothing happened
-		}
-		redrawOwnBoardWithFocus();
-		return territoryChanged;
-	}
 	var actionResult = null; // reveal/chord result, for emitting any chord-cleared flags to the server
 	var didChange = false;
 	if (asFlag) {
@@ -254,42 +222,9 @@ function performAction(r, c, asFlag) {
 	return didChange;
 }
 
-// Territory chord: clicking an owned number whose local flag-count matches it emits a reveal for
-// each remaining covered (non-flagged) neighbour. The server validates each (they're adjacent to
-// your territory); revealing into a mine freezes you, like a mistaken chord anywhere else.
-function territoryChord(r, c) {
-	var v = boardCell(r, c);
-	if (v <= 0 || !myState) return;
-	var ctx = BoardLogic.chordContext(r, c, rows, cols,
-		function(rr, cc) { return myState[rr][cc] === FLAGGED; },
-		function() { return false; },                                  // no revealed-mine concept in territory
-		function(rr, cc) { return myState[rr][cc] === UNKNOWN; });
-	if (ctx.flagCount !== v) return;
-	// If a covered non-flagged neighbour is actually a mine, this chord will detonate — a flag here was
-	// wrong. Clear every incorrect flag around this number (flagged but not a mine) before revealing.
-	var willDetonate = false;
-	for (var k = 0; k < ctx.covered.length; k++) if (boardCell(ctx.covered[k][0], ctx.covered[k][1]) === MINE) willDetonate = true;
-	if (willDetonate) {
-		for (var dr = -1; dr <= 1; dr++) for (var dc = -1; dc <= 1; dc++) {
-			if (!dr && !dc) continue;
-			var fr = r + dr, fc = c + dc;
-			if (fr < 0 || fc < 0 || fr >= rows || fc >= cols) continue;
-			if (myState[fr][fc] === FLAGGED && boardCell(fr, fc) !== MINE && typeof territoryToggleFlag === "function") territoryToggleFlag(fr, fc);
-		}
-	}
-	for (var i = 0; i < ctx.covered.length; i++) {
-		var nr = ctx.covered[i][0], nc = ctx.covered[i][1];
-		if (typeof territoryLocalReveal === "function") territoryLocalReveal(nr, nc); // predict the safe neighbours
-		activeGameSocket().emit("left_click", { r: nr, c: nc, id: id });
-	}
-}
-
 function currentActionMode() {
 	if (soloSession && !soloSession.finished) return "solo";
 	if ((typeof puzzleSession !== "undefined") && puzzleSession && !puzzleSession.finished) return "puzzle";
-	// Territory takes precedence over the generic multiplayer path (the room is also phase
-	// "playing"), since it drives the shared board differently (server-authoritative, no flags).
-	if (typeof territoryActive !== "undefined" && territoryActive) return "territory";
 	if (inRoom && currentRoom && currentRoom.phase === "playing") return "multiplayer";
 	return null;
 }

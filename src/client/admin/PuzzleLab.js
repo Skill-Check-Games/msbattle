@@ -130,19 +130,6 @@ function renderAdminLanding() {
 		"Open lab",
 		"/admin/sounds"
 	));
-	// Unfinished game modes parked off the home page until they're ready to ship.
-	cards.appendChild(makeAdminCard(
-		"Tournament (preview)",
-		"16-player battle royale, bottom half cut each round. Unfinished — hidden from the home page.",
-		"Open Tournament",
-		"/ranked/tournament"
-	));
-	cards.appendChild(makeAdminCard(
-		"Territory (preview)",
-		"Versus mode: grow from opposite corners and claim the board. Unfinished — hidden from the home page.",
-		"Open Territory",
-		"/ranked/territory"
-	));
 	// Testing: reset my own puzzle progress (server re-checks admin). A button card, not a link.
 	var resetCard = document.createElement("div");
 	resetCard.className = "admin-card";

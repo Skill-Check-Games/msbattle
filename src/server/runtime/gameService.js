@@ -14,7 +14,7 @@ var startMatch = null;    // injected: the core's startSeries(room) — "run thi
 var resultHandler = null; // injected/registered: results.persistResult(report) — "persist this outcome"
 // Construction deps (P1-3/P1-5) — injected so this module can rebuild a match from a spec without
 // importing the server. On the future game server these are local; here they're the monolith's.
-var _createRoom = null, _createPlayerGame = null, _addBotToRoom = null, _territoryDims = null;
+var _createRoom = null, _createPlayerGame = null, _addBotToRoom = null;
 
 function init(deps) {
 	deps = deps || {};
@@ -23,7 +23,6 @@ function init(deps) {
 	if (deps.createRoom) _createRoom = deps.createRoom;
 	if (deps.createPlayerGame) _createPlayerGame = deps.createPlayerGame;
 	if (deps.addBotToRoom) _addBotToRoom = deps.addBotToRoom;
-	if (deps.territoryDims) _territoryDims = deps.territoryDims;
 }
 
 // Build the live match (room + games + bots) from an allocation spec — the config-driven construction
@@ -45,17 +44,6 @@ function buildMatchFromConfig(spec) {
 	room.gameCount = spec.rules.gameCount;
 	if (typeof spec.rules.roundSeconds === "number") room.roundSeconds = spec.rules.roundSeconds;
 	if (spec.rules.modifier && room.setModifier) room.setModifier(spec.rules.modifier);
-	if (spec.gameMode === "territory") {
-		room.gameMode = "territory";
-		var td = _territoryDims(spec.size);
-		room.rows = td.rows; room.cols = td.cols;
-	}
-	if (spec.tournament) {
-		room.tournamentSchedule = spec.tournament.schedule.slice();
-		room.tournamentParticipants = [];
-		room.tournamentEliminated = {};
-		room.gameCount = spec.tournament.schedule.length;
-	}
 	appState.rooms[spec.roomId] = room;
 	(spec.humans || []).forEach(function(pid) {
 		appState.games[pid] = _createPlayerGame(pid, room.rows, room.cols);

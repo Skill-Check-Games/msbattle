@@ -7,10 +7,7 @@
 // through here makes that boundary a single call over a single object — and gives idempotency
 // (P0-5) one place to live.
 //
-// Scope: the racing/tournament series-end path (called from endSeries). Tournament rates players
-// incrementally as they're cut (elo.applyEloForPlayer), so persistResult deliberately does NOT
-// re-apply ranked Elo for tournaments — it only finalises their replay. Territory ends on its own
-// path (runtime/territory.js) and will be routed through here in a later phase.
+// Scope: the racing series-end path (called from endSeries).
 
 var db = require("../db");
 var appState = require("./appState");
@@ -116,9 +113,8 @@ function buildResultReport(room, seriesStandings) {
 	};
 }
 
-// Apply a finished match's results: ranked Elo (racing only — tournament rates incrementally) + the
-// captured replay (a no-op when nothing was recorded). The one call the match-end path makes into
-// persistence.
+// Apply a finished match's results: ranked Elo + the captured replay (a no-op when nothing was
+// recorded). The one call the match-end path makes into persistence.
 //
 // Returns the (possibly Elo-enriched) standings alongside `applied` — the split/game-role caller
 // (reportResultToMain) relays these back over the wire so the game server's series_ended event can
@@ -129,12 +125,10 @@ function persistResult(report) {
 		// Apply this match's results at most once (P0-5). A retried/duplicate report short-circuits here
 		// so Elo + replay are never double-applied. Non-ranked matches persist nothing, so they skip the guard.
 		if (!db.markMatchPersisted(report.matchId)) return { applied: false, standings: report.standings };
-		if (report.mode !== "tournament") {
-			// In-process the report carries the live room → read ratings from the accounts cache; a report
-			// from a game server over the network carries userId + rating-before per standing instead.
-			if (report.room) elo.applyRankedElo(report.standings, report.style);
-			else elo.applyRankedEloFromReport(report.standings, report.style);
-		}
+		// In-process the report carries the live room → read ratings from the accounts cache; a report
+		// from a game server over the network carries userId + rating-before per standing instead.
+		if (report.room) elo.applyRankedElo(report.standings, report.style);
+		else elo.applyRankedEloFromReport(report.standings, report.style);
 	}
 	// replayPayload is already wire-safe (built at buildResultReport time, in-process, before any
 	// network hop) — persisting it is the same call whether this report came from the local match-end

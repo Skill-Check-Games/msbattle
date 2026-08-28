@@ -1091,9 +1091,9 @@ function moveClueCells(mv) {
 
 // Easiest forced-safe move from the current state — drives in-game hints and bot move selection. Runs
 // the analyzer (optionally capped via opts.maxComplexity so bots stay under the case-split threshold),
-// then returns the first move that reveals a safe cell the caller may take (opts.allow(r,c), e.g. a
-// territory bot's own frontier). Falls back to the first forced-mine (flag) move if no safe reveal is
-// reachable. Returns { kind, clueCells, safeCells, mineCells, componentSize } or null.
+// then returns the first move that reveals a safe cell the caller may take (opts.allow(r,c), for a mode
+// that restricts targets to a subset of the board). Falls back to the first forced-mine (flag) move if
+// no safe reveal is reachable. Returns { kind, clueCells, safeCells, mineCells, componentSize } or null.
 function findNextSafeStep(board, state, opts) {
 	opts = opts || {};
 	var R = board.length, C = board[0].length;

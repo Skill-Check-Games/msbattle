@@ -31,8 +31,7 @@ var boardScroll = document.getElementById("board_scroll");
 // "Find match" for a racing mode drops you straight into this layout and slots opponents in as the
 // search fills, so search and play share one screen. `rankedSearch` holds the pending field.
 var rankedSearch = null; // { mode, size, race:true, members:[] } while searching a racing ranked mode
-function rankedModeSize(mode) { return /_six$/.test(mode) ? 6 : /_quad$/.test(mode) ? 4 : 2; }
-function isRaceRankedMode(mode) { return /^(sprint|standard)_(duo|six)$/.test(mode || ""); }
+function rankedModeSize(mode) { return /_six$/.test(mode) ? 6 : 2; }
 // The number of racing boards in the current battle — from the live room if there is one, else the
 // size of the racing search we're in. 0 when neither applies (so the battle layout stays off).
 function battleSize() {
@@ -778,7 +777,7 @@ function teardownMatchSocket() {
 }
 // --- Clock sync -------------------------------------------------------------------------------
 // A round-start "GO" needs to land on every player's screen at the same instant, but each client
-// only knows the round's absolute server deadline (start_game/territory_start's startAt) —
+// only knows the round's absolute server deadline (start_game's startAt) —
 // converting that into "wait N ms" using the receiving client's own Date.now() at whatever moment
 // the event happened to arrive bakes in that client's one-way network latency (which varies per
 // player), so a laggier player would see the round start visibly later than everyone else.
@@ -1150,7 +1149,7 @@ function refreshAchievementProgress() {
 
 // "Clear without a flag" / "clear without a direct reveal (chord only)" challenges. Tracked per board
 // in solo + racing (Input.js flips these); reset at each board start; reported to the server on a clear.
-// Puzzles/territory don't participate. clearReported gates one report per board.
+// Puzzles don't participate. clearReported gates one report per board.
 var clearNoFlag = true, clearNoReveal = true, clearReported = false;
 function resetClearChallenge() { clearNoFlag = true; clearNoReveal = true; clearReported = false; }
 function reportClear() {
@@ -1172,21 +1171,15 @@ var busyRoomList = document.getElementById("busy_room_list");
 var lobbyMessage = document.getElementById("lobby_message");
 var rankedTag = document.getElementById("ranked_tag");
 var homeCards = document.getElementById("home_cards");
-// Ranked cards are now anchor tags pointing at #/ranked/:style. The
-// router translates that into findRanked() (tournament fires
-// immediately; sprint/standard show the size picker first).
+// Ranked cards are now anchor tags pointing at #/ranked/:style. The router translates that
+// into findRanked(), which shows the size picker first.
 var rankTierSprint = document.getElementById("rank_tier_sprint");
 var rankTierSprintSix = document.getElementById("rank_tier_sprint_six");
 var rankRatingSprintSix = document.getElementById("rank_rating_sprint_six");
 var rankTierStandard = document.getElementById("rank_tier_standard");
 var rankTierStandardSix = document.getElementById("rank_tier_standard_six");
 var rankRatingStandardSix = document.getElementById("rank_rating_standard_six");
-var rankTierTournament = document.getElementById("rank_tier_tournament");
-var rankRatingTournament = document.getElementById("rank_rating_tournament");
 var currentRankedMode = null;
-var rankedSearching = document.getElementById("ranked_searching");
-var rankedSearchingText = document.getElementById("ranked_searching_text");
-var cancelRankedButton = document.getElementById("cancel_ranked_button");
 var battleSearchStatus = document.getElementById("battle_search_status");
 var battleSearchText = document.getElementById("battle_search_text");
 var leaderboardList = document.getElementById("leaderboard_list");
@@ -1294,176 +1287,9 @@ var myState = null;
 var lastScores = {};           // playerId -> last rendered score, to flash gains
 var liveProgress = {};         // playerId -> { progress, finished, finishedAt } from draw_board
 var lastGames = null;          // last draw_board.games — used to repaint the duel opponent board on resize
-var iAmEliminated = null;      // tournament: { round, place, totalParticipants } once cut
-var spectatorTarget = null;    // when iAmEliminated, the player id whose board is rendered on slot 0
-var spectatorTargetSkin = null; // and the skin to paint that watched board in (their skin, not yours)
 // soloSession / soloTimerHandle / soloSelectedSize live in Solo.js.
-var elimPanelDismissed = false;// player chose "Keep watching" — don't redraw the panel each round
 var roundStartTime = 0;        // ms timestamp when the current round actually went live (after GO!)
-var dangerActive = false;      // current red-border state; hysteresis keeps it from flickering
-var DANGER_GRACE_MS = 10000;   // don't warn within the first N ms of a round
-var dangerTarget = null;       // lazily resolved .player-board element to flash
 var lastFinished = {};         // playerId -> whether they had cleared, to cue rival finishes
-
-// Tournament round-end sequence — the COTD-flavoured reveal.
-//
-// Beats (rough timing budget, ~3.6s total to stay under the 4.5s
-// BETWEEN_GAMES_DELAY_TOURNAMENT_CUT on the server):
-//   0      scrim + frame fade in (~300ms)
-//   200    rows slide in top→bottom (~50ms stagger, ~600ms total)
-//   900    cutline divider draws between survivors and cuts (~300ms)
-//   1100   eliminated rows flash red bottom→top (~140ms stagger)
-//   1100+  survivor rows pulse green together (~700ms)
-//   2200   verdict badge on the local player's row slides in
-//   3400   scrim fades out, panel cleanup
-// onComplete fires at 3400ms.  Returns the timeout id so callers can
-// cancel if the room state changes mid-sequence (e.g. series_ended).
-function playTournamentRoundEnd(data, onComplete) {
-	var overlay = document.getElementById("tournament_round_overlay");
-	var rowsEl = document.getElementById("tro_rows");
-	var roundLabel = document.getElementById("tro_round_label");
-	var subLabel = document.getElementById("tro_sub_label");
-	var verdictEl = document.getElementById("tro_verdict");
-	if (!overlay || !rowsEl) { if (onComplete) onComplete(); return null; }
-
-	rowsEl.innerHTML = "";
-	verdictEl.textContent = "";
-	verdictEl.className = "tro-verdict";
-
-	var standings = data.standings || [];
-	var eliminated = data.tournamentEliminated || [];
-	var elimIds = {};
-	eliminated.forEach(function(e) { elimIds[e.id] = true; });
-
-	var survivorsTarget = (typeof data.tournamentSurvivorsTarget === "number")
-		? data.tournamentSurvivorsTarget
-		: Math.max(0, standings.length - eliminated.length);
-	var totalRounds = (currentRoom && currentRoom.tournamentSchedule)
-		? currentRoom.tournamentSchedule.length : null;
-
-	// Stage for the escalation skin: early / late / final.
-	var stage = "early";
-	if (survivorsTarget <= 1) stage = "final";
-	else if (survivorsTarget <= 4) stage = "late";
-	overlay.dataset.stage = stage;
-
-	roundLabel.textContent = "Round " + data.gameNumber + (totalRounds ? " of " + totalRounds : "");
-	subLabel.textContent = eliminated.length + " cut · " + survivorsTarget + " advance";
-
-	// Build rows (already in rank order). Insert the cutline divider
-	// after the last survivor row so we can animate it in mid-sequence.
-	var rowNodes = []; // parallel array for later highlight passes
-	var cutlineEl = null;
-	standings.forEach(function(s, idx) {
-		// Slide-in stagger keyed off rank so the top of the leaderboard
-		// fills first (feels like a results screen, not a list dump).
-		if (idx === survivorsTarget && idx > 0) {
-			cutlineEl = document.createElement("div");
-			cutlineEl.className = "tro-cutline";
-			rowsEl.appendChild(cutlineEl);
-		}
-		var row = document.createElement("div");
-		row.className = "tro-row";
-		if (s.id === id) row.classList.add("tro-row-me");
-		row.style.animationDelay = (200 + idx * 55) + "ms";
-
-		var rankEl = document.createElement("div");
-		rankEl.className = "tro-rank";
-		rankEl.textContent = "#" + (s.rank || idx + 1);
-		row.appendChild(rankEl);
-
-		var nameEl = document.createElement("div");
-		nameEl.className = "tro-name";
-		nameEl.textContent = s.name || "Unknown";
-		row.appendChild(nameEl);
-
-		var detailEl = document.createElement("div");
-		detailEl.className = "tro-detail";
-		if (s.finished && typeof s.finishMs === "number") {
-			detailEl.textContent = (s.finishMs / 1000).toFixed(2) + "s";
-		} else {
-			detailEl.textContent = (s.safeCount || 0) + " safe";
-		}
-		row.appendChild(detailEl);
-
-		rowsEl.appendChild(row);
-		rowNodes.push({ row: row, entry: s });
-	});
-
-	overlay.hidden = false;
-	// next frame so the .visible transition actually runs
-	requestAnimationFrame(function() { overlay.classList.add("visible"); });
-
-	var timers = [];
-	function later(ms, fn) { timers.push(setTimeout(fn, ms)); }
-
-	// Cutline reveal
-	later(900, function() { if (cutlineEl) cutlineEl.classList.add("visible"); });
-
-	// Eliminated flashes — bottom-up so the last-place cut hits first
-	// (cleaner read than top-down which would highlight #5 before #16).
-	var cutRows = rowNodes.filter(function(rn) { return elimIds[rn.entry.id]; });
-	cutRows.sort(function(a, b) { return (b.entry.rank || 0) - (a.entry.rank || 0); });
-	cutRows.forEach(function(rn, i) {
-		later(1100 + i * 140, function() { rn.row.classList.add("tro-cut"); });
-	});
-
-	// Survivor pulse — fires once, on everyone above the cut, after the
-	// cuts have all flashed. The local "you" row gets its verdict on top.
-	var survivorRows = rowNodes.filter(function(rn) { return !elimIds[rn.entry.id]; });
-	var lastCutDelay = 1100 + Math.max(0, cutRows.length - 1) * 140;
-	later(lastCutDelay + 100, function() {
-		survivorRows.forEach(function(rn) { rn.row.classList.add("tro-survive"); });
-	});
-
-	// Verdict badge — what happened to the local player.
-	var meEntry = standings.find(function(s) { return s.id === id; });
-	var meCut = meEntry && elimIds[id];
-	later(lastCutDelay + 700, function() {
-		if (!meEntry) return; // pure spectator (already eliminated previous round)
-		if (meCut) {
-			verdictEl.innerHTML = "Eliminated <span class=\"tro-verdict-sub\">Finished #" + meEntry.rank + "</span>";
-			verdictEl.classList.add("show", "eliminated");
-		} else if (survivorsTarget === 1) {
-			// Final round survivor — they won the tournament. The
-			// "close call" label would be silly here (it's literally
-			// the only seat left), and series_ended will follow up
-			// with the full championship panel anyway.  Skip verdict.
-		} else {
-			var rank = meEntry.rank;
-			var cushion = survivorsTarget - rank; // 0 means you were the lowest survivor
-			var label = "Survived";
-			var sub;
-			if (cushion === 0) {
-				label = "Close call";
-				sub = "Last survivor — by one place";
-				verdictEl.classList.add("close");
-			} else if (cushion === 1) {
-				sub = "By one place";
-				verdictEl.classList.add("close");
-			} else {
-				sub = "Safe — " + cushion + " places clear";
-			}
-			verdictEl.innerHTML = label + " <span class=\"tro-verdict-sub\">" + sub + "</span>";
-			verdictEl.classList.add("show", "survived");
-		}
-	});
-
-	// Tear-down: fade scrim, hide after transition, then notify.
-	var totalMs = lastCutDelay + 2200;
-	later(totalMs - 300, function() { overlay.classList.remove("visible"); });
-	later(totalMs, function() {
-		overlay.hidden = true;
-		rowsEl.innerHTML = "";
-		verdictEl.textContent = "";
-		verdictEl.className = "tro-verdict";
-		overlay.dataset.stage = "";
-		if (onComplete) onComplete();
-	});
-
-	return timers;
-}
-
 // Name form + sign-in/out button bindings live in Auth.js.
 // Audio (music/effects volume) settings live in the Settings page — see
 // renderAudioSettings() in Fullscreen.js.
@@ -1478,7 +1304,7 @@ document.getElementById("puzzle_hint_btn").addEventListener("click", function() 
 });
 
 // --- In-game button groups: focus the primary + arrow-key navigation -----------------------------
-// Any container tagged `.kbd-btn-group` (the puzzle fail actions, the result/series/tournament panels)
+// Any container tagged `.kbd-btn-group` (the puzzle fail actions, the result/series panels)
 // becomes keyboard-driven: its primary button is focused when shown, the arrow keys move focus between
 // its buttons, and Enter/Space activates the focused one (native button behaviour). The board key
 // handler (Input.js) ignores keys while focus is inside such a group, so arrows don't also move the board.
@@ -1517,26 +1343,6 @@ document.getElementById("puzzle_skip_btn").addEventListener("click", function() 
 document.getElementById("puzzle_side_back").addEventListener("click", function() {
 	navigate(puzzleSession && puzzleSession.marathon ? "/admin/marathon-boards" : "/");
 });
-
-// Spectator: click a scoreboard row to switch which player's board shows
-// on the big slot-0 canvas.  Delegated since the scoreboard re-renders on
-// every draw_board.  No-op when not eliminated; you can't redirect what
-// you yourself are playing.
-scoreboardEl.addEventListener("click", function(e) {
-	if (!iAmEliminated) return;
-	var row = e.target.closest("li.score-row");
-	if (!row || !row.dataset.pid) return;
-	if (row.dataset.pid === id) return;
-	if (spectatorTarget === row.dataset.pid) return;
-	spectatorTarget = row.dataset.pid;
-	// Repaint slot 0 + the small opponent slots immediately from the last
-	// cached frame — without this the big board only switches when the
-	// new target makes their next move (which can be many seconds away,
-	// or never if they've already finished), so it feels stuck.
-	if (latestSpectatorGames) repaintSpectatorView(latestSpectatorGames);
-	renderScoreboard(); // refresh the .score-row-watching highlight
-});
-
 
 // --- Create-a-room modal: pick the full ruleset up front, then drop into the room. ---
 (function wireCreateRoomModal() {
@@ -1694,14 +1500,6 @@ document.getElementById("solo_restart").addEventListener("click", function() {
 
 // Lobby functions moved to Lobby.js.
 
-
-cancelRankedButton.addEventListener("click", function() {
-	socket.emit("cancel_ranked");
-	currentRankedMode = null;
-	setRankedSearching(false);
-	exitGameFullscreen();
-});
-
 function leaveGameClicked() {
 	if (rankedSearch) { cancelBattleSearch(); return; } // still searching → cancel the queue, leave
 	if (soloSession) { exitSolo(); return; }
@@ -1767,13 +1565,7 @@ removeBotButton.addEventListener("click", function() {
 	socket.emit("remove_bot");
 });
 
-var searchCountText = document.getElementById("search_count_text");
-var searchSizeText = document.getElementById("search_size_text");
-
-
-
 // Update board dimensions and re-size canvases when the room's size changes.
-// a best-of-N. Tournament prints "Round N/M · K remaining".
 
 // renderRatingBadge + auth socket handler bodies live in Auth.js.
 // In-room state rendering moved to GameRoom.js.
@@ -1839,9 +1631,6 @@ socket.on("replay_data", function(data) {
 socket.on("joined_room", function(data) {
 	inRoom = true;
 	if (data && data.mode) currentRankedMode = data.mode;
-	iAmEliminated = null;
-	elimPanelDismissed = false;
-	setRankedSearching(false);
 	endBattleSearch();        // a match formed — drop the in-battle search state (room_state takes over)
 	showGameView();
 	resetGameUI();
@@ -1850,7 +1639,7 @@ socket.on("joined_room", function(data) {
 // --- In-battle ranked search ---------------------------------------------------------------------
 // For the racing ranked modes (1v1 + 6P Sprint/Standard) we drop the player straight into the battle
 // layout and slot opponents into the opponent boards as the search fills, instead of a separate
-// waiting-room overlay. Territory/Tournament still use the roster overlay (setRankedSearching).
+// waiting-room overlay.
 function startBattleSearch(mode) {
 	rankedSearch = { mode: mode, size: rankedModeSize(mode), race: true, members: [] };
 	currentRoom = null;
@@ -1912,19 +1701,15 @@ function cancelBattleSearch() {
 }
 
 socket.on("ranked_searching", function(data) {
-	rankedSearchInfo = data || {};
-	// In-battle search for the racing modes; the legacy roster overlay for territory/tournament.
-	if (rankedSearch && isRaceRankedMode(rankedSearchInfo.mode || rankedSearch.mode)) {
-		rankedSearch.members = rankedSearchInfo.members || [];
-		if (rankedSearchInfo.size) rankedSearch.size = rankedSearchInfo.size;
+	var info = data || {};
+	if (rankedSearch) {
+		rankedSearch.members = info.members || [];
+		if (info.size) rankedSearch.size = info.size;
 		updateBattleSearch();
-	} else {
-		setRankedSearching(true);
 	}
 });
 
 socket.on("ranked_rejected", function(data) {
-	setRankedSearching(false);
 	showLobbyMessage((data && data.reason) || "Couldn't start ranked search.");
 });
 
@@ -1932,7 +1717,7 @@ socket.on("ranked_rejected", function(data) {
 // the rank UI (topbar badge, home chips, and the Design page's own "your rank" preview).
 socket.on("admin_rating_set", function(data) {
 	if (!account || !data) return;
-	["ratingSprint", "ratingStandard", "ratingTournament", "ratingTerritory"].forEach(function(f) {
+	["ratingSprint", "ratingStandard"].forEach(function(f) {
 		if (typeof data[f] === "number") account[f] = data[f];
 	});
 	if (typeof renderRatingBadge === "function") renderRatingBadge();
@@ -1941,17 +1726,16 @@ socket.on("admin_rating_set", function(data) {
 	if (typeof renderDesign === "function" && dv && dv.style.display !== "none") renderDesign();
 });
 
-// Local teardown of the in-game UI: drop room state, clear danger, reset territory, and
-// re-route to the current URL (which hides #game_view). Used both when WE leave (leaveRoom —
-// applied immediately) and when the server confirms it (left_room).
+// Local teardown of the in-game UI: drop room state, clear place badges, and re-route to the
+// current URL (which hides #game_view). Used both when WE leave (leaveRoom — applied immediately)
+// and when the server confirms it (left_room).
 // toHome: route to the home screen after teardown (the "Exit game" button). Otherwise re-apply the
 // current URL — used by navigate-away (clicking a nav link mid-game), where the URL is already the
 // target and we must honour it, not force home.
 function teardownRoomUI(toHome) {
-	if (typeof territoryReset === "function") territoryReset();
 	if (typeof clearPlaceBadges === "function") clearPlaceBadges();
 	if (typeof music !== "undefined") music.pause(); // stop the music only when truly leaving the game
-	// #game_view is shared across every game type (solo/puzzle/racing/territory/…), so a leftover
+	// #game_view is shared across every game type (solo/puzzle/racing/…), so a leftover
 	// .duo (and, worse, duel-force-rotate — style.css's CSS-rotation fallback for a portrait phone
 	// that can't be orientation-locked) would carry into whatever's opened next until THAT flow
 	// happens to clear it too (today: only applyPuzzleBoard and its solo counterpart do). Clear right
@@ -1960,10 +1744,7 @@ function teardownRoomUI(toHome) {
 	if (typeof clearBattleLayoutClasses === "function") clearBattleLayoutClasses();
 	inRoom = false;
 	currentRoom = null;
-	iAmEliminated = null;
-	elimPanelDismissed = false;
 	roundStartTime = 0;
-	setDanger(false);
 	// The one place that actually stops idle for good: renderRoomState (GameRoom.js) and
 	// startBattleSearch both leave it running right up to the go sweep taking over, on the assumption
 	// a round really is coming — but if we're leaving instead (room, search, or match), no sweep is
@@ -2018,11 +1799,6 @@ socket.on("room_state", function(state) {
 	// re-covering then would wipe the finish-place stamps we want to keep under the result modal.
 	if ((gameView.classList.contains("duo") || gameView.classList.contains("multi")) && state.phase === "planning" && !roundResultShown) setCoveredBoard();
 });
-
-// Territory (versus) mode — shared-board events handled in Territory.js.
-socket.on("territory_start", function(data) { if (typeof territoryStart === "function") territoryStart(data); });
-socket.on("territory_board", function(data) { if (typeof territoryBoard === "function") territoryBoard(data); });
-socket.on("territory_result", function(data) { if (typeof territoryResult === "function") territoryResult(data); });
 
 // Set true by setCoveredBoard() whenever the board resets to fully covered ahead of a round, false
 // once localRoundStartReveal has actually performed that round's opening reveal. This is the ONLY
@@ -2112,7 +1888,7 @@ function setCoveredBoard() {
 	if (isBattleRacing()) {
 		paintOpponentCovered(); // battle: show the opponents' boards covered too
 	} else {
-		// Tournament/other non-battle layouts show opponent thumbnails (game1/game2, see the
+		// Non-battle layouts show opponent thumbnails (game1/game2, see the
 		// oppShown logic in the draw_board handler) driven entirely by live draw_board data —
 		// nothing repaints them between rounds, so without this they'd keep showing the previous
 		// round's final (often exploded) board for a beat until the new round's first draw_board
@@ -2183,33 +1959,6 @@ socket.on("start_game", function(data) {
 	}
 	sizeOpponentCanvases();
 	buildDuelIdentity();
-	// Eliminated spectators get start_game too (server emits it so their
-	// decoder + dims update), but they skip the playable countdown and the
-	// myState reset.  We DO install the new round's boardDecoder so the
-	// spectated player's reveals render against the correct mine layout —
-	// without this, slot-0 paints opponent state against last round's board.
-	if (iAmEliminated) {
-		hideReadyButton();
-		if (data.boardData && data.boardMask) {
-			installBoardDecoder(data.boardData, data.boardMask, data.rows || rows, data.cols || cols);
-			applyBoardDims(data.rows || rows, data.cols || cols);
-		}
-		// Reset spectator target so the new round picks a fresh leader on
-		// the first draw_board.  Leaving the previous round's target in
-		// place would briefly render a player who hasn't started yet.
-		spectatorTarget = null;
-		// Wipe slot-0 plus the leader thumbnails (game1/game2) to avoid a one-frame flash of the
-		// previous round's final state while we wait for the first draw_board.
-		for (var si = 0; si <= 2; si++) {
-			var sc = document.getElementById("game" + si);
-			if (sc) clearCanvas(sc);
-		}
-		gameProgressText.textContent = formatGameProgress(data.gameNumber, data.gameCount, (currentRoom && currentRoom.scoreTarget) || data.scoreTarget);
-		showRoundCutPreview(data);
-		if (elimPanelDismissed) hideOverlay();
-		else showTournamentEliminationPanel(iAmEliminated);
-		return;
-	}
 	hideReadyButton();
 	clearFreeze();
 	roundResultShown = false;
@@ -2227,12 +1976,10 @@ socket.on("start_game", function(data) {
 	resetBoardAnimations();
 	lastFinished = {};
 	roundStartTime = 0;
-	setDanger(false);
 	if (data.boardData && data.boardMask) {
 		installBoardDecoder(data.boardData, data.boardMask, data.rows || rows, data.cols || cols);
 	}
 	gameProgressText.textContent = formatGameProgress(data.gameNumber, data.gameCount, (currentRoom && currentRoom.scoreTarget) || data.scoreTarget);
-	showRoundCutPreview(data);
 	// Paint the board as a full grid of covered cells so the countdown plays over the board
 	// instead of a black canvas; the round's real reveal happens exactly at GO.
 	setCoveredBoard();
@@ -2248,72 +1995,20 @@ socket.on("start_game", function(data) {
 	updateMobileFindNextHint();
 });
 
-// Pre-round "X to be eliminated" banner. Floats above the countdown for
-// tournament rounds with a cut; auto-hides when the round starts.  Skipped
-// for the final round (2 → 1) since the round overlay's series_ended panel
-// already frames that as the championship.
-function showRoundCutPreview(data) {
-	var el = document.getElementById("round_cut_preview");
-	if (!el) return;
-	el.style.display = "none";
-	el.textContent = "";
-	var willCut = data.tournamentCutThisRound;
-	var survivors = data.tournamentSurvivorsThisRound;
-	if (!willCut || willCut <= 0) return;
-	if (survivors === 1) {
-		// Final round: keep it short and grand.
-		el.textContent = "Final · Winner takes the crown";
-	} else {
-		el.textContent = willCut + " eliminations this round";
-	}
-	el.style.display = "";
-	// Auto-clear once the countdown completes (COUNT_DOWN_TIME + 700ms GO hold).
-	setTimeout(function() {
-		el.style.display = "none";
-		el.textContent = "";
-	}, (data.time || 3) * 1000 + 700);
-}
-
 // Decode a XOR-masked board blob from the server. The decoded bytes never leave
 // this closure; outsiders only get the (r,c) accessor via boardCell().
 
 socket.on("game_result", function(data) {
 	roundResultShown = true;
-	setDanger(false);
 	clearFreeze();
 	stopRoundTimer();
 	// 6-player battle: fill in every board's final place from the standings (finishers keep the
 	// place the live updater gave them; non-finishers now get theirs too).
 	applyMultiFinalPlaces(data.standings);
-	var eliminatedNow = iAmEliminated && iAmEliminated.round === data.gameNumber;
 	var target = (currentRoom && currentRoom.scoreTarget) || data.scoreTarget;
 	var seriesOver = target
 		? (currentRoom && currentRoom.players.some(function(p) { return (p.score || 0) >= target; }))
 		: data.gameNumber >= data.gameCount;
-
-	// Tournament rounds with a cut get the full COTD-style sequence —
-	// scrim, standings, cutline draw, staggered red flashes, survivor
-	// pulse, verdict badge. The just-eliminated player's elim panel is
-	// held until after the reveal so they actually see the moment they
-	// got cut, not a panel that obscures it.
-	if (data.tournamentEliminated && data.tournamentEliminated.length) {
-		if (eliminatedNow) hideOverlay();
-		playTournamentRoundEnd(data, function() {
-			// For the just-eliminated player, open the rich elim panel
-			// *after* the reveal — unless the series is also ending this
-			// round, in which case series_ended will already have shown
-			// its own panel and we don't want to fight it.
-			if (eliminatedNow && !seriesOver) {
-				showTournamentEliminationPanel(iAmEliminated);
-			}
-		});
-		// Survivors don't get a round-result panel mid-tournament; the
-		// next round starts inside the BETWEEN_GAMES_DELAY budget.
-		if (!seriesOver) {
-			if (data.winnerId === id) sound.win(); else sound.lose();
-		}
-		return;
-	}
 
 	// No per-round result dialogue anymore; just the win/lose feedback sound for intermediate
 	// rounds of a best-of-N. The final round's outcome is owned by series_ended.
@@ -2340,7 +2035,6 @@ socket.on("mine_hit", function(data) {
 // immediate feedback; only the modal itself is held back.
 var RESULT_MODAL_DELAY_MS = 1200;
 socket.on("series_ended", function(data) {
-	setDanger(false);
 	gameProgressText.textContent = "";
 	stopRoundTimer();
 	// Music keeps playing under the result modal — and straight through "Play another" into the next
@@ -2362,89 +2056,6 @@ socket.on("match_reveal", function() {
 	if (typeof sound !== "undefined") sound.matchFound();
 });
 
-// Sent only to the player(s) cut at the end of a tournament round. They stay
-// in the room (sockets joined) so they still receive series_ended at the end.
-// The Elo update is applied server-side at elimination time, and the rating
-// delta is carried in this event so the topbar bump + rank banner fire now.
-socket.on("tournament_eliminated", function(data) {
-	iAmEliminated = data;
-	elimPanelDismissed = false;
-	if (typeof data.rating === "number") {
-		updateRatingFromStandings([{
-			id: id,
-			rating: data.rating,
-			ratingDelta: data.ratingDelta,
-			provisional: data.provisional
-		}]);
-	}
-	// Don't open the elim panel here — game_result is about to fire and
-	// will run the round-end reveal sequence; the panel pops afterwards
-	// (via onComplete) so the player actually witnesses the moment they
-	// got cut instead of an immediate panel covering the board.
-	stopRoundTimer();
-});
-
-var latestSpectatorGames = null; // last draw_board.games while iAmEliminated — used to repaint slot 0 on a target switch
-
-// Paint the big slot-0 canvas with the currently-spectated player's state.
-// If spectatorTarget is unset / stale, default to the live leader.
-function paintSpectatorBigBoard(games) {
-	var liveGames = games.slice(1).filter(function(g) { return g; });
-	if (!spectatorTarget || !liveGames.some(function(g) { return g.id === spectatorTarget; })) {
-		var sorted = liveGames.slice().sort(function(a, b) {
-			if (a.finished !== b.finished) return a.finished ? -1 : 1;
-			if (a.finished && b.finished) return (a.finishedAt || 0) - (b.finishedAt || 0);
-			return (b.progress || 0) - (a.progress || 0);
-		});
-		if (sorted[0]) spectatorTarget = sorted[0].id;
-	}
-	var target = spectatorTarget ? liveGames.find(function(g) { return g.id === spectatorTarget; }) : null;
-	var nameEl0 = document.getElementById("player_name0");
-	if (target) {
-		nameEl0.textContent = "Spectating " + target.playerName;
-		myState = target.state;
-		prevPlayerState = cloneState(target.state);
-		spectatorTargetSkin = target.skin || "classic"; // watched board paints in its owner's skin
-		renderPlayerBoard();
-	} else {
-		nameEl0.textContent = "Eliminated";
-		clearCanvas(document.getElementById("game0"));
-	}
-}
-
-// Click-triggered refresh: rerun the whole spectator view (big board +
-// small opponent slots) against the last cached frame so a switch is
-// instant instead of waiting on the next server tick.
-function repaintSpectatorView(games) {
-	paintSpectatorBigBoard(games);
-	// Mirror the slot 1-2 logic from draw_board so the small slots also
-	// drop the new target out of their list immediately.
-	var opponents = games.slice(1).filter(function(g) {
-		return g && (!iAmEliminated || !spectatorTarget || g.id !== spectatorTarget);
-	});
-	opponents.sort(function(a, b) {
-		if (a.finished !== b.finished) return a.finished ? -1 : 1;
-		if (a.finished && b.finished) return (a.finishedAt || 0) - (b.finishedAt || 0);
-		return (b.progress || 0) - (a.progress || 0);
-	});
-	var slots = document.querySelectorAll('[data-slot]');
-	for (var i = 1; i <= 5; i++) {
-		var nameEl = document.getElementById("player_name" + i);
-		var canvasEl = document.getElementById("game" + i);
-		var slot = slots[i - 1];
-		var opp = i <= 2 ? opponents[i - 1] : null;
-		if (opp) {
-			setOppIdentity(i, opp);
-			drawBoardStatic(opp.state, canvasEl, opp.skin || "classic");
-			if (slot) { slot.style.display = ""; slot.dataset.pid = opp.id || ""; }
-		} else {
-			setOppIdentity(i, null);
-			clearCanvas(canvasEl);
-			if (slot) { slot.style.display = "none"; delete slot.dataset.pid; }
-		}
-	}
-}
-
 socket.on("draw_board", function(data) {
 	// While actively searching for a new ranked match (between startBattleSearch and endBattleSearch)
 	// we're not seated in any room — inRoom is false, currentRoom is null — so a draw_board that still
@@ -2457,7 +2068,6 @@ socket.on("draw_board", function(data) {
 	if (rankedSearch) return;
 	var games = data.games;
 	lastGames = games;
-	if (iAmEliminated) latestSpectatorGames = games;
 	var slots = document.querySelectorAll('[data-slot]');
 	// Cache live progress per player so the scoreboard can show "% cleared" in
 	// real time and rank players by it.
@@ -2479,18 +2089,11 @@ socket.on("draw_board", function(data) {
 	// carries our pre-click state. Without this, the first click visibly
 	// "reverts" until our click handler catches up.
 	var me = games[0];
-	if (!me && iAmEliminated) {
-		paintSpectatorBigBoard(games);
-	}
 
 	// Slots 1-2 = top two opponents by live progress (finished outranks playing,
 	// then by % cleared). Other opponents stay hidden — large lobbies would be
 	// unreadable otherwise; the scoreboard surfaces everyone with progress bars.
-	// When spectating, skip the target player here since they're already on
-	// the big board (showing the same player in both slots would be wasteful).
-	var opponents = games.slice(1).filter(function(g) {
-		return g && (!iAmEliminated || !spectatorTarget || g.id !== spectatorTarget);
-	});
+	var opponents = games.slice(1).filter(function(g) { return !!g; });
 	if (isMultiRacing()) {
 		// 6-player battle: lock the opponent grid to a fixed order by starting rating (stable through
 		// the match) so the boards don't jump around as the lead changes. Rating is constant during a
@@ -2508,7 +2111,7 @@ socket.on("draw_board", function(data) {
 			return a.id < b.id ? -1 : (a.id > b.id ? 1 : 0);
 		});
 	} else {
-		// Other layouts (tournament thumbnails) show the current leaders, by live progress.
+		// Other layouts show the current leaders, by live progress.
 		opponents.sort(function(a, b) {
 			if (a.finished !== b.finished) return a.finished ? -1 : 1;
 			if (a.finished && b.finished) return (a.finishedAt || 0) - (b.finishedAt || 0);
@@ -2516,7 +2119,7 @@ socket.on("draw_board", function(data) {
 		});
 	}
 	// The battle layouts show every opponent (duel = 1, 6-player = up to 5); other lobbies
-	// (tournament) stay capped at the top 2 thumbnails — the scoreboard surfaces the rest.
+	// stay capped at the top 2 thumbnails — the scoreboard surfaces the rest.
 	var oppShown = isMultiRacing() ? 5 : (isDuoRacing() ? 1 : 2);
 
 	if (me) {
@@ -2616,7 +2219,7 @@ socket.on("draw_board", function(data) {
 
 // danger warning moved to DangerWarning.js
 
-var allViews = ["name_view", "lobby_view", "game_view", "learn_view", "leaderboard_view", "profile_view", "settings_view", "shop_view", "custom_view", "admin_view", "puzzles_view", "puzzles_list_view", "bots_view", "starting_positions_view", "patterns_view", "start_patterns_view", "combined_puzzles_view", "marathon_boards_view", "design_view", "countdown_lab_view", "sound_lab_view", "territory_view", "puzzle_play_view", "ranked_picker_view", "replay_view", "privacy_view", "terms_view"];
+var allViews = ["name_view", "lobby_view", "game_view", "learn_view", "leaderboard_view", "profile_view", "settings_view", "shop_view", "custom_view", "admin_view", "puzzles_view", "puzzles_list_view", "bots_view", "starting_positions_view", "patterns_view", "start_patterns_view", "combined_puzzles_view", "marathon_boards_view", "design_view", "countdown_lab_view", "sound_lab_view", "puzzle_play_view", "replay_view", "privacy_view", "terms_view"];
 // Routing + view show/hide moved to Router.js.
 // Profile view rendering moved to Profile.js.
 
@@ -2694,13 +2297,6 @@ function resetGameUI() {
 if ((location.pathname === "/" || location.pathname === "") && typeof showLobbyView === "function") {
 	showLobbyView();
 }
-
-
-// Render the live scoreboard. During a round, sorts by progress (finished
-// first, then % cleared) and shows a progress bar. In planning phase, sorts
-// by cumulative score and shows ready/waiting state.
-// For larger lobbies (tournaments), applies a Trackmania-style top+gap+you
-// pattern so it always shows the leaders and the player's neighbourhood.
 
 
 
