@@ -10,6 +10,26 @@ function formatDifficulty(d) {
 	return d ? d.charAt(0).toUpperCase() + d.slice(1) : "";
 }
 
+// renderScoreboard/renderSearchScoreboard rebuild their whole <li> list from scratch on every call —
+// fine for the cheap text bits (rank/name/progress), but a fresh li means a fresh avatar-chip canvas
+// each time too, with no DOM node surviving between calls for the usual per-element cache trick
+// (setHudName/setOppIdentity) to hang a cache key on. Cached here instead, keyed by player id and
+// re-used across calls as long as the avatar/country haven't actually changed — appending an EXISTING
+// canvas into the new row just moves it (no redraw, no blank frame), where building a fresh one every
+// frame is what actually reads as "opponent avatars flickering" once the board updates several times a
+// second (draw_board), most noticeably while frozen after a mine hit and just watching the panel.
+var scoreAvatarCache = {};
+function cachedScoreAvatar(pid, avatarId, country) {
+	if (typeof buildAvatarChip !== "function") return null;
+	var key = (avatarId || "") + "|" + (country || "");
+	var entry = scoreAvatarCache[pid];
+	if (entry && entry.key === key) return entry.el;
+	var el = buildAvatarChip(avatarId, country || null, 32);
+	el.classList.add("score-avatar");
+	scoreAvatarCache[pid] = { key: key, el: el };
+	return el;
+}
+
 function renderBotList(state, isOwner) {
 	var bots = state.players.filter(function(p) { return p.isBot; });
 	botListEl.innerHTML = "";
@@ -328,7 +348,13 @@ function renderRoomState(state) {
 	}
 }
 function renderScoreboard() {
-	if (!currentRoom || !scoreboardEl) return;
+	if (!scoreboardEl) return;
+	// No room yet — either idle, or a ranked battle search still finding players (updateBattleSearch,
+	// Main.js, calls this same function during search now). The landscape-mobile 6-player layout shows
+	// this same live list in place of the desktop's per-opponent board grid (see its own CSS section),
+	// so without this branch it just sat empty for the whole search phase — "we need to show something
+	// when players are loading in" was exactly that gap.
+	if (!currentRoom) { renderSearchScoreboard(); return; }
 	var state = currentRoom;
 	var playing = state.phase === "playing";
 
@@ -394,13 +420,8 @@ function renderScoreboard() {
 		// Hidden by default (see .score-avatar, style.css) — only the landscape-mobile 6-player layout
 		// shows it, reusing this same live-updating scoreboard as its opponents list (see the "multi
 		// landscape" CSS section) rather than building a separate roster component from scratch.
-		if (typeof buildAvatarChip === "function") {
-			// 32px — sized to roughly match the landscape row's own two-line (name + progress bar)
-			// height, since that's the only place this ever actually renders (hidden everywhere else).
-			var avatar = buildAvatarChip(p.avatar || DEFAULT_AVATAR, p.country || null, 32);
-			avatar.classList.add("score-avatar");
-			li.appendChild(avatar);
-		}
+		var avatar = cachedScoreAvatar(p.id, p.avatar || DEFAULT_AVATAR, p.country);
+		if (avatar) li.appendChild(avatar);
 
 		var name = document.createElement("span");
 		name.className = "score-name";
@@ -466,6 +487,41 @@ function renderScoreboard() {
 
 		scoreboardEl.appendChild(li);
 	});
+}
+// Search-phase counterpart to renderScoreboard's normal room-based rendering, above — mirrors the same
+// "every seat shown, filled ones get a real identity, empty ones get a Searching… placeholder" treatment
+// paintOpponentCovered (Main.js) already gives the desktop opponent-board slots, but as list rows.
+// Reuses the exact same .score-row/.score-avatar/.score-name markup renderScoreboard builds, so it picks
+// up identical styling with no separate CSS needed (including the landscape-mobile 6-player layout,
+// which is the one place this is actually visible — the desktop layout shows the board grid instead).
+function renderSearchScoreboard() {
+	if (typeof rankedSearch === "undefined" || !rankedSearch || !rankedSearch.race) { scoreboardEl.innerHTML = ""; return; }
+	var members = rankedSearch.members || [];
+	var size = rankedSearch.size || members.length;
+	scoreboardEl.innerHTML = "";
+	for (var i = 0; i < size; i++) {
+		var p = members[i];
+		var li = document.createElement("li");
+		li.className = "score-row" + (p && p.isYou ? " score-row-me" : "") + (p ? "" : " score-row-waiting");
+
+		// Empty seats have no stable player id to key the cache on — use the seat index instead, so an
+		// empty slot's own placeholder avatar isn't needlessly rebuilt every search-progress tick either.
+		var avatar = cachedScoreAvatar(p ? p.id : "__waiting_" + i, (p && p.avatar) || "anon", p && p.country);
+		if (avatar) li.appendChild(avatar);
+
+		var name = document.createElement("span");
+		name.className = "score-name";
+		name.textContent = p ? p.name : "Searching…";
+		if (!p) name.classList.add("score-name-waiting");
+		li.appendChild(name);
+
+		var meta = document.createElement("span");
+		meta.className = "score-meta" + (p ? " score-meta-ready" : " score-meta-waiting");
+		meta.textContent = p ? "Found" : "Waiting…";
+		li.appendChild(meta);
+
+		scoreboardEl.appendChild(li);
+	}
 }
 function populateSelect(select, options, fmt) {
 	if (select.options.length === options.length) return;

@@ -1692,6 +1692,10 @@ function updateBattleSearch() {
 	applyDuoClass();
 	buildDuelIdentity();
 	paintOpponentCovered();
+	// The landscape-mobile 6-player layout shows the scoreboard list in place of the opponent-board
+	// grid paintOpponentCovered fills above — renderScoreboard's own renderSearchScoreboard branch
+	// (GameRoom.js) mirrors that same slot-filling treatment as list rows.
+	if (typeof renderScoreboard === "function") renderScoreboard();
 	var filled = (rankedSearch.members || []).length;
 	if (battleSearchText) battleSearchText.textContent = "Finding match · " + filled + "/" + rankedSearch.size;
 	if (battleSearchStatus) battleSearchStatus.style.display = "";

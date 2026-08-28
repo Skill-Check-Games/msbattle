@@ -5050,6 +5050,12 @@ body.duel-force-rotate .game-view.multi .game-side { display: flex !important; }
 	border-color: rgba(99, 102, 241, 0.3);
 }
 
+/* An empty seat during ranked-search matchmaking (renderSearchScoreboard, GameRoom.js) — same dimmed
+   treatment .opponent_div.opponent-searching already gives the desktop opponent-board slots for the
+   same "waiting for someone to fill this" state. */
+.score-row-waiting { opacity: 0.6; }
+.score-name-waiting { font-style: italic; }
+
 /* Spectator: rows become clickable to switch the big-board target. The
    current target gets a teal outline + a small "watching" indicator. */
 .score-row-spectatable { cursor: pointer; }
