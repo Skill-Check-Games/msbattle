@@ -2214,7 +2214,6 @@ socket.on("draw_board", function(data) {
 	if (isDuoRacing()) updateDuelHud(games[0], opponents[0]);
 	else if (isMultiRacing()) updateMultiHud(games[0], opponents);
 	if (isBattleRacing()) updateMultiPlacements(games); // finish-place stamps for both 1v1 + 6-player
-	updateDangerWarning();
 });
 
 // danger warning moved to DangerWarning.js
