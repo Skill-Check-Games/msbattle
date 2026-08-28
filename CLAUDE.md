@@ -395,8 +395,9 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   theirs (not a second board to actively track) — Flag/Reveal in their own panel directly under the
   board, and a back button (`#duel_back_btn`, top-left of the left panel) since the header carrying
   `#leave_button` is hidden outright here same as before. Built to match a second provided sketch closely
-  (`layout-mobile2.png`, repo root — distinct from `layout-mobile.png`/`layout-desktop.png`, the first
-  round's references).
+  (`design-refs/layout-mobile2.png` — distinct from `design-refs/layout-mobile.png`/`layout-desktop.png`,
+  the first round's references; `design-refs/` holds every design-mockup screenshot used to build a
+  layout against, one flat folder rather than scattered at the repo root).
   **The grid**: `.game-grid` becomes `minmax(0,210px) minmax(0,1fr) minmax(0,210px)` columns ×
   `minmax(0,1fr) auto` rows, with `grid-template-areas: "left board right" "left toggle right"` — left
   and right panels span the full height, the board and the Flag/Reveal panel stack in the center column.
@@ -1109,7 +1110,8 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   still in the pre-reveal window) specifically to close this gap — don't drop that call when touching this code.
   The site footer is hidden whenever a game is on screen via a `body.in-game` class (added by the
   game entry points, removed in `hideAllViews`).
-  **Landscape-phone layout** (`body.multi-landscape-mode`, the `.multi` sibling of the duel's own
+  **Landscape-phone layout** (`design-refs/layout-multi.png` the reference mockup;
+  `body.multi-landscape-mode`, the `.multi` sibling of the duel's own
   `duel-landscape-mode`, both driven by `applyDuelLandscapeClass`/style.css — same media query, same
   shared `duel-force-rotate` fallback for a phone stuck physically portrait): reuses the duel layout's
   own left-panel/board markup and CSS verbatim (`.duel-header-row`, `.duel-id`, `.board-wrap`, the
@@ -1378,7 +1380,8 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   redirect that lands on the lobby and opens the modal, same as `/ranked/sprint`|`standard`. The home
   card itself shows the **Puzzle Ladder tier** (`#puzzle_ladder_tier`, `puzzleLadderLabel`) instead of the
   hidden puzzle rating or a solved count — same "tier only" treatment Sprint/Standard use.
-  **In-game puzzle board on landscape phones**: the board uses a fixed-size box
+  **In-game puzzle board on landscape phones** (`design-refs/layout-puzzle1.png`/`layout-puzzle2.png`
+  the reference mockups): the board uses a fixed-size box
   (`sizePlayerCanvas`'s `fixedBox` branch, MobileLayout.js — `PUZZLE_BOARD_PX`/`PUZZLE_CELL_MAX`,
   480px/75px desktop, 320px/56px portrait `mobileLayout`) that picked the DESKTOP size on a landscape
   phone (width > 700 fails the portrait check) even though its viewport is often under 400px tall,
