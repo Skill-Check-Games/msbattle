@@ -4602,7 +4602,14 @@ body.multi-landscape-mode .game-view.multi .duel-id-tier-pill {
 	padding: 0;
 	gap: 0.15rem;
 }
-body.multi-landscape-mode .game-view.multi .duel-id-tier-badge.rank-badge {
+/* #duel_id_you's own desktop rule (.game-view.multi #duel_id_you .rank-badge { font-size: 15px; },
+   above) carries an ID selector, which beats a plain-class override on specificity regardless of how
+   many ancestor classes this one stacks — needs its own ID-qualified selector to actually win here
+   (same gotcha the duel layout's own comments warn about for #duel_id_opp). Without it the badge
+   rendered at the desktop's much larger 15px instead of this layout's scaled-down 5px, reported as
+   "super large for some reason". */
+body.multi-landscape-mode .game-view.multi .duel-id-tier-badge.rank-badge,
+body.multi-landscape-mode .game-view.multi #duel_id_you .rank-badge {
 	font-size: 5px;
 	transform: scale(1.4);
 	margin: 0 3px;
@@ -4772,35 +4779,57 @@ body.multi-landscape-mode .game-view.multi .scoreboard {
 	flex: 1;
 	min-height: 0;
 	overflow-y: auto;
-	gap: 0.3rem;
+	gap: 0.15rem;
 	scrollbar-width: none;
 	-ms-overflow-style: none;
 }
 body.multi-landscape-mode .game-view.multi .scoreboard::-webkit-scrollbar { display: none; width: 0; height: 0; }
-/* The rigid 4-column grid (.score-row's base rule) doesn't have room for a 5th (avatar) column at
-   this width — flex + explicit order lets rank/avatar share a line and the name wrap to its own full-
-   width line below them, with the progress bar + pct on a third line, instead of fighting the grid
-   template. Excludes .score-row-gap (the "···" folded-field marker) — it's plain centered text, not a
-   player row, and has no avatar/name/progress children to reflow. */
+/* Rows want to take as little vertical space as possible (more of the field visible without
+   scrolling) — no rank number (redundant with the row's own position in the list at this size), and
+   the avatar sized/positioned to span exactly the combined height of the name and progress-bar lines
+   next to it, not a separate line of its own. A 2×2 CSS grid does this directly: "avatar" is named in
+   BOTH template-area rows, which is the standard trick for making a grid item span multiple rows
+   without an explicit grid-row — much simpler than fighting the base 4-column grid (.score-row's own
+   rule) or flex+order for a genuinely two-dimensional layout like this one. Excludes .score-row-gap
+   (the "···" folded-field marker) — plain centered text, not a player row, with none of these
+   children to place. */
 body.multi-landscape-mode .game-view.multi .score-row:not(.score-row-gap) {
-	display: flex;
-	flex-wrap: wrap;
+	display: grid;
+	grid-template-columns: 32px 1fr auto;
+	grid-template-rows: auto auto;
+	grid-template-areas:
+		"avatar name pct"
+		"avatar bar  left";
 	align-items: center;
-	gap: 0.3rem;
-	padding: 0.4rem 0.5rem;
+	column-gap: 0.45rem;
+	row-gap: 0.1rem;
+	padding: 0.3rem 0.4rem;
 }
-body.multi-landscape-mode .game-view.multi .score-rank { order: -2; flex: 0 0 auto; }
-body.multi-landscape-mode .game-view.multi .score-avatar { display: inline-flex; order: -1; }
+body.multi-landscape-mode .game-view.multi .score-rank { display: none; }
+body.multi-landscape-mode .game-view.multi .score-avatar { display: inline-flex; grid-area: avatar; align-self: center; }
 body.multi-landscape-mode .game-view.multi .score-name {
-	order: 1;
-	flex: 1 1 100%;
-	font-size: 0.8rem;
+	grid-area: name;
+	font-size: 0.76rem;
+	line-height: 1.15;
 }
-body.multi-landscape-mode .game-view.multi .score-progress { order: 2; flex: 1 1 auto; width: auto; }
+/* Dropped here (not just shrunk) — the reference mockup's rows don't carry one either, and at this
+   width it was eating into the name's own room, truncating longer names earlier than necessary. */
+body.multi-landscape-mode .game-view.multi .score-tier { display: none; }
+body.multi-landscape-mode .game-view.multi .score-progress { grid-area: bar; width: auto; height: 5px; }
 body.multi-landscape-mode .game-view.multi .score-pct,
 body.multi-landscape-mode .game-view.multi .score-meta,
-body.multi-landscape-mode .game-view.multi .score-points { order: 3; flex: 0 0 auto; font-size: 0.72rem; }
-body.multi-landscape-mode .game-view.multi .score-tier { order: 1; }
+body.multi-landscape-mode .game-view.multi .score-points {
+	grid-area: pct;
+	font-size: 0.68rem;
+}
+body.multi-landscape-mode .game-view.multi .score-left {
+	display: block;
+	grid-area: left;
+	font-size: 0.6rem;
+	color: var(--muted);
+	text-align: right;
+	white-space: nowrap;
+}
 
 /* Same portrait-phone force-rotate override the duel layout needs (see its own comment, above the
    forced-landscape section) — the @media(max-width:700px) block's own "body.in-game .game-side {
@@ -5046,7 +5075,12 @@ body.duel-force-rotate .game-view.multi .game-side { display: flex !important; }
 /* Hidden everywhere except the 6-player landscape-mobile layout (below), which reuses this same
    live scoreboard as its opponents list and wants a small avatar per row to match — every other
    place .score-row appears (desktop lobby/casual scoreboard) has no room budgeted for one. */
-.score-avatar { display: none; flex: 0 0 auto; width: 22px; height: 22px; }
+.score-avatar { display: none; flex: 0 0 auto; width: 32px; height: 32px; }
+
+/* Hidden alongside .score-avatar for the same reason — "N cells left", built by renderScoreboard
+   (GameRoom.js) from the same liveProgress totalSafe/safeCount every other cells-left readout
+   (duel-bar-corner, duel-top-progress) already uses, just not surfaced anywhere until now. */
+.score-left { display: none; }
 
 .score-name {
 	font-weight: 500;

@@ -395,7 +395,9 @@ function renderScoreboard() {
 		// shows it, reusing this same live-updating scoreboard as its opponents list (see the "multi
 		// landscape" CSS section) rather than building a separate roster component from scratch.
 		if (typeof buildAvatarChip === "function") {
-			var avatar = buildAvatarChip(p.avatar || DEFAULT_AVATAR, p.country || null, 22);
+			// 32px — sized to roughly match the landscape row's own two-line (name + progress bar)
+			// height, since that's the only place this ever actually renders (hidden everywhere else).
+			var avatar = buildAvatarChip(p.avatar || DEFAULT_AVATAR, p.country || null, 32);
 			avatar.classList.add("score-avatar");
 			li.appendChild(avatar);
 		}
@@ -436,6 +438,13 @@ function renderScoreboard() {
 			pctText.className = "score-pct";
 			pctText.textContent = lp.finished ? "✓" : pct + "%";
 			li.appendChild(pctText);
+			// Hidden by default (see .score-left, style.css) — only the landscape-mobile 6-player
+			// layout shows it, alongside the pct, same reasoning as .score-avatar above.
+			var leftText = document.createElement("span");
+			leftText.className = "score-left";
+			var cellsLeft = Math.max(0, (lp.totalSafe || 0) - (lp.safeCount || 0));
+			leftText.textContent = lp.finished ? "" : cellsLeft + " left";
+			li.appendChild(leftText);
 		} else {
 			var meta = document.createElement("span");
 			meta.className = "score-meta";
