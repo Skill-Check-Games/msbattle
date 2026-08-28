@@ -196,7 +196,14 @@ function sizePlayerCanvas() {
 			boardScroll.style.width = visW + "px";
 			boardScroll.style.marginLeft = "auto";
 			boardScroll.style.marginRight = "auto";
-		} else if (boardScroll && isDuelLandscapeMobile()) {
+		} else if (boardScroll) {
+			// Both duel/multi-landscape (a fixed game-area width regardless of zoom) and the fixed-size
+			// puzzle box (480/320/300px, purely CSS-driven — see .game-view.puzzle .board-scroll) want
+			// #board_scroll's width/margin left alone by JS entirely. Clear whatever the branch above
+			// may have set earlier in the session (e.g. portrait mobileLayout racing, before navigating
+			// into a puzzle without a full reload) — fixedBox mode never otherwise revisits these
+			// properties, so a stale inline value would silently override the CSS forever, not just
+			// until the next resize.
 			boardScroll.style.width = "";
 			boardScroll.style.marginLeft = "";
 			boardScroll.style.marginRight = "";
@@ -204,6 +211,17 @@ function sizePlayerCanvas() {
 	} else {
 		playerCanvas.style.height = "auto";
 		playerCanvas.style.maxWidth = "100%";
+		// Puzzle boards can flip between pannable (portrait mobileLayout) and non-pannable (desktop,
+		// and landscape-phone puzzle — boardIsPannable() is false there too, since puzzle is neither
+		// duo nor multi) across a single session with no reload — e.g. rotating a phone from portrait
+		// to landscape mid-puzzle. Without this, a width the pannable branch above set earlier keeps
+		// silently overriding the CSS here too, which is exactly what left the landscape puzzle board
+		// stuck at its old portrait-fitted width (reported as "completely bugged").
+		if (boardScroll && fixedBox) {
+			boardScroll.style.width = "";
+			boardScroll.style.marginLeft = "";
+			boardScroll.style.marginRight = "";
+		}
 	}
 }
 
