@@ -504,6 +504,13 @@ function renderSearchScoreboard() {
 		var li = document.createElement("li");
 		li.className = "score-row" + (p && p.isYou ? " score-row-me" : "") + (p ? "" : " score-row-waiting");
 
+		// Seat index, not a live ranking — matches the room-based branch's own numbering convention
+		// (position 1 through size) even though there's no progress yet to actually rank by.
+		var rank = document.createElement("span");
+		rank.className = "score-rank";
+		rank.textContent = (i + 1) + ".";
+		li.appendChild(rank);
+
 		// Empty seats have no stable player id to key the cache on — use the seat index instead, so an
 		// empty slot's own placeholder avatar isn't needlessly rebuilt every search-progress tick either.
 		var avatar = cachedScoreAvatar(p ? p.id : "__waiting_" + i, (p && p.avatar) || "anon", p && p.country);

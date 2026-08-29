@@ -4510,7 +4510,10 @@ body.multi-landscape-mode .game-view.multi {
 }
 body.multi-landscape-mode .game-view.multi .game-grid {
 	display: grid;
-	grid-template-columns: minmax(0, 158px) minmax(0, 1fr) minmax(0, 190px);
+	/* Right column widened 190->210px to give the name column back the room the position-number
+	   column (added on request) now shares it with — otherwise longer names truncated earlier than
+	   before for no real gain. */
+	grid-template-columns: minmax(0, 158px) minmax(0, 1fr) minmax(0, 210px);
 	grid-template-rows: minmax(0, 1fr);
 	grid-template-areas: "left board right";
 	align-items: stretch;
@@ -4785,27 +4788,37 @@ body.multi-landscape-mode .game-view.multi .scoreboard {
 }
 body.multi-landscape-mode .game-view.multi .scoreboard::-webkit-scrollbar { display: none; width: 0; height: 0; }
 /* Rows want to take as little vertical space as possible (more of the field visible without
-   scrolling) — no rank number (redundant with the row's own position in the list at this size), and
-   the avatar sized/positioned to span exactly the combined height of the name and progress-bar lines
-   next to it, not a separate line of its own. A 2×2 CSS grid does this directly: "avatar" is named in
-   BOTH template-area rows, which is the standard trick for making a grid item span multiple rows
-   without an explicit grid-row — much simpler than fighting the base 4-column grid (.score-row's own
-   rule) or flex+order for a genuinely two-dimensional layout like this one. Excludes .score-row-gap
-   (the "···" folded-field marker) — plain centered text, not a player row, with none of these
-   children to place. */
+   scrolling), the position number back on request ("according to the sketch" — shown, not skipped,
+   this time round), and the avatar sized/positioned to span exactly the combined height of the name
+   and progress-bar lines next to it, not a separate line of its own. A 2×2 CSS grid does this
+   directly: "avatar" is named in BOTH template-area rows, which is the standard trick for making a
+   grid item span multiple rows without an explicit grid-row — much simpler than fighting the base
+   4-column grid (.score-row's own rule) or flex+order for a genuinely two-dimensional layout like this
+   one. Excludes .score-row-gap (the "···" folded-field marker) — plain centered text, not a player
+   row, with none of these children to place. */
 body.multi-landscape-mode .game-view.multi .score-row:not(.score-row-gap) {
 	display: grid;
-	grid-template-columns: 32px 1fr auto;
+	grid-template-columns: 14px 32px 1fr auto;
 	grid-template-rows: auto auto;
 	grid-template-areas:
-		"avatar name pct"
-		"avatar bar  left";
+		"rank avatar name pct"
+		"rank avatar bar  left";
 	align-items: center;
-	column-gap: 0.45rem;
+	column-gap: 0.35rem;
 	row-gap: 0.1rem;
 	padding: 0.3rem 0.4rem;
 }
-body.multi-landscape-mode .game-view.multi .score-rank { display: none; }
+/* renderScoreboard already computes this as the row's own live position in the progress-sorted list
+   (rows.map's `rank: idx + 1`) — no separate ranking logic needed, just showing what was already
+   there. Small/muted/centered rather than the desktop's right-aligned ".rank." — this column is
+   narrow and the number is the whole point, not a label next to one. */
+body.multi-landscape-mode .game-view.multi .score-rank {
+	display: block;
+	grid-area: rank;
+	font-size: 0.62rem;
+	color: var(--muted);
+	text-align: center;
+}
 body.multi-landscape-mode .game-view.multi .score-avatar { display: inline-flex; grid-area: avatar; align-self: center; }
 body.multi-landscape-mode .game-view.multi .score-name {
 	grid-area: name;
