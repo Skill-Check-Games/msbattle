@@ -1652,8 +1652,14 @@ input[type="range"]:disabled { opacity: 0.55; cursor: not-allowed; }
    rotate/body-class machinery either: a portrait phone already gets a correctly-sized board via the
    plain mobileLayout branch, so this only handles the genuinely broken landscape cases, which a plain
    media query already sees directly — nothing here needs to survive a CSS rotation trick the way the
-   battle layouts' force-rotate fallback does. */
-@media (orientation: landscape) and (max-height: 500px) {
+   battle layouts' force-rotate fallback does.
+   (pointer: coarse) — confirmed by a real report: without it, an ordinary short DESKTOP browser
+   window (no touchscreen, just a short/non-maximized window) also matched orientation:landscape +
+   max-height:500px and got this whole compact/header-hidden treatment, with nothing sized to the
+   window's actual (much wider) width — see puzzleLandscapeMQL's own comment, Main.js, which needed
+   the identical fix (kept in sync with this CSS media query by hand, not shared code — there's no way
+   to share a query string between a stylesheet and a matchMedia() call). */
+@media (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
 	/* Same "main's own 2rem padding pushes content below the viewport" fix the 6-player layout needs
 	   (see its own comment) — puzzle play is never a body.ranked-game room, so there's no existing
 	   reset to lean on here either. */
@@ -1666,6 +1672,11 @@ input[type="range"]:disabled { opacity: 0.55; cursor: not-allowed; }
 		overflow: hidden;
 		display: flex;
 		align-items: center;
+		/* Without this the board+card group (which doesn't stretch to fill available width — neither
+		   has a flex-grow) sits at the row's default start edge, leaving any extra width as dead space
+		   on one side instead of framing the content evenly — most visible on a wide phone/short window
+		   where the content is much narrower than the viewport. */
+		justify-content: center;
 	}
 	/* Overrides the max-width:900px block's flex-direction:column further up — a landscape phone is
 	   often under 900px WIDE despite having width to spare (the constraint here is height, not width),

@@ -103,8 +103,16 @@ function applyDuoClass() {
 // regardless of which battle mode is active), which a media query has no way to see (a CSS transform
 // doesn't change what orientation/dimensions media queries themselves observe). See the big comment
 // above body.duel-landscape-mode in style.css for the full picture.
+// (pointer: coarse) is the real "is this a phone, not just a short window" signal — orientation and
+// max-height alone can't tell a landscape phone apart from an ordinary desktop browser window that
+// just happens to be short (a small laptop screen, a non-maximized window, …), which — confirmed by
+// a real report — DID trigger this whole compact/header-hidden layout on an actual desktop, with
+// nothing to visually center the content against the leftover width (huge empty space to one side).
+// A mouse/trackpad reports pointer:fine; a touchscreen reports pointer:coarse, regardless of window
+// size — this is a real hardware/input signal a media query can check directly, not something that
+// needs JS (touchInput) or a body class to plumb through.
 var duelLandscapeMQL = window.matchMedia
-	? window.matchMedia("(orientation: landscape) and (max-height: 500px) and (min-width: 701px)") : null;
+	? window.matchMedia("(orientation: landscape) and (max-height: 500px) and (min-width: 701px) and (pointer: coarse)") : null;
 // Puzzle's own landscape query (MobileLayout.js's isPuzzleLandscapeMobile) deliberately has NO
 // min-width floor, unlike the battle layouts' query above — duo/multi exclude a small landscape phone
 // (e.g. iPhone SE, 667x375) on purpose, because mobileLayout's own generic touch layout ALREADY works
@@ -115,8 +123,11 @@ var duelLandscapeMQL = window.matchMedia
 // only sets height, not width; the width fix only kicks in at max-width:600px) leave an actively
 // broken, non-square, off-screen box in the gap between them. So puzzle's query matches ANY landscape
 // orientation short enough, width irrelevant — verified against a real 667x375 viewport.
+// (pointer: coarse) — see duelLandscapeMQL's own comment above for why this matters: without it, an
+// ordinary short desktop browser window (no min-width floor here either, so ANY short window) gets
+// mistaken for a landscape phone.
 var puzzleLandscapeMQL = window.matchMedia
-	? window.matchMedia("(orientation: landscape) and (max-height: 500px)") : null;
+	? window.matchMedia("(orientation: landscape) and (max-height: 500px) and (pointer: coarse)") : null;
 // Same "is this actually a phone" signal enterDuelMobileFullscreen (Fullscreen.js) uses — screen.width/
 // height are the device's real resolution, unaffected by the current browser window size, so this
 // doesn't misfire for a touch laptop/tablet just because its window happens to be narrow.
