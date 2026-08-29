@@ -16,16 +16,22 @@ function sizeBoardCanvas(canvas, cellPx) {
 	canvas.style.maxWidth = "100%";
 	canvas.style.height = "auto";
 }
-// Fixed board area for the rated-puzzle view so the page layout doesn't
-// jump as different-sized puzzles load. Cells scale to fit the larger
-// dimension, smaller dimension is centered in the box via flex on
-// .board-scroll (see style.css). Cell size is capped — at the unbounded
-// 480/max(rows,cols), a 4×4 would render at 120-px cells, ~3.5× the
-// multiplayer cell, which looks oversized against itself.
-var PUZZLE_BOARD_PX = 480;
+// Square board-framing BOX for the rated-puzzle view (.board-scroll/.board-wrap, style.css) — cells
+// scale to fit the larger dimension, smaller dimension is centered in the box via flex on
+// .board-scroll. Keeping this a fixed-per-load SQUARE (not just fitting the canvas to its own content)
+// is what keeps the page from jumping as different-sized puzzles load: a 5x5 and a 5x15 puzzle get the
+// SAME box, just centered differently inside it. Cell size is separately capped — at an unbounded
+// box/max(rows,cols), a 4×4 would render at huge cells, way bigger than the multiplayer cell, which
+// looks oversized against itself.
+// Desktop's own box size is computed live (fitPuzzleDesktopBoxPx, below) instead of a fixed guess —
+// "use all the space we have" — mobile/landscape keep fixed numbers since their viewport shape is
+// already fairly predictable and a live measurement there isn't worth the complexity.
 var PUZZLE_BOARD_PX_MOBILE = 320;
 var PUZZLE_CELL_MAX = 75;
 var PUZZLE_CELL_MAX_MOBILE = 56;
+// Only used if fitPuzzleDesktopBoxPx (below) can't get a real measurement (e.g. called before the
+// board's own DOM is actually laid out) — the old fixed guess, kept as a last-resort floor.
+var PUZZLE_BOARD_PX_FALLBACK = 480;
 // A landscape PHONE (wide, but short — see isPuzzleLandscapeMobile below) is neither of the above: it
 // fails the portrait mobileLayout check (width > 700) so falls through to the full 480px desktop box,
 // which doesn't fit a viewport that's often under 400px tall — the board simply overflows off screen.
@@ -35,6 +41,44 @@ var PUZZLE_CELL_MAX_MOBILE = 56;
 // actually constrains the cell size here.
 var PUZZLE_BOARD_PX_LANDSCAPE = 300;
 var PUZZLE_CELL_MAX_LANDSCAPE = 56;
+
+// Desktop puzzle board box, measured live instead of guessed — "use all the space we have" (a fixed
+// 480px box left a lot of dead space on any screen taller/wider than that, both below the board and
+// below the ladder card next to it). Still normalizes the LARGER puzzle dimension to this one number
+// regardless of shape (see PUZZLE_BOARD_PX_MOBILE's own comment for why that matters for avoiding a
+// page-jump between puzzles) — this only changes WHAT that number is, computing it from the actual
+// viewport instead of a constant, so it only ever changes on a real resize, never between two puzzles
+// loaded back to back at the same viewport size.
+// Measured the same way fitDesktopCellPx already does for regular boards: off the canvas's own current
+// top offset (window height minus that gives available height regardless of whatever chrome sits
+// above it — header, topbar, …) and .game-grid's own width minus the ladder card's column (NOT
+// .game-left's width — that's flex:0 0 auto, sized FROM the board itself, so measuring it here would
+// be circular). At the narrower @media(max-width:900px) breakpoint the layout stacks instead of
+// sitting side by side (see style.css) — detected via the grid's own computed flex-direction, since at
+// that width nothing shares the row with the board any more and the card's column shouldn't be
+// subtracted from the available width.
+function fitPuzzleDesktopBoxPx() {
+	if (!playerCanvas || !playerCanvas.isConnected) return PUZZLE_BOARD_PX_FALLBACK;
+	var top = playerCanvas.getBoundingClientRect().top;
+	// 32px, not the usual 24px other callers use — .board-scroll's own border/box-shadow and a little
+	// breathing room below the card add a few px beyond the canvas's own measured top, enough that 24
+	// still left a barely-there ~2px page overflow in practice.
+	var availH = window.innerHeight - top - 32;
+	var grid = document.querySelector(".game-view.puzzle .game-grid");
+	if (!grid) return PUZZLE_BOARD_PX_FALLBACK;
+	var stacked = getComputedStyle(grid).flexDirection === "column";
+	var availW = grid.clientWidth;
+	if (!stacked) {
+		var side = document.querySelector(".game-view.puzzle .game-side");
+		var gapPx = parseFloat(getComputedStyle(grid).gap) || 0;
+		availW -= (side ? side.offsetWidth : 0) + gapPx;
+	}
+	var box = Math.min(availH, availW);
+	if (!(box > 0)) return PUZZLE_BOARD_PX_FALLBACK;
+	// Floor keeps a tiny/odd window from producing an unusably small board; ceiling keeps a huge
+	// monitor from blowing cells up past the point of looking deliberate rather than just stretched.
+	return Math.max(240, Math.min(900, Math.floor(box)));
+}
 
 // True whenever a (non-marathon) puzzle board is up on a landscape phone — its own media query
 // (puzzleLandscapeMQL, Main.js), deliberately WITHOUT the battle layouts' min-width floor (see that
@@ -162,9 +206,25 @@ function sizePlayerCanvas() {
 		// own treatment assumes a tall, narrow one and visibly breaks otherwise (mismatched board box,
 		// content pushed off screen — confirmed against a real 667x375 viewport).
 		var puzzleLandscape = isPuzzleLandscapeMobile();
-		var target = puzzleLandscape ? PUZZLE_BOARD_PX_LANDSCAPE : (mobileLayout ? PUZZLE_BOARD_PX_MOBILE : PUZZLE_BOARD_PX);
+		var isPuzzleDesktop = !puzzleLandscape && !mobileLayout;
+		var target = puzzleLandscape ? PUZZLE_BOARD_PX_LANDSCAPE : (mobileLayout ? PUZZLE_BOARD_PX_MOBILE : fitPuzzleDesktopBoxPx());
 		var cap = puzzleLandscape ? PUZZLE_CELL_MAX_LANDSCAPE : (mobileLayout ? PUZZLE_CELL_MAX_MOBILE : PUZZLE_CELL_MAX);
 		cellPx = Math.min(cap, Math.floor(target / Math.max(rows, cols)));
+		// Mobile/landscape keep their fixed CSS box sizes (style.css) — only desktop's box is JS-sized,
+		// since it's now a live measurement instead of a constant the stylesheet can just hardcode.
+		var puzzleWrap = document.querySelector(".game-view.puzzle .board-wrap");
+		if (isPuzzleDesktop) {
+			if (boardScroll) { boardScroll.style.width = target + "px"; boardScroll.style.height = target + "px"; }
+			if (puzzleWrap) puzzleWrap.style.width = target + "px";
+		} else if (inPuzzle) {
+			// Mobile/landscape have their own fixed CSS box sizes (style.css) — clear any inline
+			// width/height a DESKTOP render left behind earlier in the same session (e.g. resizing the
+			// window narrower, or force-rotating into landscape), or it would keep silently overriding
+			// those fixed values regardless of which media query now matches (the same class of bug
+			// already found and fixed for #board_scroll in the racing-board context).
+			if (boardScroll) { boardScroll.style.width = ""; boardScroll.style.height = ""; }
+			if (puzzleWrap) puzzleWrap.style.width = "";
+		}
 	} else {
 		cellPx = mobileLayout ? fitMobileCellPx() : fitDesktopCellPx();
 	}
@@ -222,7 +282,12 @@ function sizePlayerCanvas() {
 		// to landscape mid-puzzle. Without this, a width the pannable branch above set earlier keeps
 		// silently overriding the CSS here too, which is exactly what left the landscape puzzle board
 		// stuck at its old portrait-fitted width (reported as "completely bugged").
-		if (boardScroll && fixedBox) {
+		// Desktop puzzle is excluded — it's ALSO non-pannable (reaching this same branch) but wants the
+		// width the fixedBox block above just set kept, not cleared; without this exclusion it silently
+		// wiped that width back out on every single call (height survived only because this clear never
+		// touched it, which is what made the board render non-square: full height, but width clamped
+		// back to whatever the CSS default resolved to).
+		if (boardScroll && fixedBox && !isPuzzleDesktop) {
 			boardScroll.style.width = "";
 			boardScroll.style.marginLeft = "";
 			boardScroll.style.marginRight = "";

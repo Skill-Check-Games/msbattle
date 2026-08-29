@@ -1583,9 +1583,21 @@ input[type="range"]:disabled { opacity: 0.55; cursor: not-allowed; }
 	box-shadow: none;
 }
 .game-view.puzzle #player_name0 { display: none; }
+/* Racing-only siblings of .board-wrap inside .player-board — togglePuzzleChrome (PuzzlePlay.js) only
+   hides #ready_button itself, not this whole row, so .player-controls (and .duel-bar-row next to it)
+   stayed a visible-but-empty 0-height flex row. Harmless when the board area was a fixed 480px box,
+   but once #puzzle_card started stretching to match .game-left's OWN content height (fill-available-
+   space redesign, below), their margin/spacing still counted toward that content extent — .game-left
+   measured ~27px taller than the board itself actually needed, which .game-side then stretched to
+   match too, leaving the whole page that much taller than the viewport. */
+.game-view.puzzle .duel-bar-row,
+.game-view.puzzle .player-controls { display: none; }
+/* No width/height here on desktop — fitPuzzleDesktopBoxPx (MobileLayout.js) measures the actual
+   available space and sets both directly as an inline style, so the box uses however much room the
+   viewport really has instead of a fixed guess. Portrait mobile and landscape phone keep their own
+   fixed CSS sizes below/in the landscape media-query block — sizePlayerCanvas clears any leftover
+   inline size when neither of those applies, so this rule reliably takes over there. */
 .game-view.puzzle .board-scroll {
-	width: 480px;
-	height: 480px;
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -1595,17 +1607,26 @@ input[type="range"]:disabled { opacity: 0.55; cursor: not-allowed; }
 	border-radius: 12px;
 	box-shadow: var(--shadow);
 }
-.game-view.puzzle .board-wrap {
-	display: block;
-	width: 480px;
-}
+.game-view.puzzle .board-wrap { display: block; }
 .game-view.puzzle .game-side {
 	position: static;
 	flex: 0 0 320px;
 	gap: 0;
+	/* Stretches to match .game-left's height (itself sized off .board-wrap's own JS-set height) so
+	   #puzzle_card below can fill it completely instead of sitting short with dead space beneath it —
+	   "the right panel should expand to cover its space vertically." */
+	align-self: stretch;
 }
+/* The portrait @media(max-width:700px) block's own "body.in-game .game-side { display:none }"
+   (further down) otherwise wins here too (equal specificity, later source order) — the SAME gap
+   already found and fixed for the landscape-phone case (see that media-query block's own comment),
+   just never noticed for portrait until this redesign started actually measuring the panel's size
+   instead of leaving it at a fixed box that happened to render fine even while technically hidden.
+   Higher specificity here (4 classes vs. that rule's 2) wins regardless of source order, so this can
+   live anywhere in the file. */
+body.in-game .game-view.puzzle .game-side { display: flex; }
 .game-view.puzzle #puzzle_card {
-	height: 480px;
+	height: 100%;
 	display: flex;
 	flex-direction: column;
 }
@@ -1847,6 +1868,17 @@ input[type="range"]:disabled { opacity: 0.55; cursor: not-allowed; }
 	padding: 0.8rem 1rem;
 	font-size: 1rem; font-weight: 700;
 }
+/* Solved state (setRatedDoneActions("solved"), PuzzlePlay.js) — "Next" becomes the prominent action
+   (already carries .btn-primary in this state, swapped there for the correct keyboard-focus target
+   too — see that function) but in the reference sketch's own green, not the app's usual blue/purple
+   accent, since this is specifically a "you're done, move on" affordance rather than an ordinary
+   primary button. Restart stays a plain secondary alongside it. */
+.puzzle-fail-actions-solved #puzzle_skip_btn.btn-primary {
+	background: var(--success);
+	border-color: var(--success);
+	color: #06210f;
+}
+.puzzle-fail-actions-solved #puzzle_skip_btn.btn-primary:hover { border-color: var(--success); }
 .puzzle-hint-icon { font-size: 1.2rem; line-height: 1; }
 .puzzles-filter { display: flex; gap: 0.45rem; flex-wrap: wrap; align-items: center; margin: 0 0 0.6rem; }
 .puzzles-filter-label { color: var(--muted); font-size: 0.8rem; letter-spacing: 0.05em; text-transform: uppercase; margin-right: 0.25rem; }

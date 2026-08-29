@@ -329,10 +329,12 @@ function renderPuzzleRank(rating) {
 
 var puzzleFlashTimer = null;
 
-// Brief floating overlay over the board after solve/fail. Auto-fades and
-// auto-advances to the next puzzle — no modal, no blocking action. The
-// rating delta lives on the progress bar (floats up next to the rating),
-// not in the flash, so the eye is already drawn to the bar as it animates.
+// Brief floating overlay over the board after a solve (only ever called for solved — see
+// showPuzzleOutcome, a miss goes straight to setRatedDoneActions instead). Auto-fades into the
+// Restart/Next action row (setRatedDoneActions("solved")) instead of silently auto-advancing to the
+// next puzzle — on request, so the player decides when to move on rather than losing a few seconds'
+// look at the cleared board to a timer. The rating delta lives on the progress bar (floats up next to
+// the rating), not in the flash, so the eye is already drawn to the bar as it animates.
 function flashPuzzleResult(result) {
 	var flash = document.getElementById("puzzle_flash");
 	if (!flash) return;
@@ -359,14 +361,13 @@ function flashPuzzleResult(result) {
 	if (result.pointsEarned > 0) flashPuzzleDelta(result.pointsEarned);
 
 	if (puzzleFlashTimer) clearTimeout(puzzleFlashTimer);
-	var holdMs = result.solved ? 1200 : 1600;
 	puzzleFlashTimer = setTimeout(function() {
 		flash.style.display = "none";
 		flash.classList.remove("playing");
 		if (puzzleSession && puzzleSession.finished) {
-			socket.emit("puzzle_next");
+			setRatedDoneActions("solved");
 		}
-	}, holdMs);
+	}, 1200);
 }
 
 // Float a "+13" / "-6" badge next to the rating; pairs visually with the
@@ -390,13 +391,12 @@ function showPuzzleOutcome(result) {
 		showMarathonOutcome(result);
 		return;
 	}
-	// A solve auto-advances via the inline flash. A failure swaps the
-	// Hint button on the side card for "Try again" / "Next puzzle" — the
-	// player picks; the same hint-button slot keeps the actions in a
-	// stable location instead of dropping a modal over the board.
+	// Both outcomes swap the Hint button on the side card for the retry/next action row once the flash
+	// settles — the player picks; the same hint-button slot keeps the actions in a stable location
+	// instead of dropping a modal over the board.
 	if (!result.solved) {
 		// No Ladder points lost on a miss — the "Mine hit" flash + fail actions are enough.
-		setRatedFailActions(true);
+		setRatedDoneActions("fail");
 		return;
 	}
 	flashPuzzleResult(result);
@@ -485,16 +485,34 @@ function showMarathonOutcome(result) {
 	presentPanel(panel, result.solved ? "win" : "lose");
 }
 
-// Swap the hint button for retry/next buttons (or back). Called with `true`
-// after a rated miss, `false` whenever a fresh puzzle_board arrives so the
-// hint comes back for the next attempt.
-function setRatedFailActions(failed) {
+// Swap the hint button for the retry/next action row (or back). Called with "fail" after a rated
+// miss, "solved" once the post-solve flash finishes (see flashPuzzleResult — a solve used to just
+// auto-emit puzzle_next here instead of waiting for the player, on request), null whenever a fresh
+// puzzle_board arrives so the hint comes back for the next attempt.
+// Reuses the SAME two buttons for both outcomes rather than building a separate pair — only the
+// labels/emphasis change: a miss emphasizes retrying (you probably want another shot at THIS one),
+// a solve emphasizes moving on (.puzzle-fail-actions-solved swaps which button reads as primary,
+// matching the reference sketch's prominent green "Next" — see style.css).
+function setRatedDoneActions(kind) {
 	var hint = document.getElementById("puzzle_hint_btn");
 	var actions = document.getElementById("puzzle_fail_actions");
-	if (hint) hint.style.display = failed ? "none" : "";
-	if (actions) actions.style.display = failed ? "" : "none";
-	// Focus "Try again" so Enter retries; arrows then switch to "Next puzzle".
-	if (failed && typeof focusButtonGroup === "function") focusButtonGroup(actions);
+	var retryBtn = document.getElementById("puzzle_retry_btn");
+	var skipBtn = document.getElementById("puzzle_skip_btn");
+	var shown = kind === "fail" || kind === "solved";
+	if (hint) hint.style.display = shown ? "none" : "";
+	if (actions) {
+		actions.style.display = shown ? "" : "none";
+		actions.classList.toggle("puzzle-fail-actions-solved", kind === "solved");
+	}
+	if (retryBtn) retryBtn.textContent = kind === "solved" ? "Restart" : "Try again";
+	if (skipBtn) skipBtn.textContent = kind === "solved" ? "Next" : "Next puzzle";
+	// Swap which button reads as primary — a miss emphasizes retrying THIS puzzle (btn-primary on
+	// Retry), a solve emphasizes moving on (btn-primary on Next, matching the reference sketch's
+	// prominent green button). focusButtonGroup (Main.js) focuses whichever one carries .btn-primary,
+	// so this single class swap also controls which button Enter lands on.
+	if (retryBtn) { retryBtn.classList.toggle("btn-primary", kind !== "solved"); retryBtn.classList.toggle("btn-secondary", kind === "solved"); }
+	if (skipBtn) { skipBtn.classList.toggle("btn-primary", kind === "solved"); skipBtn.classList.toggle("btn-secondary", kind !== "solved"); }
+	if (shown && typeof focusButtonGroup === "function") focusButtonGroup(actions);
 }
 
 // Daily puzzle result panel — shown after the one allowed attempt, or

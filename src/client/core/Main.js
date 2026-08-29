@@ -955,8 +955,6 @@ function applyPuzzleBoard(data) {
 	lastFinished = {};
 	cellAnims = {};
 	hideOverlay();
-	sizePlayerCanvas();
-	sizeOpponentCanvases();
 	hideAllViews();
 	gameView.style.display = "";
 	document.body.classList.add("in-game");
@@ -964,7 +962,15 @@ function applyPuzzleBoard(data) {
 	gameView.classList.add("puzzle");
 	gameView.classList.toggle("marathon", puzzleSession.marathon);
 	togglePuzzleChrome(true, puzzleSession.mode, puzzleSession.marathon);
-	if (typeof setRatedFailActions === "function") setRatedFailActions(false);
+	// Sizing moved to AFTER the view/chrome are actually visible (was called before, while gameView
+	// could still be display:none from whatever the previous view was) — fitPuzzleDesktopBoxPx
+	// (MobileLayout.js) measures real layout (.game-grid's clientWidth, the canvas's own top offset),
+	// which reads as 0/wrong on a hidden subtree, silently falling back to a fixed guess until
+	// something else happened to re-trigger sizing later (a resize). Desktop puzzle's whole point is
+	// using the real, measured available space on the very first paint, not just eventually.
+	sizePlayerCanvas();
+	sizeOpponentCanvases();
+	if (typeof setRatedDoneActions === "function") setRatedDoneActions(null);
 	if (typeof updatePuzzleLivesHud === "function") updatePuzzleLivesHud();
 	updatePuzzleHud();
 	renderPlayerBoard();
