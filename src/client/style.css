@@ -1634,18 +1634,26 @@ input[type="range"]:disabled { opacity: 0.55; cursor: not-allowed; }
 }
 
 /* ===== Puzzle play, landscape phones =====
-   A landscape phone (wide — over 700px — so it never trips the two WIDTH-based breakpoints above,
-   which are aimed at a genuinely narrow/portrait viewport) falls through to the plain desktop sizing:
-   a 480×480 fixed board box (sizePlayerCanvas's fixedBox branch, MobileLayout.js). That's taller than
-   a typical landscape phone's own viewport (often well under 400px), so the board simply overflows off
-   screen. Unlike the two battle layouts above, this doesn't need a bespoke grid rebuild — the existing
+   A landscape phone at any width falls through to the plain desktop/portrait sizing otherwise — wide
+   ones (over ~700px) hit the full 480x480 desktop box (sizePlayerCanvas's fixedBox branch,
+   MobileLayout.js), taller than a typical landscape phone's own viewport (often well under 400px), so
+   the board overflows off screen outright; narrower ones (e.g. iPhone SE, 667x375) fall into
+   mobileLayout's own portrait-shaped treatment instead — built for a tall, narrow viewport, it stacks
+   the board above the ladder card (needing even MORE vertical room than the wide case) and, worse,
+   sits in a genuine gap between the width breakpoints below (max-width:900px sets the board's height
+   to 320px but not its width; only max-width:600px sets both) — confirmed against a real 667x375
+   viewport as an actively broken, non-square, partially off-screen board with a zero-size card next to
+   it. Deliberately NOT width-gated the way the two battle layouts' own landscape query is (see
+   puzzleLandscapeMQL's own comment, Main.js, for why they differ) — puzzle's portrait fallback isn't
+   landscape-safe at ANY width, so this has to catch every landscape phone, not just the wide ones.
+   Unlike the two battle layouts above, this doesn't need a bespoke grid rebuild — the existing
    board-beside-ladder-card shape is already right — just a smaller fixed box (PUZZLE_BOARD_PX_LANDSCAPE,
    MobileLayout.js) plus hiding the header/nav to reclaim the vertical room that box needs. No force-
    rotate/body-class machinery either: a portrait phone already gets a correctly-sized board via the
-   plain mobileLayout branch, so this only handles the one genuinely broken case (a real landscape
-   phone), which a plain media query already sees directly — nothing here needs to survive a CSS
-   rotation trick the way the battle layouts' force-rotate fallback does. */
-@media (orientation: landscape) and (max-height: 500px) and (min-width: 701px) {
+   plain mobileLayout branch, so this only handles the genuinely broken landscape cases, which a plain
+   media query already sees directly — nothing here needs to survive a CSS rotation trick the way the
+   battle layouts' force-rotate fallback does. */
+@media (orientation: landscape) and (max-height: 500px) {
 	/* Same "main's own 2rem padding pushes content below the viewport" fix the 6-player layout needs
 	   (see its own comment) — puzzle play is never a body.ranked-game room, so there's no existing
 	   reset to lean on here either. */
@@ -1664,10 +1672,31 @@ input[type="range"]:disabled { opacity: 0.55; cursor: not-allowed; }
 	   so without this it would stack the board above the card instead of beside it, needing far more
 	   vertical room than this viewport has. */
 	.game-view.puzzle .game-grid { flex-direction: row; align-items: center; gap: 0.8rem; }
+	/* Same narrow-landscape gotcha as .game-side below: the portrait @media(max-width:700px) block's
+	   own "in-game stacked layout" rules (further down) still match here too and fight this one —
+	   .game-left forced to flex:1;width:100% (fills the row, pushing .game-side out past the viewport
+	   edge) and .player-board's "full-bleed" trick (100vw width, negative margin to escape main's
+	   padding) pushed the board itself off-screen to the left. Both are built for a STACKED single-
+	   column mobile layout; this one sits board and card side by side regardless of width, so neither
+	   makes sense here — reset both back to sizing off their own content, same as the wide-landscape
+	   case already gets unchallenged. Confirmed against a real 667x375 viewport (previously: board
+	   pushed off the left edge, then fixed but the card clipped off the RIGHT edge instead — this is
+	   the .game-left half of that same fix). */
+	body.in-game .game-view.puzzle .game-left { display: flex; flex: 0 0 auto; width: auto; }
+	body.in-game .game-view.puzzle .player-board {
+		display: block; flex: 0 0 auto; width: auto; max-width: none; margin-left: 0; margin-right: 0; padding: 0;
+	}
 	.game-view.puzzle .board-scroll,
 	.game-view.puzzle .board-wrap { width: 300px; }
 	.game-view.puzzle .board-scroll { height: 300px; }
-	.game-view.puzzle .game-side { flex: 0 0 230px; }
+	/* On a NARROW landscape phone this media query is now reached alongside the portrait @media
+	   (max-width:700px) block's own "body.in-game .game-side { display:none }" (further down) — that
+	   rule has no width floor of its OWN kind either, so it still matches here and would otherwise win
+	   (same source-order precedence either way, and its selector is no less specific) — needs its own
+	   explicit re-show, same gotcha the two battle layouts' force-rotate cases hit for the same
+	   underlying rule. Confirmed via a real 667x375 viewport: without this the board fixed itself but
+	   the ladder card next to it stayed a zero-size, invisible box. */
+	body.in-game .game-view.puzzle .game-side { display: flex; flex: 0 0 230px; }
 	.game-view.puzzle #puzzle_card { height: 300px; width: 100%; }
 }
 

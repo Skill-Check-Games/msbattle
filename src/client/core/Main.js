@@ -52,11 +52,14 @@ function isBattleRacing() { return isDuoRacing() || isMultiRacing(); }
 // this instead of hand-rolling classList.remove("duo") — a single source of truth so a future entry
 // point can't reintroduce the bug by forgetting the sibling class.
 function clearBattleLayoutClasses() {
-	// duel-landscape-mode/duel-force-rotate (style.css) only ever mean anything while gameView has
-	// .duo — clear them in lockstep so leaving a force-rotated duel on a portrait phone doesn't leave
-	// the page stuck sideways behind it (applyDuelLandscapeClass's own inDuoBattle check would catch
-	// this on the next resize/orientationchange anyway, but nothing guarantees one fires right away).
+	// duel-landscape-mode/multi-landscape-mode/duel-force-rotate (style.css) only ever mean anything
+	// while gameView has .duo/.multi respectively — clear them in lockstep so leaving a force-rotated
+	// battle mode on a portrait phone doesn't leave the page stuck sideways behind it
+	// (applyDuelLandscapeClass's own inDuoBattle/inMultiBattle checks would catch this on the next
+	// resize/orientationchange anyway, but nothing guarantees one fires right away — e.g. navigating
+	// straight from a match into a puzzle via the router, no viewport change involved at all).
 	document.body.classList.remove("duel-landscape-mode");
+	document.body.classList.remove("multi-landscape-mode");
 	document.body.classList.remove("duel-force-rotate");
 	if (typeof gameView === "undefined" || !gameView) return;
 	gameView.classList.remove("duo");
@@ -102,6 +105,18 @@ function applyDuoClass() {
 // above body.duel-landscape-mode in style.css for the full picture.
 var duelLandscapeMQL = window.matchMedia
 	? window.matchMedia("(orientation: landscape) and (max-height: 500px) and (min-width: 701px)") : null;
+// Puzzle's own landscape query (MobileLayout.js's isPuzzleLandscapeMobile) deliberately has NO
+// min-width floor, unlike the battle layouts' query above — duo/multi exclude a small landscape phone
+// (e.g. iPhone SE, 667x375) on purpose, because mobileLayout's own generic touch layout ALREADY works
+// fine for them there (a full-bleed portrait-shaped board layout, which happens to also be fine held
+// sideways). Puzzle's mobileLayout fallback is NOT landscape-safe the same way — it stacks the board
+// above the ladder card (built for a tall, narrow viewport), which just doesn't fit a short one
+// regardless of width, and a small landscape phone's own board-size CSS breakpoints (max-width:900px
+// only sets height, not width; the width fix only kicks in at max-width:600px) leave an actively
+// broken, non-square, off-screen box in the gap between them. So puzzle's query matches ANY landscape
+// orientation short enough, width irrelevant — verified against a real 667x375 viewport.
+var puzzleLandscapeMQL = window.matchMedia
+	? window.matchMedia("(orientation: landscape) and (max-height: 500px)") : null;
 // Same "is this actually a phone" signal enterDuelMobileFullscreen (Fullscreen.js) uses — screen.width/
 // height are the device's real resolution, unaffected by the current browser window size, so this
 // doesn't misfire for a touch laptop/tablet just because its window happens to be narrow.

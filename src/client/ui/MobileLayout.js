@@ -36,14 +36,14 @@ var PUZZLE_CELL_MAX_MOBILE = 56;
 var PUZZLE_BOARD_PX_LANDSCAPE = 300;
 var PUZZLE_CELL_MAX_LANDSCAPE = 56;
 
-// True whenever a (non-marathon) puzzle board is up on a landscape phone — reuses the exact same
-// media query the two battle layouts key off (duelLandscapeMQL, Main.js: a wide-but-short viewport),
-// just without their body-class/force-rotate dance, since portrait puzzle play already has a working,
-// appropriately-sized board via the plain mobileLayout branch below — this only ever needs to handle
-// the ONE genuinely broken case (a real landscape phone hitting the desktop-sized box).
+// True whenever a (non-marathon) puzzle board is up on a landscape phone — its own media query
+// (puzzleLandscapeMQL, Main.js), deliberately WITHOUT the battle layouts' min-width floor (see that
+// query's own comment for why) or their body-class/force-rotate dance, since portrait puzzle play
+// already has a working, appropriately-sized board via the plain mobileLayout branch below — this
+// only ever needs to handle landscape orientation itself, at any width.
 function isPuzzleLandscapeMobile() {
 	var inPuzzle = (typeof puzzleSession !== "undefined") && puzzleSession && !puzzleSession.marathon;
-	return !!(inPuzzle && typeof duelLandscapeMQL !== "undefined" && duelLandscapeMQL && duelLandscapeMQL.matches);
+	return !!(inPuzzle && typeof puzzleLandscapeMQL !== "undefined" && puzzleLandscapeMQL && puzzleLandscapeMQL.matches);
 }
 
 // True on either mobile landscape battle layout — 1v1 duel (body.duel-landscape-mode) or 6-player
@@ -156,9 +156,14 @@ function sizePlayerCanvas() {
 	var fixedBox = inPuzzle && !puzzleSession.marathon;
 	var cellPx;
 	if (fixedBox) {
+		// Landscape checked FIRST, not mobileLayout — a narrow landscape phone (e.g. iPhone SE,
+		// 667x375) matches BOTH (mobileLayout's own query is width-only, max-width:700px, blind to
+		// orientation), and only the landscape sizing/CSS actually fits a short viewport; mobileLayout's
+		// own treatment assumes a tall, narrow one and visibly breaks otherwise (mismatched board box,
+		// content pushed off screen — confirmed against a real 667x375 viewport).
 		var puzzleLandscape = isPuzzleLandscapeMobile();
-		var target = mobileLayout ? PUZZLE_BOARD_PX_MOBILE : (puzzleLandscape ? PUZZLE_BOARD_PX_LANDSCAPE : PUZZLE_BOARD_PX);
-		var cap = mobileLayout ? PUZZLE_CELL_MAX_MOBILE : (puzzleLandscape ? PUZZLE_CELL_MAX_LANDSCAPE : PUZZLE_CELL_MAX);
+		var target = puzzleLandscape ? PUZZLE_BOARD_PX_LANDSCAPE : (mobileLayout ? PUZZLE_BOARD_PX_MOBILE : PUZZLE_BOARD_PX);
+		var cap = puzzleLandscape ? PUZZLE_CELL_MAX_LANDSCAPE : (mobileLayout ? PUZZLE_CELL_MAX_MOBILE : PUZZLE_CELL_MAX);
 		cellPx = Math.min(cap, Math.floor(target / Math.max(rows, cols)));
 	} else {
 		cellPx = mobileLayout ? fitMobileCellPx() : fitDesktopCellPx();
