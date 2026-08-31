@@ -4,9 +4,10 @@
 // rating fields the server updates after each ranked match. The rank chips on
 // the home page (renderHomeRankChips) read the same data.
 
-// The fixed mine layout every skin preview renders — three mines in the top-left corner:
-//   X X 1
-//   X 3 1
+// The fixed mine layout every skin preview renders — two mines, left of center, left COVERED
+// (not revealed/exploded, so the unknown-cell gradient/border shows too, not just clue numbers):
+//   2 X 1
+//   X 2 1
 //   1 1 0
 // A real mini board (not the flat 4-swatch strip this replaced) so a skin's actual tile
 // rendering — gradients, borders, the mine icon, number glow — reads clearly at a glance. Fixed
@@ -14,20 +15,30 @@
 // the Shop tile, the skin picker below, and — screenshotted — the generated Stripe product images
 // (scripts/render-skin-preview-images.js navigates to a real page and grabs this exact canvas, so
 // there's one rendering to keep in sync, not two).
-var SKIN_PREVIEW_MINES = [[0, 0], [0, 1], [1, 0]];
+var SKIN_PREVIEW_MINES = [[0, 1], [1, 0]];
+function skinPreviewIsMineCell(r, c) {
+	return SKIN_PREVIEW_MINES.some(function(m) { return m[0] === r && m[1] === c; });
+}
 function skinPreviewCellAt(r, c) {
-	if (SKIN_PREVIEW_MINES.some(function(m) { return m[0] === r && m[1] === c; })) return MINE;
+	if (skinPreviewIsMineCell(r, c)) return MINE;
 	var count = 0;
 	BoardLogic.forEachNeighbour(r, c, 3, 3, function(nr, nc) {
-		if (SKIN_PREVIEW_MINES.some(function(m) { return m[0] === nr && m[1] === nc; })) count++;
+		if (skinPreviewIsMineCell(nr, nc)) count++;
 	});
 	return count;
 }
-// Built lazily inside the function below, not at module-eval time: KNOWN is a page global
+// Built lazily inside the function below, not at module-eval time: KNOWN/UNKNOWN are page globals
 // assigned by Main.js, which loads AFTER this file (see the sentinel-timing comment in
-// BoardRender.js) — referencing it here at the top level would throw ReferenceError on page load.
+// BoardRender.js) — referencing them here at the top level would throw ReferenceError on page load.
+// Mines stay covered (UNKNOWN) — every other cell is revealed (KNOWN) showing its clue.
 function skinPreviewState() {
-	return [[KNOWN, KNOWN, KNOWN], [KNOWN, KNOWN, KNOWN], [KNOWN, KNOWN, KNOWN]];
+	var state = [];
+	for (var r = 0; r < 3; r++) {
+		var row = [];
+		for (var c = 0; c < 3; c++) row.push(skinPreviewIsMineCell(r, c) ? UNKNOWN : KNOWN);
+		state.push(row);
+	}
+	return state;
 }
 
 // cellPx defaults to the small in-app swatch size (Shop tile / skin picker); the preview-image
