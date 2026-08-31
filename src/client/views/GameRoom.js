@@ -474,7 +474,10 @@ function renderScoreboard() {
 			li.appendChild(meta);
 
 			// Running score only matters once a series is underway; a brand-new lobby stays clean.
-			if (state.gamesPlayed > 0) {
+			// Ranked is always a single-round "series" (gameCount 1), so gamesPlayed hits 1 the moment
+			// that one round ends — exclude ranked here so the score column doesn't flash on for a match
+			// that was never actually multi-round.
+			if (state.gamesPlayed > 0 && !state.ranked) {
 				var score = document.createElement("span");
 				score.className = "score-points";
 				score.textContent = p.score;
