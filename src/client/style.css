@@ -3299,12 +3299,12 @@ body[data-board-skin="gold"] .board-scroll::after {
 }
 .skin-option:hover { border-color: var(--muted); }
 .skin-option.active { border-color: var(--accent); background: rgba(99, 102, 241, 0.1); box-shadow: 0 0 0 1px var(--accent); }
-.skin-preview { display: flex; gap: 3px; flex: 0 0 auto; padding: 5px; border-radius: 6px; background: #030e12; }
-.skin-cell {
-	width: 20px; height: 20px; border-radius: 3px; border: 1px solid transparent;
-	display: flex; align-items: center; justify-content: center;
-	font-size: 12px; font-weight: 700; line-height: 1;
-}
+/* Wraps the real mini-board canvas buildSkinPreview draws (Profile.js) — padding + a dark
+   backdrop frame it, overflow:hidden clips the canvas's square corners to the wrapper's rounded
+   ones. display:block on the canvas itself avoids the few px of inline-baseline whitespace a
+   canvas otherwise leaves under itself. */
+.skin-preview { display: flex; flex: 0 0 auto; padding: 5px; border-radius: 6px; background: #030e12; overflow: hidden; }
+.skin-preview-board { display: block; border-radius: 3px; }
 .skin-meta { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
 .skin-name { font-weight: 700; font-size: 0.95rem; }
 .skin-blurb { font-size: 0.8rem; color: var(--muted); }

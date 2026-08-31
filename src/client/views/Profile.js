@@ -4,29 +4,41 @@
 // rating fields the server updates after each ranked match. The rank chips on
 // the home page (renderHomeRankChips) read the same data.
 
-// The tiny palette-built swatch (unknown cell + three numbered cells) shared by the Settings
-// picker below and the Shop tile for the same skin, so both render it identically.
-function buildSkinPreview(id) {
-	var s = BOARD_SKINS[id];
-	var prev = document.createElement("span");
-	prev.className = "skin-preview";
-	var unknown = document.createElement("span");
-	unknown.className = "skin-cell";
-	unknown.style.background = "linear-gradient(180deg," + s.unknownTop + "," + s.unknownBottom + ")";
-	unknown.style.borderColor = s.unknownEdge;
-	prev.appendChild(unknown);
-	[1, 2, 3].forEach(function(n) {
-		var c = document.createElement("span");
-		c.className = "skin-cell skin-cell-num";
-		c.style.background = s.knownBg;
-		c.style.borderColor = s.knownEdge;
-		c.style.color = s.numbers[n];
-		c.style.fontFamily = s.font;
-		if (s.glow) c.style.textShadow = "0 0 5px " + s.numbers[n];
-		c.textContent = n;
-		prev.appendChild(c);
+// The fixed mine layout every skin preview renders — three mines in the top-left corner:
+//   X X 1
+//   X 3 1
+//   1 1 0
+// A real mini board (not the flat 4-swatch strip this replaced) so a skin's actual tile
+// rendering — gradients, borders, the mine icon, number glow — reads clearly at a glance. Fixed
+// (not random) so every skin paints the identical layout and only the palette differs. Shared by
+// the Shop tile, the skin picker below, and — screenshotted — the generated Stripe product images
+// (scripts/render-skin-preview-images.js navigates to a real page and grabs this exact canvas, so
+// there's one rendering to keep in sync, not two).
+var SKIN_PREVIEW_MINES = [[0, 0], [0, 1], [1, 0]];
+function skinPreviewCellAt(r, c) {
+	if (SKIN_PREVIEW_MINES.some(function(m) { return m[0] === r && m[1] === c; })) return MINE;
+	var count = 0;
+	BoardLogic.forEachNeighbour(r, c, 3, 3, function(nr, nc) {
+		if (SKIN_PREVIEW_MINES.some(function(m) { return m[0] === nr && m[1] === nc; })) count++;
 	});
-	return prev;
+	return count;
+}
+// Built lazily inside the function below, not at module-eval time: KNOWN is a page global
+// assigned by Main.js, which loads AFTER this file (see the sentinel-timing comment in
+// BoardRender.js) — referencing it here at the top level would throw ReferenceError on page load.
+function skinPreviewState() {
+	return [[KNOWN, KNOWN, KNOWN], [KNOWN, KNOWN, KNOWN], [KNOWN, KNOWN, KNOWN]];
+}
+
+// cellPx defaults to the small in-app swatch size (Shop tile / skin picker); the preview-image
+// generator script passes a much larger one for a crisp standalone image.
+function buildSkinPreview(id, cellPx) {
+	var canvas = buildCellCanvas(3, 3, cellPx || 22, "skin-preview-board");
+	new BoardView(canvas, 3, 3, skinPreviewState(), skinPreviewCellAt, { skin: id }).draw();
+	var wrap = document.createElement("span");
+	wrap.className = "skin-preview";
+	wrap.appendChild(canvas);
+	return wrap;
 }
 
 // True iff this cosmetic (avatar "img:<id>"/color/anon/mine, or skin id) is free-by-default (not
