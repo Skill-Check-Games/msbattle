@@ -23,23 +23,36 @@
 		var Cosmetics = (typeof module !== "undefined" && module.exports) ? require("./Cosmetics") : window.Cosmetics;
 		var items = [];
 		Object.keys(Cosmetics.AVATAR_IMAGES).forEach(function(id) {
-			items.push({ id: "img:" + id, kind: "avatar", label: avatarLabel(id), priceCents: AVATAR_PRICE_CENTS, currency: "usd" });
+			// imagePath: a real, publicly-served static asset (unlike the board skins below, which are
+			// palette-only — no static preview image exists for those yet) — used by
+			// scripts/provision-stripe-catalog.js to set the Stripe Product's image.
+			items.push({ id: "img:" + id, kind: "avatar", productType: "avatar", label: avatarLabel(id), priceCents: AVATAR_PRICE_CENTS, currency: "usd", imagePath: Cosmetics.AVATAR_IMAGES[id] });
 		});
 		// Every AVATAR_COLORS entry past the first (free/default) one is a purchasable flag colour.
 		// Hardcoded label — fine while there's exactly one extra colour; if more are added, give
 		// AVATAR_COLORS a {hex,label} shape instead of guessing names from hex values here.
+		// productType is "flag" here (not "avatar") — same `kind`/DB bucket as the avatar images
+		// (both set the player's avatar), but a flag colour and an avatar image are a different
+		// *product* to a buyer/in Stripe's catalog, same "flags are a separate thing" reasoning as
+		// the pirate-flag-in-AVATAR_COLORS split documented in CLAUDE.md.
 		Cosmetics.AVATAR_COLORS.slice(1).forEach(function(hex) {
-			items.push({ id: hex, kind: "avatar", label: "Pirate Flag", priceCents: AVATAR_PRICE_CENTS, currency: "usd" });
+			items.push({ id: hex, kind: "avatar", productType: "flag", label: "Pirate Flag", priceCents: AVATAR_PRICE_CENTS, currency: "usd" });
 		});
 		items.push({
-			id: "tactical", kind: "skin",
+			id: "tactical", kind: "skin", productType: "board_skin",
 			label: Cosmetics.BOARD_SKINS.tactical.label,
-			priceCents: TACTICAL_SKIN_PRICE_CENTS, currency: "usd"
+			priceCents: TACTICAL_SKIN_PRICE_CENTS, currency: "usd",
+			// Generated (not hand-authored like the avatar PNGs) — see
+			// scripts/render-skin-preview-images.js, which reproduces the exact in-app skin-preview
+			// strip (buildSkinPreview, Profile.js) at high resolution since skins have no other
+			// static asset (they're painted live from this palette, never saved as a file).
+			imagePath: "/skins/tactical-preview.png"
 		});
 		items.push({
-			id: "gold", kind: "skin",
+			id: "gold", kind: "skin", productType: "board_skin",
 			label: Cosmetics.BOARD_SKINS.gold.label,
-			priceCents: GOLD_SKIN_PRICE_CENTS, currency: "usd"
+			priceCents: GOLD_SKIN_PRICE_CENTS, currency: "usd",
+			imagePath: "/skins/gold-preview.png"
 		});
 
 		// Boot-time integrity check: every catalog id must be a real cosmetic id, so a typo or a
@@ -56,6 +69,22 @@
 				throw new Error("ShopCatalog: unknown item kind \"" + item.kind + "\"");
 			}
 		});
+
+		// Server-side only (window has no fs/require-json): attach the live-mode Stripe Product/Price
+		// ids provisioned by scripts/provision-stripe-catalog.js, so shopApi.js can reference the real
+		// catalog entry instead of an inline one-off price. Absent locally (dev/test runs against a
+		// different, test-mode Stripe account these live ids don't exist in) or before the script has
+		// been run for a newly-added item — shopApi.js falls back to inline price_data in that case,
+		// same "degrade instead of throw" stance as the rest of the shop's Stripe integration.
+		if (typeof module !== "undefined" && module.exports) {
+			var stripeIds = {};
+			try { stripeIds = require("../../stripe-shop-catalog.json"); } catch (e) { /* not provisioned yet */ }
+			items.forEach(function(item) {
+				var ids = stripeIds[item.id];
+				if (ids) { item.stripeProductId = ids.productId; item.stripePriceId = ids.priceId; }
+			});
+		}
+
 		return items;
 	}
 
@@ -64,6 +93,7 @@
 	ITEMS.forEach(function(item) { BY_ID[item.id] = item; });
 
 	var ShopCatalog = {
+		GAME: "msbattle",
 		ITEMS: ITEMS,
 		byId: function(id) { return BY_ID[id] || null; },
 		// True iff this (kind, id) is a paid catalog item — the gate callers use to decide whether

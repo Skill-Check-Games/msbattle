@@ -24,6 +24,14 @@ var STRIPE_WEBHOOK_SECRET = envAny("STRIPE_WEBHOOK_SECRET", "stripe_webhook_secr
 // Absent in a dev environment with no Stripe keys configured — every route below degrades to a
 // clear 503 instead of throwing, so the rest of the server (and its tests) run fine without Stripe.
 var stripe = STRIPE_SECRET_KEY ? new Stripe(STRIPE_SECRET_KEY) : null;
+// The catalog Price ids in stripe-shop-catalog.json (ShopCatalog.js's item.stripePriceId) only
+// exist on the LIVE-mode prod account they were provisioned against (scripts/provision-stripe-
+// catalog.js) — local dev and the test suite run against a test-mode key on a different account
+// entirely, where those ids don't exist. Gate on the configured key's own mode (every Stripe
+// secret/restricted key literally has "_live_" or "_test_" in it) rather than just "does this
+// item have an id", or a real checkout locally would fail outright instead of falling back to
+// the inline one-off price the way it always has.
+var STRIPE_LIVE_MODE = /_live_/.test(STRIPE_SECRET_KEY);
 
 function send(res, code, obj) {
 	res.writeHead(code, { "Content-Type": "application/json" });
@@ -69,18 +77,31 @@ function serveCheckout(req, res) {
 		if (!item) { send(res, 404, { error: "unknown_item" }); return; }
 		if (db.ownsItem(user.id, item.kind, item.id)) { send(res, 200, { alreadyOwned: true }); return; }
 
+		// game/product_type let this Stripe account stay organized (Dashboard search, revenue
+		// reports) if it ever hosts more than msbattle, or more than these three product
+		// categories (avatar/flag/board_skin) — set on both the Session (below) and the
+		// PaymentIntent (payment_intent_data.metadata), since the Session's own metadata isn't
+		// copied to the PaymentIntent/Charge that the Dashboard's Payments list actually shows.
+		var itemMeta = { game: ShopCatalog.GAME, product_type: item.productType, userId: String(user.id), kind: item.kind, itemId: item.id };
+		// Reference the real, pre-provisioned catalog Price (scripts/provision-stripe-catalog.js)
+		// only in live mode (see STRIPE_LIVE_MODE above) — falls back to an inline one-off price
+		// otherwise, same as before this catalog existed.
+		var lineItem = (STRIPE_LIVE_MODE && item.stripePriceId)
+			? { price: item.stripePriceId, quantity: 1 }
+			: { price_data: { currency: item.currency, unit_amount: item.priceCents, product_data: { name: item.label } }, quantity: 1 };
+
 		stripe.checkout.sessions.create({
 			mode: "payment",
-			line_items: [{
-				price_data: {
-					currency: item.currency,
-					unit_amount: item.priceCents,
-					product_data: { name: item.label }
-				},
-				quantity: 1
-			}],
+			line_items: [lineItem],
 			client_reference_id: String(user.id),
-			metadata: { userId: String(user.id), kind: item.kind, itemId: item.id },
+			metadata: itemMeta,
+			// statement_descriptor_suffix puts "MSBATTLE" on the cardholder's bank/card statement
+			// next to the account's own registered business name.
+			payment_intent_data: {
+				description: "msbattle.net – " + item.label,
+				metadata: itemMeta,
+				statement_descriptor_suffix: "MSBATTLE"
+			},
 			success_url: oauth.OAUTH_BASE + "/shop?purchase=success&session_id={CHECKOUT_SESSION_ID}",
 			cancel_url: oauth.OAUTH_BASE + "/shop?purchase=cancel"
 		}).then(function(session) {

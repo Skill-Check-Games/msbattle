@@ -1,0 +1,35 @@
+{
+	"img:scout-dog": {
+		"productId": "prod_VAq9EMShASmm2m",
+		"priceId": "price_1UAUSoFvSVpDHkyLMRHYX4Qu",
+		"imaged": true
+	},
+	"img:sentry-fox": {
+		"productId": "prod_VAq94krjn8xsoQ",
+		"priceId": "price_1UAUSpFvSVpDHkyLBIZNlIQ8",
+		"imaged": true
+	},
+	"img:sentry-owl": {
+		"productId": "prod_VAq9o8XERvqics",
+		"priceId": "price_1UAUSpFvSVpDHkyLV2he709v",
+		"imaged": true
+	},
+	"img:signal-cat": {
+		"productId": "prod_VAq9SDxnfNTZpH",
+		"priceId": "price_1UAUSqFvSVpDHkyLPWGjqxqy",
+		"imaged": true
+	},
+	"img:guard-teddy": {
+		"productId": "prod_VAq9AGVFmZnxTI",
+		"priceId": "price_1UAUSrFvSVpDHkyL4tyadIvW",
+		"imaged": true
+	},
+	"tactical": {
+		"productId": "prod_VAq99DT2nT1ArI",
+		"priceId": "price_1UAUSrFvSVpDHkyL26r1MjeJ"
+	},
+	"gold": {
+		"productId": "prod_VAq9qRH69rZ8yw",
+		"priceId": "price_1UAUSsFvSVpDHkyLCygiXNK3"
+	}
+}
