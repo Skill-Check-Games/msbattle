@@ -5314,16 +5314,19 @@ body.duel-force-rotate .game-view.multi .game-side { display: flex !important; }
 	.game-side { position: static; }
 }
 
-/* Mobile: hide the unreadable mini opponent boards;
-   the scoreboard already shows each opponent's tier and status. */
-/* Second condition: a phone in landscape is often wider than 700px (e.g. ~800px), so the plain
-   max-width check alone misses it and the full inline nav stays on screen with no room to breathe.
-   (max-height: 500px) + (pointer: coarse) is the same "phone landscape, not just a short desktop
-   window" idiom used elsewhere in this file (see the puzzle-landscape media query's own comment) —
-   without pointer:coarse a short, non-maximized desktop browser window would match too. */
+/* Nav-only: collapse into a burger menu. Split out from the big mobile block below (own media
+   query) so it can ALSO match a landscape phone without dragging in that block's other, genuinely
+   portrait-only rules (the mobile action bar, full-bleed board, etc.) — a landscape phone is often
+   wider than 700px (e.g. ~800px), so the plain max-width check alone misses it and the full inline
+   nav stays on screen with no room to breathe, but pulling the WHOLE mobile block in to fix that
+   previously leaked the old pickaxe-icon mobile action bar into landscape play too (a real
+   regression, caught after the fact — see the second selector below). (max-height: 500px) +
+   (pointer: coarse) is the same "phone landscape, not just a short desktop window" idiom used
+   elsewhere in this file (see the puzzle-landscape media query's own comment) — without
+   pointer:coarse a short, non-maximized desktop browser window would match too. */
 @media (max-width: 700px), (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
-	/* Nav: collapse into a burger menu. The burger sits next to the logo; the nav
-	   becomes a dropdown panel anchored below the topbar, shown only when open. */
+	/* The burger sits next to the logo; the nav becomes a dropdown panel anchored below the topbar,
+	   shown only when open. */
 	/* Single-row header: logo far-left, then the audio toggle and the burger hard-right (burger last).
 	   The account badge is relocated into the menu in JS, so the bar only ever holds logo + 🔊 + ☰. */
 	.logo { margin-right: auto; }
@@ -5387,6 +5390,14 @@ body.duel-force-rotate .game-view.multi .game-side { display: flex !important; }
 		text-align: left; /* the Help item is a <button> (defaults centred) — keep it flush-left like the links */
 		width: 100%;
 	}
+}
+
+/* Mobile: hide the unreadable mini opponent boards; the scoreboard already shows each opponent's
+   tier and status. Portrait-only (plain max-width, no landscape leg like the nav block above) —
+   this is where the old pickaxe-icon .mobile-action-bar, full-bleed board, etc. live, and none of
+   that belongs in the landscape battle/multi/puzzle layouts, which already have their own
+   dedicated Reveal/Flag controls. */
+@media (max-width: 700px) {
 
 	.opponents { display: none; }
 	.player-controls { flex-wrap: wrap; }
