@@ -4,9 +4,11 @@
 // rating fields the server updates after each ranked match. The rank chips on
 // the home page (renderHomeRankChips) read the same data.
 
-// The fixed mine layout every skin preview renders — two mines, left of center, left COVERED
-// (not revealed/exploded, so the unknown-cell gradient/border shows too, not just clue numbers):
-//   2 X 1
+// The fixed mine layout every skin preview renders — two mines, left of center; COVERED cells
+// (not revealed/exploded, so the unknown-cell gradient/border shows too, not just clue numbers)
+// are the two mines PLUS (0,0), an ordinary safe cell simply not clicked yet — same as a real
+// in-progress board, where a covered cell doesn't necessarily mean a mine:
+//   X X 1
 //   X 2 1
 //   1 1 0
 // A real mini board (not the flat 4-swatch strip this replaced) so a skin's actual tile
@@ -16,26 +18,26 @@
 // (scripts/render-skin-preview-images.js navigates to a real page and grabs this exact canvas, so
 // there's one rendering to keep in sync, not two).
 var SKIN_PREVIEW_MINES = [[0, 1], [1, 0]];
-function skinPreviewIsMineCell(r, c) {
-	return SKIN_PREVIEW_MINES.some(function(m) { return m[0] === r && m[1] === c; });
+var SKIN_PREVIEW_COVERED = [[0, 0], [0, 1], [1, 0]]; // mines + one plain not-yet-clicked cell
+function cellInList(list, r, c) {
+	return list.some(function(m) { return m[0] === r && m[1] === c; });
 }
 function skinPreviewCellAt(r, c) {
-	if (skinPreviewIsMineCell(r, c)) return MINE;
+	if (cellInList(SKIN_PREVIEW_MINES, r, c)) return MINE;
 	var count = 0;
 	BoardLogic.forEachNeighbour(r, c, 3, 3, function(nr, nc) {
-		if (skinPreviewIsMineCell(nr, nc)) count++;
+		if (cellInList(SKIN_PREVIEW_MINES, nr, nc)) count++;
 	});
 	return count;
 }
 // Built lazily inside the function below, not at module-eval time: KNOWN/UNKNOWN are page globals
 // assigned by Main.js, which loads AFTER this file (see the sentinel-timing comment in
 // BoardRender.js) — referencing them here at the top level would throw ReferenceError on page load.
-// Mines stay covered (UNKNOWN) — every other cell is revealed (KNOWN) showing its clue.
 function skinPreviewState() {
 	var state = [];
 	for (var r = 0; r < 3; r++) {
 		var row = [];
-		for (var c = 0; c < 3; c++) row.push(skinPreviewIsMineCell(r, c) ? UNKNOWN : KNOWN);
+		for (var c = 0; c < 3; c++) row.push(cellInList(SKIN_PREVIEW_COVERED, r, c) ? UNKNOWN : KNOWN);
 		state.push(row);
 	}
 	return state;
