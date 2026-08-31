@@ -26,10 +26,12 @@
 	},
 	"tactical": {
 		"productId": "prod_VAq99DT2nT1ArI",
-		"priceId": "price_1UAUSrFvSVpDHkyL26r1MjeJ"
+		"priceId": "price_1UAUSrFvSVpDHkyL26r1MjeJ",
+		"imaged": true
 	},
 	"gold": {
 		"productId": "prod_VAq9qRH69rZ8yw",
-		"priceId": "price_1UAUSsFvSVpDHkyLCygiXNK3"
+		"priceId": "price_1UAUSsFvSVpDHkyLCygiXNK3",
+		"imaged": true
 	}
 }
