@@ -3840,11 +3840,18 @@ body.touch .find-next-arrow { display: inline-flex; }
 	color: var(--muted);
 	text-align: center;
 	/* Reserves width for the longest real label ("RANKED · STANDARD", ~130px at this size) even
-	   while empty (it's only filled in once the first live frame arrives, updateDuelHud in Main.js)
-	   so the badge doesn't visibly widen out from under #duel_timer's own reserved 5ch and shift
-	   the whole header — the same min-width guard that element already has below, just sized for
-	   text instead of digits. */
+	   while empty (it's set as soon as the mode is known — see startBattleSearch in Main.js — but
+	   briefly empty right before that) so the badge doesn't visibly widen out from under
+	   #duel_timer's own reserved 5ch and shift the whole header — the same min-width guard that
+	   element already has below, just sized for text instead of digits. */
 	min-width: 140px;
+	/* Same empty-box-collapses-to-0-height issue #duel_timer's own comment describes below — this
+	   line was missing its own line-height/min-height pair, so the badge was one full line SHORTER
+	   before the mode label populated than after, a real height jump on top of the (already-guarded)
+	   width one. An explicit line-height alone still doesn't reserve height with no line box present
+	   (empty textContent) — min-height at the same ratio is what actually holds the space. */
+	line-height: 1.2;
+	min-height: 1.2em;
 }
 /* Reserves its width even when empty (min-width) so the header's other items don't shift when the
    clock first appears, and shows nothing before it starts. */
@@ -4530,9 +4537,14 @@ body.duel-force-rotate .game-view.duo .game-side { display: contents !important;
 .game-view.multi .game-side { position: static; }
 .game-view.multi .game-side > *:not(#all_opponents_div) { display: none; }
 
-/* Your identity panel above the big board (rank badge + name + tier). */
+/* Your identity panel above the big board (rank badge + name + tier). Badge matches the
+   opponent cards' own size (.opp-rank-badge .rank-badge, below) — this rule used to be 15px
+   (75px rendered, vs the opponents' ~24px), a leftover default nobody had scaled down, reported
+   as "your own rank logo looks super big and out of place" next to the name/avatar. The
+   landscape-mobile override already fixed this same rule at this breakpoint (see its own comment
+   further down) without the desktop root cause ever being fixed. */
 .game-view.multi #duel_id_you { display: flex; align-items: center; gap: 0.7rem; margin-bottom: 0.75rem; align-self: flex-start; }
-.game-view.multi #duel_id_you .rank-badge { font-size: 15px; }
+.game-view.multi #duel_id_you .rank-badge { font-size: 4.8px; }
 
 /* Opponent grid: each opponent's board tiled two-up, name + % on top. */
 .game-view.multi .opponents {

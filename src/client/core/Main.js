@@ -1711,6 +1711,13 @@ function startBattleSearch(mode) {
 	document.body.classList.add("ranked-game");
 	applyDuoClass();
 	setCoveredBoard();        // paints your own board + the opponent slots covered
+	// The mode is already known at search time (the `mode` param) — no need to wait for the first
+	// live draw_board frame (updateDuelHud/updateMultiHud) before showing "RANKED · SPRINT" in the
+	// timer badge. Previously the badge sat completely empty through the whole search + planning
+	// window, reported as looking bugged; resetGameUI() (above) just cleared any stale text from a
+	// previous match, so this has to run after it, not before.
+	currentRankedMode = mode;
+	updateDuelTimerModeLabel();
 	// Searching is its own "waiting for players to join" — GameRoom.js's renderRoomState only drives
 	// this off an actual room's state.players, which doesn't exist yet here (no room until the match
 	// forms), so this is the one spot that has to turn it on for the search phase itself.
