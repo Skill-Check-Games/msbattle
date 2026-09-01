@@ -993,6 +993,11 @@ function paintYouCardEarly(account) {
 	if (nameEl) nameEl.textContent = account.name || "Player";
 	var lineEl = document.getElementById("dash_you_line");
 	if (lineEl) lineEl.innerHTML = "<b style=\"color:" + t.color + "\">" + t.name + "</b>";
+	// Topbar's compact mobile-landscape copy of the same name/tier — see #topbar_you in index.html.
+	var topbarNameEl = document.getElementById("topbar_you_name");
+	if (topbarNameEl) topbarNameEl.textContent = account.name || "Player";
+	var topbarTierEl = document.getElementById("topbar_you_tier");
+	if (topbarTierEl) { topbarTierEl.textContent = t.name; topbarTierEl.style.color = t.color; }
 	var statsEl = document.getElementById("dash_you_stats");
 	if (statsEl) {
 		var played = account.played || 0, wins = account.wins || 0;
@@ -1022,6 +1027,8 @@ function renderDashIdentity() {
 	// up rather than reveal a "guest" treatment that might flip the moment the real data lands.
 	if (!account) {
 		nameEl.textContent = (typeof myName !== "undefined" && myName) || "Player";
+		var topbarNameElEarly = document.getElementById("topbar_you_name");
+		if (topbarNameElEarly) topbarNameElEarly.textContent = (typeof myName !== "undefined" && myName) || "Player";
 		return;
 	}
 	paintYouCardEarly(account); // name, tier line, stats, skeleton — see above
@@ -1036,6 +1043,13 @@ function renderDashIdentity() {
 		badgeEl.classList.add("dash-avatar-edit");
 		badgeEl.title = "Edit avatar";
 		badgeEl.onclick = function() { if (typeof openAvatarEditor === "function") openAvatarEditor(); };
+	}
+	// Topbar's compact mobile-landscape avatar — same chip, smaller, no click-to-edit (the full
+	// .dash-you card underneath — hidden visually there, but still real — already offers that).
+	var topbarAvatarEl = document.getElementById("topbar_you_avatar");
+	if (topbarAvatarEl) {
+		topbarAvatarEl.innerHTML = "";
+		if (typeof buildAvatarChip === "function") topbarAvatarEl.appendChild(buildAvatarChip(account.avatarColor || DEFAULT_AVATAR, account.country || null, 32));
 	}
 }
 

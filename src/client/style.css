@@ -5458,6 +5458,40 @@ body.duel-force-rotate .game-view.multi .game-side { display: flex !important; }
 	}
 }
 
+/* Landscape phone only (not the plain-portrait leg the nav-burger query above also matches) — the
+   topbar itself still carried full desktop padding there (most landscape phones are wider than the
+   640px breakpoint that would otherwise shrink it), so trims it down regardless of page: real height
+   is at a premium in this orientation on every page, not just the home screen below. */
+@media (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
+	.topbar { padding: 0.5rem 1rem; }
+}
+/* Home screen, mobile landscape only: fold the compact identity (#topbar_you, index.html) into the
+   topbar's own row instead of stacking the full .dash-you card below it — landscape phones have
+   limited height but plenty of width, and stacking both (each sized as if it were the only thing on
+   screen) burns roughly half the viewport before any mode row is visible (see the topbar/dash-you
+   height audit that motivated this). Scoped via body.home-view (set in showLobbyView, cleared in
+   hideAllViews — Router.js) rather than an attribute/:has() selector: views are hidden with a plain
+   inline style.display = "none" (hideAllViews), never the `hidden` ATTRIBUTE, so a `:not([hidden])`
+   selector is never false and every view would otherwise match. .dash-you — what this replaces —
+   only exists on the home view; nothing to fold into on any other page. */
+@media (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
+	body.home-view .dash-you { display: none; }
+	body.home-view .topbar-you {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		min-width: 0;
+	}
+}
+.topbar-you { display: none; }
+.topbar-you-avatar { flex: 0 0 auto; display: inline-flex; }
+.topbar-you-text { display: flex; flex-direction: column; line-height: 1.2; min-width: 0; }
+.topbar-you-name {
+	font-size: 0.85rem; font-weight: 700;
+	overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 140px;
+}
+.topbar-you-tier { font-size: 0.72rem; color: var(--muted); }
+
 /* Mobile: hide the unreadable mini opponent boards; the scoreboard already shows each opponent's
    tier and status. Portrait-only (plain max-width, no landscape leg like the nav block above) —
    this is where the old pickaxe-icon .mobile-action-bar, full-bleed board, etc. live, and none of

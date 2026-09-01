@@ -61,6 +61,10 @@ function hideAllViews() {
 	// here so leaving a ranked game (without another room_state landing first) doesn't leave the
 	// site navbar hidden.
 	document.body.classList.remove("ranked-game");
+	// Drives the mobile-landscape topbar/dash-you merge (style.css) — only the home view has a
+	// .dash-you card to fold into the topbar, so this has to be reset on every OTHER view too,
+	// not just set on the home one.
+	document.body.classList.remove("home-view");
 	// The solo pre-game Start overlay must never linger into another view (the solo_board
 	// handler re-shows it right after, so this is safe to clear unconditionally).
 	var soloStart = document.getElementById("solo_start_overlay");
@@ -210,6 +214,7 @@ function revealStat(id) {
 
 function showLobbyView() {
 	hideAllViews();
+	document.body.classList.add("home-view");
 	lobbyView.style.display = "";
 	lobbyMessage.style.display = "none";
 	renderHomeRankChips();

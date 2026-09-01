@@ -28,6 +28,20 @@
 			<img class="logo-tile" src="/favicon.svg" alt="" width="32" height="32">
 			<span class="logo-name">MSBattle</span>
 		</a>
+		<!-- Home-screen-only, mobile-landscape-only compact identity (avatar+name+tier) — see
+		     .topbar-you in style.css. Landscape phones have limited height but plenty of width, so
+		     this folds the home dashboard's own .dash-you card into the topbar's row instead of
+		     stacking two separate blocks (populated alongside .dash-you, same data — see
+		     paintYouCardEarly/renderDashIdentity, Profile.js). Shown only on the home view
+		     (body:has(#lobby_view:not([hidden])), style.css) since there's no .dash-you card to fold
+		     into anywhere else. -->
+		<div id="topbar_you" class="topbar-you">
+			<span class="topbar-you-avatar" id="topbar_you_avatar"></span>
+			<span class="topbar-you-text">
+				<strong id="topbar_you_name"></strong>
+				<span class="topbar-you-tier" id="topbar_you_tier"></span>
+			</span>
+		</div>
 		<button id="nav_burger" class="nav-burger" type="button" aria-label="Menu" aria-expanded="false" aria-controls="site_nav">☰</button>
 		<nav id="site_nav" class="site-nav" aria-label="Main navigation">
 			<a href="/" class="site-nav-link" data-route="home">Play</a>
