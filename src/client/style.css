@@ -1592,6 +1592,12 @@ input[type="range"]:disabled { opacity: 0.55; cursor: not-allowed; }
    match too, leaving the whole page that much taller than the viewport. */
 .game-view.puzzle .duel-bar-row,
 .game-view.puzzle .player-controls { display: none; }
+/* Mobile: puzzle used to fall back to the old single pickaxe-icon toggle (.mobile-action-bar,
+   shared with solo/racing) since it never had its own control here — replaced with the same
+   Reveal/Flag two-button component the duel/6-player layouts use (.duel-mode-toggle, styled for
+   puzzle further down near that component's other variants), so it now matches "the same toggle
+   buttons we do on other modes" instead of the older single-toggle design. */
+.game-view.puzzle .mobile-action-bar { display: none; }
 /* No width/height here on desktop — fitPuzzleDesktopBoxPx (MobileLayout.js) measures the actual
    available space and sets both directly as an inline style, so the box uses however much room the
    viewport really has instead of a fixed guess. Portrait mobile and landscape phone keep their own
@@ -4885,6 +4891,54 @@ body.multi-landscape-mode .game-view.multi .duel-mode-btn-active {
 body.multi-landscape-mode .game-view.multi .duel-find-nav-btn { flex: 0 0 auto; padding: 0.6rem 0.7rem; }
 body.multi-landscape-mode .game-view.multi .duel-find-nav-btn .duel-mode-btn-icon { font-size: 1.3rem; font-weight: 700; }
 
+/* ── Puzzle, mobile (any orientation — body.touch gate matches .mobile-action-bar's own, so this
+   isn't tied to a width/orientation breakpoint the way the duel/multi variants above are): the same
+   Reveal/Flag two-button component, styled inline rather than as a fixed-to-viewport-bottom bar.
+   Puzzle's board is always a small, fully-visible fixed-size box (PUZZLE_BOARD_PX*, MobileLayout.js)
+   in every orientation — never the tall pannable canvas solo/racing's .mobile-action-bar exists for
+   — so it sits directly below the board in normal flow, same flex:0 0 auto/margin-top placement the
+   landscape duel toggle above uses, no safe-area/fixed-position handling needed. The find-prev/next
+   nav buttons are hidden: they pan to off-screen frontier areas (mobileNavigate), which puzzle's
+   board never needs since the whole thing is already on screen at once. */
+body.touch .game-view.puzzle .duel-mode-toggle {
+	display: flex;
+	flex: 0 0 auto;
+	gap: 0.5rem;
+	margin-top: 0.5rem;
+}
+body.touch .game-view.puzzle .duel-mode-btn {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.4rem;
+	height: 56px;
+	border-radius: 12px;
+	border: 1px solid var(--border);
+	background: var(--surface);
+	color: var(--muted);
+	font-size: 1rem;
+	font-weight: 700;
+	cursor: pointer;
+	touch-action: manipulation;
+}
+body.touch .game-view.puzzle .duel-mode-btn-icon { font-size: 1.1rem; }
+/* Placed after the shared .duel-mode-btn rule above (equal specificity — a plain source-order tie
+   would otherwise let THAT rule's display:flex win over this one, since .duel-find-nav-btn buttons
+   also carry the .duel-mode-btn class). */
+body.touch .game-view.puzzle .duel-find-nav-btn { display: none; }
+/* Same accent-for-reveal / red-for-flag convention the old .mobile-mode-btn used. */
+body.touch .game-view.puzzle #duel_reveal_btn.duel-mode-btn-active {
+	border-color: transparent;
+	background: linear-gradient(180deg, var(--accent-hover), var(--accent));
+	color: #fff;
+}
+body.touch .game-view.puzzle #duel_flag_btn.duel-mode-btn-active {
+	border-color: transparent;
+	background: linear-gradient(180deg, #ef4444, #dc2626);
+	color: #fff;
+}
+
 /* ── Right panel: the live scoreboard, restyled as a compact ranked list — rank, avatar, name+tier,
    progress bar/pct (renderScoreboard, GameRoom.js, already keeps this current every frame and folds a
    big field into top-5 + neighbours-around-you). Beats the unscoped desktop rule that otherwise hides
@@ -7013,42 +7067,4 @@ body.game-fullscreen .game-view:not(.puzzle):not(.solo):not(.duo):not(.multi) .g
 .site-footer-legal { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0.4rem 1rem; font-size: 0.78rem; }
 .site-footer-legal a { color: var(--muted); text-decoration: none; }
 
-/* Rotate-to-landscape nudge (see #rotate_prompt in index.html for why this is a soft prompt, not a
-   true orientation lock). Hidden by default; shown only in-game, on a narrow-enough portrait viewport
-   — past ~700px wide (most phones' landscape width) the normal desktop board layout already looks
-   right, so this is the ONLY mobile-specific handling gameplay needs for orientation. */
-.rotate-prompt { display: none; }
-@media (max-width: 900px) and (orientation: portrait) {
-	body.in-game .rotate-prompt {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		gap: 1rem;
-		position: fixed;
-		inset: 0;
-		z-index: 200;
-		padding: 2rem;
-		text-align: center;
-		background: var(--bg);
-	}
-	body.in-game .rotate-prompt.dismissed { display: none; }
-	/* The 1v1 duel renders landscape regardless of physical orientation now (real orientation lock
-	   where supported, this CSS rotation where it isn't — see body.duel-force-rotate) instead of
-	   asking the player to turn the phone, so the nudge has nothing left to do there specifically.
-	   Solo/puzzle/other modes still don't have that fallback built, so they keep the prompt. */
-	body.in-game.duel-force-rotate .rotate-prompt { display: none; }
-}
-.rotate-prompt-icon {
-	font-size: 3rem;
-	color: var(--accent);
-	animation: rotate-prompt-spin 1.8s ease-in-out infinite;
-}
-@keyframes rotate-prompt-spin {
-	0%, 15% { transform: rotate(0deg); }
-	50%, 65% { transform: rotate(90deg); }
-	100% { transform: rotate(90deg); }
-}
-.rotate-prompt-text { font-size: 1.05rem; color: var(--text); max-width: 24ch; }
-.rotate-prompt-dismiss { color: var(--muted); font-size: 0.85rem; }
 .site-footer-legal a:hover { color: var(--text); }

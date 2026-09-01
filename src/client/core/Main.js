@@ -1491,13 +1491,6 @@ document.getElementById("puzzle_side_back").addEventListener("click", function()
 	});
 })();
 
-// "Continue anyway" on the rotate-to-landscape nudge — dismiss for the rest of this game (a device
-// that genuinely can't rotate, or a player who just prefers portrait, shouldn't be trapped behind it).
-// Re-shows on the next game/round, same as any other in-game overlay resetting between games.
-document.getElementById("rotate_prompt_dismiss").addEventListener("click", function() {
-	document.getElementById("rotate_prompt").classList.add("dismissed");
-});
-
 // Pre-game Start button over the board → run the countdown, then unlock the board.
 document.getElementById("solo_start_btn").addEventListener("click", function() {
 	if (typeof beginSolo === "function") beginSolo();
@@ -2325,8 +2318,6 @@ function resetGameUI() {
 	readyButton.style.display = "";
 	hideOverlay();
 	clearFreeze();
-	var rp = document.getElementById("rotate_prompt");
-	if (rp) rp.classList.remove("dismissed"); // re-nudge for the new game/search, even if dismissed last time
 	var modeEl = document.getElementById("duel_timer_mode");
 	if (modeEl) modeEl.textContent = ""; // let updateDuelHud recompute it fresh for the new match
 	stopRoundTimer();

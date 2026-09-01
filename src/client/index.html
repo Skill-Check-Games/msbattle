@@ -477,18 +477,6 @@
 		     fresh page load never needs, and the parser has to walk past it before this script runs. -->
 		<!-- HYDRATE_DATA -->
 
-		<!-- Mobile portrait nudge, shown only while actually in a game (body.in-game) on a narrow
-		     portrait viewport — see style.css. Landscape needs no special mobile layout at all: past
-		     ~700px wide the normal desktop side-by-side board layout already kicks in and looks right,
-		     so this is purely about getting the player to rotate, not building a second layout. Not a
-		     true OS-level orientation lock (unreliable cross-browser outside fullscreen) — a "Continue
-		     anyway" escape hatch keeps it from trapping anyone whose device won't rotate. -->
-		<div id="rotate_prompt" class="rotate-prompt">
-			<div class="rotate-prompt-icon" aria-hidden="true">⟳</div>
-			<p class="rotate-prompt-text">Rotate your device for the best experience</p>
-			<button id="rotate_prompt_dismiss" class="btn btn-ghost rotate-prompt-dismiss" type="button">Continue anyway</button>
-		</div>
-
 		<section id="game_view" class="view game-view" style="display:none">
 			<div class="game-header">
 				<button id="leave_button" class="btn btn-ghost">← Exit game</button>

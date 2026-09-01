@@ -79,8 +79,8 @@ function enterGameFullscreen(force) {
 
 // Screen Orientation API: only actually locks anything while fullscreen (browsers reject it
 // otherwise), and only on browsers that implement it at all — notably not iOS Safari, which has
-// never shipped ScreenOrientation.lock(). Failing there is expected and silent; #rotate_prompt is
-// still around as the fallback nudge for whoever it doesn't work for.
+// never shipped ScreenOrientation.lock(). Failing there is expected and silent; body.duel-force-
+// rotate (applyDuelLandscapeClass, Main.js) is the real fallback for whoever it doesn't work for.
 function tryLockLandscape() {
 	try {
 		if (screen.orientation && typeof screen.orientation.lock === "function") {
