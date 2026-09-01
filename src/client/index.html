@@ -761,6 +761,10 @@
 							<div class="opp-head"><span class="opp-avatar" id="opp_avatar5"></span><span class="opp-id"><p id="player_name5" class="player-name"></p><span class="opp-tier" id="opp_tier5"></span></span></div>
 							<canvas id="game5" width="250" height="175"></canvas>
 						</div>
+						<div class="opponent_div" data-slot style="display:none">
+							<div class="opp-head"><span class="opp-avatar" id="opp_avatar6"></span><span class="opp-id"><p id="player_name6" class="player-name"></p><span class="opp-tier" id="opp_tier6"></span></span></div>
+							<canvas id="game6" width="250" height="175"></canvas>
+						</div>
 					</div>
 					<div id="series_card" class="side-card">
 						<h3 class="side-title">Series</h3>
@@ -977,17 +981,9 @@
 					<span class="ranked-picker-option-sub" id="ranked_modal_duo_sub">Head-to-head race</span>
 				</button>
 				<button id="ranked_modal_six" class="ranked-picker-option" type="button">
-					<span class="ranked-picker-option-icon" aria-hidden="true">
-						<svg viewBox="0 0 24 24">
-							<circle cx="5" cy="8" r="2.4" fill="currentColor"/>
-							<circle cx="12" cy="6" r="2.4" fill="currentColor"/>
-							<circle cx="19" cy="8" r="2.4" fill="currentColor"/>
-							<circle cx="5" cy="17" r="2.4" fill="currentColor"/>
-							<circle cx="12" cy="19" r="2.4" fill="currentColor"/>
-							<circle cx="19" cy="17" r="2.4" fill="currentColor"/>
-						</svg>
-					</span>
-					<span class="ranked-picker-option-title" id="ranked_modal_six_title">6-player</span>
+					<!-- Icon dropped in favor of big text, matching the 1v1 card (its own comment above:
+					     a small glyph doesn't read as a specific number at a glance). -->
+					<span class="ranked-picker-option-title ranked-picker-option-title-big" id="ranked_modal_six_title">7-player</span>
 					<span class="ranked-picker-option-sub" id="ranked_modal_six_sub">Free-for-all sprint</span>
 				</button>
 			</div>

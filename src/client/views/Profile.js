@@ -617,7 +617,7 @@ var ACHIEVEMENTS = [
 	{ icon: "⚡", name: "Surge", value: function(m) { return m.bestDayGain || 0; }, tiers: [150, 300, 500], desc: function(t) { return "Climb +" + t + " rating in one day"; } },
 	{ icon: "💥", name: "Big Swing", value: function(m) { return m.bigSwing || 0; }, tiers: [40, 80, 120], desc: function(t) { return "Gain +" + t + " from a single match"; } },
 	{ icon: "🤺", name: "Duelist", value: function(m) { return m.wins1v1 || 0; }, tiers: [10, 50, 200, 1000], desc: function(t) { return "Win " + t + " 1v1 matches"; } },
-	{ icon: "👑", name: "Free-for-all King", value: function(m) { return m.wins6p || 0; }, tiers: [1, 10, 50], desc: function(t) { return t === 1 ? "Win a 6-player free-for-all" : "Win " + t + " 6-player free-for-alls"; } },
+	{ icon: "👑", name: "Free-for-all King", value: function(m) { return m.wins6p || 0; }, tiers: [1, 10, 50], desc: function(t) { return t === 1 ? "Win a 7-player free-for-all" : "Win " + t + " 7-player free-for-alls"; } },
 	// Style challenges — solo + racing only (never puzzles); backed by player_stats clear counters.
 	{ icon: "🧠", name: "No Flags", value: function(m) { return m.noFlagClears || 0; }, tiers: [1, 10, 50], desc: function(t) { return t === 1 ? "Clear a board without placing a flag" : "Clear " + t + " boards without a flag"; } },
 	{ icon: "🎹", name: "Chord Master", value: function(m) { return m.noRevealClears || 0; }, tiers: [1, 10, 50], desc: function(t) { return t === 1 ? "Clear a board without a left-click (chords only)" : "Clear " + t + " boards chord-only"; } },

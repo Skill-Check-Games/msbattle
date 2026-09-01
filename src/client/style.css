@@ -6921,9 +6921,20 @@ input[type="range"].sound-lab-rate-slider { grid-column: 1 / -1; grid-row: 2; wi
 }
 .ranked-picker-option-icon svg { width: 100%; height: 100%; }
 .ranked-picker-option-title { font-size: 1.4rem; font-weight: 700; }
-/* 1v1 option: no icon glyph, just its title text sized up to fill the space the icon used to take. */
+/* 1v1/7-player options: no icon glyph, just title text sized up to fill the space an icon would
+   otherwise take. */
 .ranked-picker-option-title-big { font-size: 2.4rem; line-height: 1; margin-bottom: 0.2rem; }
 .ranked-picker-option-sub { color: var(--muted); font-size: 0.85rem; }
+/* Scoped to the ranked modal specifically (not the shared .ranked-picker-option class the Puzzles
+   picker also uses, further down — that one keeps its icon + left-aligned longer sub-text, which
+   reads better unindented). Both ranked cards are now icon-free big-text-only, so centering them
+   both horizontally and vertically (row height is stretched equal by the grid, so justify-content
+   actually has room to matter here) reads better than the icon-era left alignment. */
+#ranked_mode_modal .ranked-picker-option {
+	align-items: center;
+	justify-content: center;
+	text-align: center;
+}
 
 
 /* === In-battle ranked search ===================================== */

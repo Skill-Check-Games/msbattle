@@ -31,7 +31,7 @@ var boardScroll = document.getElementById("board_scroll");
 // "Find match" for a racing mode drops you straight into this layout and slots opponents in as the
 // search fills, so search and play share one screen. `rankedSearch` holds the pending field.
 var rankedSearch = null; // { mode, size, race:true, members:[] } while searching a racing ranked mode
-function rankedModeSize(mode) { return /_six$/.test(mode) ? 6 : 2; }
+function rankedModeSize(mode) { return /_six$/.test(mode) ? 7 : 2; }
 // The number of racing boards in the current battle — from the live room if there is one, else the
 // size of the racing search we're in. 0 when neither applies (so the battle layout stays off).
 function battleSize() {
@@ -39,10 +39,10 @@ function battleSize() {
 	if (rankedSearch && rankedSearch.race) return rankedSearch.size;
 	return 0;
 }
-// A 1v1 racing match uses the side-by-side "duel" layout (both boards equal size); a 3-6 player
+// A 1v1 racing match uses the side-by-side "duel" layout (both boards equal size); a 3-7 player
 // match uses the TetrisFriends-style grid. Driven by a `duo`/`multi` class on the game view.
 function isDuoRacing() { return battleSize() === 2; }
-function isMultiRacing() { var n = battleSize(); return n >= 3 && n <= 6; }
+function isMultiRacing() { var n = battleSize(); return n >= 3 && n <= 7; }
 function isBattleRacing() { return isDuoRacing() || isMultiRacing(); }
 // duo/multi (the 1v1 / 3-6 player battle layouts) must always be cleared together — a leftover from
 // one leaking into a mode that doesn't expect it breaks that mode's CSS (a leftover .multi hid the
@@ -546,7 +546,7 @@ function sizeOpponentCanvases() {
 		}
 		multiCell = Math.max(8, Math.min(26, widthCell, heightCell));
 	}
-	for (var gi = 1; gi <= 5; gi++) {
+	for (var gi = 1; gi <= 6; gi++) {
 		var cv = document.getElementById("game" + gi);
 		if (cv) sizeBoardCanvas(cv, (gi === 1 && duo) ? duoCell : (multi ? multiCell : OPP_CELL));
 	}
@@ -1890,7 +1890,7 @@ function localRoundStartReveal() {
 	var targets = [];
 	if (isBattleRacing()) {
 		var oppPlayers = battleRoster().filter(function(p) { return !(p.id === id || p.isYou); });
-		for (var i = 1; i <= 5; i++) {
+		for (var i = 1; i <= 6; i++) {
 			var p = oppPlayers[i - 1];
 			if (!p) continue;
 			var cv = document.getElementById("game" + i);
@@ -1945,7 +1945,7 @@ function setCoveredBoard() {
 		// nothing repaints them between rounds, so without this they'd keep showing the previous
 		// round's final (often exploded) board for a beat until the new round's first draw_board
 		// frame arrives. Clear all 5 defensively; only 1-2 are ever actually shown in this layout.
-		for (var oi = 1; oi <= 5; oi++) {
+		for (var oi = 1; oi <= 6; oi++) {
 			var oc = document.getElementById("game" + oi);
 			if (oc) clearCanvas(oc);
 		}
@@ -1971,7 +1971,7 @@ function paintOpponentCovered() {
 	// read as "Searching…" placeholders); in a live room, exactly the opponents present.
 	var slotCount = searching ? Math.max(0, battleSize() - 1) : oppPlayers.length;
 	var slots = document.querySelectorAll('[data-slot]');
-	for (var i = 1; i <= 5; i++) {
+	for (var i = 1; i <= 6; i++) {
 		var slot = slots[i - 1];
 		var p = oppPlayers[i - 1];
 		var cv = document.getElementById("game" + i);
@@ -2225,7 +2225,7 @@ socket.on("draw_board", function(data) {
 		if (me.finished && me.totalSafe > 0 && (me.safeCount || 0) >= me.totalSafe) reportClear();
 	}
 
-	for (var i = 1; i <= 5; i++) {
+	for (var i = 1; i <= 6; i++) {
 		var nameEl = document.getElementById("player_name" + i);
 		var canvasEl = document.getElementById("game" + i);
 		var slot = slots[i - 1];
@@ -2328,7 +2328,7 @@ function resetGameUI() {
 	lastGames = null; // see MobileLayout.js's refreshPlayerBoardSize — repaints game1 straight from this
 	setDuelBar("duel_bar_you", 0);
 	setDuelBar("duel_bar_opp", 0);
-	for (var i = 0; i < 6; i++) {
+	for (var i = 0; i < 7; i++) {
 		setHudName(document.getElementById("player_name" + i), null);
 		clearCanvas(document.getElementById("game" + i));
 	}

@@ -108,7 +108,7 @@ function openRankedModeModal(style) {
 	document.getElementById("ranked_modal_duo_sub").textContent = meta.duoSub;
 	document.getElementById("ranked_modal_six_sub").textContent = meta.sixSub;
 	document.getElementById("ranked_modal_duo_title").textContent = meta.duoTitle || "1v1";
-	document.getElementById("ranked_modal_six_title").textContent = meta.sixTitle || "6-player";
+	document.getElementById("ranked_modal_six_title").textContent = meta.sixTitle || "7-player";
 	var rating = null;
 	if (account) {
 		if (style === "sprint") rating = account.ratingSprint;

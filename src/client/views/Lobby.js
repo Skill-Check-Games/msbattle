@@ -17,8 +17,8 @@ function findRanked(mode) {
 	startBattleSearch(mode);
 }
 var MODE_LABELS = {
-	sprint_duo: "1v1 Sprint",   sprint_six: "6-player Sprint",
-	standard_duo: "1v1 Standard", standard_six: "6-player Standard"
+	sprint_duo: "1v1 Sprint",   sprint_six: "7-player Sprint",
+	standard_duo: "1v1 Standard", standard_six: "7-player Standard"
 };
 
 function formatRoundTime(s) {

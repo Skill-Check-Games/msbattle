@@ -28,11 +28,15 @@ var roomMapping = appState.roomMapping, games = appState.games, rooms = appState
 
 // Ranked mode catalogue + timings (moved here from the server). Each playstyle carries its
 // own Elo ladder.
+// The "_six" mode ids are kept as-is (not renamed to "_seven") even though `size` is now 7 —
+// they're a wire/DB identifier (match_history, replays, the ranked queue) with real historical
+// data behind them; renaming would orphan that history. `label` is display metadata only (grep
+// confirms nothing reads it) — updated for anyone skimming this table, not load-bearing.
 var RANKED_MODES = {
 	sprint_duo: { size: 2, label: "1v1 Sprint", style: "sprint", mineDensity: 0.10, boardSize: "medium" },
-	sprint_six: { size: 6, label: "6P Sprint",  style: "sprint", mineDensity: 0.10, boardSize: "medium" },
+	sprint_six: { size: 7, label: "7P Sprint",  style: "sprint", mineDensity: 0.10, boardSize: "medium" },
 	standard_duo: { size: 2, label: "1v1 Standard", style: "standard", mineDensity: 0.20, boardSize: "medium", roundSeconds: 360 }, // denser board → longer round
-	standard_six: { size: 6, label: "6P Standard", style: "standard", mineDensity: 0.20, boardSize: "medium", roundSeconds: 360 }
+	standard_six: { size: 7, label: "7P Standard", style: "standard", mineDensity: 0.20, boardSize: "medium", roundSeconds: 360 }
 };
 // Short pause between forming a match and starting game 1 — just long enough to land in the
 // game layout (covered board) before the countdown. There's no roster modal to read anymore
