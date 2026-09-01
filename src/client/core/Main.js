@@ -2061,6 +2061,13 @@ socket.on("game_result", function(data) {
 	roundResultShown = true;
 	clearFreeze();
 	stopRoundTimer();
+	// Mobile landscape duel/multi: a player who zoomed in to play close-up (or the 56px-floor
+	// default while roundLive) was left stuck at that zoom once the round ended — roundStartTime
+	// (which fitDesktopCellPx's floor keys off) is only ever reset at the START of the next round,
+	// not here, so without an explicit zoom-out the board stayed zoomed in right through the
+	// finish-place stamps and into the result modal. No-ops on desktop / already-zoomed-out (see
+	// zoomDuelOut's own guard).
+	if (typeof zoomDuelOut === "function") zoomDuelOut();
 	// 6-player battle: fill in every board's final place from the standings (finishers keep the
 	// place the live updater gave them; non-finishers now get theirs too).
 	applyMultiFinalPlaces(data.standings);
