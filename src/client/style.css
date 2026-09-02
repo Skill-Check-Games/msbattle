@@ -1711,17 +1711,23 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 		overflow: hidden;
 		display: flex;
 		align-items: center;
-		/* Without this the board+card group (which doesn't stretch to fill available width — neither
-		   has a flex-grow) sits at the row's default start edge, leaving any extra width as dead space
-		   on one side instead of framing the content evenly — most visible on a wide phone/short window
-		   where the content is much narrower than the viewport. */
 		justify-content: center;
+		/* Outer breathing room — the board+card group now fills this box (.game-grid below is
+		   width/height:100%) rather than sitting at its own small content size centered within a lot
+		   of dead space, so this padding is what actually frames it now. */
+		padding: 1rem;
+		box-sizing: border-box;
 	}
 	/* Overrides the max-width:900px block's flex-direction:column further up — a landscape phone is
 	   often under 900px WIDE despite having width to spare (the constraint here is height, not width),
 	   so without this it would stack the board above the card instead of beside it, needing far more
-	   vertical room than this viewport has. */
-	.game-view.puzzle .game-grid { flex-direction: row; align-items: center; gap: 0.8rem; }
+	   vertical room than this viewport has. width/height:100% + align-items:stretch (was center) let
+	   the group actually fill the viewport instead of shrink-wrapping its own (small, fixed-box-era)
+	   content and then just sitting centered in the leftover space — fitPuzzleLandscapeBoxPx
+	   (MobileLayout.js) measures THIS box's real clientWidth, so it has to be the true available size,
+	   not the old smaller-than-viewport auto width. stretch also means #puzzle_card (height:100% below)
+	   matches the board's own height automatically, no JS needed for that half. */
+	.game-view.puzzle .game-grid { flex-direction: row; align-items: stretch; gap: 0.8rem; width: 100%; height: 100%; }
 	/* Same narrow-landscape gotcha as .game-side below: the portrait @media(max-width:700px) block's
 	   own "in-game stacked layout" rules (further down) still match here too and fight this one —
 	   .game-left forced to flex:1;width:100% (fills the row, pushing .game-side out past the viewport
@@ -1733,21 +1739,33 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 	   pushed off the left edge, then fixed but the card clipped off the RIGHT edge instead — this is
 	   the .game-left half of that same fix). */
 	body.in-game .game-view.puzzle .game-left { display: flex; flex: 0 0 auto; width: auto; }
+	/* display:flex + centering (was plain display:block): .game-grid's align-items:stretch above now
+	   stretches .game-left (and this, its only child) to the FULL column height, but the board+toggle
+	   group's own height is still whatever fitPuzzleLandscapeBoxPx actually computed — often shorter
+	   than that stretched box (bound by width instead of height on a wide-but-not-tall phone). Centers
+	   that group within the extra room instead of leaving it pinned to the top with dead space below. */
 	body.in-game .game-view.puzzle .player-board {
-		display: block; flex: 0 0 auto; width: auto; max-width: none; margin-left: 0; margin-right: 0; padding: 0;
+		display: flex; flex-direction: column; justify-content: center; align-items: center;
+		flex: 0 0 auto; width: auto; max-width: none; margin-left: 0; margin-right: 0; padding: 0;
 	}
-	.game-view.puzzle .board-scroll,
-	.game-view.puzzle .board-wrap { width: 300px; }
-	.game-view.puzzle .board-scroll { height: 300px; }
+	/* No fixed width/height here any more — fitPuzzleLandscapeBoxPx (MobileLayout.js) measures the
+	   real available space (this .game-grid's own width/height, now a true 100% instead of shrink-
+	   wrapped) and sets both as an inline style, "use all the space we have" same as desktop/portrait
+	   mobile. Padding is new too — the board used to sit flush against its own card border. */
+	.game-view.puzzle .board-scroll { padding: 16px; }
 	/* On a NARROW landscape phone this media query is now reached alongside the portrait @media
 	   (max-width:700px) block's own "body.in-game .game-side { display:none }" (further down) — that
 	   rule has no width floor of its OWN kind either, so it still matches here and would otherwise win
 	   (same source-order precedence either way, and its selector is no less specific) — needs its own
 	   explicit re-show, same gotcha the two battle layouts' force-rotate cases hit for the same
 	   underlying rule. Confirmed via a real 667x375 viewport: without this the board fixed itself but
-	   the ladder card next to it stayed a zero-size, invisible box. */
-	body.in-game .game-view.puzzle .game-side { display: flex; flex: 0 0 230px; }
-	.game-view.puzzle #puzzle_card { height: 300px; width: 100%; }
+	   the ladder card next to it stayed a zero-size, invisible box. Widened 230px -> 320px (matching
+	   desktop's own sidebar width) for more room to breathe, working from a reference mockup. */
+	body.in-game .game-view.puzzle .game-side { display: flex; flex: 0 0 320px; }
+	/* height:100% (was a flat 300px): matches the board's own height via .game-grid's
+	   align-items:stretch above, instead of a number that only happened to equal the board's own old
+	   fixed box. */
+	.game-view.puzzle #puzzle_card { height: 100%; width: 100%; }
 }
 
 /* Marathon boards reuse the puzzle-play path (see puzzlePlay.js) but are full-size boards

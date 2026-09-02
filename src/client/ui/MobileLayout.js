@@ -109,6 +109,29 @@ function isPuzzleLandscapeMobile() {
 	return !!(inPuzzle && typeof puzzleLandscapeMQL !== "undefined" && puzzleLandscapeMQL && puzzleLandscapeMQL.matches);
 }
 
+// Landscape phone's own "use the space we have" (on request, working from a reference mockup — the
+// fixed 300px box left the same kind of dead space desktop's old fixed 480px did, worse here since
+// the board+card group was also centered as a small island instead of the group itself filling the
+// viewport). Bounded by BOTH width and height, like fitPuzzleDesktopBoxPx — this layout keeps
+// board+card side by side within one fixed-height screen (height:100dvh, overflow:hidden, no header)
+// rather than scrolling. Also reserves room below the board for the Reveal/Flag toggle row, which
+// lives in this same .board-wrap column here (PUZZLE_LANDSCAPE_TOGGLE_H — keep in sync by hand with
+// its real rendered height, style.css).
+var PUZZLE_LANDSCAPE_TOGGLE_H = 64;
+var PUZZLE_LANDSCAPE_PAGE_MARGIN = 32; // top+bottom breathing room outside the board+toggle column
+var PUZZLE_BOX_PADDING_LANDSCAPE = 16; // .board-scroll's own padding here — same idea as the mobile one
+function fitPuzzleLandscapeBoxPx() {
+	var grid = document.querySelector(".game-view.puzzle .game-grid");
+	if (!grid) return PUZZLE_BOARD_PX_LANDSCAPE;
+	var side = document.querySelector(".game-view.puzzle .game-side");
+	var gapPx = parseFloat(getComputedStyle(grid).gap) || 0;
+	var availW = grid.clientWidth - (side ? side.offsetWidth : 0) - gapPx;
+	var availH = window.innerHeight - PUZZLE_LANDSCAPE_PAGE_MARGIN - PUZZLE_LANDSCAPE_TOGGLE_H;
+	var box = Math.min(availW, availH);
+	if (!(box > 0)) return PUZZLE_BOARD_PX_LANDSCAPE;
+	return Math.max(200, Math.min(640, Math.floor(box)));
+}
+
 // True on either mobile landscape battle layout — 1v1 duel (body.duel-landscape-mode) or 6-player
 // (body.multi-landscape-mode), style.css — a wide (width > 700) viewport, so it fails the width-based
 // mobileLayout check even though it's a phone held sideways and needs the same fixed-size, panned-by-
@@ -227,32 +250,29 @@ function sizePlayerCanvas() {
 		var puzzleLandscape = isPuzzleLandscapeMobile();
 		var isPuzzleDesktop = !puzzleLandscape && !mobileLayout;
 		var mobilePortraitPuzzle = !puzzleLandscape && mobileLayout;
-		var target = puzzleLandscape ? PUZZLE_BOARD_PX_LANDSCAPE : (mobileLayout ? fitPuzzleMobileBoxPx() : fitPuzzleDesktopBoxPx());
+		var target = puzzleLandscape ? fitPuzzleLandscapeBoxPx() : (mobileLayout ? fitPuzzleMobileBoxPx() : fitPuzzleDesktopBoxPx());
 		var cap = puzzleLandscape ? PUZZLE_CELL_MAX_LANDSCAPE : (mobileLayout ? PUZZLE_CELL_MAX_MOBILE : PUZZLE_CELL_MAX);
-		// Portrait mobile carves out room for .board-scroll's own padding (the "spacing around the
-		// board" ask) before dividing into cells — the outer box (target, what CSS/inline width is set
-		// to) stays the full measured space; only the cell-sizing math shrinks to leave that padding
-		// room inside it. Desktop/landscape are untouched (no padding added there).
-		var cellTarget = mobilePortraitPuzzle ? Math.max(1, target - PUZZLE_BOX_PADDING_MOBILE * 2) : target;
+		// Portrait mobile and landscape both carve out room for .board-scroll's own padding (the
+		// "spacing around the board" ask) before dividing into cells — the outer box (target, what the
+		// inline width/height is set to) stays the full measured space; only the cell-sizing math
+		// shrinks to leave that padding room inside it. Desktop is untouched (no padding added there).
+		var boxPadding = mobilePortraitPuzzle ? PUZZLE_BOX_PADDING_MOBILE : (puzzleLandscape ? PUZZLE_BOX_PADDING_LANDSCAPE : 0);
+		var cellTarget = boxPadding ? Math.max(1, target - boxPadding * 2) : target;
 		cellPx = Math.min(cap, Math.floor(cellTarget / Math.max(rows, cols)));
-		// Landscape keeps its fixed CSS box size (style.css) — desktop and portrait mobile are both
-		// JS-sized now, live measurements instead of a constant the stylesheet can hardcode.
+		// Every fixedBox case is a live measurement now, set as an inline style — desktop, portrait
+		// mobile, and landscape phone alike, none fall back to a fixed CSS box any more.
 		var puzzleWrap = document.querySelector(".game-view.puzzle .board-wrap");
 		var puzzleCard = document.getElementById("puzzle_card");
-		if (isPuzzleDesktop || mobilePortraitPuzzle) {
-			if (boardScroll) { boardScroll.style.width = target + "px"; boardScroll.style.height = target + "px"; }
-			if (puzzleWrap) puzzleWrap.style.width = target + "px";
-			if (mobilePortraitPuzzle && puzzleCard) puzzleCard.style.width = target + "px";
-		} else if (inPuzzle) {
-			// Landscape has its own fixed CSS box size (style.css) — clear any inline width/height a
-			// DESKTOP or portrait-mobile render left behind earlier in the same session (e.g. resizing
-			// the window narrower, or force-rotating into landscape), or it would keep silently
-			// overriding those fixed values regardless of which media query now matches (the same
-			// class of bug already found and fixed for #board_scroll in the racing-board context).
-			if (boardScroll) { boardScroll.style.width = ""; boardScroll.style.height = ""; }
-			if (puzzleWrap) puzzleWrap.style.width = "";
-			if (puzzleCard) puzzleCard.style.width = "";
-		}
+		if (boardScroll) { boardScroll.style.width = target + "px"; boardScroll.style.height = target + "px"; }
+		if (puzzleWrap) puzzleWrap.style.width = target + "px";
+		// The ladder card's WIDTH only needs to track the board's for portrait mobile, where the two
+		// stack vertically (matching widths reads as one column) — landscape sits them side by side
+		// instead (its own fixed-width .game-side column, style.css), where matching the board's width
+		// would be wrong; its HEIGHT still matches the board there, but via CSS align-items:stretch on
+		// .game-grid, not JS. Desktop's card width is likewise CSS-driven (.game-side), unrelated to
+		// the board's own measured size.
+		if (mobilePortraitPuzzle && puzzleCard) puzzleCard.style.width = target + "px";
+		else if (puzzleCard) puzzleCard.style.width = "";
 	} else {
 		cellPx = mobileLayout ? fitMobileCellPx() : fitDesktopCellPx();
 	}
