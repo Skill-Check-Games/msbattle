@@ -56,11 +56,27 @@ function enterDuelMobileFullscreen() {
 	if ((isTouch && phoneSized) || isMobileViewport()) enterGameFullscreen(true);
 }
 
+// Puzzle's own mobile fullscreen entry (on request) — same phone-detection logic as
+// enterDuelMobileFullscreen above (a phone in either orientation, not just a narrow viewport), but
+// WITHOUT locking landscape (force=true, lockLandscape=false): puzzle has real, working layouts in
+// BOTH orientations (see style.css) — unlike the battle layouts, this is purely "use the reclaimed
+// screen space," not "this mode only works turned sideways."
+function enterPuzzleMobileFullscreen() {
+	var isTouch = (typeof touchInput !== "undefined") && touchInput;
+	var phoneSized = typeof screen !== "undefined" && Math.min(screen.width || 0, screen.height || 0) <= 500;
+	if ((isTouch && phoneSized) || isMobileViewport()) enterGameFullscreen(true, false);
+}
+
 // `force` bypasses the mobile skip below — used only for the two battle modes
 // (enterDuelMobileFullscreen), where the landscape layout is built specifically to use the reclaimed
 // space (no browser chrome, no address bar) rather than just "windowed but bigger". Every other
 // mobile entry point (solo, casual rooms, puzzles, …) keeps the plain windowed-on-mobile behavior below.
-function enterGameFullscreen(force) {
+// lockLandscape defaults to matching `force` (the existing behavior for every call site below,
+// all of which either don't force fullscreen at all or are the battle layouts' own mobile entry
+// points, which DO want the lock) — pass it explicitly (false) to force fullscreen without also
+// locking orientation, for a mode that genuinely works either way (see enterPuzzleMobileFullscreen).
+function enterGameFullscreen(force, lockLandscape) {
+	if (lockLandscape === undefined) lockLandscape = force;
 	try {
 		if (isMobileViewport() && !force) return; // skip fullscreen on mobile — play windowed
 		if (isInFullscreen()) return; // already fullscreen — nothing to do
@@ -70,8 +86,8 @@ function enterGameFullscreen(force) {
 		if (!req) return; // unsupported (e.g. iOS Safari) — play windowed
 		var r = req.call(el);
 		if (r && typeof r.catch === "function") {
-			r.then(function() { tryLockLandscape(); }).catch(function() {});
-		} else {
+			r.then(function() { if (lockLandscape) tryLockLandscape(); }).catch(function() {});
+		} else if (lockLandscape) {
 			tryLockLandscape();
 		}
 	} catch (e) { /* blocked or unsupported — ignore, stay windowed */ }

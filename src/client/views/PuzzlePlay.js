@@ -73,8 +73,16 @@ function renderPuzzlePlay(mode) {
 		view.appendChild(msg);
 		return;
 	}
-	// Puzzle modes stay in the normal page (no fullscreen) — they're a calm solo
-	// experience, not a head-to-head match, and keep the navbar/footer in view.
+	// Desktop keeps puzzle modes in the normal page (no fullscreen) — a calm solo experience, not a
+	// head-to-head match, keeping the navbar/footer in view. Mobile now force-enters fullscreen on
+	// request (enterPuzzleMobileFullscreen, Fullscreen.js) — unlike the battle layouts' own mobile
+	// fullscreen entry, this does NOT lock landscape: puzzle has real, working layouts in both
+	// orientations (portrait and landscape — see style.css), so this is purely about reclaiming the
+	// browser chrome's screen space, not "this mode only works turned sideways." Called synchronously
+	// here (same requestFullscreen()-needs-a-fresh-user-gesture constraint as the battle layouts) —
+	// renderPuzzlePlay runs straight off the router's click-triggered navigation, before any of the
+	// async socket round-trips below.
+	if (typeof enterPuzzleMobileFullscreen === "function") enterPuzzleMobileFullscreen();
 	if (mode === "daily") {
 		// Check first — if already attempted today, show the result without
 		// starting a fresh play.
@@ -143,8 +151,13 @@ function togglePuzzleChrome(on, mode, marathon) {
 	var primaryLabel = document.getElementById("puzzle_run_primary_label");
 	var secondaryLabel = document.getElementById("puzzle_run_secondary_label");
 	var footLabel = document.getElementById("puzzle_run_foot_label");
+	// #puzzle_hint_btn moved out from inside ratedPanel to be its own direct child of #puzzle_card
+	// (index.html, so portrait mobile can relocate it independently — see style.css) — it no longer
+	// inherits ratedPanel's own display automatically, so mirror the same condition explicitly here.
+	var hintBtn = document.getElementById("puzzle_hint_btn");
 	if (mode === "streak" || mode === "storm" || mode === "daily") {
 		if (ratedPanel) ratedPanel.style.display = "none";
+		if (hintBtn) hintBtn.style.display = "none";
 		if (runPanel) runPanel.style.display = "";
 		if (titleEl) {
 			titleEl.textContent = mode === "streak" ? "Streak"
@@ -162,6 +175,7 @@ function togglePuzzleChrome(on, mode, marathon) {
 		if (footLabel) footLabel.textContent = "Best";
 	} else {
 		if (ratedPanel) ratedPanel.style.display = "";
+		if (hintBtn) hintBtn.style.display = "";
 		if (runPanel) runPanel.style.display = "none";
 		if (titleEl) titleEl.textContent = marathon ? "Marathon board" : "Puzzle Ladder";
 	}

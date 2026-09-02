@@ -1655,6 +1655,28 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 	.game-view.puzzle .game-left { align-self: stretch; }
 	.game-view.puzzle #puzzle_card { height: auto; width: 100%; }
 }
+@media (max-width: 700px) {
+	/* Puzzle's own back button (.puzzle-side-back, next to "Puzzle Ladder") already covers "get me
+	   out of here" — the generic header's "Exit game" button was redundant chrome duplicating it,
+	   on request (same reasoning already applied to the landscape layout, further down). */
+	.game-view.puzzle .game-header { display: none; }
+	/* .game-side and #puzzle_card both flatten (display:contents) so their children can each get
+	   their own independent order in .game-grid's single flex column, on request: the back button +
+	   "Puzzle Ladder" title and the rank/progress section move BEFORE the board (order:-1, reading
+	   as the page's own header now that the generic one above is hidden), while Hint moves to AFTER
+	   the board and the Reveal/Flag row (order:1) instead of sitting with the rank section. Neither
+	   .game-side nor #puzzle_card keep their own box (border/background/padding, .side-card) once
+	   flattened — intentional, since this is genuinely two separate groups now, not one card; Hint
+	   already reads fine as a standalone button (it's a real .btn on its own) without one. */
+	body.in-game .game-view.puzzle .game-side { display: contents; }
+	.game-view.puzzle #puzzle_card { display: contents; }
+	.game-view.puzzle .puzzle-side-head,
+	.game-view.puzzle #puzzle_rated_panel,
+	.game-view.puzzle #puzzle_run_panel {
+		order: -1;
+	}
+	.game-view.puzzle #puzzle_hint_btn { order: 1; width: 100%; }
+}
 @media (max-width: 600px) {
 	/* Plain CSS now (was a fixed 320px, then a min(400px,...) fallback JS immediately overrode with a
 	   computed pixel target) — sizePlayerCanvas (MobileLayout.js) just reads .board-scroll's own

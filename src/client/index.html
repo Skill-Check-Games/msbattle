@@ -852,10 +852,6 @@
 							<!-- Marathon boards only: this board's standing best, live for the whole play (not just
 							     the post-game panel) — see togglePuzzleChrome/updatePuzzleMarathonBestChip. -->
 							<div id="puzzle_marathon_best" class="puzzle-marathon-best" style="display:none"></div>
-							<button id="puzzle_hint_btn" class="btn btn-secondary puzzle-hint-btn" type="button">
-								<span class="puzzle-hint-icon">💡</span>
-								<span>Hint</span>
-							</button>
 							<div id="puzzle_fail_actions" class="puzzle-fail-actions kbd-btn-group" style="display:none">
 								<button id="puzzle_retry_btn" class="btn btn-primary" type="button">Try again</button>
 								<button id="puzzle_skip_btn" class="btn btn-secondary" type="button">Next puzzle</button>
@@ -879,6 +875,16 @@
 								<span id="puzzle_run_best" class="puzzle-run-foot-value">0</span>
 							</div>
 						</div>
+						<!-- Direct child of #puzzle_card (not nested in #puzzle_rated_panel any more) so portrait
+						     mobile (style.css) can relocate just this button to the bottom of the page, below the
+						     board, independently of the rank/progress section above — desktop's own flex-column
+						     #puzzle_card stacks it in the same visual spot regardless (last child either way).
+						     Visibility no longer follows its old parent automatically — togglePuzzleChrome
+						     (PuzzlePlay.js) sets it explicitly alongside ratedPanel's own display now. -->
+						<button id="puzzle_hint_btn" class="btn btn-secondary puzzle-hint-btn" type="button">
+							<span class="puzzle-hint-icon">💡</span>
+							<span>Hint</span>
+						</button>
 					</div>
 					<div id="solo_card" class="side-card" style="display:none">
 						<h3 class="side-title">Free play</h3>
