@@ -4458,19 +4458,25 @@ body.duel-landscape-mode .game-view.duo .duel-mode-btn-active {
 body.duel-landscape-mode .game-view.duo .duel-find-nav-btn { flex: 0 0 auto; padding: 0.6rem 0.7rem; }
 body.duel-landscape-mode .game-view.duo .duel-find-nav-btn .duel-mode-btn-icon { font-size: 1.3rem; font-weight: 700; }
 
-/* ===== Post-game result modal, compacted for the short mobile-duel/6-player viewport =====
-   .board-overlay-panel's normal sizing (padding, gaps, font sizes) is roomy by design — fine for
-   desktop and portrait mobile, where max-height:90vh has real headroom — but this layout's own
-   viewport is barely ~390px tall, and the full 1v1 ranked-result content (hero + rating card +
-   opponent line + times chips + Play another/Leave) doesn't fit under 90vh of that at normal size,
-   forcing a scroll just to reach the buttons (the modal's own overflow-y:auto fallback, further up).
+/* ===== Post-game result modal — 2-column layout for the short mobile-duel/6-player viewport =====
+   Was a single vertical stack (hero -> rating card -> divider -> opponent context -> buttons, same
+   shape as desktop) with every piece progressively shrunk down until it fit under this layout's
+   ~390px-tall viewport. Replaced with a real 2-column split on request, since a landscape phone
+   actually has width to spare: "your rank progression" (hero + rating card) takes the left 2/3,
+   "opponent info" (the 1v1 opp line/times, or the 6-player standings list) takes the right 1/3 —
+   grid-template-areas repeats "opp" across both rows so the right column always spans the SAME
+   height as the left column's two rows combined, rather than shrink-wrapping its own shorter
+   content. The buttons stay a full-width row underneath both columns, outside the scrollable
+   context column, so they're reachable without a scroll even if a 7-row standings list would
+   otherwise overflow — the context column scrolls internally instead (overflow-y:auto +
+   min-height:0, the usual grid/flex-item scroll-containment pair).
    Not scoped to .game-view.duo/.multi like the rest of those layouts' own sections — the modal is a
    fixed-position overlay outside the grid entirely, so the body classes alone are the right gate
    (still only ever true while gameView carries .duo/.multi respectively — see
    applyDuelLandscapeClass, Main.js — so this can't leak into any other mode's result modal). Both
    modes share the exact same .ranked-result panel (showRankedResult, MatchPanels.js) — 1v1 shows a
    single opponent line, 6-player shows the .ranked-result-standings list instead — so both body
-   classes get the same hero/rating-card compaction, and the standings list gets its own extra
+   classes share the base grid + hero/rating-card sizing, and the standings list gets its own extra
    compaction below (the 1v1 content never has to fit that on top). */
 body.duel-landscape-mode .board-overlay-panel,
 body.duel-landscape-mode .board-overlay-panel:has(.ranked-result),
@@ -4481,11 +4487,22 @@ body.multi-landscape-mode .board-overlay-panel:has(.ranked-result) {
 }
 body.duel-landscape-mode .result-panel,
 body.multi-landscape-mode .result-panel { gap: 0.35rem; }
+
 body.duel-landscape-mode .ranked-result,
-body.multi-landscape-mode .ranked-result { gap: 0.5rem; }
+body.multi-landscape-mode .ranked-result {
+	display: grid;
+	grid-template-columns: 2fr 1fr;
+	grid-template-areas:
+		"hero   opp"
+		"rating opp"
+		"go     go";
+	column-gap: 0.9rem;
+	row-gap: 0.4rem;
+	width: 100%;
+}
 
 body.duel-landscape-mode .ranked-result-hero,
-body.multi-landscape-mode .ranked-result-hero { gap: 0.6rem; }
+body.multi-landscape-mode .ranked-result-hero { grid-area: hero; gap: 0.6rem; }
 body.duel-landscape-mode .ranked-result-badge,
 body.multi-landscape-mode .ranked-result-badge { font-size: 9px; }
 body.duel-landscape-mode .ranked-result-heading,
@@ -4494,7 +4511,7 @@ body.duel-landscape-mode .ranked-result-sub,
 body.multi-landscape-mode .ranked-result-sub { font-size: 0.7rem; margin-top: 0.1rem; }
 
 body.duel-landscape-mode .ranked-result-ratingcard,
-body.multi-landscape-mode .ranked-result-ratingcard { padding: 0.5rem 0.7rem; gap: 0.35rem; }
+body.multi-landscape-mode .ranked-result-ratingcard { grid-area: rating; padding: 0.5rem 0.7rem; gap: 0.35rem; }
 body.duel-landscape-mode .ranked-result-colnum,
 body.multi-landscape-mode .ranked-result-colnum { font-size: 1.3rem; }
 body.duel-landscape-mode .ranked-result-colnum.old,
@@ -4508,45 +4525,60 @@ body.duel-landscape-mode .ranked-result-progress-label,
 body.multi-landscape-mode .ranked-result-progress-tier,
 body.multi-landscape-mode .ranked-result-progress-label { font-size: 0.68rem; }
 
+/* The horizontal divider made sense between a vertically-stacked hero/card and context — with the
+   context now living in its own right-hand column, a divider between rows would just sit in the
+   left column doing nothing; the column gap + right column's own left border (below) take over
+   that separating job instead. */
+body.duel-landscape-mode .ranked-result-divider,
+body.multi-landscape-mode .ranked-result-divider { display: none; }
+
 body.duel-landscape-mode .ranked-result-context,
-body.multi-landscape-mode .ranked-result-context { gap: 0.35rem; }
-body.duel-landscape-mode .ranked-result-opp-line { gap: 0.4rem; }
+body.multi-landscape-mode .ranked-result-context {
+	grid-area: opp;
+	min-height: 0;
+	height: 100%;
+	justify-content: center;
+	gap: 0.35rem;
+	border-left: 1px solid var(--border);
+	padding-left: 0.7rem;
+	overflow-y: auto;
+}
+body.duel-landscape-mode .ranked-result-opp-line { flex-direction: column; align-items: flex-start; gap: 0.25rem; }
 body.duel-landscape-mode .ranked-result-opp-name { font-size: 0.85rem; }
 body.duel-landscape-mode .ranked-result-opp-tier { font-size: 0.7rem; }
-body.duel-landscape-mode .ranked-result-times { gap: 0.8rem; }
+/* "Your time" / "Their time" no longer fit side by side at 1/3 the modal's width — stack instead. */
+body.duel-landscape-mode .ranked-result-times { flex-direction: column; gap: 0.3rem; }
 body.duel-landscape-mode .ranked-result-time-val { font-size: 0.85rem; }
 body.duel-landscape-mode .ranked-result-time-label { font-size: 0.58rem; }
 
-/* 6-player only — the standings list (up to 6 rows) is the one piece of content the 1v1 shape never
-   has to fit, so it needs its own compaction on top of the shared hero/rating-card rules above. The
-   shared rules alone (same sizing as the 1v1 shape gets) still overflowed by ~35px with a real 6-row
-   standings list measured in a real headless browser — these extra cuts (tighter section gaps, a
-   smaller rating-card, and a second pass on the row sizing) bring a real 6-row modal comfortably under
-   94vh of a 390px-tall viewport with no scroll, verified the same way. Multi-only — duo's shorter
-   content already fit at the shared sizing, no reason to shrink it further too. */
+body.duel-landscape-mode .result-actions,
+body.multi-landscape-mode .result-actions { grid-area: go; margin-top: 0.4rem; gap: 0.5rem; }
+body.duel-landscape-mode .result-actions .btn,
+body.multi-landscape-mode .result-actions .btn { padding: 0.4rem 0.9rem; font-size: 0.9rem; }
+
+/* 6-player only — the standings list (up to 7 rows) is the one piece of content the 1v1 shape never
+   has to fit, and it now has to fit into a column that's just 1/3 the modal's width instead of the
+   full thing — tighter row sizing than the shared rules above, plus the context column's own
+   overflow-y:auto (above) as a safety net if a 7-row list still doesn't fit the left column's
+   height. */
 body.multi-landscape-mode .board-overlay-panel { padding: 0.5rem 0.8rem; }
-body.multi-landscape-mode .ranked-result { gap: 0.3rem; }
+body.multi-landscape-mode .ranked-result { row-gap: 0.3rem; }
 body.multi-landscape-mode .ranked-result-hero { gap: 0.5rem; }
 body.multi-landscape-mode .ranked-result-ratingcard { padding: 0.35rem 0.6rem; gap: 0.2rem; }
 body.multi-landscape-mode .ranked-result-cols { gap: 0.3rem; }
 body.multi-landscape-mode .ranked-result-eyebrow { font-size: 0.58rem; margin-bottom: 0.05rem; }
 body.multi-landscape-mode .ranked-result-standings { gap: 1px; }
 body.multi-landscape-mode .ranked-result-row {
-	grid-template-columns: 1.1rem 1fr auto auto;
-	gap: 0.35rem;
-	font-size: 0.68rem;
+	grid-template-columns: 1rem 1fr auto auto;
+	gap: 0.2rem;
+	font-size: 0.62rem;
 	line-height: 1.1;
-	padding: 0.12rem 0.3rem;
+	padding: 0.12rem 0.22rem;
 }
-body.multi-landscape-mode .ranked-result-rank { font-size: 0.62rem; }
-body.multi-landscape-mode .ranked-result-row-time { font-size: 0.62rem; }
-body.multi-landscape-mode .ranked-result-row-delta { font-size: 0.64rem; min-width: 2.1rem; }
+body.multi-landscape-mode .ranked-result-rank { font-size: 0.58rem; }
+body.multi-landscape-mode .ranked-result-row-time { font-size: 0.58rem; }
+body.multi-landscape-mode .ranked-result-row-delta { font-size: 0.6rem; min-width: 1.7rem; }
 body.multi-landscape-mode .result-actions { margin-top: 0.25rem; }
-
-body.duel-landscape-mode .result-actions,
-body.multi-landscape-mode .result-actions { margin-top: 0.4rem; gap: 0.5rem; }
-body.duel-landscape-mode .result-actions .btn,
-body.multi-landscape-mode .result-actions .btn { padding: 0.4rem 0.9rem; font-size: 0.9rem; }
 
 /* ===== Forced landscape (portrait phone, CSS-rotated) =====
    screen.orientation.lock('landscape') (Fullscreen.js, tried right after entering fullscreen) does

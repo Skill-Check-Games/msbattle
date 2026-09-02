@@ -200,8 +200,8 @@ function showResultModal(data) {
 // Display label for a racing ranked mode key — shown under the outcome heading. Keep in
 // sync with RANKED_MODES' `label` field on the server (runtime/ranked.js).
 var RANKED_RESULT_MODE_LABELS = {
-	sprint_duo: "1v1 Sprint", sprint_six: "6-Player Sprint",
-	standard_duo: "1v1 Standard", standard_six: "6-Player Standard"
+	sprint_duo: "1v1 Sprint", sprint_six: "7-Player Sprint",
+	standard_duo: "1v1 Standard", standard_six: "7-Player Standard"
 };
 
 function rrDeltaClass(delta) {

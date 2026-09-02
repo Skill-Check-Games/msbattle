@@ -416,13 +416,16 @@ function gameWin(playerID) {
 	game.playing = false;
 
 	// First finish in this round? Pull the remaining time down so the round closes soon after the
-	// winner — the 6-player battle gets a snappy 3s sprint; other modes keep the longer 10s tail.
+	// winner — the multiplayer battle (3-7 players) gets a snappy 1s sprint; other modes keep the
+	// longer 10s tail. n<=7 (not 6) to match the 7-player mode (isMultiRacing, MobileLayout.js) — this
+	// cap used to lag one player behind that bump, so a real 7-player match fell through to the 10s
+	// tail instead of the intended snappy one.
 	var finishedNow = countFinishedPlayers(room);
 	console.log("[round] gameWin pid=" + playerID + " isBot=" + isBot(playerID) + " finished=" + finishedNow + " active=" + countActivePlayers(room) + " players=" + room.players.length);
 	if (finishedNow === 1) {
 		var n = room.players.length;
-		var multiRace = (room.gameMode || "race") === "race" && n >= 3 && n <= 6;
-		reduceRoundDeadline(room, multiRace ? 3 : 10);
+		var multiRace = (room.gameMode || "race") === "race" && n >= 3 && n <= 7;
+		reduceRoundDeadline(room, multiRace ? 1 : 10);
 	}
 
 	if (isBot(playerID)) {
