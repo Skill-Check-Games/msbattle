@@ -1598,11 +1598,11 @@ input[type="range"]:disabled { opacity: 0.55; cursor: not-allowed; }
    puzzle further down near that component's other variants), so it now matches "the same toggle
    buttons we do on other modes" instead of the older single-toggle design. */
 .game-view.puzzle .mobile-action-bar { display: none; }
-/* No width/height here on desktop — fitPuzzleDesktopBoxPx (MobileLayout.js) measures the actual
-   available space and sets both directly as an inline style, so the box uses however much room the
-   viewport really has instead of a fixed guess. Portrait mobile and landscape phone keep their own
-   fixed CSS sizes below/in the landscape media-query block — sizePlayerCanvas clears any leftover
-   inline size when neither of those applies, so this rule reliably takes over there. */
+/* No width/height here for desktop OR portrait mobile — both are measured live and set as an
+   inline style (fitPuzzleDesktopBoxPx / fitPuzzleMobileBoxPx, MobileLayout.js), so the box uses
+   however much room the viewport really has instead of a fixed guess. Landscape phone keeps its
+   own fixed CSS size in the landscape media-query block — sizePlayerCanvas clears any leftover
+   inline size when none of those apply, so this rule reliably takes over there. */
 .game-view.puzzle .board-scroll {
 	display: flex;
 	align-items: center;
@@ -1652,12 +1652,24 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 	.game-view.puzzle #puzzle_card { height: auto; width: 480px; }
 }
 @media (max-width: 600px) {
+	/* Fallback only, for the instant before JS first runs — sizePlayerCanvas (MobileLayout.js)
+	   immediately overrides all three with a precise inline width measured off the real viewport
+	   (fitPuzzleMobileBoxPx), which is what actually drives normal rendering. Used to be a flat
+	   320px here even after JS ran (nothing overrode it), leaving unused width on any phone wider
+	   than that — reported as looking bugged, especially in portrait. */
 	.game-view.puzzle .board-scroll,
 	.game-view.puzzle .board-wrap,
 	.game-view.puzzle #puzzle_card {
-		width: 320px;
+		width: min(400px, calc(100vw - 2rem));
 	}
-	.game-view.puzzle .board-scroll { height: 320px; }
+	.game-view.puzzle .board-scroll {
+		height: min(400px, calc(100vw - 2rem));
+		/* Breathing room between the board and its own card border — previously flush against it.
+		   PUZZLE_BOX_PADDING_MOBILE (MobileLayout.js) carves out matching room in the cell-sizing
+		   math so the canvas + this padding still fit inside the measured box; keep the two in sync
+		   by hand if either changes. */
+		padding: 14px;
+	}
 }
 
 /* ===== Puzzle play, landscape phones =====

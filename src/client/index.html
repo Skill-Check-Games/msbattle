@@ -1110,8 +1110,19 @@
 // the load event, same as the browser's own best-practice guidance: registration competes with
 // nothing else for bandwidth/CPU once the page is already up.
 if ("serviceWorker" in navigator) {
+	var swRegistration = null;
 	window.addEventListener("load", function() {
-		navigator.serviceWorker.register("/sw.js");
+		navigator.serviceWorker.register("/sw.js").then(function(reg) { swRegistration = reg; });
+	});
+	// The spec has the browser auto-check the registered script for byte changes on navigation, which
+	// is normally enough — but a PWA opened from the home screen and left backgrounded across a deploy
+	// doesn't reliably get a fresh navigation event to hang that check on (worst on iOS Safari, which
+	// is known to be inconsistent here). Explicitly re-check whenever the app comes back to the
+	// foreground, so returning to an already-open tab/PWA after a deploy still picks up the new
+	// version promptly instead of silently running stale code until the player happens to fully quit
+	// and relaunch it.
+	document.addEventListener("visibilitychange", function() {
+		if (document.visibilityState === "visible" && swRegistration) swRegistration.update();
 	});
 	// sw.js's own skipWaiting()+clients.claim() means a new worker takes over almost immediately after
 	// a deploy — but that only changes what the NEXT fetch gets. This tab's JS is already loaded and
