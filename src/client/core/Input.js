@@ -132,6 +132,19 @@ function performAction(r, c, asFlag) {
 	// then; this just stops the client from predicting a move locally that the server was always
 	// going to ignore.
 	if (mode === "multiplayer" && !roundStartTime) return false;
+	// Symmetric check for the OTHER end of the round: once game_result lands, the server has already
+	// stopped accepting this player's moves (game.playing flips false the instant the round closes —
+	// see gameWin/handleRoundTimeUp, minesweeperServer.js) — but nothing here was checking that, and
+	// roundStartTime stays truthy right through to the next round's start_game (by design — see the
+	// comment on it in the game_result handler, Main.js). So a player who hadn't finished yet could
+	// keep clicking on their own board for the full BETWEEN_GAMES_DELAY/RESULT_MODAL_DELAY_MS gap
+	// (server-side, 1.2-3s+) the room deliberately holds the finished board on screen for everyone
+	// else to see — the client kept optimistically revealing those clicks locally (same prediction as
+	// any other move), visually "finishing" a board that no longer counted anywhere. Reported as
+	// "I cleared the whole board but progress is stuck on 70%" — not a dropped packet, a real gap:
+	// the 70% was an accurate snapshot of the moment the round actually closed, and every click after
+	// it silently did nothing server-side while still rendering as if it had.
+	if (mode === "multiplayer" && roundResultShown) return false;
 	if (mode === "puzzle" && typeof clearPuzzleHints === "function") clearPuzzleHints();
 	// Custom-lobby modifiers: "noFlags" blocks flag/right-click; "onlyFlags" lets only the flag tool act.
 	if (mode === "multiplayer" && currentRoom && currentRoom.modifier) {
