@@ -1779,6 +1779,27 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 	   desktop's own sidebar width) for more room to breathe, working from a reference mockup. */
 	body.in-game .game-view.puzzle .game-side { display: flex; flex: 0 0 320px; }
 	.game-view.puzzle #puzzle_card { height: 100%; width: 100%; }
+	/* Relocated to the top-left of the viewport (on request, matching a reference mockup) instead of
+	   sitting inline before "Puzzle Ladder" in the right panel — position:fixed takes it out of
+	   .puzzle-side-head's flow entirely (so the title just starts at that row's left edge on its own,
+	   no leftover gap), landing it in the same corner #duel_back_btn occupies in the duel/6-player
+	   landscape layouts, styled the same way for visual consistency. */
+	.game-view.puzzle .puzzle-side-back {
+		position: fixed;
+		top: 1rem;
+		left: 1rem;
+		z-index: 10;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 28px;
+		height: 28px;
+		font-size: 1.1rem;
+		border-radius: 8px;
+		border: 1px solid var(--border);
+		background: rgba(255, 255, 255, 0.05);
+	}
+	.game-view.puzzle .puzzle-side-back:hover { border-color: var(--accent); }
 }
 
 /* Marathon boards reuse the puzzle-play path (see puzzlePlay.js) but are full-size boards
