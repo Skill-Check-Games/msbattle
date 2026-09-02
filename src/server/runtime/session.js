@@ -13,7 +13,7 @@ var gameUtil = require("./gameUtil");
 var ShopCatalog = require("../../common/ShopCatalog");
 
 var accounts = appState.accounts, names = appState.names, games = appState.games, roomMapping = appState.roomMapping, skins = appState.skins;
-var avatars = appState.avatars, countries = appState.countries;
+var avatars = appState.avatars, countries = appState.countries, sockets = appState.sockets;
 var updateDraw = gameUtil.updateDraw;
 
 var PROVISIONAL_GAMES;
@@ -108,11 +108,49 @@ function loginSocket(socket, playerID, user, token, sendToken) {
 	else if (roomMapping[playerID]) roomState.broadcastRoomState(roomMapping[playerID]);
 }
 
+// Reclaims a mid-round disconnect that reconnected within RECONNECT_GRACE_MS (the pendingDisconnects
+// entry minesweeperServer.js's disconnect handler set up) — moves the abandoned seat's ENTIRE live
+// state from its old, now-dead socket id over to this freshly (re)authenticated one, so the room/game/
+// round-progress the player left behind is exactly what they land back in, instead of a stranger's
+// fresh connection walking into a room that still has their old, now-orphaned seat sitting in it.
+// Must run BEFORE loginSocket (below) populates names/skins/etc. for the new id — loginSocket's own
+// game.playerName/avatar/country sync (which already runs whenever games[playerID] exists) then just
+// naturally picks up the migrated game object for free, no special-casing needed there.
+function migrateReconnectedPlayer(oldID, newID, socket) {
+	var room = roomMapping[oldID];
+	if (!room) return; // the room's already gone (series ended, everyone else left, …) — nothing to resume
+	games[newID] = games[oldID]; delete games[oldID];
+	roomMapping[newID] = room; delete roomMapping[oldID];
+	sockets[newID] = socket;
+	for (var i = 0; i < room.players.length; i++) {
+		if (room.players[i] === oldID) room.players[i] = newID;
+	}
+	if (room.owner === oldID) room.owner = newID;
+	if (room.ready && room.ready.hasOwnProperty(oldID)) { room.ready[newID] = room.ready[oldID]; delete room.ready[oldID]; }
+	if (room.scores && room.scores.hasOwnProperty(oldID)) { room.scores[newID] = room.scores[oldID]; delete room.scores[oldID]; }
+	// progressSum only exists once at least one round has finished (see endIndividualGame) — carries the
+	// margin-of-victory bonus's per-round average forward so a mid-series reconnect doesn't reset it.
+	if (room.progressSum && room.progressSum.hasOwnProperty(oldID)) { room.progressSum[newID] = room.progressSum[oldID]; delete room.progressSum[oldID]; }
+	socket.join("room:" + room.id);
+	// Bring the reconnected client fully current. Its own board's move-sync heartbeat (Main.js) will
+	// separately catch the server up on anything it clicked while offline — the exact same dropped-
+	// packet healing this reuses verbatim, just with a much longer gap to close — but THIS client also
+	// needs a fresh look at every OPPONENT's board, which may well have changed while it was away.
+	updateDraw(room);
+	roomState.broadcastRoomState(room);
+}
+
 function registerSocketHandlers(socket, playerID) {
 	socket.on("authenticate", function(data) {
 		var token = data && data.token;
 		var user = db.getUserByToken(token);
 		if (!user) { socket.emit("auth_failed"); return; }
+		var pending = appState.pendingDisconnects[user.id];
+		if (pending) {
+			clearTimeout(pending.timer);
+			delete appState.pendingDisconnects[user.id];
+			migrateReconnectedPlayer(pending.playerID, playerID, socket);
+		}
 		loginSocket(socket, playerID, user, token, false);
 	});
 

@@ -68,6 +68,12 @@ module.exports = {
 	rankedFillTimers: { sprint_duo: null, sprint_six: null, standard_duo: null, standard_six: null },
 	rankedQueueMode: {}, // playerID -> mode key
 
+	// --- [game] mid-round reconnect grace --- (see the disconnect handler + authenticate's migration
+	// in session.js) — userId -> { playerID (the abandoned, now-dead socket's id), timer }. A player who
+	// drops mid-round gets this window to reconnect (same session token -> same userId) and reclaim
+	// their room/game state before the normal disconnect eviction (+ ranked early-leave penalty) runs.
+	pendingDisconnects: {},
+
 	// --- [main-sp] single-player puzzle play + [main-sp] admin bot demos --- (DB-coupled / admin; stay on main)
 	puzzlePlay: {},      // playerID -> active puzzle play
 	puzzleRun: {},       // playerID -> { mode, targetRating, solves, … }

@@ -57,6 +57,15 @@ var ROUND_START_DELAY_MS = 5000;
 var BETWEEN_GAMES_DELAY = 3000;
 var SERIES_END_DELAY = 6000;
 var PROVISIONAL_GAMES = 5;
+// How long a mid-round disconnect's seat + live game state is held for the same account to reconnect
+// into (see the monolith disconnect handler below, and its counterpart in session.js's `authenticate`
+// handler, which is what actually reclaims it) before falling through to today's original behavior:
+// evict +, for ranked, an early-leave Elo penalty. Long enough to cover a phone screen-lock, a brief
+// wifi/cellular handoff, or the tab being backgrounded — short enough that a truly-gone player doesn't
+// sit as an unkillable zombie seat; the round itself isn't blocked on them either way (the round-end
+// timer/other-players-finished logic treats a pending-reconnect player exactly like an ordinary
+// AFK-but-still-connected one — nothing new to wait on there).
+var RECONNECT_GRACE_MS = 30000;
 
 var PORT = process.env.PORT || 1337;
 // OAuth provider login + config lives in oauth.js; the server delegates /auth/*
@@ -1205,23 +1214,55 @@ io.on("connection", function (socket) {
 
 	socket.on("disconnect", function() {
 		ranked.dequeue(playerID);
-		if (roomMapping[playerID]) {
-			removePlayerFromRoom(playerID);
-		}
 		// Mid-puzzle disconnect is fine — current_puzzle_id stays set in the
 		// DB so the same puzzle is served on reconnect. We just drop the
 		// in-memory game state. Active runs end (no resume — runs are
 		// session-only by design); score is recorded if it's a new best.
 		puzzleMode.cleanup(socket, playerID);
 		botDemo.stopBotDemo(playerID);
-		delete sockets[playerID];
-		delete names[playerID];
-		delete skins[playerID];
-		delete avatars[playerID];
-		delete countries[playerID];
-		delete accounts[playerID]; // session stays valid in the DB for reconnect
+
+		var room = roomMapping[playerID];
+		var acc = accounts[playerID];
+		// A real, signed-in-or-guest account (acc.userId is a stable DB row id, unlike this socket's own
+		// ephemeral playerID) mid-round: hold the seat + live game state open for RECONNECT_GRACE_MS
+		// instead of evicting immediately. Every reconnect already re-authenticates with the same stored
+		// session token (Auth.js's applyConnected, unconditionally, on every fresh "connected") — if that
+		// lands within the window, the authenticate handler below claims this pendingDisconnects entry
+		// and migrates the whole seat over to the new socket id (migrateReconnectedPlayer). The client
+		// never tore anything down on its end either (there's no disconnect handler there at all — see
+		// its own comment) — it just keeps optimistically predicting the player's own clicks the whole
+		// time, same as any ordinary move, and once the server recognizes the reconnected socket the
+		// existing move-sync heartbeat/resync_moves machinery (already built for a dropped-packet mid-
+		// round, Main.js) catches the server up on everything that happened while it was gone, for free.
+		if (room && room.phase === "playing" && acc && acc.userId != null) {
+			delete sockets[playerID]; // the transport is dead; updateDraw already guards on sockets[pid]
+			var userId = acc.userId;
+			var timer = setTimeout(function() {
+				delete appState.pendingDisconnects[userId];
+				evictAbandonedPlayer(playerID);
+			}, RECONNECT_GRACE_MS);
+			appState.pendingDisconnects[userId] = { playerID: playerID, timer: timer };
+			return;
+		}
+		evictAbandonedPlayer(playerID);
 	});
 });
+
+// The disconnect cleanup every abandoned connection eventually gets — either immediately (not mid-round,
+// so nothing to hold open) or after RECONNECT_GRACE_MS with no reconnect (see above). Unchanged from what
+// used to run unconditionally in the disconnect handler itself, including the ranked early-leave Elo
+// penalty (inside removePlayerFromRoom) for whoever genuinely never came back.
+function evictAbandonedPlayer(playerID) {
+	if (roomMapping[playerID]) removePlayerFromRoom(playerID);
+	delete sockets[playerID];
+	delete names[playerID];
+	delete skins[playerID];
+	delete avatars[playerID];
+	delete countries[playerID];
+	delete accounts[playerID]; // session stays valid in the DB for reconnect
+	delete games[playerID];
+	roomState.broadcastRoomList();
+}
 
 
 // One-shot: re-classify puzzles inserted before the overlap pass existed
