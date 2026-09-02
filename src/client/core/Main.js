@@ -1300,10 +1300,18 @@ function attachMoveSync(data) {
 // seq/hash on left_click/right_click can't help with that specific case, since there may never be a
 // next click to piggyback on once the board's fully cleared. Always running; a no-op outside an
 // active multiplayer round with at least one move made (nothing to be out of sync about otherwise).
+// 300ms, not 1000ms: the server refuses to heal a drop at all (move_sync/resync_moves both bail)
+// once game.playing flips false, which happens for every trailing player the instant the round-end
+// grace timer fires (reduceRoundDeadline, minesweeperServer.js — as short as 2s for a multiplayer
+// battle) — so this heartbeat's own period eats directly into the real margin a player's dropped
+// final click has to get caught and healed before the round locks them out at a stale percentage.
+// A full-second period left too little room on a real mobile connection and shipped as a live bug
+// (a full board clear frozen at a stale progress %, which also shortchanged that player's Elo, since
+// standings read the same authoritative safeCount).
 setInterval(function() {
 	if (currentActionMode() !== "multiplayer" || !currentRoom || !localMoveLog.length) return;
 	activeGameSocket().emit("move_sync", attachMoveSync({ id: id }));
-}, 1000);
+}, 300);
 
 // The server told us (move_resync_needed) it's missing everything after fromSeq — resend those
 // moves, in order, straight from our own local log. Nothing is "regenerated": these are the literal

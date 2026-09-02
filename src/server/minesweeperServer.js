@@ -416,16 +416,25 @@ function gameWin(playerID) {
 	game.playing = false;
 
 	// First finish in this round? Pull the remaining time down so the round closes soon after the
-	// winner — the multiplayer battle (3-7 players) gets a snappy 1s sprint; other modes keep the
+	// winner — the multiplayer battle (3-7 players) gets a snappy 2s sprint; other modes keep the
 	// longer 10s tail. n<=7 (not 6) to match the 7-player mode (isMultiRacing, MobileLayout.js) — this
 	// cap used to lag one player behind that bump, so a real 7-player match fell through to the 10s
 	// tail instead of the intended snappy one.
+	// NB 2s, not 1s: every OTHER still-playing player's game.playing flips false the instant this
+	// deadline fires (endIndividualGame, below) — and the move-sync heal (move_sync/resync_moves
+	// handlers) refuses to run once game.playing is false, so a trailing player's dropped final click
+	// only gets a real chance to heal (via the 1s — now 300ms, see Main.js — heartbeat) if the round
+	// stays open a bit longer than that heartbeat's own period. 1s cut it too close on a real mobile
+	// connection (RTT + jitter + server round-trip) and shipped as a live bug: a full board clear that
+	// stayed frozen at a stale server-side percentage (and would have shortchanged that player's Elo
+	// too, since standings read the same authoritative safeCount). 2s + the faster heartbeat below
+	// restores a real margin while still being 5x snappier than the original 10s baseline.
 	var finishedNow = countFinishedPlayers(room);
 	console.log("[round] gameWin pid=" + playerID + " isBot=" + isBot(playerID) + " finished=" + finishedNow + " active=" + countActivePlayers(room) + " players=" + room.players.length);
 	if (finishedNow === 1) {
 		var n = room.players.length;
 		var multiRace = (room.gameMode || "race") === "race" && n >= 3 && n <= 7;
-		reduceRoundDeadline(room, multiRace ? 1 : 10);
+		reduceRoundDeadline(room, multiRace ? 2 : 10);
 	}
 
 	if (isBot(playerID)) {
