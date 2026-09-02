@@ -1648,27 +1648,31 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 		flex-direction: column;
 		align-items: center;
 	}
-	.game-view.puzzle .game-side { flex: 0 0 auto; }
-	.game-view.puzzle #puzzle_card { height: auto; width: 480px; }
+	.game-view.puzzle .game-side { flex: 0 0 auto; width: 100%; }
+	/* align-self:stretch overrides the grid's own align-items:center for just this child — without
+	   it .game-left shrink-wraps to its own content's width, which is circular once .board-wrap
+	   below is width:100% of ITS width (depends on .game-left, which would depend on .board-wrap...). */
+	.game-view.puzzle .game-left { align-self: stretch; }
+	.game-view.puzzle #puzzle_card { height: auto; width: 100%; }
 }
 @media (max-width: 600px) {
-	/* Fallback only, for the instant before JS first runs — sizePlayerCanvas (MobileLayout.js)
-	   immediately overrides all three with a precise inline width measured off the real viewport
-	   (fitPuzzleMobileBoxPx), which is what actually drives normal rendering. Used to be a flat
-	   320px here even after JS ran (nothing overrode it), leaving unused width on any phone wider
-	   than that — reported as looking bugged, especially in portrait. */
+	/* Plain CSS now (was a fixed 320px, then a min(400px,...) fallback JS immediately overrode with a
+	   computed pixel target) — sizePlayerCanvas (MobileLayout.js) just reads .board-scroll's own
+	   resulting clientWidth back to size the canvas, rather than computing a target and forcing it on
+	   via inline style. Used to be a flat 320px even after JS ran, leaving unused width on any phone
+	   wider than that — reported as looking bugged, especially in portrait. */
 	.game-view.puzzle .board-scroll,
 	.game-view.puzzle .board-wrap,
 	.game-view.puzzle #puzzle_card {
-		width: min(400px, calc(100vw - 2rem));
+		width: 100%;
 	}
 	.game-view.puzzle .board-scroll {
-		height: min(400px, calc(100vw - 2rem));
-		/* Breathing room between the board and its own card border — previously flush against it.
-		   PUZZLE_BOX_PADDING_MOBILE (MobileLayout.js) carves out matching room in the cell-sizing
-		   math so the canvas + this padding still fit inside the measured box; keep the two in sync
-		   by hand if either changes. */
+		/* Height is intentionally NOT set here (was a forced square, min(400px,...) matching the old
+		   width) — letting it size to its own content (the canvas + padding) instead of a fixed box
+		   means a wide-but-short board and a narrow-but-tall one both render at their natural shape
+		   instead of being squeezed/padded to fit a square that doesn't match either. */
 		padding: 14px;
+		box-sizing: border-box;
 	}
 }
 
@@ -1710,49 +1714,61 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 		min-height: 0;
 		overflow: hidden;
 		display: flex;
-		align-items: center;
-		justify-content: center;
-		/* Outer breathing room — the board+card group now fills this box (.game-grid below is
-		   width/height:100%) rather than sitting at its own small content size centered within a lot
-		   of dead space, so this padding is what actually frames it now. */
+		/* Outer breathing room — the board+card group fills this box (.game-grid below is
+		   width/height:100%) rather than sitting at its own content size centered within dead space. */
 		padding: 1rem;
 		box-sizing: border-box;
 	}
 	/* Overrides the max-width:900px block's flex-direction:column further up — a landscape phone is
 	   often under 900px WIDE despite having width to spare (the constraint here is height, not width),
 	   so without this it would stack the board above the card instead of beside it, needing far more
-	   vertical room than this viewport has. width/height:100% + align-items:stretch (was center) let
-	   the group actually fill the viewport instead of shrink-wrapping its own (small, fixed-box-era)
-	   content and then just sitting centered in the leftover space — fitPuzzleLandscapeBoxPx
-	   (MobileLayout.js) measures THIS box's real clientWidth, so it has to be the true available size,
-	   not the old smaller-than-viewport auto width. stretch also means #puzzle_card (height:100% below)
-	   matches the board's own height automatically, no JS needed for that half. */
+	   vertical room than this viewport has. width/height:100% + align-items:stretch make the row
+	   actually fill the viewport instead of shrink-wrapping its own content and sitting centered in the
+	   leftover space. */
 	.game-view.puzzle .game-grid { flex-direction: row; align-items: stretch; gap: 0.8rem; width: 100%; height: 100%; }
-	/* Same narrow-landscape gotcha as .game-side below: the portrait @media(max-width:700px) block's
-	   own "in-game stacked layout" rules (further down) still match here too and fight this one —
-	   .game-left forced to flex:1;width:100% (fills the row, pushing .game-side out past the viewport
-	   edge) and .player-board's "full-bleed" trick (100vw width, negative margin to escape main's
-	   padding) pushed the board itself off-screen to the left. Both are built for a STACKED single-
-	   column mobile layout; this one sits board and card side by side regardless of width, so neither
-	   makes sense here — reset both back to sizing off their own content, same as the wide-landscape
-	   case already gets unchallenged. Confirmed against a real 667x375 viewport (previously: board
-	   pushed off the left edge, then fixed but the card clipped off the RIGHT edge instead — this is
-	   the .game-left half of that same fix). */
-	body.in-game .game-view.puzzle .game-left { display: flex; flex: 0 0 auto; width: auto; }
-	/* display:flex + centering (was plain display:block): .game-grid's align-items:stretch above now
-	   stretches .game-left (and this, its only child) to the FULL column height, but the board+toggle
-	   group's own height is still whatever fitPuzzleLandscapeBoxPx actually computed — often shorter
-	   than that stretched box (bound by width instead of height on a wide-but-not-tall phone). Centers
-	   that group within the extra room instead of leaving it pinned to the top with dead space below. */
+	/* flex:1 1 auto + min-width:0 (was flex:0 0 auto;width:auto — a fixed-content-size box): the board
+	   column now GROWS to fill whatever width is left after .game-side's fixed column, via ordinary
+	   flex space distribution, rather than JS pre-computing a pixel target and forcing it inline. Same
+	   idea one level up as .board-wrap below; min-width:0 is required on every link in a flex chain
+	   like this or a flex item's default min-width:auto refuses to shrink below its content's natural
+	   size, silently breaking the whole chain's fill behavior.
+	   Also overrides a real gotcha: the portrait @media(max-width:700px) block's own "in-game stacked
+	   layout" rules (further down) still match here too and fight this one on a narrow landscape phone
+	   — .game-left forced to width:100% there pushes .game-side out past the viewport edge, and
+	   .player-board's portrait-only "full-bleed" trick (100vw width, negative margin to escape main's
+	   padding) pushes the board itself off-screen left. Both are built for a STACKED single-column
+	   layout; this one sits board and card side by side regardless of width, so neither makes sense
+	   here — reset both to the flex-fill chain instead. Confirmed against a real 667x375 viewport
+	   (previously: board pushed off the left edge, then fixed but the card clipped off the RIGHT edge
+	   instead — this is the .game-left half of that same fix). */
+	/* align-items:stretch overrides the base .game-view.puzzle .game-left rule's own align-items:center
+	   (unconditional, further up) — without this, .player-board (its one child) gets CENTERED at its
+	   own natural content height instead of stretched to fill .game-left's real, flex-constrained
+	   height, so .player-board (and everything inside it) overflowed past the bottom of the viewport
+	   by however tall its content naturally wanted to be — .game-view.puzzle's own overflow:hidden then
+	   clipped whatever didn't fit, cutting the top rows off the board. */
+	body.in-game .game-view.puzzle .game-left { display: flex; align-items: stretch; flex: 1 1 auto; min-width: 0; }
+	/* flex:1 1 auto + min-height:0 (was flex:0 0 auto — fixed to content): fills .game-left's full
+	   height so .board-wrap below has real, non-circular height to flex-fill in turn. flex-direction
+	   column + min-width:0 so ITS single child (.board-wrap) can do the same for width. */
 	body.in-game .game-view.puzzle .player-board {
-		display: flex; flex-direction: column; justify-content: center; align-items: center;
-		flex: 0 0 auto; width: auto; max-width: none; margin-left: 0; margin-right: 0; padding: 0;
+		display: flex; flex-direction: column;
+		flex: 1 1 auto; min-width: 0; min-height: 0; width: auto; max-width: none; margin: 0; padding: 0;
 	}
-	/* No fixed width/height here any more — fitPuzzleLandscapeBoxPx (MobileLayout.js) measures the
-	   real available space (this .game-grid's own width/height, now a true 100% instead of shrink-
-	   wrapped) and sets both as an inline style, "use all the space we have" same as desktop/portrait
-	   mobile. Padding is new too — the board used to sit flush against its own card border. */
-	.game-view.puzzle .board-scroll { padding: 16px; }
+	/* display:flex column (was block) + flex:1 1 auto: .board-scroll (flex:1 1 auto below) and
+	   .duel-mode-toggle (flex:0 0 auto, its own rule further down) share this column — the toggle row
+	   takes its natural content height, the board gets everything left over, purely through ordinary
+	   flex distribution. No JS-computed "leave room for the toggle" constant needed any more. */
+	.game-view.puzzle .board-wrap { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+	/* flex:1 1 auto + min-height:0 (was a JS-set fixed pixel width/height): grows to fill whatever
+	   space .board-wrap has left after the toggle row, in BOTH dimensions independently — a wide-but-
+	   short board and a narrow-but-tall one each get their own real rectangle instead of both being
+	   squeezed into the same forced-square box (bound by the shorter of the two dimensions even when
+	   the other had plenty of room to spare — reported as "not using the space horizontally"). Padding
+	   is new too — the board used to sit flush against its own card border. sizePlayerCanvas
+	   (MobileLayout.js) reads this element's OWN rendered clientWidth/clientHeight (after this layout
+	   has already settled it) to size the canvas — it no longer sets this element's size itself. */
+	.game-view.puzzle .board-scroll { flex: 1 1 auto; min-height: 0; width: 100%; padding: 16px; box-sizing: border-box; }
 	/* On a NARROW landscape phone this media query is now reached alongside the portrait @media
 	   (max-width:700px) block's own "body.in-game .game-side { display:none }" (further down) — that
 	   rule has no width floor of its OWN kind either, so it still matches here and would otherwise win
@@ -1762,9 +1778,6 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 	   the ladder card next to it stayed a zero-size, invisible box. Widened 230px -> 320px (matching
 	   desktop's own sidebar width) for more room to breathe, working from a reference mockup. */
 	body.in-game .game-view.puzzle .game-side { display: flex; flex: 0 0 320px; }
-	/* height:100% (was a flat 300px): matches the board's own height via .game-grid's
-	   align-items:stretch above, instead of a number that only happened to equal the board's own old
-	   fixed box. */
 	.game-view.puzzle #puzzle_card { height: 100%; width: 100%; }
 }
 
@@ -4957,16 +4970,15 @@ body.touch .game-view.puzzle .duel-mode-btn-icon { font-size: 1.1rem; }
    would otherwise let THAT rule's display:flex win over this one, since .duel-find-nav-btn buttons
    also carry the .duel-mode-btn class). */
 body.touch .game-view.puzzle .duel-find-nav-btn { display: none; }
-/* Same accent-for-reveal / red-for-flag convention the old .mobile-mode-btn used. */
-body.touch .game-view.puzzle #duel_reveal_btn.duel-mode-btn-active {
-	border-color: transparent;
-	background: linear-gradient(180deg, var(--accent-hover), var(--accent));
-	color: #fff;
-}
-body.touch .game-view.puzzle #duel_flag_btn.duel-mode-btn-active {
-	border-color: transparent;
-	background: linear-gradient(180deg, #ef4444, #dc2626);
-	color: #fff;
+/* Same active-state treatment as the duel/6-player landscape toggle (body.duel-landscape-mode
+   .game-view.duo .duel-mode-btn-active / the multi-landscape-mode twin) — this had invented its own
+   accent-for-reveal/red-for-flag gradient instead of reusing it, reported as the wrong background
+   color. --accent stands in for --duel-you (a per-player identity color puzzle has no equivalent
+   of); #14213d is the same literal value, not a variable, in the reference rules too. */
+body.touch .game-view.puzzle .duel-mode-btn-active {
+	border-color: var(--accent);
+	color: var(--text);
+	background: #14213d;
 }
 
 /* ── Right panel: the live scoreboard, restyled as a compact ranked list — rank, avatar, name+tier,

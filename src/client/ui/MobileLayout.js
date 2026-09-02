@@ -80,23 +80,23 @@ function fitPuzzleDesktopBoxPx() {
 	return Math.max(240, Math.min(900, Math.floor(box)));
 }
 
-// Portrait mobile's own "use the space we have" (reported as looking bugged — the board sat in a
-// flat 320px box regardless of the phone's actual width, wasting the extra room on anything wider).
-// Simpler than the desktop version above: the stacked @media(max-width:900px) .game-grid (style.css)
-// scrolls the page normally rather than being locked to one screen the way desktop's side-by-side
-// layout is, so there's no height to bound by — width is the only real constraint here.
-function fitPuzzleMobileBoxPx() {
-	var grid = document.querySelector(".game-view.puzzle .game-grid");
-	var availW = grid ? grid.clientWidth : 0;
-	if (!(availW > 0)) return PUZZLE_BOARD_PX_MOBILE;
-	return Math.max(240, Math.min(520, Math.floor(availW)));
+// Portrait mobile's own "use the space we have". Unlike fitPuzzleDesktopBoxPx above (which measures
+// a SIBLING element to compute a target it then forces onto .board-scroll via inline style),
+// .board-scroll's width here is plain CSS (width:100% of its column, style.css's max-width:600px
+// block) — flex/CSS owns the container size, same "let the layout engine do it" approach
+// fitDesktopCellPx already uses for the duel-landscape board (see its own comment). This just reads
+// the result back to size the canvas. No height dimension: portrait's stacked layout scrolls the
+// page normally rather than being locked to one screen, so height isn't a real constraint here.
+function fitPuzzleMobileBoxW() {
+	var w = boardScroll ? boardScroll.clientWidth : 0;
+	return w > 0 ? w : PUZZLE_BOARD_PX_MOBILE;
 }
-// Reserved inside the box for breathing room around the board (PUZZLE_BOX_PADDING_MOBILE*2 comes off
-// the target before it's divided into cells) — kept in sync BY HAND with .board-scroll's own padding
-// at the matching CSS breakpoint (max-width:600px, style.css), the same "no shared source, has to
-// match by eye" tradeoff already accepted elsewhere in this file (e.g. puzzleLandscapeMQL vs its CSS
-// media query). Mobile-only: desktop's own box (fitPuzzleDesktopBoxPx) is left untouched by this —
-// its bound-by-both-width-and-height math is more delicate, and it wasn't reported as bugged.
+// Reserved inside the box for breathing room around the board (subtracted from the measured width
+// above before it's divided into cells) — kept in sync BY HAND with .board-scroll's own padding at
+// the matching CSS breakpoint (max-width:600px, style.css), the same "no shared source, has to match
+// by eye" tradeoff already accepted elsewhere in this file (e.g. puzzleLandscapeMQL vs its CSS media
+// query). Mobile-only: desktop's own box (fitPuzzleDesktopBoxPx) is left untouched by this — its
+// bound-by-both-width-and-height math is more delicate, and it wasn't reported as bugged.
 var PUZZLE_BOX_PADDING_MOBILE = 14;
 
 // True whenever a (non-marathon) puzzle board is up on a landscape phone — its own media query
@@ -109,28 +109,24 @@ function isPuzzleLandscapeMobile() {
 	return !!(inPuzzle && typeof puzzleLandscapeMQL !== "undefined" && puzzleLandscapeMQL && puzzleLandscapeMQL.matches);
 }
 
-// Landscape phone's own "use the space we have" (on request, working from a reference mockup — the
-// fixed 300px box left the same kind of dead space desktop's old fixed 480px did, worse here since
-// the board+card group was also centered as a small island instead of the group itself filling the
-// viewport). Bounded by BOTH width and height, like fitPuzzleDesktopBoxPx — this layout keeps
-// board+card side by side within one fixed-height screen (height:100dvh, overflow:hidden, no header)
-// rather than scrolling. Also reserves room below the board for the Reveal/Flag toggle row, which
-// lives in this same .board-wrap column here (PUZZLE_LANDSCAPE_TOGGLE_H — keep in sync by hand with
-// its real rendered height, style.css).
-var PUZZLE_LANDSCAPE_TOGGLE_H = 64;
-var PUZZLE_LANDSCAPE_PAGE_MARGIN = 32; // top+bottom breathing room outside the board+toggle column
-var PUZZLE_BOX_PADDING_LANDSCAPE = 16; // .board-scroll's own padding here — same idea as the mobile one
-function fitPuzzleLandscapeBoxPx() {
-	var grid = document.querySelector(".game-view.puzzle .game-grid");
-	if (!grid) return PUZZLE_BOARD_PX_LANDSCAPE;
-	var side = document.querySelector(".game-view.puzzle .game-side");
-	var gapPx = parseFloat(getComputedStyle(grid).gap) || 0;
-	var availW = grid.clientWidth - (side ? side.offsetWidth : 0) - gapPx;
-	var availH = window.innerHeight - PUZZLE_LANDSCAPE_PAGE_MARGIN - PUZZLE_LANDSCAPE_TOGGLE_H;
-	var box = Math.min(availW, availH);
-	if (!(box > 0)) return PUZZLE_BOARD_PX_LANDSCAPE;
-	return Math.max(200, Math.min(640, Math.floor(box)));
+// Landscape phone's own "use the space we have" (working from a reference mockup — the fixed 300px
+// box left the same kind of dead space desktop's old fixed 480px did, and forcing it SQUARE wasted
+// even more: bound by the shorter of width/height, a wide-but-short viewport left tons of unused
+// width, reported as "not using the space horizontally"). Same idea as fitPuzzleMobileBoxW above:
+// .board-scroll's own box is plain CSS now (a flex:1 1 auto chain down from .game-grid, style.css) —
+// it fills whatever width/height flex distribution actually gives it, independently in each
+// dimension (no forced-square target), including leaving room for the Reveal/Flag toggle row it
+// shares a column with via ordinary sibling flex — no JS-side "leave room for the toggle" constant
+// needed any more, unlike the old version of this function. This just reads the result back.
+function fitPuzzleLandscapeW() {
+	var w = boardScroll ? boardScroll.clientWidth : 0;
+	return w > 0 ? w : PUZZLE_BOARD_PX_LANDSCAPE;
 }
+function fitPuzzleLandscapeH() {
+	var h = boardScroll ? boardScroll.clientHeight : 0;
+	return h > 0 ? h : PUZZLE_BOARD_PX_LANDSCAPE;
+}
+var PUZZLE_BOX_PADDING_LANDSCAPE = 16; // .board-scroll's own padding here — same idea as the mobile one
 
 // True on either mobile landscape battle layout — 1v1 duel (body.duel-landscape-mode) or 6-player
 // (body.multi-landscape-mode), style.css — a wide (width > 700) viewport, so it fails the width-based
@@ -250,29 +246,45 @@ function sizePlayerCanvas() {
 		var puzzleLandscape = isPuzzleLandscapeMobile();
 		var isPuzzleDesktop = !puzzleLandscape && !mobileLayout;
 		var mobilePortraitPuzzle = !puzzleLandscape && mobileLayout;
-		var target = puzzleLandscape ? fitPuzzleLandscapeBoxPx() : (mobileLayout ? fitPuzzleMobileBoxPx() : fitPuzzleDesktopBoxPx());
-		var cap = puzzleLandscape ? PUZZLE_CELL_MAX_LANDSCAPE : (mobileLayout ? PUZZLE_CELL_MAX_MOBILE : PUZZLE_CELL_MAX);
-		// Portrait mobile and landscape both carve out room for .board-scroll's own padding (the
-		// "spacing around the board" ask) before dividing into cells — the outer box (target, what the
-		// inline width/height is set to) stays the full measured space; only the cell-sizing math
-		// shrinks to leave that padding room inside it. Desktop is untouched (no padding added there).
-		var boxPadding = mobilePortraitPuzzle ? PUZZLE_BOX_PADDING_MOBILE : (puzzleLandscape ? PUZZLE_BOX_PADDING_LANDSCAPE : 0);
-		var cellTarget = boxPadding ? Math.max(1, target - boxPadding * 2) : target;
-		cellPx = Math.min(cap, Math.floor(cellTarget / Math.max(rows, cols)));
-		// Every fixedBox case is a live measurement now, set as an inline style — desktop, portrait
-		// mobile, and landscape phone alike, none fall back to a fixed CSS box any more.
 		var puzzleWrap = document.querySelector(".game-view.puzzle .board-wrap");
 		var puzzleCard = document.getElementById("puzzle_card");
-		if (boardScroll) { boardScroll.style.width = target + "px"; boardScroll.style.height = target + "px"; }
-		if (puzzleWrap) puzzleWrap.style.width = target + "px";
-		// The ladder card's WIDTH only needs to track the board's for portrait mobile, where the two
-		// stack vertically (matching widths reads as one column) — landscape sits them side by side
-		// instead (its own fixed-width .game-side column, style.css), where matching the board's width
-		// would be wrong; its HEIGHT still matches the board there, but via CSS align-items:stretch on
-		// .game-grid, not JS. Desktop's card width is likewise CSS-driven (.game-side), unrelated to
-		// the board's own measured size.
-		if (mobilePortraitPuzzle && puzzleCard) puzzleCard.style.width = target + "px";
-		else if (puzzleCard) puzzleCard.style.width = "";
+		if (isPuzzleDesktop) {
+			// Desktop: still measures a SIBLING (the grid minus the sidebar) and forces the result onto
+			// .board-scroll via inline style, unlike the two branches below — left as-is since it wasn't
+			// part of "let the layout adjust instead of fixed values" (only mobile/landscape were
+			// reported), and its bound-by-both-dimensions-at-once math is more delicate to convert.
+			var target = fitPuzzleDesktopBoxPx();
+			cellPx = Math.min(PUZZLE_CELL_MAX, Math.floor(target / Math.max(rows, cols)));
+			if (boardScroll) { boardScroll.style.width = target + "px"; boardScroll.style.height = target + "px"; }
+			if (puzzleWrap) puzzleWrap.style.width = target + "px";
+			if (puzzleCard) puzzleCard.style.width = "";
+		} else if (inPuzzle) {
+			// Portrait mobile and landscape phone: .board-scroll's box is plain CSS now (width:100%, or
+			// a flex:1 1 auto chain — style.css) instead of a JS-computed pixel target forced on via
+			// inline style — flex/CSS owns the container size, same "let the layout engine do it"
+			// approach fitDesktopCellPx already uses for the duel-landscape board. Clear any inline size
+			// a DESKTOP render left behind earlier in the same session (e.g. resizing the window
+			// narrower without a reload) before measuring, or a stale inline value would keep silently
+			// overriding the CSS regardless of which media query now matches (the same class of bug
+			// already found and fixed for #board_scroll in the racing-board context) — then just read
+			// the real, CSS-determined size back to decide the canvas's cell size.
+			if (boardScroll) { boardScroll.style.width = ""; boardScroll.style.height = ""; }
+			if (puzzleWrap) puzzleWrap.style.width = "";
+			if (puzzleCard) puzzleCard.style.width = "";
+			if (mobilePortraitPuzzle) {
+				var mobileW = Math.max(1, fitPuzzleMobileBoxW() - PUZZLE_BOX_PADDING_MOBILE * 2);
+				cellPx = Math.min(PUZZLE_CELL_MAX_MOBILE, Math.floor(mobileW / cols));
+			} else {
+				// Independent width/height fit (not a single square target divided by max(rows,cols)):
+				// a wide-but-short board and a narrow-but-tall one each get their own real rectangle
+				// instead of both being squeezed into a box bound by the shorter of the two dimensions
+				// even when the other had plenty of room to spare (reported as "not using the space
+				// horizontally").
+				var landW = Math.max(1, fitPuzzleLandscapeW() - PUZZLE_BOX_PADDING_LANDSCAPE * 2);
+				var landH = Math.max(1, fitPuzzleLandscapeH() - PUZZLE_BOX_PADDING_LANDSCAPE * 2);
+				cellPx = Math.min(PUZZLE_CELL_MAX_LANDSCAPE, Math.floor(landW / cols), Math.floor(landH / rows));
+			}
+		}
 	} else {
 		cellPx = mobileLayout ? fitMobileCellPx() : fitDesktopCellPx();
 	}
