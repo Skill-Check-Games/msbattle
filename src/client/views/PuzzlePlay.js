@@ -190,6 +190,10 @@ function togglePuzzleChrome(on, mode, marathon) {
 	if (rankFoot) rankFoot.style.display = marathon ? "none" : "";
 	var skipBtn = document.getElementById("puzzle_skip_btn");
 	if (skipBtn) skipBtn.style.display = marathon ? "none" : "";
+	var failActions = document.getElementById("puzzle_fail_actions");
+	// Restart takes the full row (style.css) once Skip is hidden, instead of sitting alone at its
+	// usual ~34% width with an empty gap beside it.
+	if (failActions) failActions.classList.toggle("marathon-fail-actions", marathon);
 	var livesRow = document.getElementById("puzzle_lives_row");
 	if (livesRow) livesRow.style.display = marathon ? "" : "none";
 	var bestChip = document.getElementById("puzzle_marathon_best");
@@ -504,28 +508,30 @@ function showMarathonOutcome(result) {
 // auto-emit puzzle_next here instead of waiting for the player, on request), null whenever a fresh
 // puzzle_board arrives so the hint comes back for the next attempt.
 // Reuses the SAME two buttons for both outcomes rather than building a separate pair — only the
-// labels/emphasis change: a miss emphasizes retrying (you probably want another shot at THIS one),
-// a solve emphasizes moving on (.puzzle-fail-actions-solved swaps which button reads as primary,
-// matching the reference sketch's prominent green "Next" — see style.css).
+// labels change (Restart/Next after a solve, Try again/Next puzzle after a miss); the layout itself
+// is fixed on request — Next always the wide (~66%) prominent action, Restart always the narrow
+// borderless icon-over-text one beside it (index.html/style.css), so the row doesn't rearrange
+// itself between the two outcomes, only relabels.
 function setRatedDoneActions(kind) {
 	var hint = document.getElementById("puzzle_hint_btn");
 	var actions = document.getElementById("puzzle_fail_actions");
-	var retryBtn = document.getElementById("puzzle_retry_btn");
+	var retryLabel = document.getElementById("puzzle_retry_label");
 	var skipBtn = document.getElementById("puzzle_skip_btn");
 	var shown = kind === "fail" || kind === "solved";
 	if (hint) hint.style.display = shown ? "none" : "";
 	if (actions) {
+		// Swaps into the exact spot Hint just vacated (both are direct children of #puzzle_card,
+		// index.html) — nothing above this row (the rank/progress panel) moves when this toggles.
 		actions.style.display = shown ? "" : "none";
+		// Solved-only: tints Next green instead of the app's usual accent (still .btn-primary either
+		// way — see style.css) — a "you're done, move on" affordance distinct from an ordinary action.
 		actions.classList.toggle("puzzle-fail-actions-solved", kind === "solved");
 	}
-	if (retryBtn) retryBtn.textContent = kind === "solved" ? "Restart" : "Try again";
+	if (retryLabel) retryLabel.textContent = kind === "solved" ? "Restart" : "Try again";
 	if (skipBtn) skipBtn.textContent = kind === "solved" ? "Next" : "Next puzzle";
-	// Swap which button reads as primary — a miss emphasizes retrying THIS puzzle (btn-primary on
-	// Retry), a solve emphasizes moving on (btn-primary on Next, matching the reference sketch's
-	// prominent green button). focusButtonGroup (Main.js) focuses whichever one carries .btn-primary,
-	// so this single class swap also controls which button Enter lands on.
-	if (retryBtn) { retryBtn.classList.toggle("btn-primary", kind !== "solved"); retryBtn.classList.toggle("btn-secondary", kind === "solved"); }
-	if (skipBtn) { skipBtn.classList.toggle("btn-primary", kind === "solved"); skipBtn.classList.toggle("btn-secondary", kind !== "solved"); }
+	// Next/Skip is always the keyboard-focus target here (focusButtonGroup, Main.js, focuses whichever
+	// child carries .btn-primary) — matches it always being the wide, prominent button visually now,
+	// in both outcomes, not just on a solve.
 	if (shown && typeof focusButtonGroup === "function") focusButtonGroup(actions);
 }
 

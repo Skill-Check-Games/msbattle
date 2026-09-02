@@ -852,10 +852,6 @@
 							<!-- Marathon boards only: this board's standing best, live for the whole play (not just
 							     the post-game panel) — see togglePuzzleChrome/updatePuzzleMarathonBestChip. -->
 							<div id="puzzle_marathon_best" class="puzzle-marathon-best" style="display:none"></div>
-							<div id="puzzle_fail_actions" class="puzzle-fail-actions kbd-btn-group" style="display:none">
-								<button id="puzzle_retry_btn" class="btn btn-primary" type="button">Try again</button>
-								<button id="puzzle_skip_btn" class="btn btn-secondary" type="button">Next puzzle</button>
-							</div>
 						</div>
 
 						<!-- Run modes: solves + level (streak) or time (storm) -->
@@ -885,6 +881,18 @@
 							<span class="puzzle-hint-icon">💡</span>
 							<span>Hint</span>
 						</button>
+						<!-- Swaps into the exact same spot Hint just occupied (setRatedDoneActions hides one,
+						     shows the other — see its own comment) once a rated attempt ends, on a miss or a
+						     solve — a sibling of #puzzle_hint_btn for the same reason it moved out of
+						     #puzzle_rated_panel above: this needs to land at the BOTTOM, below the board, on
+						     portrait mobile too, without shifting the rank/progress section sitting above it. -->
+						<div id="puzzle_fail_actions" class="puzzle-fail-actions kbd-btn-group" style="display:none">
+							<button id="puzzle_retry_btn" class="btn btn-ghost puzzle-restart-btn" type="button">
+								<span class="puzzle-restart-icon">↺</span>
+								<span id="puzzle_retry_label">Try again</span>
+							</button>
+							<button id="puzzle_skip_btn" class="btn btn-primary" type="button">Next puzzle</button>
+						</div>
 					</div>
 					<div id="solo_card" class="side-card" style="display:none">
 						<h3 class="side-title">Free play</h3>

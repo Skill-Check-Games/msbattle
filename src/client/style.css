@@ -1675,7 +1675,11 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 	.game-view.puzzle #puzzle_run_panel {
 		order: -1;
 	}
-	.game-view.puzzle #puzzle_hint_btn { order: 1; width: 100%; }
+	.game-view.puzzle #puzzle_hint_btn,
+	.game-view.puzzle #puzzle_fail_actions {
+		order: 1;
+		width: 100%;
+	}
 }
 @media (max-width: 600px) {
 	/* Plain CSS now (was a fixed 320px, then a min(400px,...) fallback JS immediately overrode with a
@@ -1952,19 +1956,42 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 	/* Still clickable, but visually marked so the Elo penalty is obvious. */
 	opacity: 0.75;
 }
+/* Row, not stacked — Restart (a small icon-over-text, borderless action) sits to the left of Next/Skip
+   (the wide, prominent one) at a fixed ~1:2 width ratio, on request. Fixed regardless of outcome (fail
+   or solved, setRatedDoneActions only relabels the text) so the row never rearranges itself between
+   the two, only the label/tint changes. */
 .puzzle-fail-actions {
 	margin-top: 0.4rem;
-	display: flex; flex-direction: column; gap: 0.5rem;
+	display: flex; flex-direction: row; align-items: stretch; gap: 0.5rem;
 }
-.puzzle-fail-actions .btn {
+.puzzle-fail-actions #puzzle_skip_btn {
+	flex: 2 1 0;
 	padding: 0.8rem 1rem;
 	font-size: 1rem; font-weight: 700;
 }
-/* Solved state (setRatedDoneActions("solved"), PuzzlePlay.js) — "Next" becomes the prominent action
-   (already carries .btn-primary in this state, swapped there for the correct keyboard-focus target
-   too — see that function) but in the reference sketch's own green, not the app's usual blue/purple
-   accent, since this is specifically a "you're done, move on" affordance rather than an ordinary
-   primary button. Restart stays a plain secondary alongside it. */
+/* Icon-over-text, no border (.btn-ghost, shared with every other borderless icon action in the app) —
+   deliberately the quieter of the two, half Next's flex-grow share (~34% of the row vs Next's ~66%). */
+.puzzle-restart-btn {
+	flex: 1 1 0;
+	display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.15rem;
+	padding: 0.5rem 0.4rem;
+	font-size: 0.8rem; font-weight: 600;
+}
+.puzzle-restart-icon { font-size: 1.3rem; line-height: 1; }
+/* Marathon boards hide Skip outright (togglePuzzleChrome, PuzzlePlay.js — "Next puzzle" doesn't apply,
+   there's no separate puzzle to hand back) — Restart alone would otherwise sit at its usual ~34% width
+   with a bare gap where Next used to be; let it take the full row instead, same as the (also marathon-
+   only) hint button it stands in for keeps its own normal full-width horizontal layout. */
+.marathon-fail-actions #puzzle_retry_btn {
+	flex: 1 1 100%;
+	flex-direction: row;
+	padding: 0.8rem 1rem;
+	font-size: 1rem; font-weight: 700;
+}
+/* Solved state (setRatedDoneActions("solved"), PuzzlePlay.js) — Next/Skip is always .btn-primary
+   (fixed layout, see .puzzle-fail-actions above), but on a genuine solve it tints the reference
+   sketch's own green instead of the app's usual accent — a "you're done, move on" affordance distinct
+   from an ordinary primary action. */
 .puzzle-fail-actions-solved #puzzle_skip_btn.btn-primary {
 	background: var(--success);
 	border-color: var(--success);
@@ -4482,7 +4509,7 @@ body.duel-landscape-mode .board-overlay-panel,
 body.duel-landscape-mode .board-overlay-panel:has(.ranked-result),
 body.multi-landscape-mode .board-overlay-panel,
 body.multi-landscape-mode .board-overlay-panel:has(.ranked-result) {
-	max-height: 94vh;
+	max-height: 98vh;
 	padding: 0.7rem 0.9rem;
 }
 body.duel-landscape-mode .result-panel,
