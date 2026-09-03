@@ -120,4 +120,217 @@ function renderDesign() {
 	controls.appendChild(apply);
 	panel.appendChild(controls);
 	view.appendChild(panel);
+
+	view.appendChild(buildRankAnimSection());
+}
+
+// ---- Rank change animation lab: 5 candidate treatments for the moment a player crosses a tier
+// boundary — today that moment is sound-only (sound.rankUp/rankDown, playResultMoment in
+// MatchPanels.js) plus a generic rating-delta number; there's no animation on the rank badge itself.
+// Each candidate below is built on the real buildRankBadge() (Ranking.js), so whichever gets picked
+// ships as-is — this is a comparison of live components, not mockups. Same "candidate cards, each
+// with its own Play button" pattern SoundLab.js already established for audio; see its own comment
+// for why that shape (not sliders) fits "here are some options" better than a single tunable one.
+
+// Crosses a real tier boundary (Bronze III -> Silver I, and back) rather than a same-tier sub-step —
+// dramatic enough that the colour/chevron-count change actually reads in a quick preview.
+var RANK_ANIM_UP = { from: 590, to: 600 };
+var RANK_ANIM_DOWN = { from: 600, to: 590 };
+
+// The target tier's name, fading in a beat after each animation starts (every candidate's own
+// timing already lands the new badge by ~0.5-0.6s, so a 0.5s-delayed caption reads as confirming
+// what just happened rather than racing it).
+function rankLabCaption(rating) {
+	var el = document.createElement("div");
+	el.className = "ranklab-caption";
+	var info = rankIconFor(rating);
+	el.textContent = info.label + (info.subNum ? " " + info.subNum : "");
+	var t = tierFor(rating);
+	if (t && t.color) el.style.color = t.color;
+	return el;
+}
+
+// 1) Crossfade & Glow — the old badge sinks away, the new one blooms in under its own tier glow.
+function playRanklabCrossfade(stage, up) {
+	var pair = up ? RANK_ANIM_UP : RANK_ANIM_DOWN;
+	stage.innerHTML = "";
+	var box = document.createElement("div");
+	box.className = "ranklab-badge-box";
+	var oldB = buildRankBadge(pair.from); oldB.classList.add("ranklab-crossfade-old");
+	var newB = buildRankBadge(pair.to); newB.classList.add("ranklab-crossfade-new");
+	box.appendChild(oldB); box.appendChild(newB);
+	stage.appendChild(box);
+	stage.appendChild(rankLabCaption(pair.to));
+}
+
+// 2) Flip Reveal — a real 3D card flip; the old badge is the front face, the new one the (pre-
+// rotated) back face, so one rotateY sweep lands the new badge upright and forward-facing.
+function playRanklabFlip(stage, up) {
+	var pair = up ? RANK_ANIM_UP : RANK_ANIM_DOWN;
+	stage.innerHTML = "";
+	var box = document.createElement("div");
+	box.className = "ranklab-badge-box ranklab-flip";
+	var inner = document.createElement("div");
+	inner.className = "ranklab-flip-inner";
+	var front = document.createElement("div");
+	front.className = "ranklab-flip-face";
+	front.appendChild(buildRankBadge(pair.from));
+	var back = document.createElement("div");
+	back.className = "ranklab-flip-face ranklab-flip-face-back";
+	back.appendChild(buildRankBadge(pair.to));
+	inner.appendChild(front); inner.appendChild(back);
+	box.appendChild(inner);
+	stage.appendChild(box);
+	stage.appendChild(rankLabCaption(pair.to));
+}
+
+// 3) Shatter & Reform — the old badge cracks into shards (coloured in the tier being left behind)
+// that fly outward and fade, while the new one bursts in from nothing with an overshoot bounce.
+function playRanklabShatter(stage, up) {
+	var pair = up ? RANK_ANIM_UP : RANK_ANIM_DOWN;
+	stage.innerHTML = "";
+	var box = document.createElement("div");
+	box.className = "ranklab-badge-box ranklab-shatter";
+	var oldB = buildRankBadge(pair.from); oldB.classList.add("ranklab-shatter-old");
+	var shardColor = (tierFor(pair.from) || {}).color || "#fff";
+	var shardCount = 9;
+	for (var i = 0; i < shardCount; i++) {
+		var shard = document.createElement("div");
+		shard.className = "ranklab-shard";
+		shard.style.setProperty("--shard-color", shardColor);
+		var angle = (i / shardCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
+		var dist = 46 + Math.random() * 30;
+		shard.style.setProperty("--sx", (Math.cos(angle) * dist).toFixed(1) + "px");
+		shard.style.setProperty("--sy", (Math.sin(angle) * dist).toFixed(1) + "px");
+		shard.style.setProperty("--srot", Math.round((Math.random() - 0.5) * 420) + "deg");
+		shard.style.animationDelay = (Math.random() * 0.05).toFixed(2) + "s";
+		box.appendChild(shard);
+	}
+	box.appendChild(oldB);
+	var newB = buildRankBadge(pair.to); newB.classList.add("ranklab-shatter-new");
+	box.appendChild(newB);
+	stage.appendChild(box);
+	stage.appendChild(rankLabCaption(pair.to));
+}
+
+// 4) Climb / Drop — the old badge travels off in the direction of the change (up to promote, down
+// to demote) with a motion blur, the new one arrives from the opposite edge.
+function playRanklabSlide(stage, up) {
+	var pair = up ? RANK_ANIM_UP : RANK_ANIM_DOWN;
+	stage.innerHTML = "";
+	var box = document.createElement("div");
+	box.className = "ranklab-badge-box";
+	var dir = up ? "up" : "down";
+	var oldB = buildRankBadge(pair.from); oldB.classList.add("ranklab-slide-old", dir);
+	var newB = buildRankBadge(pair.to); newB.classList.add("ranklab-slide-new", dir);
+	box.appendChild(oldB); box.appendChild(newB);
+	stage.appendChild(box);
+	stage.appendChild(rankLabCaption(pair.to));
+}
+
+// 5) Radial Burst — Crossfade's own swap (reused verbatim) plus a ring + particles radiating out in
+// the app's existing win/loss colours (--energy-win/--danger).
+function playRanklabBurst(stage, up) {
+	var pair = up ? RANK_ANIM_UP : RANK_ANIM_DOWN;
+	stage.innerHTML = "";
+	var box = document.createElement("div");
+	box.className = "ranklab-badge-box ranklab-burst " + (up ? "up" : "down");
+	var accent = up ? "var(--energy-win)" : "var(--danger)";
+	var ring = document.createElement("div");
+	ring.className = "ranklab-burst-ring";
+	ring.style.setProperty("--ring-color", accent);
+	box.appendChild(ring);
+	var oldB = buildRankBadge(pair.from); oldB.classList.add("ranklab-crossfade-old");
+	var newB = buildRankBadge(pair.to); newB.classList.add("ranklab-crossfade-new");
+	box.appendChild(oldB); box.appendChild(newB);
+	var particleCount = 10;
+	for (var i = 0; i < particleCount; i++) {
+		var p = document.createElement("div");
+		p.className = "ranklab-particle";
+		p.style.setProperty("--pcolor", accent);
+		var angle = Math.random() * Math.PI * 2;
+		var dist = 30 + Math.random() * 40;
+		p.style.setProperty("--px", (Math.cos(angle) * dist).toFixed(1) + "px");
+		p.style.setProperty("--py", (Math.sin(angle) * dist).toFixed(1) + "px");
+		p.style.animationDelay = (Math.random() * 0.15).toFixed(2) + "s";
+		box.appendChild(p);
+	}
+	stage.appendChild(box);
+	stage.appendChild(rankLabCaption(pair.to));
+}
+
+var RANK_ANIM_CANDIDATES = [
+	{ id: "crossfade", name: "Crossfade & Glow", desc: "The old badge sinks away, the new one blooms in under its own tier glow. Calmest option — closest to the app's existing (unused) rank-icon-in/out CSS.", play: playRanklabCrossfade },
+	{ id: "flip", name: "Flip Reveal", desc: "A real 3D card flip — the badge turns over to reveal the new tier on its back face. Reads as a single deliberate reveal rather than a swap.", play: playRanklabFlip },
+	{ id: "shatter", name: "Shatter & Reform", desc: "The old badge cracks into shards that fly outward while the new one bursts in with an overshoot bounce. The most dramatic option — best for a big multi-tier jump.", play: playRanklabShatter },
+	{ id: "slide", name: "Climb / Drop", desc: "The old badge travels off in the direction of the change — up to promote, down to demote — motion-blurred, while the new one arrives from the opposite edge. Literally climbing or falling the ladder.", play: playRanklabSlide },
+	{ id: "burst", name: "Radial Burst", desc: "A plain crossfade swap plus a ring and particles radiating out in the app's existing win/loss colours — bright and outward on a promotion, falling like ash on a demotion. The most \"game-y celebratory\" option.", play: playRanklabBurst }
+];
+
+function buildRankAnimCard(candidate) {
+	var card = document.createElement("div");
+	card.className = "section-card ranklab-card";
+
+	var name = document.createElement("div");
+	name.className = "ranklab-card-name";
+	name.textContent = candidate.name;
+	card.appendChild(name);
+
+	var desc = document.createElement("p");
+	desc.className = "ranklab-card-desc";
+	desc.textContent = candidate.desc;
+	card.appendChild(desc);
+
+	var stage = document.createElement("div");
+	stage.className = "ranklab-stage";
+	card.appendChild(stage);
+
+	var actions = document.createElement("div");
+	actions.className = "ranklab-actions";
+	var upBtn = document.createElement("button");
+	upBtn.type = "button";
+	upBtn.className = "btn btn-secondary";
+	upBtn.textContent = "▲ Rank up";
+	upBtn.addEventListener("click", function() {
+		if (typeof unlockAudio === "function") unlockAudio();
+		if (typeof sound !== "undefined") sound.rankUp();
+		candidate.play(stage, true);
+	});
+	var downBtn = document.createElement("button");
+	downBtn.type = "button";
+	downBtn.className = "btn btn-secondary";
+	downBtn.textContent = "▼ Rank down";
+	downBtn.addEventListener("click", function() {
+		if (typeof unlockAudio === "function") unlockAudio();
+		if (typeof sound !== "undefined") sound.rankDown();
+		candidate.play(stage, false);
+	});
+	actions.appendChild(upBtn);
+	actions.appendChild(downBtn);
+	card.appendChild(actions);
+
+	return card;
+}
+
+function buildRankAnimSection() {
+	var section = document.createElement("div");
+
+	var head = document.createElement("h2");
+	head.className = "design-section-title";
+	head.textContent = "Rank change animation (candidates)";
+	section.appendChild(head);
+
+	var sub = document.createElement("p");
+	sub.className = "section-page-sub";
+	sub.textContent = "Crossing a tier boundary today only plays a sound (sound.rankUp/rankDown) — there's no animation on the badge itself. Five candidates below, each built on the real rank badge (Ranking.js) so whichever is picked ships as-is; every Preview also plays the real fanfare, so you're judging the whole moment, not just the visual. Bronze III → Silver I (and back), a real tier boundary so the colour/chevron change actually reads.";
+	section.appendChild(sub);
+
+	var grid = document.createElement("div");
+	grid.className = "ranklab-grid";
+	RANK_ANIM_CANDIDATES.forEach(function(candidate) {
+		grid.appendChild(buildRankAnimCard(candidate));
+	});
+	section.appendChild(grid);
+
+	return section;
 }

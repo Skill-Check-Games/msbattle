@@ -3309,6 +3309,104 @@ body.ranked-game .game-grid { padding: 1.25rem 1.5rem 1.5rem; }
 	100% { opacity: 1; transform: scale(1) rotate(0); }
 }
 
+/* ===== Rank change animation lab (admin /admin/design) — 5 candidate treatments for the moment a
+   player crosses a tier boundary, each built on the real buildRankBadge() (Ranking.js) so whichever
+   is picked ships as-is. Namespaced .ranklab-* throughout, entirely separate from the .rank-swap/
+   rank-icon-in/out pair above (that one belongs to an earlier result-panel layout — dead CSS, no
+   current caller — this is a fresh proposal, not a reskin of it). Every candidate rebuilds its stage
+   from scratch on each Preview click (DesignView.js), so replaying is just fresh DOM + a fresh
+   animation — no manual restart/reflow trick needed. */
+.ranklab-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 0.85rem; }
+.ranklab-card { display: flex; flex-direction: column; gap: 0; }
+.ranklab-card-name { font-weight: 700; font-size: 0.98rem; margin-bottom: 0.3rem; }
+.ranklab-card-desc { margin: 0 0 0.7rem; color: var(--muted); font-size: 0.84rem; line-height: 1.5; }
+.ranklab-stage {
+	position: relative;
+	height: 190px;
+	display: flex; align-items: center; justify-content: center;
+	background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.035), transparent 70%);
+	border-radius: 12px;
+	overflow: hidden;
+	margin-bottom: 0.8rem;
+}
+.ranklab-badge-box { position: relative; width: 1em; height: 1em; font-size: 64px; }
+.ranklab-caption {
+	position: absolute; left: 0; right: 0; bottom: 10px; text-align: center;
+	font-size: 0.78rem; font-weight: 700; letter-spacing: 0.03em; color: var(--muted);
+	opacity: 0; animation: ranklab-caption-in 0.5s ease 0.5s forwards;
+}
+@keyframes ranklab-caption-in { to { opacity: 1; } }
+.ranklab-actions { display: flex; gap: 0.5rem; }
+.ranklab-actions .btn { flex: 1; padding: 0.5rem 0.6rem; font-size: 0.85rem; }
+
+/* -- 1) Crossfade & Glow: the old badge sinks/shrinks away, the new one blooms in — the new tier's
+   own glow (--rb-glow, already on every badge) is the only "celebration" effect, nothing added. The
+   plainest, calmest option; closest in spirit to the app's existing (unused) rank-icon-in/out pair. */
+.ranklab-badge-box .rank-badge { position: absolute; inset: 0; }
+.ranklab-crossfade-old { animation: ranklab-crossfade-out 0.7s cubic-bezier(.55, .05, .7, .35) forwards; }
+.ranklab-crossfade-new { opacity: 0; animation: ranklab-crossfade-in 0.7s cubic-bezier(.22, 1, .36, 1) 0.5s forwards; }
+@keyframes ranklab-crossfade-out { to { opacity: 0; transform: scale(0.7) translateY(8px); } }
+@keyframes ranklab-crossfade-in { 0% { opacity: 0; transform: scale(0.6); } 65% { opacity: 1; transform: scale(1.15); } 100% { opacity: 1; transform: scale(1); } }
+
+/* -- 2) Flip Reveal: a real 3D card flip — the old badge is the front face, the new one the (pre-
+   rotated) back face, so the single rotateY sweep lands the new badge upright and forward-facing. */
+.ranklab-flip { perspective: 700px; }
+.ranklab-flip-inner { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; animation: ranklab-flip-spin 0.9s cubic-bezier(.4, .1, .2, 1) forwards; }
+.ranklab-flip-face { position: absolute; inset: 0; backface-visibility: hidden; }
+.ranklab-flip-face-back { transform: rotateY(180deg); }
+@keyframes ranklab-flip-spin { from { transform: rotateY(0deg); } to { transform: rotateY(180deg); } }
+
+/* -- 3) Shatter & Reform: the old badge cracks into shards that fly outward and fade while the new
+   one bursts in from nothing with an overshoot bounce — the most dramatic/destructive option, reads
+   well for a big multi-tier jump. Shard fly vectors (--sx/--sy/--srot) are randomized per-shard in
+   JS (DesignView.js); one shared keyframe consumes them all. */
+.ranklab-shard {
+	position: absolute; top: 43%; left: 43%; width: 14%; height: 14%;
+	background: var(--shard-color, #fff);
+	clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+	opacity: 0.95; pointer-events: none;
+	animation: ranklab-shard-fly 0.6s ease-out forwards;
+}
+@keyframes ranklab-shard-fly { to { transform: translate(var(--sx), var(--sy)) rotate(var(--srot)); opacity: 0; } }
+.ranklab-shatter-old { animation: ranklab-shatter-out 0.28s ease-in forwards; }
+@keyframes ranklab-shatter-out { to { opacity: 0; transform: scale(0.85); } }
+.ranklab-shatter-new { opacity: 0; transform: scale(0); animation: ranklab-reform 0.6s cubic-bezier(.34, 1.56, .64, 1) 0.32s forwards; }
+@keyframes ranklab-reform { 0% { opacity: 0; transform: scale(0); } 60% { opacity: 1; transform: scale(1.18); } 100% { opacity: 1; transform: scale(1); } }
+
+/* -- 4) Climb / Drop: the old badge travels off in the direction of the change (up to promote, down
+   to demote) with a motion blur, the new one arrives from the opposite edge — literally "climbing"
+   or "falling" the ladder. Positioned within .ranklab-stage directly (not .ranklab-badge-box), since
+   it needs the stage's full height to travel through. */
+.ranklab-slide-old.up { animation: ranklab-climb-out 0.65s cubic-bezier(.5, 0, .75, 0) forwards; }
+.ranklab-slide-old.down { animation: ranklab-drop-out 0.65s cubic-bezier(.5, 0, .75, 0) forwards; }
+.ranklab-slide-new.up { opacity: 0; animation: ranklab-climb-in 0.65s cubic-bezier(.25, 1, .5, 1) 0.35s forwards; }
+.ranklab-slide-new.down { opacity: 0; animation: ranklab-drop-in 0.65s cubic-bezier(.25, 1, .5, 1) 0.35s forwards; }
+@keyframes ranklab-climb-out { to { transform: translateY(-72px); opacity: 0; filter: blur(2px); } }
+@keyframes ranklab-drop-out { to { transform: translateY(72px); opacity: 0; filter: blur(2px); } }
+@keyframes ranklab-climb-in { 0% { transform: translateY(72px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+@keyframes ranklab-drop-in { 0% { transform: translateY(-72px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+
+/* -- 5) Radial Burst: builds on Crossfade's own swap (reuses its exact classes/keyframes — see #1 —
+   rather than a second, ambiguous animation competing on the same badges) and layers a ring +
+   particles radiating out in the app's existing win/loss colours (--energy-win/--danger, same ones
+   the rating-delta number already uses) — up bursts outward and bright, down lets particles fall
+   like ash instead. The flourish is the differentiator here, not the swap itself. */
+.ranklab-burst-ring {
+	position: absolute; inset: -22%; border-radius: 50%; pointer-events: none; opacity: 0;
+	border: 3px solid var(--ring-color, var(--energy-win));
+}
+.ranklab-burst.up .ranklab-burst-ring { animation: ranklab-ring-expand 0.7s ease-out forwards; }
+.ranklab-burst.down .ranklab-burst-ring { animation: ranklab-ring-expand 0.7s ease-out forwards; opacity: 0.5; }
+@keyframes ranklab-ring-expand { 0% { transform: scale(0.4); opacity: 0.9; } 100% { transform: scale(1.9); opacity: 0; } }
+.ranklab-particle {
+	position: absolute; top: 50%; left: 50%; width: 6px; height: 6px; border-radius: 50%;
+	background: var(--pcolor, var(--energy-win)); opacity: 0.9; pointer-events: none;
+}
+.ranklab-burst.up .ranklab-particle { animation: ranklab-particle-out 0.8s ease-out forwards; }
+@keyframes ranklab-particle-out { to { transform: translate(var(--px), var(--py)) scale(0.3); opacity: 0; } }
+.ranklab-burst.down .ranklab-particle { animation: ranklab-particle-fall 0.9s ease-in forwards; }
+@keyframes ranklab-particle-fall { to { transform: translate(var(--px), calc(var(--py) + 46px)) scale(0.5); opacity: 0; } }
+
 .result-rank-rating {
 	text-align: center;
 	font-weight: 700;
