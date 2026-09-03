@@ -101,6 +101,33 @@ function playResultMoment(won, ranked, oldRating, newRating) {
 	}
 }
 
+// The hero rank badge, in place of a plain buildRankBadge(newRating) — animates the "Climb / Drop"
+// treatment (picked from the 5 candidates in the admin rank-anim lab, /admin/design) whenever the
+// match crossed a tier boundary: the new badge descends into place from above on a promotion (the
+// old one continuing on past it downward), climbs in from below on a demotion — same motion as the
+// lab, just sized to the hero's own small badge instead of the lab's big preview stage. No tier
+// crossing (the common case) skips the stage/animation machinery entirely and returns the exact
+// plain badge this always used to build, unchanged.
+function buildResultHeroBadge(oldRating, newRating, provisional) {
+	var crossed = typeof oldRating === "number" && typeof newRating === "number"
+		&& tierFor(oldRating, provisional).name !== tierFor(newRating, provisional).name;
+	if (!crossed) {
+		var badge = buildRankBadge(newRating);
+		badge.classList.add("ranked-result-badge");
+		return badge;
+	}
+	var up = newRating > oldRating;
+	var stage = document.createElement("div");
+	stage.className = "ranked-result-badge ranked-result-badge-stage";
+	var oldBadge = buildRankBadge(oldRating);
+	oldBadge.classList.add("rank-badge-slide-old", up ? "up" : "down");
+	var newBadge = buildRankBadge(newRating);
+	newBadge.classList.add("rank-badge-slide-new", up ? "up" : "down");
+	stage.appendChild(oldBadge);
+	stage.appendChild(newBadge);
+	return stage;
+}
+
 
 // While a result panel is open, Enter triggers the primary action (the
 // first .btn-primary in the overlay). Every "play again" dialog —
@@ -234,9 +261,7 @@ function showRankedResult(data) {
 	// ── hero: rank badge + outcome ──
 	var hero = document.createElement("div");
 	hero.className = "ranked-result-hero";
-	var badge = buildRankBadge(newRating);
-	badge.classList.add("ranked-result-badge");
-	hero.appendChild(badge);
+	hero.appendChild(buildResultHeroBadge(oldRating, newRating, mine.provisional));
 	var heroText = document.createElement("div");
 	heroText.className = "ranked-result-hero-text";
 	var heading = document.createElement("div");
