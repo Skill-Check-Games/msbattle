@@ -104,28 +104,47 @@ function playResultMoment(won, ranked, oldRating, newRating) {
 // The hero rank badge, in place of a plain buildRankBadge(newRating) — animates the "Climb / Drop"
 // treatment (picked from the 5 candidates in the admin rank-anim lab, /admin/design) whenever the
 // match crossed a tier boundary: the new badge descends into place from above on a promotion (the
-// old one continuing on past it downward), climbs in from below on a demotion — same motion as the
-// lab, just sized to the hero's own small badge instead of the lab's big preview stage. No tier
-// crossing (the common case) skips the stage/animation machinery entirely and returns the exact
-// plain badge this always used to build, unchanged.
+// old one continuing on past it downward), climbs in from below on a demotion. No tier crossing
+// (the common case) skips the stage/animation machinery entirely and returns the exact plain badge
+// this always used to build, unchanged.
+//
+// Returns { element, trigger } instead of just the element — element goes into the DOM (and stays
+// on screen) right away showing the OLD badge at rest, exactly like the plain pre-crossing badge
+// always looked; trigger() is what actually starts the slide to the new tier, called later by
+// showRankedResult once the rating number/progress bar reveal has had its own moment first (on
+// request — the badge used to start sliding the INSTANT it landed in the DOM, i.e. immediately on
+// panel-show, racing the bar/number reveal that only starts 400ms later and takes ~950ms of its
+// own; the tier-up/down moment should read as a consequence of the bar filling, not a competing
+// simultaneous animation). A no-crossing badge's trigger() is a harmless no-op.
 function buildResultHeroBadge(oldRating, newRating, provisional) {
 	var crossed = typeof oldRating === "number" && typeof newRating === "number"
 		&& tierFor(oldRating, provisional).name !== tierFor(newRating, provisional).name;
 	if (!crossed) {
 		var badge = buildRankBadge(newRating);
 		badge.classList.add("ranked-result-badge");
-		return badge;
+		return { element: badge, trigger: function() {} };
 	}
 	var up = newRating > oldRating;
+	// Outer = the overflow:hidden clip boundary, padded a bit bigger than the badge itself so the
+	// badge's own glow (rank-emblem's drop-shadow) isn't cut off at rest — see the CSS comment.
+	// Inner = the actual em-sized positioning box the old/new badges sit in via inset:0.
+	var outer = document.createElement("div");
+	outer.className = "ranked-result-badge ranked-result-badge-stage-outer";
 	var stage = document.createElement("div");
-	stage.className = "ranked-result-badge ranked-result-badge-stage";
+	stage.className = "ranked-result-badge-stage";
+	outer.appendChild(stage);
 	var oldBadge = buildRankBadge(oldRating);
-	oldBadge.classList.add("rank-badge-slide-old", up ? "up" : "down");
-	var newBadge = buildRankBadge(newRating);
-	newBadge.classList.add("rank-badge-slide-new", up ? "up" : "down");
 	stage.appendChild(oldBadge);
-	stage.appendChild(newBadge);
-	return stage;
+	var triggered = false;
+	function trigger() {
+		if (triggered) return;
+		triggered = true;
+		oldBadge.classList.add("rank-badge-slide-old", up ? "up" : "down");
+		var newBadge = buildRankBadge(newRating);
+		newBadge.classList.add("rank-badge-slide-new", up ? "up" : "down");
+		stage.appendChild(newBadge);
+	}
+	return { element: outer, trigger: trigger };
 }
 
 
@@ -261,7 +280,8 @@ function showRankedResult(data) {
 	// ── hero: rank badge + outcome ──
 	var hero = document.createElement("div");
 	hero.className = "ranked-result-hero";
-	hero.appendChild(buildResultHeroBadge(oldRating, newRating, mine.provisional));
+	var heroBadge = buildResultHeroBadge(oldRating, newRating, mine.provisional);
+	hero.appendChild(heroBadge.element);
 	var heroText = document.createElement("div");
 	heroText.className = "ranked-result-hero-text";
 	var heading = document.createElement("div");
@@ -413,14 +433,19 @@ function showRankedResult(data) {
 
 	presentPanel(panel, won ? "win" : "lose");
 
-	// Apply the rating to the badge, then animate the number + progress a beat later (reward tick),
-	// and play the rank-up/down fanfare if a tier was crossed.
+	// Apply the rating to the badge, then animate the number + progress a beat later (reward tick).
 	if (data.standings) updateRatingFromStandings(data.standings, { suppressBanner: true, suppressDelta: true, mode: data.mode });
 	setTimeout(function() {
 		countUpNumber(num, oldRating != null ? oldRating : newRating, newRating, 950);
 		fill.style.width = Math.round(newProg.fill * 100) + "%";
 	}, 400);
-	playResultMoment(won, data.ranked, oldRating, newRating);
+	// Rank badge slide + fanfare land together, once the reveal above has actually had time to play
+	// out (its own 400ms delay + ~950ms reveal) plus a short extra beat — see buildResultHeroBadge's
+	// own comment for why this can't just start immediately alongside it.
+	setTimeout(function() {
+		heroBadge.trigger();
+		playResultMoment(won, data.ranked, oldRating, newRating);
+	}, 1700);
 	// preventScroll: the panel now scrolls internally on short viewports (see .board-overlay-panel's
 	// overflow-y:auto) — the default scrollIntoView behavior would otherwise yank it straight to this
 	// button, hiding the win/loss heading above it the instant the panel appears.

@@ -2977,20 +2977,36 @@ body.ranked-game .game-grid { padding: 1.25rem 1.5rem 1.5rem; }
 .ranked-result-hero-text { flex: 1; min-width: 0; }
 
 /* Tier-crossing hero badge: "Climb / Drop" (buildResultHeroBadge, MatchPanels.js — picked from the 5
-   candidates in the admin rank-anim lab, /admin/design). Stays classed .ranked-result-badge too (for
-   its font-size, including the mobile-landscape override further down) so the em-based box below
-   sizes/scales exactly like the plain badge always did; only present at all when a tier was actually
-   crossed, so the common no-crossing match is completely unaffected. */
-.ranked-result-badge-stage { position: relative; width: 5em; height: 5em; overflow: hidden; }
+   candidates in the admin rank-anim lab, /admin/design); only present at all when a tier was actually
+   crossed, so the common no-crossing match is completely unaffected. Two nested boxes, not one:
+   .ranked-result-badge-stage-outer is the overflow:hidden clip boundary (needed so a sliding badge
+   disappears past its edge instead of spilling into the heading text beside it) sized a bit BIGGER
+   than the badge itself (10px padding, cancelled back out of the flex layout with an equal negative
+   margin so the hero row's spacing is unaffected) — .rank-emblem's own drop-shadow glow extends a few
+   px past the badge's shape, and clipping tight to the badge's exact box (the first version of this)
+   cut that glow off, reported as the badge looking "clipped"/wrong even at rest. The inner
+   .ranked-result-badge-stage is the actual em-sized (5em) positioning box the old/new badges are
+   inset:0 within. Stays classed .ranked-result-badge too (on the OUTER box) for its font-size,
+   including the mobile-landscape override further down, so the em-based inner box sizes/scales
+   exactly like the plain badge always did. */
+.ranked-result-badge-stage-outer { position: relative; padding: 10px; margin: -10px; overflow: hidden; }
+.ranked-result-badge-stage { position: relative; width: 5em; height: 5em; }
 .ranked-result-badge-stage .rank-badge { position: absolute; inset: 0; }
-.rank-badge-slide-old.up { animation: rank-badge-exit-down 0.65s cubic-bezier(.5, 0, .75, 0) forwards; }
-.rank-badge-slide-old.down { animation: rank-badge-exit-up 0.65s cubic-bezier(.5, 0, .75, 0) forwards; }
-.rank-badge-slide-new.up { opacity: 0; animation: rank-badge-enter-from-above 0.65s cubic-bezier(.25, 1, .5, 1) 0.35s forwards; }
-.rank-badge-slide-new.down { opacity: 0; animation: rank-badge-enter-from-below 0.65s cubic-bezier(.25, 1, .5, 1) 0.35s forwards; }
-@keyframes rank-badge-exit-up { to { transform: translateY(-1.3em); opacity: 0; filter: blur(2px); } }
-@keyframes rank-badge-exit-down { to { transform: translateY(1.3em); opacity: 0; filter: blur(2px); } }
-@keyframes rank-badge-enter-from-below { 0% { transform: translateY(1.3em); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
-@keyframes rank-badge-enter-from-above { 0% { transform: translateY(-1.3em); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+/* Durations ~1.8x the admin lab's own (which were tuned for a much bigger preview badge, not this
+   small hero one) — on request, the first version read as too fast here. Also no longer starts the
+   instant the badge lands in the DOM: showRankedResult (MatchPanels.js) now builds the OLD badge at
+   rest first and only calls the trigger() this CSS reacts to (adding .rank-badge-slide-old/new)
+   once the rating number + progress bar have finished their own reveal, plus a short extra beat — so
+   the tier-up/down moment reads as a consequence of the bar filling, not a simultaneous, competing
+   animation racing it. */
+.rank-badge-slide-old.up { animation: rank-badge-exit-down 1.2s cubic-bezier(.5, 0, .75, 0) forwards; }
+.rank-badge-slide-old.down { animation: rank-badge-exit-up 1.2s cubic-bezier(.5, 0, .75, 0) forwards; }
+.rank-badge-slide-new.up { opacity: 0; animation: rank-badge-enter-from-above 1.2s cubic-bezier(.25, 1, .5, 1) 0.65s forwards; }
+.rank-badge-slide-new.down { opacity: 0; animation: rank-badge-enter-from-below 1.2s cubic-bezier(.25, 1, .5, 1) 0.65s forwards; }
+@keyframes rank-badge-exit-up { to { transform: translateY(-1.5em); opacity: 0; filter: blur(2px); } }
+@keyframes rank-badge-exit-down { to { transform: translateY(1.5em); opacity: 0; filter: blur(2px); } }
+@keyframes rank-badge-enter-from-below { 0% { transform: translateY(1.5em); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+@keyframes rank-badge-enter-from-above { 0% { transform: translateY(-1.5em); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
 .ranked-result-heading {
 	font-family: var(--font-display);
 	font-size: 1.85rem; font-weight: 800; letter-spacing: -0.01em; line-height: 1;
