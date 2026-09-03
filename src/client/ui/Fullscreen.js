@@ -117,6 +117,23 @@ function exitGameFullscreen() {
 	} catch (e) { /* ignore */ }
 }
 
+// Every "leaving a game" teardown (leaveRoom, exitSolo, exitPuzzle, cancelBattleSearch, the Router's
+// navigate-away path) used to call exitGameFullscreen() unconditionally — fine on desktop, but on
+// phone (on request) it meant every single "back to lobby" cost the browser chrome popping back in
+// and then, the instant the next match/puzzle/solo starts, popping right back out again — and
+// re-entering needs a fresh transient user gesture (requestFullscreen()'s own requirement), so it
+// isn't even guaranteed to succeed silently; it can visibly flash windowed for a beat. On a phone,
+// once fullscreen, STAY fullscreen straight through leaving/starting games — only an explicit exit
+// (the in-game toggle button, or the browser's own Esc/back-gesture handling, both of which still call
+// exitGameFullscreen() directly, never this) should ever drop out of it. phoneSizedDevice() (Main.js) —
+// not isMobileViewport()'s width check — is the right test here: it reads the device's real screen
+// size, so a phone held sideways in the landscape duel/multi layout (width > 700, would read as
+// "desktop" under the width check) still correctly counts as a phone and keeps its fullscreen.
+function exitGameFullscreenUnlessMobile() {
+	if (typeof phoneSizedDevice === "function" && phoneSizedDevice()) return;
+	exitGameFullscreen();
+}
+
 // Toggle for the in-game fullscreen button: re-enter if we've exited (e.g. pressed Esc), or exit if in.
 // The click is a user gesture, so requestFullscreen() is allowed here.
 function toggleGameFullscreen() {

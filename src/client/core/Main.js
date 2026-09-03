@@ -1756,7 +1756,7 @@ function cancelBattleSearch() {
 	socket.emit("cancel_ranked");
 	currentRankedMode = null;
 	endBattleSearch();
-	exitGameFullscreen();
+	exitGameFullscreenUnlessMobile();
 	teardownRoomUI(true);
 }
 
@@ -1820,7 +1820,7 @@ function teardownRoomUI(toHome) {
 // left_room echo — so the game view never lingers if that echo is slow/dropped or the route
 // fails to switch. The echo still arrives and applies any ranked Elo delta.
 function leaveRoom(toHome) {
-	exitGameFullscreen();
+	exitGameFullscreenUnlessMobile();
 	activeGameSocket().emit("leave_room"); // tell the game server (split) or main (monolith) we're leaving
 	teardownRoomUI(toHome);
 }

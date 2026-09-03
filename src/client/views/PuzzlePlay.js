@@ -105,7 +105,7 @@ function renderPuzzlePlay(mode) {
 }
 
 function exitPuzzle() {
-	exitGameFullscreen();
+	exitGameFullscreenUnlessMobile();
 	// If a run is active, tell the server to wrap it up so the score gets
 	// recorded as a personal-best update if it qualifies.
 	if (puzzleSession && (puzzleSession.mode === "streak" || puzzleSession.mode === "storm") && !puzzleSession.finished) {

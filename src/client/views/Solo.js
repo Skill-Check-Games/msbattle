@@ -140,7 +140,7 @@ function beginSolo() {
 }
 
 function exitSolo() {
-	exitGameFullscreen();
+	exitGameFullscreenUnlessMobile();
 	soloSession = null;
 	stopSoloTimer();
 	hideOverlay();

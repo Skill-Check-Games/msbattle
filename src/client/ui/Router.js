@@ -465,7 +465,7 @@ function applyRouteFromHash() {
 		return;
 	}
 	if (puzzleSession) {
-		exitGameFullscreen();
+		exitGameFullscreenUnlessMobile();
 		// Rated: leaving is free — server keeps current_puzzle_id and
 		// re-serves the same board next time. Streak/Storm: tell the
 		// server to wrap up so the score is recorded as a personal-best
@@ -484,7 +484,7 @@ function applyRouteFromHash() {
 		boardDecoder = null;
 	}
 	if (soloSession) {
-		exitGameFullscreen();
+		exitGameFullscreenUnlessMobile();
 		soloSession = null;
 		stopSoloTimer();
 		// Mirror the puzzle teardown: drop the solo chrome + mode class so they don't bleed into the
