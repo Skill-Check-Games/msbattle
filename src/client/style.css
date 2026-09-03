@@ -3373,18 +3373,22 @@ body.ranked-game .game-grid { padding: 1.25rem 1.5rem 1.5rem; }
 .ranklab-shatter-new { opacity: 0; transform: scale(0); animation: ranklab-reform 0.6s cubic-bezier(.34, 1.56, .64, 1) 0.32s forwards; }
 @keyframes ranklab-reform { 0% { opacity: 0; transform: scale(0); } 60% { opacity: 1; transform: scale(1.18); } 100% { opacity: 1; transform: scale(1); } }
 
-/* -- 4) Climb / Drop: the old badge travels off in the direction of the change (up to promote, down
-   to demote) with a motion blur, the new one arrives from the opposite edge — literally "climbing"
-   or "falling" the ladder. Positioned within .ranklab-stage directly (not .ranklab-badge-box), since
-   it needs the stage's full height to travel through. */
-.ranklab-slide-old.up { animation: ranklab-climb-out 0.65s cubic-bezier(.5, 0, .75, 0) forwards; }
-.ranklab-slide-old.down { animation: ranklab-drop-out 0.65s cubic-bezier(.5, 0, .75, 0) forwards; }
-.ranklab-slide-new.up { opacity: 0; animation: ranklab-climb-in 0.65s cubic-bezier(.25, 1, .5, 1) 0.35s forwards; }
-.ranklab-slide-new.down { opacity: 0; animation: ranklab-drop-in 0.65s cubic-bezier(.25, 1, .5, 1) 0.35s forwards; }
-@keyframes ranklab-climb-out { to { transform: translateY(-72px); opacity: 0; filter: blur(2px); } }
-@keyframes ranklab-drop-out { to { transform: translateY(72px); opacity: 0; filter: blur(2px); } }
-@keyframes ranklab-climb-in { 0% { transform: translateY(72px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
-@keyframes ranklab-drop-in { 0% { transform: translateY(-72px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+/* -- 4) Climb / Drop: the new badge arrives from the direction of the change (from above on a
+   promotion, from below on a demotion) while the old one continues on past it, out the opposite
+   edge, with a motion blur — on request, flipped from an earlier version where the OLD badge led
+   the direction of travel instead (old badge climbed up and out on a promotion, new one followed
+   up from below into its spot) — reads backwards: climbing means the new, higher rank descends
+   into view same as reaching up for the next rung, not the old one launching off ahead of you.
+   Positioned within .ranklab-stage directly (not .ranklab-badge-box), since it needs the stage's
+   full height to travel through. */
+.ranklab-slide-old.up { animation: ranklab-exit-down 0.65s cubic-bezier(.5, 0, .75, 0) forwards; }
+.ranklab-slide-old.down { animation: ranklab-exit-up 0.65s cubic-bezier(.5, 0, .75, 0) forwards; }
+.ranklab-slide-new.up { opacity: 0; animation: ranklab-enter-from-above 0.65s cubic-bezier(.25, 1, .5, 1) 0.35s forwards; }
+.ranklab-slide-new.down { opacity: 0; animation: ranklab-enter-from-below 0.65s cubic-bezier(.25, 1, .5, 1) 0.35s forwards; }
+@keyframes ranklab-exit-up { to { transform: translateY(-72px); opacity: 0; filter: blur(2px); } }
+@keyframes ranklab-exit-down { to { transform: translateY(72px); opacity: 0; filter: blur(2px); } }
+@keyframes ranklab-enter-from-below { 0% { transform: translateY(72px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+@keyframes ranklab-enter-from-above { 0% { transform: translateY(-72px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
 
 /* -- 5) Radial Burst: builds on Crossfade's own swap (reuses its exact classes/keyframes — see #1 —
    rather than a second, ambiguous animation competing on the same badges) and layers a ring +
