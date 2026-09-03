@@ -2990,7 +2990,13 @@ body.ranked-game .game-grid { padding: 1.25rem 1.5rem 1.5rem; }
    inset:0 within. Stays classed .ranked-result-badge too (on the OUTER box) for its font-size,
    including the mobile-landscape override further down, so the em-based inner box sizes/scales
    exactly like the plain badge always did. */
-.ranked-result-badge-stage-outer { position: relative; padding: 10px; margin: -10px; overflow: hidden; }
+/* 24px, not the original 10px — Shatter & Reform's shard travel and its reform bounce's overshoot
+   (scale(1.18) at the peak, plus the badge's own glow on top of THAT) both exceeded the tighter
+   boundary, clipping visibly. Climb/Drop's own deliberate early clip (it's a small "elevator shaft"
+   window on purpose) is unaffected by the extra room — it only ever travels via translateY toward
+   this same boundary, never using all of it. triggerShatterReform (MatchPanels.js) reads this exact
+   value (RANK_BADGE_STAGE_PADDING) to size shard travel safely within it — keep the two in sync. */
+.ranked-result-badge-stage-outer { position: relative; padding: 24px; margin: -24px; overflow: hidden; }
 .ranked-result-badge-stage { position: relative; width: 5em; height: 5em; }
 .ranked-result-badge-stage .rank-badge { position: absolute; inset: 0; }
 
@@ -3017,18 +3023,20 @@ body.ranked-game .game-grid { padding: 1.25rem 1.5rem 1.5rem; }
 
 /* Shatter & Reform — promotion only. Shard fly distance (--sx/--sy/--srot) is randomized per-shard
    in JS (triggerShatterReform, MatchPanels.js) from the stage's own MEASURED size, not a fixed em/px
-   guess — see that function's own comment for why, given the Climb/Drop em bug just above. */
+   guess — see that function's own comment for why, given the Climb/Drop em bug just above. Durations
+   cut by about a third from the first version (0.5s/1.1s/1.1s+0.6s delay) on request — it read too
+   slow, especially next to the snappier shard burst it's supposed to feel like. */
 .rank-badge-shard {
 	position: absolute; top: 43%; left: 43%; width: 14%; height: 14%;
 	background: var(--shard-color, #fff);
 	clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
 	opacity: 0.95; pointer-events: none;
-	animation: rank-badge-shard-fly 1.1s ease-out forwards;
+	animation: rank-badge-shard-fly 0.75s ease-out forwards;
 }
 @keyframes rank-badge-shard-fly { to { transform: translate(var(--sx), var(--sy)) rotate(var(--srot)); opacity: 0; } }
-.rank-badge-shatter-old { animation: rank-badge-shatter-out 0.5s ease-in forwards; }
+.rank-badge-shatter-old { animation: rank-badge-shatter-out 0.32s ease-in forwards; }
 @keyframes rank-badge-shatter-out { to { opacity: 0; transform: scale(0.85); } }
-.rank-badge-shatter-new { opacity: 0; transform: scale(0); animation: rank-badge-reform 1.1s cubic-bezier(.34, 1.56, .64, 1) 0.6s forwards; }
+.rank-badge-shatter-new { opacity: 0; transform: scale(0); animation: rank-badge-reform 0.75s cubic-bezier(.34, 1.56, .64, 1) 0.38s forwards; }
 @keyframes rank-badge-reform { 0% { opacity: 0; transform: scale(0); } 60% { opacity: 1; transform: scale(1.18); } 100% { opacity: 1; transform: scale(1); } }
 .ranked-result-heading {
 	font-family: var(--font-display);

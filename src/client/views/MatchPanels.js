@@ -158,11 +158,17 @@ function triggerClimbDrop(stage, oldBadge, newRating) {
 // real pixels, rather than em/px guesses baked into the CSS — the earlier Climb/Drop fix had exactly
 // that bug (an em value that resolved against the wrong element's font-size and barely moved). This
 // sidesteps it entirely: whatever the badge's actual rendered size is (65px desktop, 45px mobile,
-// smaller still under the duel-landscape font-size override), shards travel a fixed proportion of it.
+// smaller still under the duel-landscape font-size override), shards travel a fixed proportion of the
+// real clip boundary (half the badge + the stage-outer's own padding — RANK_BADGE_STAGE_PADDING_PX,
+// keep in sync with .ranked-result-badge-stage-outer's padding in style.css), capped comfortably
+// inside it — shards flying past it were reported as clipping, alongside the reform bounce's own
+// overshoot (which lives entirely in CSS, sized to fit the same boundary).
+var RANK_BADGE_STAGE_PADDING_PX = 24;
 function triggerShatterReform(stage, oldBadge, oldRating, newRating, provisional) {
 	oldBadge.classList.add("rank-badge-shatter-old");
 	var rect = stage.getBoundingClientRect();
 	var size = Math.max(rect.width, rect.height) || 65;
+	var maxDist = size / 2 + RANK_BADGE_STAGE_PADDING_PX;
 	var shardColor = (tierFor(oldRating, provisional) || {}).color || "#fff";
 	var shardCount = 9;
 	for (var i = 0; i < shardCount; i++) {
@@ -170,7 +176,7 @@ function triggerShatterReform(stage, oldBadge, oldRating, newRating, provisional
 		shard.className = "rank-badge-shard";
 		shard.style.setProperty("--shard-color", shardColor);
 		var angle = (i / shardCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
-		var dist = size * 0.4 + Math.random() * size * 0.25;
+		var dist = maxDist * 0.55 + Math.random() * maxDist * 0.25;
 		shard.style.setProperty("--sx", (Math.cos(angle) * dist).toFixed(1) + "px");
 		shard.style.setProperty("--sy", (Math.sin(angle) * dist).toFixed(1) + "px");
 		shard.style.setProperty("--srot", Math.round((Math.random() - 0.5) * 420) + "deg");
