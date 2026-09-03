@@ -101,18 +101,19 @@ function playResultMoment(won, ranked, oldRating, newRating) {
 	}
 }
 
-// The hero rank badge, in place of a plain buildRankBadge(newRating) — animates the "Climb / Drop"
-// treatment (picked from the 5 candidates in the admin rank-anim lab, /admin/design) whenever the
-// match crossed a tier boundary: the new badge descends into place from above on a promotion (the
-// old one continuing on past it downward), climbs in from below on a demotion. No tier crossing
-// (the common case) skips the stage/animation machinery entirely and returns the exact plain badge
-// this always used to build, unchanged.
+// The hero rank badge, in place of a plain buildRankBadge(newRating) — animates whenever the match
+// crossed a tier boundary: "Shatter & Reform" on a promotion (the old badge cracks into shards that
+// fly outward while the new one bursts in with an overshoot bounce), "Climb / Drop" on a demotion
+// (the old badge continues on downward past the new one, which climbs in from below) — mixed on
+// request from the 5 candidates in the admin rank-anim lab, /admin/design, rather than shipping one
+// single treatment for both directions. No tier crossing (the common case) skips the stage/animation
+// machinery entirely and returns the exact plain badge this always used to build, unchanged.
 //
 // Returns { element, trigger } instead of just the element — element goes into the DOM (and stays
 // on screen) right away showing the OLD badge at rest, exactly like the plain pre-crossing badge
-// always looked; trigger() is what actually starts the slide to the new tier, called later by
+// always looked; trigger() is what actually starts the animation to the new tier, called later by
 // showRankedResult once the rating number/progress bar reveal has had its own moment first (on
-// request — the badge used to start sliding the INSTANT it landed in the DOM, i.e. immediately on
+// request — the badge used to start animating the INSTANT it landed in the DOM, i.e. immediately on
 // panel-show, racing the bar/number reveal that only starts 400ms later and takes ~950ms of its
 // own; the tier-up/down moment should read as a consequence of the bar filling, not a competing
 // simultaneous animation). A no-crossing badge's trigger() is a harmless no-op.
@@ -139,12 +140,46 @@ function buildResultHeroBadge(oldRating, newRating, provisional) {
 	function trigger() {
 		if (triggered) return;
 		triggered = true;
-		oldBadge.classList.add("rank-badge-slide-old", up ? "up" : "down");
-		var newBadge = buildRankBadge(newRating);
-		newBadge.classList.add("rank-badge-slide-new", up ? "up" : "down");
-		stage.appendChild(newBadge);
+		if (up) triggerShatterReform(stage, oldBadge, oldRating, newRating, provisional);
+		else triggerClimbDrop(stage, oldBadge, newRating);
 	}
 	return { element: outer, trigger: trigger };
+}
+
+function triggerClimbDrop(stage, oldBadge, newRating) {
+	oldBadge.classList.add("rank-badge-slide-old");
+	var newBadge = buildRankBadge(newRating);
+	newBadge.classList.add("rank-badge-slide-new");
+	stage.appendChild(newBadge);
+}
+
+// Shard fly distance is computed from the stage's own MEASURED size (getBoundingClientRect, once
+// it's actually laid out — trigger() only ever runs after the badge has been on screen a while) in
+// real pixels, rather than em/px guesses baked into the CSS — the earlier Climb/Drop fix had exactly
+// that bug (an em value that resolved against the wrong element's font-size and barely moved). This
+// sidesteps it entirely: whatever the badge's actual rendered size is (65px desktop, 45px mobile,
+// smaller still under the duel-landscape font-size override), shards travel a fixed proportion of it.
+function triggerShatterReform(stage, oldBadge, oldRating, newRating, provisional) {
+	oldBadge.classList.add("rank-badge-shatter-old");
+	var rect = stage.getBoundingClientRect();
+	var size = Math.max(rect.width, rect.height) || 65;
+	var shardColor = (tierFor(oldRating, provisional) || {}).color || "#fff";
+	var shardCount = 9;
+	for (var i = 0; i < shardCount; i++) {
+		var shard = document.createElement("div");
+		shard.className = "rank-badge-shard";
+		shard.style.setProperty("--shard-color", shardColor);
+		var angle = (i / shardCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.4;
+		var dist = size * 0.4 + Math.random() * size * 0.25;
+		shard.style.setProperty("--sx", (Math.cos(angle) * dist).toFixed(1) + "px");
+		shard.style.setProperty("--sy", (Math.sin(angle) * dist).toFixed(1) + "px");
+		shard.style.setProperty("--srot", Math.round((Math.random() - 0.5) * 420) + "deg");
+		shard.style.animationDelay = (Math.random() * 0.08).toFixed(2) + "s";
+		stage.appendChild(shard);
+	}
+	var newBadge = buildRankBadge(newRating);
+	newBadge.classList.add("rank-badge-shatter-new");
+	stage.appendChild(newBadge);
 }
 
 

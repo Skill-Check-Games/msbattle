@@ -2976,10 +2976,11 @@ body.ranked-game .game-grid { padding: 1.25rem 1.5rem 1.5rem; }
 .ranked-result-badge { font-size: 13px; flex: 0 0 auto; }
 .ranked-result-hero-text { flex: 1; min-width: 0; }
 
-/* Tier-crossing hero badge: "Climb / Drop" (buildResultHeroBadge, MatchPanels.js — picked from the 5
-   candidates in the admin rank-anim lab, /admin/design); only present at all when a tier was actually
-   crossed, so the common no-crossing match is completely unaffected. Two nested boxes, not one:
-   .ranked-result-badge-stage-outer is the overflow:hidden clip boundary (needed so a sliding badge
+/* Tier-crossing hero badge (buildResultHeroBadge, MatchPanels.js): "Shatter & Reform" on a
+   promotion, "Climb / Drop" on a demotion — mixed per-direction on request from the 5 candidates in
+   the admin rank-anim lab, /admin/design. Only present at all when a tier was actually crossed, so
+   the common no-crossing match is completely unaffected. Two nested boxes, not one:
+   .ranked-result-badge-stage-outer is the overflow:hidden clip boundary (needed so the animation
    disappears past its edge instead of spilling into the heading text beside it) sized a bit BIGGER
    than the badge itself (10px padding, cancelled back out of the flex layout with an equal negative
    margin so the hero row's spacing is unaffected) — .rank-emblem's own drop-shadow glow extends a few
@@ -2992,17 +2993,17 @@ body.ranked-game .game-grid { padding: 1.25rem 1.5rem 1.5rem; }
 .ranked-result-badge-stage-outer { position: relative; padding: 10px; margin: -10px; overflow: hidden; }
 .ranked-result-badge-stage { position: relative; width: 5em; height: 5em; }
 .ranked-result-badge-stage .rank-badge { position: absolute; inset: 0; }
-/* Durations ~1.8x the admin lab's own (which were tuned for a much bigger preview badge, not this
-   small hero one) — on request, the first version read as too fast here. Also no longer starts the
-   instant the badge lands in the DOM: showRankedResult (MatchPanels.js) now builds the OLD badge at
-   rest first and only calls the trigger() this CSS reacts to (adding .rank-badge-slide-old/new)
-   once the rating number + progress bar have finished their own reveal, plus a short extra beat — so
-   the tier-up/down moment reads as a consequence of the bar filling, not a simultaneous, competing
-   animation racing it. */
-.rank-badge-slide-old.up { animation: rank-badge-exit-down 1.2s cubic-bezier(.5, 0, .75, 0) forwards; }
-.rank-badge-slide-old.down { animation: rank-badge-exit-up 1.2s cubic-bezier(.5, 0, .75, 0) forwards; }
-.rank-badge-slide-new.up { opacity: 0; animation: rank-badge-enter-from-above 1.2s cubic-bezier(.25, 1, .5, 1) 0.65s forwards; }
-.rank-badge-slide-new.down { opacity: 0; animation: rank-badge-enter-from-below 1.2s cubic-bezier(.25, 1, .5, 1) 0.65s forwards; }
+
+/* Climb / Drop — demotion only now (a promotion uses Shatter & Reform instead, below); no .up
+   variant needed any more since this direction is the only one still reachable. Durations ~1.8x the
+   admin lab's own (tuned for a much bigger preview badge, not this small hero one) — on request, the
+   first version read as too fast here. Also no longer starts the instant the badge lands in the DOM:
+   showRankedResult (MatchPanels.js) now builds the OLD badge at rest first and only calls the
+   trigger() this CSS reacts to (adding .rank-badge-slide-old/new) once the rating number + progress
+   bar have finished their own reveal, plus a short extra beat — so the tier-down moment reads as a
+   consequence of the bar filling, not a simultaneous, competing animation racing it. */
+.rank-badge-slide-old { animation: rank-badge-exit-up 1.2s cubic-bezier(.5, 0, .75, 0) forwards; }
+.rank-badge-slide-new { opacity: 0; animation: rank-badge-enter-from-below 1.2s cubic-bezier(.25, 1, .5, 1) 0.65s forwards; }
 /* 5.6em, not 1.5em (the first version) — em here resolves against the BADGE's own font-size
    (.rank-badge hard-codes 16px on itself regardless of the stage's inherited 13px/9px, so this is a
    fixed ~90px either way, not something that shrinks on the mobile duel-landscape override), and the
@@ -3012,9 +3013,23 @@ body.ranked-game .game-grid { padding: 1.25rem 1.5rem 1.5rem; }
    size, not variably-sized). Matches that same ~1.1x-of-its-own-box feel here instead of the
    original arithmetic slip. */
 @keyframes rank-badge-exit-up { to { transform: translateY(-5.6em); opacity: 0; filter: blur(2px); } }
-@keyframes rank-badge-exit-down { to { transform: translateY(5.6em); opacity: 0; filter: blur(2px); } }
 @keyframes rank-badge-enter-from-below { 0% { transform: translateY(5.6em); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
-@keyframes rank-badge-enter-from-above { 0% { transform: translateY(-5.6em); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+
+/* Shatter & Reform — promotion only. Shard fly distance (--sx/--sy/--srot) is randomized per-shard
+   in JS (triggerShatterReform, MatchPanels.js) from the stage's own MEASURED size, not a fixed em/px
+   guess — see that function's own comment for why, given the Climb/Drop em bug just above. */
+.rank-badge-shard {
+	position: absolute; top: 43%; left: 43%; width: 14%; height: 14%;
+	background: var(--shard-color, #fff);
+	clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+	opacity: 0.95; pointer-events: none;
+	animation: rank-badge-shard-fly 1.1s ease-out forwards;
+}
+@keyframes rank-badge-shard-fly { to { transform: translate(var(--sx), var(--sy)) rotate(var(--srot)); opacity: 0; } }
+.rank-badge-shatter-old { animation: rank-badge-shatter-out 0.5s ease-in forwards; }
+@keyframes rank-badge-shatter-out { to { opacity: 0; transform: scale(0.85); } }
+.rank-badge-shatter-new { opacity: 0; transform: scale(0); animation: rank-badge-reform 1.1s cubic-bezier(.34, 1.56, .64, 1) 0.6s forwards; }
+@keyframes rank-badge-reform { 0% { opacity: 0; transform: scale(0); } 60% { opacity: 1; transform: scale(1.18); } 100% { opacity: 1; transform: scale(1); } }
 .ranked-result-heading {
 	font-family: var(--font-display);
 	font-size: 1.85rem; font-weight: 800; letter-spacing: -0.01em; line-height: 1;
