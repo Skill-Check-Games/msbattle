@@ -1680,6 +1680,21 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 		order: 1;
 		width: 100%;
 	}
+	/* #puzzle_rated_panel/#puzzle_run_panel's own flex:1 (the shared .puzzle-mode-panel rule above)
+	   makes sense on desktop, where #puzzle_card fills a fixed-height sidebar and that flex-grow is
+	   what centers its short content in the leftover space — but flattened into .game-grid's single
+	   column here (display:contents, above), that SAME flex:1 greedily ate every bit of the column's
+	   free vertical space for itself instead, top-jamming its own (short) content and leaving the
+	   board pushed down with no room to breathe, and the toggle/Hint row jammed right against the
+	   viewport's bottom edge (reported: board needs centering, buttons feel cramped at the bottom).
+	   Reverting to its natural content height here instead lets .game-grid's OWN centering
+	   (align-items/justify-content: center, the base .game-grid rule) distribute the freed-up space
+	   evenly around the WHOLE stack — back button/title, rank/progress, board, buttons — rather than
+	   one piece of it hoarding all the slack. */
+	.game-view.puzzle #puzzle_rated_panel.puzzle-mode-panel,
+	.game-view.puzzle #puzzle_run_panel.puzzle-mode-panel {
+		flex: 0 0 auto;
+	}
 }
 @media (max-width: 600px) {
 	/* Plain CSS now (was a fixed 320px, then a min(400px,...) fallback JS immediately overrode with a
@@ -1942,10 +1957,16 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 .puzzle-best-line { display: flex; align-items: center; justify-content: center; gap: 0.2rem; margin-top: 0.3rem; font-size: 0.85rem; color: var(--muted); }
 .puzzle-best-line-new { color: #fbbf24; font-weight: 700; font-size: 0.95rem; }
 .marathon-best-attempts { color: var(--muted); font-weight: 400; }
+/* .puzzle-hint-btn and .puzzle-fail-actions swap into the exact same slot (setRatedDoneActions,
+   PuzzlePlay.js) — both pinned to the SAME explicit height (rather than left to derive it from their
+   own padding/content, which drifted apart once Restart's icon-over-text stack needed more vertical
+   room than Hint's single icon+text row — reported as a layout shift the moment a puzzle finished) so
+   swapping one for the other never changes anything else's position. */
 .puzzle-hint-btn {
 	margin-top: 0.4rem;
+	height: 3rem;
 	display: flex; align-items: center; justify-content: center; gap: 0.5rem;
-	padding: 0.8rem 1rem;
+	padding: 0 1rem;
 	font-size: 1rem; font-weight: 700;
 }
 .puzzle-hint-btn:disabled {
@@ -1962,30 +1983,35 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
    the two, only the label/tint changes. */
 .puzzle-fail-actions {
 	margin-top: 0.4rem;
+	height: 3rem;
 	display: flex; flex-direction: row; align-items: stretch; gap: 0.5rem;
 }
 .puzzle-fail-actions #puzzle_skip_btn {
 	flex: 2 1 0;
-	padding: 0.8rem 1rem;
+	display: flex; align-items: center; justify-content: center;
+	padding: 0 1rem;
 	font-size: 1rem; font-weight: 700;
 }
 /* Icon-over-text, no border (.btn-ghost, shared with every other borderless icon action in the app) —
-   deliberately the quieter of the two, half Next's flex-grow share (~34% of the row vs Next's ~66%). */
+   deliberately the quieter of the two, half Next's flex-grow share (~34% of the row vs Next's ~66%).
+   Sized (icon/gap/font all trimmed down) to fit the SAME fixed 3rem height as its sibling above,
+   rather than the row growing to fit it. */
 .puzzle-restart-btn {
 	flex: 1 1 0;
-	display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.15rem;
-	padding: 0.5rem 0.4rem;
-	font-size: 0.8rem; font-weight: 600;
+	display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.1rem;
+	padding: 0.2rem 0.3rem;
+	font-size: 0.66rem; font-weight: 600;
 }
-.puzzle-restart-icon { font-size: 1.3rem; line-height: 1; }
+.puzzle-restart-icon { font-size: 1rem; line-height: 1; }
 /* Marathon boards hide Skip outright (togglePuzzleChrome, PuzzlePlay.js — "Next puzzle" doesn't apply,
    there's no separate puzzle to hand back) — Restart alone would otherwise sit at its usual ~34% width
-   with a bare gap where Next used to be; let it take the full row instead, same as the (also marathon-
-   only) hint button it stands in for keeps its own normal full-width horizontal layout. */
+   with a bare gap where Next used to be; let it take the full row instead, reverting to the same plain
+   horizontal icon+text row (and normal size) Hint itself uses, comfortably fitting the shared height. */
 .marathon-fail-actions #puzzle_retry_btn {
 	flex: 1 1 100%;
 	flex-direction: row;
-	padding: 0.8rem 1rem;
+	gap: 0.5rem;
+	padding: 0 1rem;
 	font-size: 1rem; font-weight: 700;
 }
 /* Solved state (setRatedDoneActions("solved"), PuzzlePlay.js) — Next/Skip is always .btn-primary
