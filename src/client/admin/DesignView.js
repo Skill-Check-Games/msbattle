@@ -122,6 +122,7 @@ function renderDesign() {
 	view.appendChild(panel);
 
 	view.appendChild(buildRankAnimSection());
+	view.appendChild(buildRankResultPreviewSection());
 }
 
 // ---- Rank change animation lab: 5 candidate treatments for the moment a player crosses a tier
@@ -332,5 +333,146 @@ function buildRankAnimSection() {
 	});
 	section.appendChild(grid);
 
+	return section;
+}
+
+// ---- Post-game rank-up/down modal, in context ----------------------------------------------------
+// Testing this normally means actually climbing/dropping a real tier in a real ranked match —
+// tedious. This section calls the REAL showRankedResult() (MatchPanels.js) with a synthetic
+// tier-crossing standings payload, so the real modal (including the Climb/Drop badge animation
+// shipped in it) shows up exactly as it would after a genuine match, on demand.
+
+// One standings entry per rank 1..totalPlayers, "you" placed at myRank with the given rating/delta —
+// every other rank gets a plausible filler bot. Kept separate from RANK_ANIM_CANDIDATES' own preview
+// data (that section never touches real account/standings state at all, just the badge in isolation).
+var RESULT_PREVIEW_NAMES = ["Foxglove", "Ironclad99", "Nimbus", "Quartzite", "Redwood", "Silversmith"];
+function buildResultPreviewStandings(totalPlayers, myRank, myRating, myDelta) {
+	var entries = [];
+	var nameIdx = 0;
+	for (var rank = 1; rank <= totalPlayers; rank++) {
+		if (rank === myRank) {
+			entries.push({
+				id: id, name: (typeof account !== "undefined" && account && account.name) || "You",
+				rank: rank, rating: myRating, ratingDelta: myDelta, provisional: false,
+				finished: true, finishMs: 42000, progress: 1
+			});
+		} else {
+			// A couple of trailing ranks in the 7-player case show as still-racing (unfinished) —
+			// closer to what a real standings list actually looks like than everyone neatly finished.
+			var finished = rank <= Math.max(2, totalPlayers - 2);
+			entries.push({
+				id: "preview-p" + rank, name: RESULT_PREVIEW_NAMES[nameIdx++ % RESULT_PREVIEW_NAMES.length],
+				rank: rank, rating: 500 + (totalPlayers - rank) * 15, ratingDelta: rank <= 2 ? 8 : -6,
+				provisional: false, finished: finished, finishMs: finished ? 18000 + rank * 6000 : null,
+				progress: finished ? 1 : 0.4 + rank * 0.05
+			});
+		}
+	}
+	return entries;
+}
+
+// Shows the real modal, then immediately undoes the real account mutation it just made
+// (updateRatingFromStandings, inside showRankedResult, writes account.ratingSprint/provisional for
+// real — necessary for the modal to be genuine, but has to be cleaned up right after so the admin's
+// own topbar rating doesn't end up showing this preview's fake number) and swaps the modal's own
+// action buttons for a single "Close preview" — "Play another" would actually queue a real ranked
+// match and "Leave" would emit a real leave_room, neither of which makes sense with no real room
+// behind this.
+function previewRankedResultModal(up, totalPlayers) {
+	if (typeof account === "undefined" || !account) return;
+	if (typeof showRankedResult !== "function") return;
+	if (typeof unlockAudio === "function") unlockAudio();
+
+	var pair = up ? RANK_ANIM_UP : RANK_ANIM_DOWN;
+	var isDuo = totalPlayers === 2;
+	var myRank = up ? 1 : (isDuo ? 2 : 5);
+	var standings = buildResultPreviewStandings(totalPlayers, myRank, pair.to, pair.to - pair.from);
+	var winner = standings.filter(function(s) { return s.rank === 1; })[0];
+
+	var realRatingSprint = account.ratingSprint;
+	var realProvisional = account.provisional;
+	account.ratingSprint = pair.from;
+
+	// The result modal (#board_overlay) lives nested inside #game_view in the DOM — invisible on this
+	// (or any non-game) page no matter what its own display is, since #game_view itself is display:none
+	// here (hideAllViews, Router.js). Show it just enough for the modal's ancestor chain to actually
+	// render, restoring its real hidden/shown state when the preview closes.
+	var gameView = document.getElementById("game_view");
+	var gameViewWasHidden = gameView && gameView.style.display === "none";
+	if (gameViewWasHidden) gameView.style.display = "";
+
+	showRankedResult({
+		ranked: true,
+		mode: isDuo ? "sprint_duo" : "sprint_six",
+		winnerId: winner.id,
+		standings: standings
+	});
+
+	account.ratingSprint = realRatingSprint;
+	account.provisional = realProvisional;
+	if (typeof renderRatingBadge === "function") renderRatingBadge();
+	if (typeof renderHomeRankChips === "function") renderHomeRankChips();
+
+	var actions = document.querySelector(".board-overlay-panel .result-actions");
+	if (actions) {
+		actions.innerHTML = "";
+		var close = document.createElement("button");
+		close.type = "button";
+		close.className = "btn btn-primary";
+		close.textContent = "Close preview";
+		close.addEventListener("click", function() {
+			hideOverlay();
+			if (gameViewWasHidden && gameView) gameView.style.display = "none";
+		});
+		actions.appendChild(close);
+		try { close.focus({ preventScroll: true }); } catch (e) {}
+	}
+}
+
+function buildRankResultPreviewSection() {
+	var section = document.createElement("div");
+
+	var head = document.createElement("h2");
+	head.className = "design-section-title";
+	head.textContent = "Post-game rank-up/down modal (in context)";
+	section.appendChild(head);
+
+	var sub = document.createElement("p");
+	sub.className = "section-page-sub";
+	sub.textContent = "Opens the real post-game result modal with a fake tier-crossing match, instead of having to actually climb or drop a tier in a real ranked match to see it. This is the exact production modal (showRankedResult) with the Climb/Drop badge animation above already wired in — not a mockup. \"Close preview\" stands in for Play another/Leave, which would otherwise try to act on a real match that doesn't exist here.";
+	section.appendChild(sub);
+
+	var card = document.createElement("div");
+	card.className = "section-card ranklab-card";
+
+	[
+		{ label: "1v1 result", players: 2 },
+		{ label: "7-player result", players: 7 }
+	].forEach(function(group) {
+		var row = document.createElement("div");
+		row.className = "ranklab-preview-row";
+		var lbl = document.createElement("span");
+		lbl.className = "ranklab-preview-row-label";
+		lbl.textContent = group.label;
+		row.appendChild(lbl);
+		var actions = document.createElement("div");
+		actions.className = "ranklab-actions";
+		var upBtn = document.createElement("button");
+		upBtn.type = "button";
+		upBtn.className = "btn btn-secondary";
+		upBtn.textContent = "▲ Rank up";
+		upBtn.addEventListener("click", function() { previewRankedResultModal(true, group.players); });
+		var downBtn = document.createElement("button");
+		downBtn.type = "button";
+		downBtn.className = "btn btn-secondary";
+		downBtn.textContent = "▼ Rank down";
+		downBtn.addEventListener("click", function() { previewRankedResultModal(false, group.players); });
+		actions.appendChild(upBtn);
+		actions.appendChild(downBtn);
+		row.appendChild(actions);
+		card.appendChild(row);
+	});
+
+	section.appendChild(card);
 	return section;
 }
