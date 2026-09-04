@@ -158,53 +158,106 @@ function closeItemPurchaseModal() {
 	if (modal) modal.setAttribute("hidden", "");
 }
 
-// Board skin picker — a grid of cards (Shop.js's own .shop-tile treatment, reused verbatim so
-// "browse in the Shop" and "customize here" read as the same design language) instead of a plain
-// list of rows. Each shows a live mini-board preview (buildSkinPreview), the tier-coloured border
-// Shop tiles already use, and one of three states: the currently-applied skin ("✓ Selected"), an
-// owned-but-not-applied one (click to switch), or a locked/priced one (click opens the purchase
-// modal instead of applying it) — so the picker doubles as shop discovery, same as before.
-function buildSkinOptionsGrid() {
+// Shared by the board-skin and reveal-effect pickers below: only OWNED items get a tile (a locked
+// one you can't use yet just adds clutter/noise to a picker, unlike the Shop itself where browsing
+// locked items IS the point) — the shop-tile treatment already established (tier-coloured border,
+// live preview) plus a trailing "browse the rest in the Shop" tile for whatever's left locked, so
+// discovery isn't lost, just moved to where it belongs. opts:
+//   list         — the full id list (owned + locked)
+//   kind         — ShopCatalog kind ("skin"/"revealEffect")
+//   activeId     — the currently-applied id, for the "✓ Selected" state
+//   buildPreview(id) — returns the .shop-tile-preview's child element
+//   labelOf(id), blurbOf(id)
+//   onSelect(id) — applies the pick (setBoardSkin/setRevealEffect)
+// Every tile's status line (.shop-tile-status) is ALWAYS rendered, present-but-invisible when
+// empty (visibility:hidden, not omitted) — reserves identical space whether or not it has text, so
+// picking a different tile never changes any tile's height (a real reported bug: the "✓ Selected"
+// badge appearing/disappearing was shifting the whole grid's layout on every selection).
+function buildOwnedCosmeticGrid(opts) {
 	var grid = document.createElement("div");
 	grid.className = "shop-grid";
-	BOARD_SKIN_LIST.forEach(function(id) {
-		var s = BOARD_SKINS[id];
-		var unlocked = shopItemUnlocked("skin", id);
-		var isActive = id === localBoardSkin;
+	var lockedCount = 0;
+	opts.list.forEach(function(id) {
+		if (!shopItemUnlocked(opts.kind, id)) { lockedCount++; return; }
+		var isActive = id === opts.activeId;
 		var item = (typeof ShopCatalog !== "undefined") ? ShopCatalog.byId(id) : null;
 		var tile = document.createElement("button");
 		tile.type = "button";
-		tile.className = "shop-tile" + (item && item.tier ? " shop-tile-" + item.tier : "") + (isActive ? " active" : "") + (unlocked ? "" : " locked");
+		tile.className = "shop-tile" + (item && item.tier ? " shop-tile-" + item.tier : "") + (isActive ? " active" : "");
 
 		var head = document.createElement("div"); head.className = "shop-tile-head";
-		var name = document.createElement("div"); name.className = "shop-tile-name"; name.textContent = s.label;
+		var name = document.createElement("div"); name.className = "shop-tile-name"; name.textContent = opts.labelOf(id);
 		head.appendChild(name);
 		tile.appendChild(head);
 
 		var preview = document.createElement("div"); preview.className = "shop-tile-preview";
-		preview.appendChild(buildSkinPreview(id));
+		preview.appendChild(opts.buildPreview(id));
 		tile.appendChild(preview);
 
 		var body = document.createElement("div"); body.className = "shop-tile-body";
-		var blurb = document.createElement("span"); blurb.className = "skin-blurb"; blurb.textContent = s.blurb;
+		var blurb = document.createElement("span"); blurb.className = "skin-blurb"; blurb.textContent = opts.blurbOf(id);
 		body.appendChild(blurb);
-		if (isActive) {
-			var selected = document.createElement("span"); selected.className = "shop-tile-owned"; selected.textContent = "✓ Selected";
-			body.appendChild(selected);
-		} else if (!unlocked) {
-			var price = document.createElement("span"); price.className = "shop-lock-badge"; price.textContent = "🔒 " + shopPriceLabel(id);
-			body.appendChild(price);
-		}
+		var status = document.createElement("span");
+		status.className = "shop-tile-status" + (isActive ? "" : " shop-tile-status-empty");
+		status.textContent = "✓ Selected";
+		body.appendChild(status);
 		tile.appendChild(body);
 
 		tile.addEventListener("click", function() {
-			if (!unlocked) { openItemPurchaseModal(ShopCatalog.byId(id)); return; }
-			if (typeof setBoardSkin === "function") setBoardSkin(id);
+			opts.onSelect(id);
 			renderAvatarEditorTabsAndPanel();
 		});
 		grid.appendChild(tile);
 	});
+	if (lockedCount > 0) grid.appendChild(buildShopLinkTile(opts.kind, lockedCount));
 	return grid;
+}
+
+// The trailing "browse the rest in the Shop" tile — same footprint as a real cosmetic tile (so the
+// grid row height stays consistent) but visually a navigation affordance, not a pickable item:
+// closes this modal and opens the Shop pre-selected to the matching category.
+function buildShopLinkTile(kind, lockedCount) {
+	var tile = document.createElement("button");
+	tile.type = "button";
+	tile.className = "shop-tile shop-tile-more";
+
+	var head = document.createElement("div"); head.className = "shop-tile-head";
+	var name = document.createElement("div"); name.className = "shop-tile-name"; name.textContent = "More in Shop";
+	head.appendChild(name);
+	tile.appendChild(head);
+
+	var preview = document.createElement("div"); preview.className = "shop-tile-preview";
+	var glyph = document.createElement("span"); glyph.className = "shop-tile-fx-glyph"; glyph.textContent = "🛍️";
+	preview.appendChild(glyph);
+	tile.appendChild(preview);
+
+	var body = document.createElement("div"); body.className = "shop-tile-body";
+	var blurb = document.createElement("span"); blurb.className = "skin-blurb";
+	blurb.textContent = lockedCount + (lockedCount === 1 ? " more to unlock." : " more to unlock.");
+	body.appendChild(blurb);
+	var status = document.createElement("span"); status.className = "shop-tile-status shop-tile-status-empty";
+	status.textContent = "✓ Selected"; // same reserved slot as the real tiles — never shown (see CSS)
+	body.appendChild(status);
+	tile.appendChild(body);
+
+	tile.addEventListener("click", function() {
+		if (typeof shopActiveKind !== "undefined") shopActiveKind = kind;
+		var modal = document.getElementById("avatar_modal");
+		if (modal) modal.setAttribute("hidden", "");
+		navigate("/shop");
+	});
+	return tile;
+}
+
+// Board skin picker.
+function buildSkinOptionsGrid() {
+	return buildOwnedCosmeticGrid({
+		list: BOARD_SKIN_LIST, kind: "skin", activeId: localBoardSkin,
+		buildPreview: function(id) { return buildSkinPreview(id); },
+		labelOf: function(id) { return BOARD_SKINS[id].label; },
+		blurbOf: function(id) { return BOARD_SKINS[id].blurb; },
+		onSelect: function(id) { if (typeof setBoardSkin === "function") setBoardSkin(id); }
+	});
 }
 
 // Re-render-only entry point — kept as its own named function since Shop.js/Main.js/BoardRender.js
@@ -213,53 +266,20 @@ function buildSkinOptionsGrid() {
 // cares about if a DIFFERENT tab happens to be the active one — either way harmless to call).
 function renderAvatarModalSkins() { renderAvatarEditorTabsAndPanel(); }
 
-// Reveal effect picker — same card treatment as the board-skin grid above, with a per-effect emoji
-// glyph (REVEAL_EFFECT_GLYPHS, Shop.js) standing in for a preview image (there's no static frame of
-// an animation worth showing). Labels/blurbs live in Cosmetics.js (REVEAL_EFFECTS), shared with the
-// server for its own ownership check (session.js's set_reveal_effect).
+// Reveal effect picker — same treatment, using the per-effect emoji glyph (REVEAL_EFFECT_GLYPHS,
+// Shop.js) in place of a preview image (there's no static frame of an animation worth showing).
 function buildRevealEffectOptionsGrid() {
-	var grid = document.createElement("div");
-	grid.className = "shop-grid";
-	REVEAL_EFFECT_LIST.forEach(function(id) {
-		var meta = Cosmetics.REVEAL_EFFECTS[id];
-		var unlocked = shopItemUnlocked("revealEffect", id);
-		var isActive = id === localRevealEffect;
-		var item = (typeof ShopCatalog !== "undefined") ? ShopCatalog.byId(id) : null;
-		var tile = document.createElement("button");
-		tile.type = "button";
-		tile.className = "shop-tile" + (item && item.tier ? " shop-tile-" + item.tier : "") + (isActive ? " active" : "") + (unlocked ? "" : " locked");
-
-		var head = document.createElement("div"); head.className = "shop-tile-head";
-		var name = document.createElement("div"); name.className = "shop-tile-name"; name.textContent = meta.label;
-		head.appendChild(name);
-		tile.appendChild(head);
-
-		var preview = document.createElement("div"); preview.className = "shop-tile-preview";
-		var glyph = document.createElement("span"); glyph.className = "shop-tile-fx-glyph";
-		glyph.textContent = (typeof REVEAL_EFFECT_GLYPHS !== "undefined" && REVEAL_EFFECT_GLYPHS[id]) || "✨";
-		preview.appendChild(glyph);
-		tile.appendChild(preview);
-
-		var body = document.createElement("div"); body.className = "shop-tile-body";
-		var blurb = document.createElement("span"); blurb.className = "skin-blurb"; blurb.textContent = meta.blurb;
-		body.appendChild(blurb);
-		if (isActive) {
-			var selected = document.createElement("span"); selected.className = "shop-tile-owned"; selected.textContent = "✓ Selected";
-			body.appendChild(selected);
-		} else if (!unlocked) {
-			var price = document.createElement("span"); price.className = "shop-lock-badge"; price.textContent = "🔒 " + shopPriceLabel(id);
-			body.appendChild(price);
-		}
-		tile.appendChild(body);
-
-		tile.addEventListener("click", function() {
-			if (!unlocked) { openItemPurchaseModal(ShopCatalog.byId(id)); return; }
-			if (typeof setRevealEffect === "function") setRevealEffect(id);
-			renderAvatarEditorTabsAndPanel();
-		});
-		grid.appendChild(tile);
+	return buildOwnedCosmeticGrid({
+		list: REVEAL_EFFECT_LIST, kind: "revealEffect", activeId: localRevealEffect,
+		buildPreview: function(id) {
+			var glyph = document.createElement("span"); glyph.className = "shop-tile-fx-glyph";
+			glyph.textContent = (typeof REVEAL_EFFECT_GLYPHS !== "undefined" && REVEAL_EFFECT_GLYPHS[id]) || "✨";
+			return glyph;
+		},
+		labelOf: function(id) { return Cosmetics.REVEAL_EFFECTS[id].label; },
+		blurbOf: function(id) { return Cosmetics.REVEAL_EFFECTS[id].blurb; },
+		onSelect: function(id) { if (typeof setRevealEffect === "function") setRevealEffect(id); }
 	});
-	return grid;
 }
 function renderAvatarModalRevealEffect() { renderAvatarEditorTabsAndPanel(); }
 

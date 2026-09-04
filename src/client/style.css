@@ -614,7 +614,10 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 }
 .dash-avatar-edit:hover::after { opacity: 1; }
 /* ── Appearance/customization modal ── */
-.avatar-editor-dialog { width: min(760px, 100%); }
+/* .cr-dialog.avatar-editor-dialog (two classes), not a bare .avatar-editor-dialog — the base
+   .cr-dialog rule (style.css, defined later in the file) sets its own width at equal specificity
+   otherwise, and source order would let IT win regardless of which rule looks like the override. */
+.cr-dialog.avatar-editor-dialog { width: min(760px, 100%); }
 .avatar-editor-hero {
 	display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
 	padding: 1.1rem 1rem 1.3rem; margin-bottom: 0.5rem;
@@ -624,7 +627,12 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 .avatar-editor-preview { display: flex; justify-content: center; }
 .avatar-editor-hero-name { font-weight: 700; font-size: 1.05rem; }
 .avatar-editor-tabs { margin-top: 0; }
-.avatar-editor-panel { margin-top: 1.1rem; }
+/* Fixed height, not just min-height — the whole point is the dialog's own size must stay exactly
+   the same no matter which tab is active or how many tiles it has (a real reported bug: switching
+   tabs was resizing the modal). Content taller than this scrolls internally instead of growing the
+   panel; min(…, 50dvh) keeps it from overflowing a short mobile viewport, where .cr-dialog's own
+   max-height/overflow-y would otherwise have to scroll the tab bar out of view along with it. */
+.avatar-editor-panel { margin-top: 1.1rem; height: min(420px, 50dvh); overflow-y: auto; }
 
 /* Small in-place "buy this?" dialog opened from inside the avatar-editor modal (openItemPurchaseModal
    in Profile.js) — stacks on top of #avatar_modal (same .cr-modal chrome, later in DOM so it paints
@@ -3993,6 +4001,25 @@ body[data-board-skin="monochrome"] .board-press-highlight {
 	font-size: 0.8rem; font-weight: 700; color: var(--success);
 	background: rgba(74, 222, 128, 0.1); border: 1px solid rgba(74, 222, 128, 0.35);
 }
+/* Appearance-modal picker's "✓ Selected" slot (buildOwnedCosmeticGrid, Profile.js) — same look as
+   .shop-tile-owned above, but ALWAYS rendered (never just omitted) so every tile in the grid
+   reserves identical space for it. -empty uses visibility (not display:none) specifically: the box
+   still occupies its layout space while invisible, so picking a different tile — which toggles
+   which ONE tile's slot is visible — never changes any tile's height. This was a real reported bug
+   (the badge appearing/disappearing on select shifted the whole grid). */
+.shop-tile-status {
+	display: block; box-sizing: border-box; min-height: 1.7rem;
+	padding: 0.4rem 0.5rem; border-radius: 8px;
+	font-size: 0.8rem; font-weight: 700; color: var(--success);
+	background: rgba(74, 222, 128, 0.1); border: 1px solid rgba(74, 222, 128, 0.35);
+}
+.shop-tile-status-empty { visibility: hidden; }
+/* The trailing "browse the rest in the Shop" tile (buildShopLinkTile) — same footprint as a real
+   cosmetic tile (so it doesn't throw off the grid's row height) but dashed/muted so it reads as a
+   navigation link, not another pickable item. */
+.shop-tile-more { border-style: dashed; background: transparent; }
+.shop-tile-more:hover { border-color: var(--accent); }
+.shop-tile-more .shop-tile-name { color: var(--muted); }
 .shop-tile-btn.btn {
 	width: 100%; font-size: 0.82rem; padding: 0.45rem 0.5rem;
 	background: rgba(0, 0, 0, 0.35); border: 1px solid var(--border); color: var(--text);
