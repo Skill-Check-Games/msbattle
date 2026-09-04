@@ -21,6 +21,18 @@ function shopHeaders() {
 // it can't itself grant anything to a non-admin poking at it.
 var fakeShopMode = false;
 
+// Tabbed categories (one ShopCatalog "kind" each) — the tagline is pure flavor text, shown once
+// under the category header, same spot the top-level page subtitle used to carry its one static
+// line before there was more than one section to caption individually.
+var SHOP_CATEGORIES = [
+	{ kind: "avatar", label: "Avatars", tagline: "Doesn't change your hitbox — there is no hitbox." },
+	{ kind: "skin", label: "Board Skins", tagline: "Reskins the tiles. The mines don't move, promise." }
+];
+// Which tab is showing — persists across re-renders (buy/owned-state changes, the post-purchase
+// redirect back) the same way fakeShopMode does, so switching tabs doesn't get silently undone by
+// something else in the page re-rendering itself.
+var shopActiveKind = null;
+
 function shopStatusBanner(text, kind) {
 	var el = document.getElementById("shop_status");
 	if (!el) return;
@@ -88,26 +100,31 @@ function buyShopItem(item, btn) {
 
 function buildShopTile(item) {
 	var tile = document.createElement("div");
-	tile.className = "shop-tile";
+	// tier ("common"/"rare"/"epic", ShopCatalog.js) drives the card's border colour/glow — a purely
+	// cosmetic shop-display concept, unrelated to ownership or gameplay.
+	tile.className = "shop-tile" + (item.tier ? " shop-tile-" + item.tier : "");
+
+	var head = document.createElement("div"); head.className = "shop-tile-head";
+	var name = document.createElement("div"); name.className = "shop-tile-name"; name.textContent = item.label;
+	head.appendChild(name);
+	tile.appendChild(head);
 
 	var preview = document.createElement("div"); preview.className = "shop-tile-preview";
 	if (item.kind === "avatar" && typeof buildAvatarCanvas === "function") preview.appendChild(buildAvatarCanvas(item.id, 64));
 	else if (item.kind === "skin" && typeof buildSkinPreview === "function") preview.appendChild(buildSkinPreview(item.id));
 	tile.appendChild(preview);
 
-	var name = document.createElement("div"); name.className = "shop-tile-name"; name.textContent = item.label;
-	tile.appendChild(name);
-
+	var body = document.createElement("div"); body.className = "shop-tile-body";
 	var owned = shopItemUnlocked(item.kind, item.id);
 	if (owned) {
 		var badge = document.createElement("span"); badge.className = "shop-tile-owned"; badge.textContent = "✓ Owned";
-		tile.appendChild(badge);
+		body.appendChild(badge);
 	} else if (!account || account.guest) {
 		var signInBtn = document.createElement("button");
 		signInBtn.type = "button"; signInBtn.className = "btn btn-ghost shop-tile-btn";
 		signInBtn.textContent = "Sign in to buy";
 		signInBtn.addEventListener("click", function() { if (typeof doSignIn === "function") doSignIn(); });
-		tile.appendChild(signInBtn);
+		body.appendChild(signInBtn);
 	} else {
 		var buyBtn = document.createElement("button");
 		buyBtn.type = "button"; buyBtn.className = "btn btn-primary shop-tile-btn";
@@ -116,8 +133,9 @@ function buildShopTile(item) {
 		// "Buy" prefix — it's already the only thing a buy button on an unowned item could mean.
 		buyBtn.textContent = shopPriceLabel(item.id);
 		buyBtn.addEventListener("click", function() { buyShopItem(item, buyBtn); });
-		tile.appendChild(buyBtn);
+		body.appendChild(buyBtn);
 	}
+	tile.appendChild(body);
 	return tile;
 }
 
@@ -158,19 +176,50 @@ function renderShop() {
 	var status = document.createElement("div"); status.id = "shop_status"; status.style.display = "none";
 	view.appendChild(status);
 
-	function section(labelText, kind) {
-		var items = ShopCatalog.ITEMS.filter(function(i) { return i.kind === kind; });
-		if (!items.length) return;
-		var card = document.createElement("div"); card.className = "section-card";
-		var h = document.createElement("h2"); h.className = "controls-title"; h.textContent = labelText;
-		card.appendChild(h);
-		var grid = document.createElement("div"); grid.className = "shop-grid";
-		items.forEach(function(item) { grid.appendChild(buildShopTile(item)); });
-		card.appendChild(grid);
-		view.appendChild(card);
+	// Only categories that actually have items get a tab — a future category with nothing in
+	// ShopCatalog.ITEMS yet simply doesn't show up rather than rendering an empty tab.
+	var categories = SHOP_CATEGORIES.filter(function(cat) {
+		return ShopCatalog.ITEMS.some(function(i) { return i.kind === cat.kind; });
+	});
+	if (!categories.length) return;
+	if (!shopActiveKind || !categories.some(function(c) { return c.kind === shopActiveKind; })) {
+		shopActiveKind = categories[0].kind;
 	}
-	section("Avatars", "avatar");
-	section("Board skins", "skin");
+
+	var tabs = document.createElement("div"); tabs.className = "shop-tabs";
+	categories.forEach(function(cat) {
+		var tab = document.createElement("button");
+		tab.type = "button";
+		tab.className = "shop-tab" + (cat.kind === shopActiveKind ? " active" : "");
+		tab.textContent = cat.label;
+		tab.addEventListener("click", function() {
+			if (shopActiveKind === cat.kind) return;
+			shopActiveKind = cat.kind;
+			renderShop();
+		});
+		tabs.appendChild(tab);
+	});
+	view.appendChild(tabs);
+
+	var activeCat = categories.filter(function(c) { return c.kind === shopActiveKind; })[0];
+	var card = document.createElement("div"); card.className = "section-card shop-category-card";
+	var head = document.createElement("div"); head.className = "shop-category-head";
+	var bar = document.createElement("span"); bar.className = "shop-category-bar"; bar.setAttribute("aria-hidden", "true");
+	head.appendChild(bar);
+	var headText = document.createElement("div");
+	var h = document.createElement("h2"); h.className = "shop-category-title"; h.textContent = activeCat.label;
+	headText.appendChild(h);
+	var tagline = document.createElement("p"); tagline.className = "shop-category-tagline"; tagline.textContent = activeCat.tagline;
+	headText.appendChild(tagline);
+	head.appendChild(headText);
+	card.appendChild(head);
+
+	var grid = document.createElement("div"); grid.className = "shop-grid";
+	ShopCatalog.ITEMS.filter(function(i) { return i.kind === shopActiveKind; }).forEach(function(item) {
+		grid.appendChild(buildShopTile(item));
+	});
+	card.appendChild(grid);
+	view.appendChild(card);
 
 	handleShopReturn();
 }

@@ -3718,23 +3718,81 @@ body[data-board-skin="gold"] .board-scroll::after {
 .skin-blurb { font-size: 0.8rem; color: var(--muted); }
 
 /* Shop page */
-.shop-grid { display: flex; flex-wrap: wrap; gap: 0.9rem; margin-top: 0.75rem; }
-.shop-tile {
-	display: flex; flex-direction: column; align-items: center; gap: 0.55rem;
-	width: 132px; padding: 0.85rem 0.7rem; border-radius: 12px;
-	background: var(--bg); border: 1px solid var(--border); text-align: center;
-}
-.shop-tile-preview { display: flex; align-items: center; justify-content: center; min-height: 66px; }
-.shop-tile-name { font-weight: 700; font-size: 0.88rem; }
-.shop-tile-owned { font-size: 0.78rem; font-weight: 700; color: var(--success); }
-.shop-tile-btn { width: 100%; font-size: 0.82rem; padding: 0.4rem 0.5rem; }
-.shop-status { margin-bottom: 1.25rem; }
+.shop-status { margin: 1rem 0 0; }
 .shop-status-success { border-color: rgba(74, 222, 128, 0.4); }
 .shop-status-error { border-color: rgba(248, 113, 113, 0.4); }
 .shop-title-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; margin-bottom: 0.35rem; }
 .shop-title-row .section-page-title { margin: 0; }
 .shop-fake-toggle { display: flex; align-items: center; gap: 0.55rem; }
 .shop-fake-toggle-label { font-size: 0.85rem; font-weight: 600; color: var(--muted); }
+
+/* Category tabs — one per ShopCatalog "kind". Underline-on-active, same idiom as .lb-tab/
+   #profile_tabs elsewhere in this file, but text-styled (uppercase, letter-spaced) rather than a
+   filled pill, since these sit directly under the page subtitle rather than atop a data table. */
+.shop-tabs {
+	display: flex; gap: 1.6rem; margin-top: 1.2rem;
+	border-bottom: 1px solid var(--border);
+	overflow-x: auto;
+}
+.shop-tab {
+	appearance: none; background: none; border: none; cursor: pointer; font: inherit;
+	padding: 0.55rem 0.05rem 0.7rem;
+	font-weight: 700; font-size: 0.8rem; letter-spacing: 0.04em; text-transform: uppercase;
+	color: var(--muted); white-space: nowrap;
+	border-bottom: 2px solid transparent;
+	transition: color 0.15s, border-color 0.15s;
+}
+.shop-tab:hover { color: var(--text); }
+.shop-tab.active { color: var(--accent-hover); border-bottom-color: var(--accent-hover); }
+
+.shop-category-card { margin-top: 1.1rem; }
+.shop-category-head { display: flex; gap: 0.75rem; align-items: stretch; margin-bottom: 1.1rem; }
+.shop-category-bar { width: 4px; border-radius: 999px; background: var(--accent); flex: 0 0 auto; }
+.shop-category-title {
+	margin: 0; font-weight: 800; font-size: 1rem; letter-spacing: 0.02em; text-transform: uppercase;
+}
+.shop-category-tagline { margin: 0.25rem 0 0; font-size: 0.85rem; color: var(--muted); }
+
+.shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; }
+.shop-tile {
+	display: flex; flex-direction: column;
+	border-radius: 14px; overflow: hidden;
+	background: var(--bg); border: 1px solid var(--border);
+	transition: border-color 0.15s, transform 0.15s;
+}
+/* Rarity ramp (common -> rare -> epic, item.tier in ShopCatalog.js) — purely a shop-display
+   framing, unrelated to ownership/gameplay. Common stays the plain default border above; rare
+   picks up a violet border matching --mode-standard elsewhere in this file, epic a gold one
+   matching --energy-gold plus a soft matching glow, the same "richer treatment for the pricier/
+   more prestigious tier" idea the rank-tier badges already use, just applied to a shop card. */
+.shop-tile-rare { border-color: rgba(167, 139, 250, 0.5); }
+.shop-tile-epic {
+	border-color: rgba(252, 211, 77, 0.55);
+	box-shadow: 0 0 0 1px rgba(252, 211, 77, 0.12), 0 14px 28px -16px rgba(252, 211, 77, 0.45);
+}
+.shop-tile-head { padding: 0.75rem 0.85rem 0; }
+.shop-tile-name { font-weight: 700; font-size: 0.85rem; letter-spacing: 0.01em; }
+.shop-tile-rare .shop-tile-name { color: #c4b5fd; }
+.shop-tile-epic .shop-tile-name { color: #fde68a; }
+.shop-tile-preview {
+	display: flex; align-items: center; justify-content: center;
+	min-height: 78px; margin: 0.65rem 0.85rem 0; padding: 0.6rem;
+	background: rgba(0, 0, 0, 0.28); border-radius: 10px;
+}
+.shop-tile-body { padding: 0.7rem 0.85rem 0.85rem; display: flex; flex-direction: column; gap: 0.5rem; text-align: center; }
+.shop-tile-owned {
+	display: block; padding: 0.4rem 0.5rem; border-radius: 8px;
+	font-size: 0.8rem; font-weight: 700; color: var(--success);
+	background: rgba(74, 222, 128, 0.1); border: 1px solid rgba(74, 222, 128, 0.35);
+}
+.shop-tile-btn.btn {
+	width: 100%; font-size: 0.82rem; padding: 0.45rem 0.5rem;
+	background: rgba(0, 0, 0, 0.35); border: 1px solid var(--border); color: var(--text);
+	box-shadow: none;
+}
+.shop-tile-btn.btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.06); border-color: var(--muted); }
+.shop-tile-rare .shop-tile-btn.btn { border-color: rgba(167, 139, 250, 0.55); color: #c4b5fd; }
+.shop-tile-epic .shop-tile-btn.btn { border-color: rgba(252, 211, 77, 0.6); color: #fde68a; }
 
 .player-controls {
 	display: flex;

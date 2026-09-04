@@ -26,7 +26,7 @@
 			// imagePath: a real, publicly-served static asset (unlike the board skins below, which are
 			// palette-only — no static preview image exists for those yet) — used by
 			// scripts/provision-stripe-catalog.js to set the Stripe Product's image.
-			items.push({ id: "img:" + id, kind: "avatar", productType: "avatar", label: avatarLabel(id), priceCents: AVATAR_PRICE_CENTS, currency: "usd", imagePath: Cosmetics.AVATAR_IMAGES[id] });
+			items.push({ id: "img:" + id, kind: "avatar", productType: "avatar", label: avatarLabel(id), priceCents: AVATAR_PRICE_CENTS, currency: "usd", imagePath: Cosmetics.AVATAR_IMAGES[id], tier: "common" });
 		});
 		// Every AVATAR_COLORS entry past the first (free/default) one is a purchasable flag colour.
 		// Hardcoded label — fine while there's exactly one extra colour; if more are added, give
@@ -36,7 +36,7 @@
 		// *product* to a buyer/in Stripe's catalog, same "flags are a separate thing" reasoning as
 		// the pirate-flag-in-AVATAR_COLORS split documented in CLAUDE.md.
 		Cosmetics.AVATAR_COLORS.slice(1).forEach(function(hex) {
-			items.push({ id: hex, kind: "avatar", productType: "flag", label: "Pirate Flag", priceCents: AVATAR_PRICE_CENTS, currency: "usd" });
+			items.push({ id: hex, kind: "avatar", productType: "flag", label: "Pirate Flag", priceCents: AVATAR_PRICE_CENTS, currency: "usd", tier: "common" });
 		});
 		items.push({
 			id: "tactical", kind: "skin", productType: "board_skin",
@@ -46,13 +46,19 @@
 			// scripts/render-skin-preview-images.js, which reproduces the exact in-app skin-preview
 			// strip (buildSkinPreview, Profile.js) at high resolution since skins have no other
 			// static asset (they're painted live from this palette, never saved as a file).
-			imagePath: "/skins/tactical-preview.png"
+			imagePath: "/skins/tactical-preview.png",
+			// Shop-display rarity only (see .shop-tile-rare/-epic, style.css) — purely cosmetic framing
+			// for how the tile itself is bordered/lit, not a gameplay or ownership concept.
+			tier: "rare"
 		});
 		items.push({
 			id: "gold", kind: "skin", productType: "board_skin",
 			label: Cosmetics.BOARD_SKINS.gold.label,
 			priceCents: GOLD_SKIN_PRICE_CENTS, currency: "usd",
-			imagePath: "/skins/gold-preview.png"
+			imagePath: "/skins/gold-preview.png",
+			// The one item in the shop actually named "Gold" gets the gold "epic" tile treatment —
+			// nice coincidence, not engineered, but too fitting to pass up.
+			tier: "epic"
 		});
 
 		// Boot-time integrity check: every catalog id must be a real cosmetic id, so a typo or a
