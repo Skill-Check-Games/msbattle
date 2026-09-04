@@ -123,7 +123,7 @@ function buildResultHeroBadge(oldRating, newRating, provisional) {
 	if (!crossed) {
 		var badge = buildRankBadge(newRating);
 		badge.classList.add("ranked-result-badge");
-		return { element: badge, trigger: function() {} };
+		return { element: badge, trigger: function() {}, crossed: false, up: false };
 	}
 	var up = newRating > oldRating;
 	// Outer = the overflow:hidden clip boundary, padded a bit bigger than the badge itself so the
@@ -143,7 +143,7 @@ function buildResultHeroBadge(oldRating, newRating, provisional) {
 		if (up) triggerShatterReform(stage, oldBadge, oldRating, newRating, provisional);
 		else triggerClimbDrop(stage, oldBadge, newRating);
 	}
-	return { element: outer, trigger: trigger };
+	return { element: outer, trigger: trigger, crossed: true, up: up };
 }
 
 function triggerClimbDrop(stage, oldBadge, newRating) {
@@ -478,11 +478,36 @@ function showRankedResult(data) {
 	if (data.standings) updateRatingFromStandings(data.standings, { suppressBanner: true, suppressDelta: true, mode: data.mode });
 	setTimeout(function() {
 		countUpNumber(num, oldRating != null ? oldRating : newRating, newRating, 950);
-		fill.style.width = Math.round(newProg.fill * 100) + "%";
+		// A tier crossing fills the bar all the way to the boundary (100% on a promotion, 0% on a
+		// demotion) instead of jumping straight to the new tier's own progress — which, right after a
+		// crossing, is usually a much LOWER-looking number (just past the boundary) and used to read as
+		// the bar suddenly shrinking backwards for no visible reason. Finishing the fill/drain first,
+		// then pulsing and snapping to the real new-tier value below, reads as "you filled the bar and
+		// leveled up" instead. A same-tier change (the common case) is unaffected — straight to
+		// newProg.fill, same as always.
+		fill.style.width = (heroBadge.crossed ? (heroBadge.up ? 100 : 0) : Math.round(newProg.fill * 100)) + "%";
 	}, 400);
+	if (heroBadge.crossed) {
+		// The bar reaches the boundary ~900ms after the width transition above starts (400ms delay +
+		// the track's own 0.9s CSS transition, style.css's .ranked-result-progress-fill) — pulse right
+		// as it lands, then snap the fill to the new tier's real progress on its own quicker transition
+		// (0.3s, not the long fill/drain one) rather than answering "how full is the new tier" with
+		// another slow full-bar sweep.
+		setTimeout(function() {
+			// The pulse's glow lands on the TRACK, not the fill — .ranked-result-progress clips its own
+			// children (overflow:hidden, so the thin bar doesn't show a square-cornered fill poking past
+			// its rounded ends), which would clip a box-shadow glow on the fill span itself. A glow/
+			// brightness animation on the track's own box isn't subject to that — and its filter also
+			// applies to its rendered content, so the fill brightens right along with it for free.
+			track.classList.add(heroBadge.up ? "pulse-up" : "pulse-down");
+			fill.style.transition = "width 0.3s ease-out";
+			fill.style.width = Math.round(newProg.fill * 100) + "%";
+		}, 1300);
+	}
 	// Rank badge slide + fanfare land together, once the reveal above has actually had time to play
-	// out (its own 400ms delay + ~950ms reveal) plus a short extra beat — see buildResultHeroBadge's
-	// own comment for why this can't just start immediately alongside it.
+	// out (its own 400ms delay + ~950ms reveal, plus — on a crossing — the pulse/snap above) plus a
+	// short extra beat — see buildResultHeroBadge's own comment for why this can't just start
+	// immediately alongside it.
 	setTimeout(function() {
 		heroBadge.trigger();
 		playResultMoment(won, data.ranked, oldRating, newRating);
