@@ -149,11 +149,42 @@ function fullscreenSupported() {
 // Keep a `game-fullscreen` body class in sync with the ACTUAL fullscreen state — driven by the browser
 // event, not our enter/exit helpers, so pressing Esc (the native exit) reverts the chrome too. The CSS
 // hangs the immersive layout (hidden navbar, visible "Exit game" button) off this class.
+//
+// Also re-syncs the landscape-battle layout/board sizing (real bug: locking a phone's screen while
+// fullscreen — a well-known iOS Safari behaviour, force-exits fullscreen; the browser's own chrome
+// (address bar/home indicator) then reclaims real screen height on unlock) — nothing previously
+// re-ran applyDuelLandscapeClass or re-measured the canvases in response to a fullscreen change at
+// all, only resize/orientationchange (Main.js). duel-force-rotate's CSS-rotation trick and the
+// board's own JS-computed cell size were both left sized off whatever the viewport looked like the
+// LAST time either of those fired — stale fullscreen-era measurements once real browser chrome
+// reappears — reported as the layout coming back "in landscape mode with elements on top of each
+// other" after locking/unlocking mid-match. requestAnimationFrame mirrors applyDuoClass's own
+// reasoning for the same re-measure-after-layout-settles pattern (Main.js).
 function syncFullscreenChrome() {
 	document.body.classList.toggle("game-fullscreen", isInFullscreen());
+	resyncBattleLayoutForFullscreenChange();
+}
+function resyncBattleLayoutForFullscreenChange() {
+	if (typeof applyDuelLandscapeClass === "function") applyDuelLandscapeClass();
+	// refreshPlayerBoardSize (MobileLayout.js) is the same resize+redraw path the generic window
+	// "resize" listener already uses — guards on an active board itself, resizes AND redraws both
+	// the player and opponent canvases (a resized canvas clears its own contents), not just player.
+	requestAnimationFrame(function() {
+		if (typeof refreshPlayerBoardSize === "function") refreshPlayerBoardSize();
+	});
 }
 document.addEventListener("fullscreenchange", syncFullscreenChrome);
 document.addEventListener("webkitfullscreenchange", syncFullscreenChrome);
+// Safety net for exactly the lock/unlock case above: fullscreenchange isn't always fired reliably
+// (or promptly) across mobile browsers on a screen-lock cycle — a real, previously-reported class of
+// bug (see this file's other visibility-driven fixes). visibilitychange fires far more consistently
+// when a backgrounded/locked tab comes back, so re-check the ACTUAL fullscreen state (not just
+// assume the last event already caught it) and re-run the same resync unconditionally — cheap and
+// idempotent if nothing was actually stale.
+document.addEventListener("visibilitychange", function() {
+	if (document.visibilityState !== "visible") return;
+	syncFullscreenChrome();
+});
 
 // Wire the in-game fullscreen toggle button, and hide it where the API is unavailable.
 (function wireFullscreenButton() {
