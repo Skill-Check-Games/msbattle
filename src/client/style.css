@@ -7359,9 +7359,13 @@ input[type="range"].sound-lab-rate-slider { grid-column: 1 / -1; grid-row: 2; wi
 
 /* Fullscreen game chrome: hide the site navbar and let the game fill the space. The in-game "Exit game"
    button (#leave_button) stays as the single way out. Driven by body.game-fullscreen, kept in sync with
-   the real fullscreen state in Fullscreen.js (so Esc reverts it too). */
-body.game-fullscreen .topbar { display: none; }
-body.game-fullscreen main { max-width: none; }
+   the real fullscreen state in Fullscreen.js (so Esc reverts it too). Also requires body.in-game — on
+   request, fullscreen now stays on when leaving a game (mobile, see exitGameFullscreenUnlessMobile),
+   so game-fullscreen alone can no longer be trusted to mean "a game is actually showing"; without this
+   extra check, landing back on the home page still fullscreen hid the topbar (hamburger menu, player
+   stats) and let the home page's own content stretch edge-to-edge, same as if a game were still open. */
+body.game-fullscreen.in-game .topbar { display: none; }
+body.game-fullscreen.in-game main { max-width: none; }
 /* Hide the site footer whenever a game is on screen (any mode), not just in fullscreen. */
 body.in-game .site-footer { display: none; }
 
