@@ -439,7 +439,19 @@ function revealLidSpark(ctx, w, h, rad, t) {
 // 3) Shatter — the lid vanishes almost instantly instead of fading, replaced by 4 shards (in the
 // skin's own COLOR_UNKNOWN_TOP) flying outward and spinning, each cell's directions seeded off its
 // own (r, c) so they're stable across the reveal's frames but vary cell to cell.
+//
+// Contained to this cell's own box on two levels: maxDist is picked so a shard's furthest vertex
+// (worst case ~0.71x its own size from its own center — a triangle's corner) never crosses the
+// w x h boundary even at t=1, and a hard clip is the backstop in case that math is ever wrong.
+// Real bug this fixes: the live board's RAF loop only clears+repaints cells that are actually
+// mid-animation THIS frame (BoardView.draw's dirtyCells path) — a shard that overshot into a
+// NEIGHBOURING cell's pixels left a permanent smear there once this cell's own animation ended,
+// since nothing ever told that neighbour it needed repainting.
 function revealLidShatter(ctx, w, h, rad, t, r, c) {
+	ctx.save();
+	ctx.beginPath();
+	ctx.rect(0, 0, w, h);
+	ctx.clip();
 	if (t < 0.15) {
 		ctx.save();
 		ctx.globalAlpha = 1 - t / 0.15;
@@ -447,7 +459,7 @@ function revealLidShatter(ctx, w, h, rad, t, r, c) {
 		ctx.restore();
 	}
 	var shardCount = 4;
-	var maxDist = Math.min(w, h) * 0.55;
+	var maxDist = Math.min(w, h) * 0.32;
 	for (var i = 0; i < shardCount; i++) {
 		var seedA = cellSeededRandom(r * 401 + c * 809 + i * 37);
 		var seedB = cellSeededRandom(r * 613 + c * 271 + i * 91 + 17);
@@ -465,6 +477,7 @@ function revealLidShatter(ctx, w, h, rad, t, r, c) {
 		ctx.fill();
 		ctx.restore();
 	}
+	ctx.restore(); // pairs with the clip save at the top of this function
 }
 
 // 4) CRT Flicker — the lid flickers a couple of bright translucent-white pulses (again, no
