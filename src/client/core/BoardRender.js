@@ -30,6 +30,26 @@ var AVATAR_IMAGES = Cosmetics.AVATAR_IMAGES;
 // duration of the paint, then restores localBoardSkin — so the draw helpers stay simple.
 var localBoardSkin = "classic";
 
+// ---- reveal effect (the cascade's own per-cell flourish, distinct from the board skin) ----------
+// Which visual treatment a covered cell gets as it's revealed — a separate preference from the
+// board skin, but every candidate below reads the skin's OWN palette vars (COLOR_UNKNOWN_*/
+// COLOR_KNOWN_BG, set above) rather than any hardcoded colour, so switching skins re-colours the
+// effect automatically with no extra plumbing — same "read the live palette vars" approach every
+// other draw helper here already uses. localRevealEffect only ever affects the LOCAL player's own
+// board (an opponent's reveal isn't "yours" to customize) — see queueRevealAnimations/BoardView's
+// animAt, which only ever runs against the local canvas.
+var REVEAL_EFFECT_LIST = ["ripple", "spark", "shatter", "crt", "dust"];
+var localRevealEffect = "ripple";
+function applyRevealEffect(id) {
+	if (REVEAL_EFFECT_LIST.indexOf(id) === -1) id = "ripple";
+	localRevealEffect = id;
+}
+function setRevealEffect(id) {
+	applyRevealEffect(id);
+	try { localStorage.setItem("ms_reveal_effect", localRevealEffect); } catch (e) {}
+}
+applyRevealEffect((function () { try { return localStorage.getItem("ms_reveal_effect"); } catch (e) { return null; } })() || "ripple");
+
 // Load a skin's colours into the module palette vars the draw helpers read.
 function setPaletteVars(id) {
 	var s = BOARD_SKINS[id] || BOARD_SKINS.classic;
@@ -283,10 +303,16 @@ function drawCell(ctx, r, c, view, sw, sh, anim) {
 			// while still showing its tint (a "fog of clues"). Unset elsewhere, always shown.
 			if (clue > 0 && !(view.hideClue && view.hideClue(r, c))) drawNumber(ctx, clue, w, h, t);
 		}
-		// the unknown "cover" lifts off as the reveal plays
+		// the unknown "cover" lifts off as the reveal plays — which of the 5 REVEAL_EFFECT_LIST
+		// treatments plays is the LOCAL player's own choice (localRevealEffect), same as a board
+		// skin isn't forced on opponents. playerCanvas (Animations.js) is the one, well-known
+		// canvas element the local player's OWN board ever renders onto — both renderPlayerBoard
+		// (the real live board) and paintOpponentRevealFrame (which mirrors the same cascade onto
+		// every OTHER player's thumbnail too, since everyone shares one board layout per round) set
+		// view.animAt, so that alone can't tell the two apart; the canvas identity can.
 		if (revealing && anim.t < 1) {
-			ctx.globalAlpha = 1 - easeOutCubic(t);
-			drawUnknown(ctx, w, h, rad);
+			var isOwnBoard = typeof playerCanvas !== "undefined" && view.canvas === playerCanvas;
+			drawRevealLid(ctx, w, h, rad, t, r, c, isOwnBoard ? localRevealEffect : "ripple");
 			ctx.globalAlpha = 1;
 		}
 	} else if (view.isFlagged(r, c)) {
@@ -352,6 +378,144 @@ function drawKnownBase(ctx, w, h, rad) {
 	ctx.strokeStyle = COLOR_KNOWN_EDGE;
 	ctx.lineWidth = 1;
 	ctx.stroke();
+}
+
+// ---- reveal effects: how the covered "lid" comes off as a cell is revealed ------------------
+// Candidates were prototyped as DOM/CSS mockups in the design lab (DesignView.js) — these are the
+// same 5 treatments, reimplemented as canvas draws so they can run for real, every cascade, at
+// board scale. Every one of them draws through drawUnknown/COLOR_* — the live skin's OWN palette,
+// never a hardcoded colour — so switching skins re-colours whichever effect is active automatically.
+// t is the reveal's own 0..1 progress (already eased where each style wants it); r/c are only used
+// where a style needs per-cell variety (shatter's shard directions) via a deterministic, seeded
+// pseudo-random rather than Math.random() — the SAME cell must fly its shards the same way on every
+// frame of its own reveal, not a new random draw each frame (that would read as jittering, not flying).
+function cellSeededRandom(n) {
+	var x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+	return x - Math.floor(x);
+}
+
+// 1) Ripple — the default. The lid scales up slightly and fades, with a brief translucent-white
+// wash right as it lifts (a cheap alpha-blended wash instead of ctx.filter's brightness() — filter
+// is a real per-cell, per-frame cost across a whole cascade at once, not worth it for this).
+function revealLidRipple(ctx, w, h, rad, t) {
+	var scale = 1 + 0.18 * easeOutCubic(t);
+	ctx.save();
+	ctx.globalAlpha = 1 - easeOutCubic(t);
+	ctx.translate(w / 2, h / 2);
+	ctx.scale(scale, scale);
+	ctx.translate(-w / 2, -h / 2);
+	drawUnknown(ctx, w, h, rad);
+	if (t < 0.35) {
+		ctx.globalAlpha = (1 - t / 0.35) * 0.5;
+		ctx.fillStyle = "#ffffff";
+		roundRectPath(ctx, 0, 0, w, h, rad);
+		ctx.fill();
+	}
+	ctx.restore();
+}
+
+// 2) Spark Trail — the lid lifts quickly (faster fade than Ripple) while a small bright flash
+// blooms and fades at the cell's centre — reads as a spark igniting right as the cell opens; the
+// outward WAVE itself (the stagger between cells, queueRevealAnimations) is what makes the trail.
+function revealLidSpark(ctx, w, h, rad, t) {
+	ctx.save();
+	ctx.globalAlpha = 1 - easeInCubic(Math.min(1, t * 1.4));
+	drawUnknown(ctx, w, h, rad);
+	ctx.restore();
+	if (t < 0.5) {
+		var st = t / 0.5;
+		var r2 = Math.min(w, h) * (0.12 + 0.3 * st);
+		ctx.save();
+		ctx.globalAlpha = 1 - st;
+		var grd = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, r2);
+		grd.addColorStop(0, "#ffffff");
+		grd.addColorStop(1, "rgba(255,255,255,0)");
+		ctx.fillStyle = grd;
+		ctx.beginPath(); ctx.arc(w / 2, h / 2, r2, 0, Math.PI * 2); ctx.fill();
+		ctx.restore();
+	}
+}
+
+// 3) Shatter — the lid vanishes almost instantly instead of fading, replaced by 4 shards (in the
+// skin's own COLOR_UNKNOWN_TOP) flying outward and spinning, each cell's directions seeded off its
+// own (r, c) so they're stable across the reveal's frames but vary cell to cell.
+function revealLidShatter(ctx, w, h, rad, t, r, c) {
+	if (t < 0.15) {
+		ctx.save();
+		ctx.globalAlpha = 1 - t / 0.15;
+		drawUnknown(ctx, w, h, rad);
+		ctx.restore();
+	}
+	var shardCount = 4;
+	var maxDist = Math.min(w, h) * 0.55;
+	for (var i = 0; i < shardCount; i++) {
+		var seedA = cellSeededRandom(r * 401 + c * 809 + i * 37);
+		var seedB = cellSeededRandom(r * 613 + c * 271 + i * 91 + 17);
+		var angle = (i / shardCount) * Math.PI * 2 + (seedA - 0.5) * 1.2;
+		var dist = maxDist * easeOutCubic(t);
+		var size = Math.min(w, h) * 0.24 * (1 - t * 0.35);
+		ctx.save();
+		ctx.globalAlpha = 1 - t;
+		ctx.translate(w / 2 + Math.cos(angle) * dist, h / 2 + Math.sin(angle) * dist);
+		ctx.rotate((seedB - 0.5) * 5 * t);
+		ctx.fillStyle = COLOR_UNKNOWN_TOP;
+		ctx.beginPath();
+		ctx.moveTo(0, -size / 2); ctx.lineTo(size / 2, size / 2); ctx.lineTo(-size / 2, size / 2);
+		ctx.closePath();
+		ctx.fill();
+		ctx.restore();
+	}
+}
+
+// 4) CRT Flicker — the lid flickers a couple of bright translucent-white pulses (again, no
+// ctx.filter — see Ripple's own comment) before cutting out, plus a thin scanline sweeping down.
+function revealLidCrt(ctx, w, h, rad, t) {
+	if (t < 0.6) {
+		ctx.save();
+		ctx.globalAlpha = 1 - t / 0.6;
+		drawUnknown(ctx, w, h, rad);
+		ctx.restore();
+		var flicker = Math.abs(Math.sin(t * 50));
+		if (flicker > 0.6) {
+			ctx.save();
+			ctx.globalAlpha = ((flicker - 0.6) / 0.4) * (1 - t / 0.6);
+			ctx.fillStyle = "#a5f3fc";
+			roundRectPath(ctx, 0, 0, w, h, rad);
+			ctx.fill();
+			ctx.restore();
+		}
+	}
+	if (t < 0.4) {
+		ctx.save();
+		ctx.globalAlpha = 1 - t / 0.4;
+		ctx.fillStyle = "#a5f3fc";
+		ctx.fillRect(0, (t / 0.4) * h, w, Math.max(1, h * 0.06));
+		ctx.restore();
+	}
+}
+
+// 5) Dust Puff — the lid fades normally while a soft radial puff blooms and fades over it, like
+// brushing away sand. Cheapest/most subtle of the five.
+function revealLidDust(ctx, w, h, rad, t) {
+	ctx.save();
+	ctx.globalAlpha = 1 - easeOutCubic(t);
+	drawUnknown(ctx, w, h, rad);
+	ctx.restore();
+	var pt = Math.min(1, t * 1.6);
+	var r2 = Math.min(w, h) * (0.15 + 0.55 * pt);
+	ctx.save();
+	ctx.globalAlpha = (1 - pt) * 0.7;
+	var grd = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, r2);
+	grd.addColorStop(0, COLOR_UNKNOWN_HILITE);
+	grd.addColorStop(1, "rgba(255,255,255,0)");
+	ctx.fillStyle = grd;
+	ctx.beginPath(); ctx.arc(w / 2, h / 2, r2, 0, Math.PI * 2); ctx.fill();
+	ctx.restore();
+}
+
+var REVEAL_LID_FX = { ripple: revealLidRipple, spark: revealLidSpark, shatter: revealLidShatter, crt: revealLidCrt, dust: revealLidDust };
+function drawRevealLid(ctx, w, h, rad, t, r, c, styleId) {
+	(REVEAL_LID_FX[styleId] || revealLidRipple)(ctx, w, h, rad, t, r, c);
 }
 
 function drawNumber(ctx, n, w, h, t) {

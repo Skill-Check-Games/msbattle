@@ -204,6 +204,46 @@ function renderAvatarModalSkins() {
 	container.appendChild(buildSkinOptionsGrid());
 }
 
+// Reveal effect picker — same .skin-option row treatment as the board-skin grid above, minus the
+// preview swatch (there's no static image of an animation to show; try it live in a game instead).
+// Free for everyone for now, not gated through ShopCatalog like the skins are — this hasn't shipped
+// as a purchasable item yet.
+var REVEAL_EFFECT_META = {
+	ripple: { label: "Ripple", blurb: "A soft wave outward as the cascade opens — the default." },
+	spark: { label: "Spark Trail", blurb: "A quick flash at each cell as the cascade races outward." },
+	shatter: { label: "Shatter", blurb: "Covered tiles crack into shards and fly apart." },
+	crt: { label: "CRT Flicker", blurb: "A brief flicker and scanline sweep, like an old display waking up." },
+	dust: { label: "Dust Puff", blurb: "A soft puff blooms as each tile clears, like brushing away sand." }
+};
+function buildRevealEffectOptionsGrid() {
+	var grid = document.createElement("div");
+	grid.className = "skin-options";
+	REVEAL_EFFECT_LIST.forEach(function(id) {
+		var meta = REVEAL_EFFECT_META[id];
+		var btn = document.createElement("button");
+		btn.type = "button";
+		btn.className = "skin-option" + (id === localRevealEffect ? " active" : "");
+		var metaEl = document.createElement("span");
+		metaEl.className = "skin-meta";
+		var name = document.createElement("span"); name.className = "skin-name"; name.textContent = meta.label;
+		var blurb = document.createElement("span"); blurb.className = "skin-blurb"; blurb.textContent = meta.blurb;
+		metaEl.appendChild(name); metaEl.appendChild(blurb);
+		btn.appendChild(metaEl);
+		btn.addEventListener("click", function() {
+			if (typeof setRevealEffect === "function") setRevealEffect(id);
+			renderAvatarModalRevealEffect();
+		});
+		grid.appendChild(btn);
+	});
+	return grid;
+}
+function renderAvatarModalRevealEffect() {
+	var container = document.getElementById("avatar_modal_reveal_fx");
+	if (!container) return;
+	container.innerHTML = "";
+	container.appendChild(buildRevealEffectOptionsGrid());
+}
+
 // Profile renders from the account cache plus the most recent leaderboard snapshot.
 // The profile is split into three tabs (the page had grown large): Overview (identity + lifetime/
 // ranked/puzzle stats), Matches (rating graph + recent games/replays), and Achievements.
@@ -487,6 +527,13 @@ function openAvatarEditor() {
 		var skinsContainer = document.createElement("div"); skinsContainer.id = "avatar_modal_skins";
 		body.appendChild(skinsContainer);
 		renderAvatarModalSkins();
+	}
+	if (typeof REVEAL_EFFECT_LIST !== "undefined") {
+		var rLabel = document.createElement("div"); rLabel.className = "appearance-sub"; rLabel.textContent = "Reveal effect";
+		body.appendChild(rLabel);
+		var revealContainer = document.createElement("div"); revealContainer.id = "avatar_modal_reveal_fx";
+		body.appendChild(revealContainer);
+		renderAvatarModalRevealEffect();
 	}
 	modal.removeAttribute("hidden");
 }
