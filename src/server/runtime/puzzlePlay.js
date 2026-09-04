@@ -141,6 +141,11 @@ function startPuzzlePlay(socket, playerID, user, puzzle, run, opts) {
 	socket.emit("puzzle_board", {
 		mode: run ? run.mode : "rated",
 		puzzleId: puzzle.id,
+		// The puzzle's own difficulty tier (1-6, see PuzzleGenerator.js) — shown next to the puzzle
+		// number in the portrait "Puzzle #N · difficulty" caption (PuzzlePlay.js). NOT the puzzle's
+		// numeric rating — that stays unshown, same "tier only, hide the raw number" convention every
+		// other rank/rating display in this app already follows.
+		difficulty: puzzle.difficulty,
 		rows: puzzle.rows,
 		cols: puzzle.cols,
 		mines: puzzle.mines.length,

@@ -1709,6 +1709,43 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 	   now-taller .game-left (.game-left's own align-items/justify-content:center, base rule) rather
 	   than being stretched itself. */
 	.game-view.puzzle .game-left { flex: 1 1 auto; }
+	/* Edge margin on all four sides — was flush against the viewport edge (0 padding), which put the
+	   back button/title, the board, and Hint right up against a notch/curved corner/gesture-nav area
+	   on a real phone. max(...) keeps a real minimum margin even where env() reports nothing (most
+	   devices), same "guard against a real device inset without changing the common case" pattern the
+	   duel/mobile-action-bar layouts already use elsewhere in this file. */
+	.game-view.puzzle .game-grid {
+		box-sizing: border-box;
+		padding:
+			max(1rem, env(safe-area-inset-top, 0px))
+			max(1rem, env(safe-area-inset-right, 0px))
+			max(1rem, env(safe-area-inset-bottom, 0px))
+			max(1rem, env(safe-area-inset-left, 0px));
+	}
+	/* Undoes two layers of the generic body.in-game rule (both plain 2-class selectors, beaten here
+	   on specificity but only for the properties THIS rule also sets — flex isn't one of them, so it
+	   kept winning unopposed): .player-board sits between .game-left and .board-wrap in the DOM (the
+	   puzzle-specific rule above only resets its padding/border/background, never its flex/display),
+	   so IT was the one actually absorbing .game-left's flex-grow fix above — .player-board's own
+	   generic display:flex;flex-direction:column lets it grow to fill .game-left completely, leaving
+	   .game-left's align-items/justify-content:center nothing left to center (zero leftover space).
+	   Then .board-wrap (also generically flex:1) tried to do the same one level down — but it's
+	   display:block (not a flex container itself), so ITS extra height just sat as dead space below
+	   the Reveal/Flag row instead of being distributed anywhere useful — exactly the "awkward" gap the
+	   new #puzzle_info_line below now fills. Reverting BOTH to their own natural content height lets
+	   .game-left's centering finally reach the actual board+toggle+info group, one level down, and
+	   center it as a whole within the grown space instead of two separate empty margins. */
+	.game-view.puzzle .player-board,
+	.game-view.puzzle .board-wrap { flex: 0 0 auto; }
+	.game-view.puzzle .puzzle-info-line {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.45rem;
+		margin-top: 0.7rem;
+		font-size: 0.85rem;
+		color: var(--muted);
+	}
 }
 @media (max-width: 600px) {
 	/* Plain CSS now (was a fixed 320px, then a min(400px,...) fallback JS immediately overrode with a
@@ -1841,15 +1878,19 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 	   landscape layouts, styled the same way for visual consistency. */
 	.game-view.puzzle .puzzle-side-back {
 		position: fixed;
-		top: 1rem;
-		left: 1rem;
+		/* max(...) keeps a real margin off the true corner even on a device that reports no inset
+		   at all (env() resolves to 0px there) — same reasoning as the duel layout's own
+		   safe-area-inset-left/right padding (see its comment) for a landscape phone's notch/curved
+		   corner, just applied to a fixed-position corner button instead of grid padding. */
+		top: max(1.2rem, env(safe-area-inset-top, 0px));
+		left: max(1.2rem, env(safe-area-inset-left, 0px));
 		z-index: 10;
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		width: 28px;
-		height: 28px;
-		font-size: 1.1rem;
+		width: 34px;
+		height: 34px;
+		font-size: 1.3rem;
 		border-radius: 8px;
 		border: 1px solid var(--border);
 		background: rgba(255, 255, 255, 0.05);
@@ -1926,11 +1967,11 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 .puzzle-side-head { display: flex; align-items: center; gap: 0.8rem; }
 .puzzle-side-back {
 	cursor: pointer; user-select: none;
-	font-size: 1.4rem; color: var(--muted);
-	width: 1.8rem; text-align: center;
+	font-size: 1.7rem; color: var(--muted);
+	width: 2.2rem; text-align: center;
 }
 .puzzle-side-back:hover { color: var(--text); }
-.puzzle-side-title { font-size: 1.1rem; font-weight: 700; }
+.puzzle-side-title { font-size: 1.25rem; font-weight: 700; }
 .puzzle-side-rating-row {
 	display: flex; align-items: baseline; gap: 0.7rem;
 	position: relative;
@@ -1953,6 +1994,14 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 }
 .puzzle-side-card .puzzle-rank-bar { margin-top: 0.85rem; height: 10px; }
 .puzzle-side-card .puzzle-rank-foot { margin-top: 0.5rem; font-size: 0.82rem; }
+/* Puzzle #N + difficulty — desktop already has a full sidebar's worth of chrome around the
+   Reveal/Flag toggle, so this is portrait-mobile only (see the @media(max-width:700px) puzzle
+   block below), filling what was otherwise a bare, awkward-looking gap between the toggle and
+   the Hint button. Hidden by default everywhere else — see that gotcha class of bug noted
+   throughout this file for every other new mobile-only element. */
+.puzzle-info-line { display: none; }
+.puzzle-info-sep { opacity: 0.5; }
+.puzzle-info-diff { font-weight: 700; }
 /* Marathon boards' 3-lives HUD — plain hearts, filled left-to-right for lives remaining. */
 .puzzle-lives-row { display: flex; gap: 0.35rem; margin-top: 0.5rem; font-size: 1.3rem; line-height: 1; }
 .puzzle-life { color: #f87171; transition: opacity 0.2s ease, transform 0.2s ease; }

@@ -227,6 +227,7 @@ function updatePuzzleMarathonBestChip() {
 
 function updatePuzzleHud() {
 	if (!puzzleSession) return;
+	renderPuzzleInfoLine();
 	if (puzzleSession.mode === "streak" || puzzleSession.mode === "storm") {
 		renderPuzzleRunHud();
 	} else {
@@ -234,6 +235,46 @@ function updatePuzzleHud() {
 		renderPuzzleStreak();
 		updatePuzzleHintButton();
 	}
+}
+
+// "Puzzle #1234 · Medium" — portrait-mobile only (see .puzzle-info-line, style.css), sitting right
+// under the Reveal/Flag toggle where there was otherwise a bare, awkward-looking gap before Hint.
+// Marathon boards skip it (no ladder chrome there at all — same reasoning as ladderHeadline/rankBar
+// in togglePuzzleChrome); every other mode (rated/streak/storm/daily) always has a live puzzleId +
+// difficulty once a board is up. style.display="" (not "flex"/"block") deliberately just clears any
+// previous inline override so the stylesheet's own display:none-by-default/portrait-visible rules
+// decide, same as every other conditionally-shown element in this file.
+function renderPuzzleInfoLine() {
+	var el = document.getElementById("puzzle_info_line");
+	if (!el) return;
+	if (!puzzleSession || puzzleSession.marathon || puzzleSession.puzzleId == null || puzzleSession.difficulty == null) {
+		el.style.display = "none";
+		return;
+	}
+	el.style.display = "";
+	el.innerHTML = "";
+	var num = document.createElement("span");
+	num.textContent = "Puzzle #" + puzzleSession.puzzleId;
+	el.appendChild(num);
+	var sep = document.createElement("span");
+	sep.className = "puzzle-info-sep";
+	sep.textContent = "·";
+	el.appendChild(sep);
+	var diff = document.createElement("span");
+	diff.className = "puzzle-info-diff";
+	var label = puzzleDifficultyLabel(puzzleSession.difficulty);
+	diff.style.color = label === "Easy" ? "var(--success)" : label === "Medium" ? "var(--energy-streak)" : "var(--danger)";
+	diff.textContent = label;
+	el.appendChild(diff);
+}
+
+// Folds the generator's 6-band difficulty tier (PuzzleGenerator.js — a band on the hardest single
+// deduction the puzzle needs) into 3 player-facing words, matching the "tier only, no raw number"
+// treatment every other rank/rating in this app already uses.
+function puzzleDifficultyLabel(tier) {
+	if (tier <= 2) return "Easy";
+	if (tier <= 4) return "Medium";
+	return "Hard";
 }
 
 function renderPuzzleRunHud() {

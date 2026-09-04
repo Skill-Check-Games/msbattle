@@ -901,6 +901,7 @@ function applyPuzzleBoard(data) {
 	cols = data.cols;
 	puzzleSession = {
 		puzzleId: data.puzzleId,
+		difficulty: data.difficulty,
 		totalSafe: data.totalSafe,
 		totalMines: data.mines,
 		playerRating: data.playerRating,

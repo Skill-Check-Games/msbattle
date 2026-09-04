@@ -632,6 +632,11 @@
 									<span class="duel-mode-btn-icon" aria-hidden="true">›</span>
 								</button>
 							</div>
+							<!-- Puzzle-only, portrait mobile: "Puzzle #N · difficulty" — see .puzzle-info-line
+							     in style.css. Lives here (inside .board-wrap, not #puzzle_card/.game-side)
+							     since it reads as a caption on the board+toggle it sits directly under, not
+							     part of the rank/progress card above. -->
+							<div id="puzzle_info_line" class="puzzle-info-line" aria-hidden="true"></div>
 						</div>
 						<div class="duel-bar-row">
 							<div id="duel_bar_you" class="duel-bar"><span class="duel-bar-fill"></span><b class="duel-bar-pct"></b></div>
