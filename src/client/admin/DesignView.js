@@ -123,6 +123,8 @@ function renderDesign() {
 
 	view.appendChild(buildRankAnimSection());
 	view.appendChild(buildRankResultPreviewSection());
+	view.appendChild(buildCascadeLabSection());
+	view.appendChild(buildVictoryLabSection());
 }
 
 // ---- Rank change animation lab: 5 candidate treatments for the moment a player crosses a tier
@@ -474,5 +476,334 @@ function buildRankResultPreviewSection() {
 	});
 
 	section.appendChild(card);
+	return section;
+}
+
+// ---- Cascade reveal effect lab: 5 candidate treatments for how YOUR board's own cells look as a
+// cascade uncovers them — today a reveal is an instant state swap with no per-cell flourish. All
+// five share ONE outward-wave stagger (cascadeLabRevealAll below, by distance from the click
+// origin) so they're compared on the same reveal order/timing — only the per-cell visual (what
+// happens to the "lid" as it comes off) differs between candidates.
+var CASCADE_LAB_ROWS = 5, CASCADE_LAB_COLS = 7;
+// Corners, well clear of CASCADE_LAB_ORIGIN below — not meant to be "solved", just enough mines
+// scattered around the edges to produce a realistic mix of clue numbers via the real BoardLogic
+// neighbour-count math (cascadeLabClueAt), same technique buildSkinPreview (Profile.js) uses.
+var CASCADE_LAB_MINES = [[0, 0], [0, 6], [4, 0], [4, 6]];
+var CASCADE_LAB_ORIGIN = { r: 2, c: 3 };
+var CASCADE_LAB_STEP_MS = 55; // per ring of Chebyshev distance from the origin
+var CASCADE_FX_CLASSES = ["fx-ripple", "fx-spark", "fx-shatter", "fx-crt", "fx-dust"];
+
+function cascadeLabIsMine(r, c) { return CASCADE_LAB_MINES.some(function(m) { return m[0] === r && m[1] === c; }); }
+function cascadeLabClueAt(r, c) {
+	var count = 0;
+	BoardLogic.forEachNeighbour(r, c, CASCADE_LAB_ROWS, CASCADE_LAB_COLS, function(nr, nc) {
+		if (cascadeLabIsMine(nr, nc)) count++;
+	});
+	return count;
+}
+
+// Builds the covered mini-grid once; returns a reveal(effectClass) function that re-covers
+// everything (so repeated Previews always restart clean, including switching candidates
+// mid-comparison) and then plays the outward wave with that candidate's own per-cell class.
+function buildCascadeLabStage() {
+	var stage = document.createElement("div");
+	stage.className = "cascadelab-stage";
+	var cells = [];
+	for (var r = 0; r < CASCADE_LAB_ROWS; r++) {
+		for (var c = 0; c < CASCADE_LAB_COLS; c++) {
+			var cell = document.createElement("div");
+			cell.className = "cascadelab-cell";
+			var clue = cascadeLabClueAt(r, c);
+			if (clue > 0) {
+				var num = document.createElement("span");
+				num.className = "cascadelab-num";
+				num.textContent = String(clue);
+				num.style.color = (typeof Cosmetics !== "undefined" && Cosmetics.BOARD_SKINS.classic.numbers[clue]) || "#e2e8f0";
+				cell.appendChild(num);
+			}
+			var fx = document.createElement("div");
+			fx.className = "cascadelab-fx"; // candidate-specific dynamic children (e.g. shatter shards) mount here
+			cell.appendChild(fx);
+			var lid = document.createElement("div");
+			lid.className = "cascadelab-lid";
+			cell.appendChild(lid);
+			cell.__dist = Math.max(Math.abs(r - CASCADE_LAB_ORIGIN.r), Math.abs(c - CASCADE_LAB_ORIGIN.c));
+			cell.__fx = fx;
+			stage.appendChild(cell);
+			cells.push(cell);
+		}
+	}
+	function reveal(effectClass) {
+		cells.forEach(function(cell) {
+			cell.classList.remove.apply(cell.classList, ["revealed"].concat(CASCADE_FX_CLASSES));
+			cell.__fx.innerHTML = "";
+		});
+		void stage.offsetWidth; // force reflow so a repeat of the SAME candidate restarts its animation
+		cells.forEach(function(cell) {
+			setTimeout(function() {
+				if (effectClass === "fx-shatter") {
+					var lidColor = "#2563eb";
+					for (var i = 0; i < 4; i++) {
+						var shard = document.createElement("div");
+						shard.className = "cascadelab-shard";
+						shard.style.setProperty("--shard-color", lidColor);
+						var angle = (i / 4) * Math.PI * 2 + (Math.random() - 0.5) * 0.6;
+						var dist = 14 + Math.random() * 8;
+						shard.style.setProperty("--sx", (Math.cos(angle) * dist).toFixed(1) + "px");
+						shard.style.setProperty("--sy", (Math.sin(angle) * dist).toFixed(1) + "px");
+						shard.style.setProperty("--srot", Math.round((Math.random() - 0.5) * 300) + "deg");
+						cell.__fx.appendChild(shard);
+					}
+				} else if (effectClass === "fx-spark") {
+					var spark = document.createElement("div");
+					spark.className = "cascadelab-spark";
+					cell.__fx.appendChild(spark);
+				} else if (effectClass === "fx-dust") {
+					var puff = document.createElement("div");
+					puff.className = "cascadelab-puff";
+					cell.__fx.appendChild(puff);
+				} else if (effectClass === "fx-crt") {
+					var scan = document.createElement("div");
+					scan.className = "cascadelab-scan";
+					cell.__fx.appendChild(scan);
+				}
+				cell.classList.add("revealed", effectClass);
+			}, cell.__dist * CASCADE_LAB_STEP_MS + Math.random() * 25);
+		});
+	}
+	return { stage: stage, reveal: reveal };
+}
+
+var CASCADE_LAB_CANDIDATES = [
+	{ id: "ripple", name: "Ripple", desc: "The lid scales up and fades as it lifts, brightening for an instant right as it goes — reads as a wave passing outward through the cascade, like a stone dropped in water.", cls: "fx-ripple" },
+	{ id: "spark", name: "Spark Trail", desc: "A quick bright spark flashes at the leading edge of each cell as it opens, on top of the same outward wave — a lit fuse racing along the flood-fill path.", cls: "fx-spark" },
+	{ id: "shatter", name: "Shatter Reveal", desc: "The covered tile cracks into shards that fly outward and fade instead of just lifting off. Echoes the rank-up Shatter & Reform animation above — same visual language, not a separate style.", cls: "fx-shatter" },
+	{ id: "crt", name: "CRT Flicker", desc: "A brief brightness flicker plus a scanline sweep, like an old display waking up. Obvious pairing for the Tactical/Neon skins — could ship as a bundle.", cls: "fx-crt" },
+	{ id: "dust", name: "Dust Puff", desc: "A soft puff blooms and fades as the lid lifts, like brushing away sand. Cheapest, most subtle option — fits any skin without competing with it.", cls: "fx-dust" }
+];
+
+function buildCascadeLabCard(candidate) {
+	var card = document.createElement("div");
+	card.className = "section-card ranklab-card";
+
+	var name = document.createElement("div");
+	name.className = "ranklab-card-name";
+	name.textContent = candidate.name;
+	card.appendChild(name);
+
+	var desc = document.createElement("p");
+	desc.className = "ranklab-card-desc";
+	desc.textContent = candidate.desc;
+	card.appendChild(desc);
+
+	var built = buildCascadeLabStage();
+	card.appendChild(built.stage);
+
+	var actions = document.createElement("div");
+	actions.className = "ranklab-actions";
+	var btn = document.createElement("button");
+	btn.type = "button";
+	btn.className = "btn btn-secondary";
+	btn.textContent = "▶ Preview";
+	btn.addEventListener("click", function() { built.reveal(candidate.cls); });
+	actions.appendChild(btn);
+	card.appendChild(actions);
+
+	return card;
+}
+
+function buildCascadeLabSection() {
+	var section = document.createElement("div");
+
+	var head = document.createElement("h2");
+	head.className = "design-section-title";
+	head.textContent = "Cascade reveal effect (candidates)";
+	section.appendChild(head);
+
+	var sub = document.createElement("p");
+	sub.className = "section-page-sub";
+	sub.textContent = "How your own board's cells look as a cascade opens them — today it's an instant swap with no flourish. Five candidates below, sharing the same outward-wave timing (by distance from the click point) so the reveal ORDER is identical across all of them; only what happens to each tile's lid differs.";
+	section.appendChild(sub);
+
+	var grid = document.createElement("div");
+	grid.className = "ranklab-grid";
+	CASCADE_LAB_CANDIDATES.forEach(function(candidate) {
+		grid.appendChild(buildCascadeLabCard(candidate));
+	});
+	section.appendChild(grid);
+
+	return section;
+}
+
+// ---- Victory effect lab: 5 candidate treatments for a purchasable "finisher" that plays around
+// the post-game result modal on a win. Every candidate shares the same banner (victoryLabBanner)
+// so they're compared on identical text/layout — only the effect layer around/behind it differs.
+function victoryLabBanner() {
+	var banner = document.createElement("div");
+	banner.className = "victorylab-banner";
+	var h = document.createElement("div");
+	h.className = "victorylab-heading";
+	h.textContent = "Victory";
+	banner.appendChild(h);
+	var sub = document.createElement("div");
+	sub.className = "victorylab-sub";
+	sub.textContent = "1v1 Sprint";
+	banner.appendChild(sub);
+	return banner;
+}
+
+var VICTORY_CONFETTI_COLORS = ["#60a5fa", "#4ade80", "#f87171", "#c084fc", "#fbbf24", "#22d3ee"];
+function playVictoryConfetti(stage) {
+	stage.innerHTML = "";
+	var fx = document.createElement("div");
+	fx.className = "victorylab-fx";
+	var count = 26;
+	for (var i = 0; i < count; i++) {
+		var piece = document.createElement("div");
+		piece.className = "victorylab-confetti";
+		piece.style.setProperty("--fall-x", Math.round(Math.random() * 100) + "%");
+		piece.style.setProperty("--fall-color", VICTORY_CONFETTI_COLORS[i % VICTORY_CONFETTI_COLORS.length]);
+		piece.style.setProperty("--fall-rot", Math.round(Math.random() * 720 - 360) + "deg");
+		piece.style.setProperty("--fall-delay", (Math.random() * 0.5).toFixed(2) + "s");
+		piece.style.setProperty("--fall-dur", (1.1 + Math.random() * 0.7).toFixed(2) + "s");
+		fx.appendChild(piece);
+	}
+	stage.appendChild(fx);
+	stage.appendChild(victoryLabBanner());
+}
+
+function playVictoryMineDefused(stage) {
+	stage.innerHTML = "";
+	var wrap = document.createElement("div");
+	wrap.className = "victorylab-mine-wrap";
+	if (typeof buildAvatarCanvas === "function") {
+		var mine = buildAvatarCanvas("mine", 56);
+		mine.classList.add("victorylab-mine");
+		wrap.appendChild(mine);
+	}
+	var sparkCount = 6;
+	for (var i = 0; i < sparkCount; i++) {
+		var spark = document.createElement("div");
+		spark.className = "victorylab-mine-spark";
+		var angle = (i / sparkCount) * Math.PI * 2;
+		spark.style.setProperty("--sx", Math.round(Math.cos(angle) * 34) + "px");
+		spark.style.setProperty("--sy", Math.round(Math.sin(angle) * 34) + "px");
+		spark.style.animationDelay = (0.25 + Math.random() * 0.1).toFixed(2) + "s";
+		wrap.appendChild(spark);
+	}
+	stage.appendChild(wrap);
+	stage.appendChild(victoryLabBanner());
+}
+
+function playVictoryFlagSalute(stage) {
+	stage.innerHTML = "";
+	var fx = document.createElement("div");
+	fx.className = "victorylab-flags";
+	var count = 5;
+	for (var i = 0; i < count; i++) {
+		var flag = document.createElement("div");
+		flag.className = "victorylab-flag";
+		flag.style.animationDelay = (i * 0.09).toFixed(2) + "s";
+		var pole = document.createElement("span"); pole.className = "victorylab-flag-pole";
+		var cloth = document.createElement("span"); cloth.className = "victorylab-flag-cloth";
+		flag.appendChild(pole); flag.appendChild(cloth);
+		fx.appendChild(flag);
+	}
+	stage.appendChild(fx);
+	stage.appendChild(victoryLabBanner());
+}
+
+var VICTORY_GOLD_SHAPES = ["circle", "diamond"];
+function playVictoryGoldRush(stage) {
+	stage.innerHTML = "";
+	var fx = document.createElement("div");
+	fx.className = "victorylab-fx";
+	var count = 22;
+	for (var i = 0; i < count; i++) {
+		var piece = document.createElement("div");
+		piece.className = "victorylab-gold " + VICTORY_GOLD_SHAPES[i % 2];
+		piece.style.setProperty("--fall-x", Math.round(Math.random() * 100) + "%");
+		piece.style.setProperty("--fall-rot", Math.round(Math.random() * 500) + "deg");
+		piece.style.setProperty("--fall-delay", (Math.random() * 0.5).toFixed(2) + "s");
+		piece.style.setProperty("--fall-dur", (1.2 + Math.random() * 0.8).toFixed(2) + "s");
+		fx.appendChild(piece);
+	}
+	stage.appendChild(fx);
+	stage.appendChild(victoryLabBanner());
+}
+
+function playVictoryPerfectClear(stage) {
+	stage.innerHTML = "";
+	var strip = document.createElement("div");
+	strip.className = "victorylab-strip";
+	for (var i = 0; i < 9; i++) {
+		var tile = document.createElement("div");
+		tile.className = "victorylab-strip-tile";
+		tile.style.animationDelay = (i * 0.05).toFixed(2) + "s";
+		strip.appendChild(tile);
+	}
+	stage.appendChild(strip);
+	stage.appendChild(victoryLabBanner());
+}
+
+var VICTORY_LAB_CANDIDATES = [
+	{ id: "confetti", name: "Board Confetti", desc: "Confetti made of tiles in the real number-clue colours, raining over the modal — literal, on-theme, and immediately reads as \"yours\" rather than a generic firework.", play: playVictoryConfetti },
+	{ id: "mine", name: "Mine Defused", desc: "The mine icon spins down and sparks out. A twist since the whole game is about NOT hitting mines — this makes the danger you avoided the star of the win, not a generic celebration.", play: playVictoryMineDefused },
+	{ id: "flags", name: "Flag Salute", desc: "A row of flags unfurl left to right in sequence, like a little victory parade. Reuses the game's own flag shape rather than a generic banner.", play: playVictoryFlagSalute },
+	{ id: "gold", name: "Gold Rush", desc: "Gold shard/coin rain in the Gold skin's exact palette — a natural bundle: buy Gold, get this as its matching win effect.", play: playVictoryGoldRush },
+	{ id: "perfect", name: "Perfect Clear Shimmer", desc: "A light sweep ripples across a row of revealed tiles. Could be reserved for a genuinely flawless win (no wasted flags) rather than sold outright — a skill flex, not just inventory.", play: playVictoryPerfectClear }
+];
+
+function buildVictoryLabCard(candidate) {
+	var card = document.createElement("div");
+	card.className = "section-card ranklab-card";
+
+	var name = document.createElement("div");
+	name.className = "ranklab-card-name";
+	name.textContent = candidate.name;
+	card.appendChild(name);
+
+	var desc = document.createElement("p");
+	desc.className = "ranklab-card-desc";
+	desc.textContent = candidate.desc;
+	card.appendChild(desc);
+
+	var stage = document.createElement("div");
+	stage.className = "victorylab-stage";
+	card.appendChild(stage);
+
+	var actions = document.createElement("div");
+	actions.className = "ranklab-actions";
+	var btn = document.createElement("button");
+	btn.type = "button";
+	btn.className = "btn btn-secondary";
+	btn.textContent = "▶ Preview";
+	btn.addEventListener("click", function() { candidate.play(stage); });
+	actions.appendChild(btn);
+	card.appendChild(actions);
+
+	return card;
+}
+
+function buildVictoryLabSection() {
+	var section = document.createElement("div");
+
+	var head = document.createElement("h2");
+	head.className = "design-section-title";
+	head.textContent = "Victory effect (candidates)";
+	section.appendChild(head);
+
+	var sub = document.createElement("p");
+	sub.className = "section-page-sub";
+	sub.textContent = "A purchasable \"finisher\" that plays around the post-game result modal on a win — today that moment is sound-only. Five candidates below, each sharing the same banner so only the effect layer is being compared.";
+	section.appendChild(sub);
+
+	var grid = document.createElement("div");
+	grid.className = "ranklab-grid";
+	VICTORY_LAB_CANDIDATES.forEach(function(candidate) {
+		grid.appendChild(buildVictoryLabCard(candidate));
+	});
+	section.appendChild(grid);
+
 	return section;
 }
