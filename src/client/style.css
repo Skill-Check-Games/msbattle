@@ -1646,7 +1646,12 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 @media (max-width: 900px) {
 	.game-view.puzzle .game-grid {
 		flex-direction: column;
-		align-items: center;
+		/* stretch (not center) so every stacked child spans the full column width by default —
+		   "the rank and progression bar should use 100% width" — instead of each one shrink-
+		   wrapping to its own content and sitting centered with dead space on both sides.
+		   .game-left below still explicitly opts back into stretch too, now redundantly, but left
+		   in place since it documents the same intent for the one child that actually needs it. */
+		align-items: stretch;
 	}
 	.game-view.puzzle .game-side { flex: 0 0 auto; width: 100%; }
 	/* align-self:stretch overrides the grid's own align-items:center for just this child — without
@@ -1695,6 +1700,15 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 	.game-view.puzzle #puzzle_run_panel.puzzle-mode-panel {
 		flex: 0 0 auto;
 	}
+	/* .game-left (the board area) grows to absorb whatever vertical slack is left over, instead of
+	   .game-grid's own justify-content:center spreading that slack evenly around the WHOLE stack —
+	   "use all the space vertically... the title should be at the top... hint button can be at the
+	   bottom": with .game-left as the only growing item, the header row lands flush at the top and
+	   Hint/fail-actions land flush at the bottom by construction (nothing left over for centering to
+	   distribute), while the board itself keeps its own natural size and stays centered WITHIN the
+	   now-taller .game-left (.game-left's own align-items/justify-content:center, base rule) rather
+	   than being stretched itself. */
+	.game-view.puzzle .game-left { flex: 1 1 auto; }
 }
 @media (max-width: 600px) {
 	/* Plain CSS now (was a fixed 320px, then a min(400px,...) fallback JS immediately overrode with a
