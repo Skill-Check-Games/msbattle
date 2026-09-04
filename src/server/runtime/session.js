@@ -185,6 +185,13 @@ function registerSocketHandlers(socket, playerID) {
 			}
 		}
 		loginSocket(socket, playerID, user, token, false);
+		// Deliver anything this user missed while disconnected (game_result/series_ended broadcasts
+		// that fired while their socket was down) — unconditional, not just when the reconnect-seat
+		// migration above actually fired, since a missed broadcast can happen even to a socket the
+		// room-membership logic never considered "mid-round" (gameUtil.js's own comment has the
+		// endSeries async-gap case this specifically covers). A no-op for the common case (nothing
+		// queued, e.g. a login with no missed match at all).
+		gameUtil.drainPendingRoomEvents(socket, user.id);
 	});
 
 	// No stored session → spin up a guest: a real user row (with ratings) flagged guest, plus a session

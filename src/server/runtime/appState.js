@@ -74,6 +74,19 @@ module.exports = {
 	// their room/game state before the normal disconnect eviction (+ ranked early-leave penalty) runs.
 	pendingDisconnects: {},
 
+	// --- [game] one-shot room-broadcast redelivery --- (stashRoomEventForOfflineDelivery /
+	// drainPendingRoomEvents, minesweeperServer.js + session.js) — userId -> [{event, payload,
+	// expiresAt}, …]. game_result/series_ended are each broadcast exactly ONCE, live, to whoever is
+	// actually connected to the room at that instant (io.to("room:"+id).emit) — a player whose
+	// connection blips at exactly the wrong moment (including the async gap in endSeries between
+	// room.phase flipping off "playing" and the broadcast actually firing, once Elo/replay
+	// persistence resolves) permanently misses it: nothing previously re-sent a one-shot event to a
+	// socket that reconnects even a moment late. Every real (non-bot) room member gets a copy stashed
+	// here alongside the live broadcast, drained (delivered + cleared) on their next authenticate —
+	// harmless/unused if they received the live broadcast fine, a real recovery if they didn't. This
+	// is the root cause behind "I finished the board but never got the server-approved result."
+	pendingRoomEvents: {},
+
 	// --- [main-sp] single-player puzzle play + [main-sp] admin bot demos --- (DB-coupled / admin; stay on main)
 	puzzlePlay: {},      // playerID -> active puzzle play
 	puzzleRun: {},       // playerID -> { mode, targetRating, solves, … }

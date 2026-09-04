@@ -7,6 +7,7 @@ var crypto = require("node:crypto");
 var appState = require("./appState");
 
 var bots = appState.bots, games = appState.games, sockets = appState.sockets, names = appState.names;
+var accounts = appState.accounts, pendingRoomEvents = appState.pendingRoomEvents;
 
 // Pack the full board into a XOR-masked byte blob the client decodes lazily from inside a
 // closure. Not real anti-cheat, but the over-the-wire bytes aren't a readable JSON board.
@@ -93,6 +94,49 @@ function updateDraw(room) {
 	}
 }
 
+// ---- one-shot room-broadcast redelivery -----------------------------------------------------
+// game_result/series_ended (minesweeperServer.js) each fire exactly ONCE, live, to whoever is
+// actually connected to the room at that instant (io.to("room:"+id).emit) — a player whose
+// connection blips at exactly the wrong moment (including the async gap in endSeries between
+// room.phase leaving "playing" and the broadcast actually firing, once Elo/replay persistence
+// resolves) permanently misses it: nothing previously re-sent a one-shot event to a socket that
+// reconnects even a moment late. This is the root cause behind "I finished the board but never
+// got the server-approved result" — the win/round/series genuinely happened server-side, the
+// player just never heard about it.
+var PENDING_ROOM_EVENT_TTL_MS = 3 * 60 * 1000; // generous — any realistic reconnect lands well inside this
+var PENDING_ROOM_EVENTS_MAX_PER_USER = 5; // a real user will never queue anywhere near this many
+
+// Stashes a copy of a one-shot room broadcast per real (non-bot, logged-in) room member, keyed by
+// their stable userId (not the ephemeral playerID a reconnect replaces) — call this ALONGSIDE the
+// live io.to(...).emit, never instead of it; this is purely the offline-catch-up backstop.
+function stashRoomEventForOfflineDelivery(room, event, payload) {
+	var now = Date.now();
+	for (var i = 0; i < room.players.length; i++) {
+		var acc = accounts[room.players[i]];
+		if (!acc || acc.userId == null) continue; // bots, and a socket that hasn't authenticated yet
+		var q = pendingRoomEvents[acc.userId] = pendingRoomEvents[acc.userId] || [];
+		q.push({ event: event, payload: payload, expiresAt: now + PENDING_ROOM_EVENT_TTL_MS });
+		while (q.length > PENDING_ROOM_EVENTS_MAX_PER_USER) q.shift();
+	}
+}
+
+// Delivers (and clears) whatever's queued for this user. Called on EVERY authenticate — not just
+// when the pendingDisconnects/findLiveSeatForUser reconnect-migration paths fire (session.js) —
+// since a missed broadcast can happen even to a socket the room-membership logic never considered
+// "mid-round" in the first place (the endSeries async-gap case above). Order preserved (a missed
+// game_result before a missed series_ended arrives in that same order), each checked against its
+// own expiry so a very stale entry (a reconnect that took minutes) is silently dropped rather than
+// surfacing a long-dead result out of nowhere.
+function drainPendingRoomEvents(socket, userId) {
+	var q = pendingRoomEvents[userId];
+	if (!q || !q.length) return;
+	delete pendingRoomEvents[userId];
+	var now = Date.now();
+	q.forEach(function(item) {
+		if (item.expiresAt >= now) socket.emit(item.event, item.payload);
+	});
+}
+
 module.exports = {
 	obfuscateBoard: obfuscateBoard,
 	gameForBroadcast: gameForBroadcast,
@@ -102,5 +146,9 @@ module.exports = {
 	getRoomBotNames: getRoomBotNames,
 	accountRating: accountRating,
 	maxAccountRating: maxAccountRating,
-	updateDraw: updateDraw
+	updateDraw: updateDraw,
+	stashRoomEventForOfflineDelivery: stashRoomEventForOfflineDelivery,
+	drainPendingRoomEvents: drainPendingRoomEvents,
+	PENDING_ROOM_EVENT_TTL_MS: PENDING_ROOM_EVENT_TTL_MS,
+	PENDING_ROOM_EVENTS_MAX_PER_USER: PENDING_ROOM_EVENTS_MAX_PER_USER
 };

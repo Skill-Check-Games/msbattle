@@ -291,7 +291,7 @@ function endIndividualGame(room, reason) {
 
 	// Ranked Elo is computed once at series end — see endSeries — so the rating
 	// shown to the player only moves when the whole match finishes.
-	io.to("room:" + room.id).emit("game_result", {
+	var gameResultPayload = {
 		winnerId: winnerID,
 		winnerName: winnerID ? names[winnerID] : null,
 		gameNumber: room.gamesPlayed,
@@ -299,7 +299,11 @@ function endIndividualGame(room, reason) {
 		scoreTarget: room.scoreTarget || null,
 		reason: reason || "cleared",
 		standings: roundStandings
-	});
+	};
+	io.to("room:" + room.id).emit("game_result", gameResultPayload);
+	// One-shot broadcast — stash a per-user backup too, in case whoever's socket is disconnected/
+	// reconnecting right now misses the live emit above (gameUtil.js's own comment has the full story).
+	gameUtil.stashRoomEventForOfflineDelivery(room, "game_result", gameResultPayload);
 	roomState.broadcastRoomState(room);
 
 	var seriesOver;
@@ -388,7 +392,7 @@ async function endSeries(room) {
 		});
 	}
 	if (!rooms[room.id]) return; // the room was torn down while we were awaiting main's report
-	io.to("room:" + room.id).emit("series_ended", {
+	var seriesEndedPayload = {
 		winnerId: room.seriesWinner,
 		winnerName: room.seriesWinner ? names[room.seriesWinner] : null,
 		ranked: !!room.ranked,
@@ -397,7 +401,13 @@ async function endSeries(room) {
 		scores: seriesStandings.map(function(s) {
 			return { id: s.id, name: s.name, score: s.score };
 		})
-	});
+	};
+	io.to("room:" + room.id).emit("series_ended", seriesEndedPayload);
+	// One-shot broadcast — stash a per-user backup too. Real gap this covers: room.phase already
+	// left "playing" (set above, before the await) by the time this actually fires, so a socket
+	// that reconnects during that async gap wouldn't even qualify for the mid-round seat-migration
+	// path (session.js) — this is the ONLY thing that gets them their result. See gameUtil.js.
+	gameUtil.stashRoomEventForOfflineDelivery(room, "series_ended", seriesEndedPayload);
 	roomState.broadcastRoomState(room);
 	roomState.broadcastRoomList();
 
