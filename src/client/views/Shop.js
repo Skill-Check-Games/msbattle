@@ -26,12 +26,17 @@ var fakeShopMode = false;
 // line before there was more than one section to caption individually.
 var SHOP_CATEGORIES = [
 	{ kind: "avatar", label: "Avatars", tagline: "Doesn't change your hitbox — there is no hitbox." },
-	{ kind: "skin", label: "Board Skins", tagline: "Reskins the tiles. The mines don't move, promise." }
+	{ kind: "skin", label: "Board Skins", tagline: "Reskins the tiles. The mines don't move, promise." },
+	{ kind: "revealEffect", label: "Reveal Effects", tagline: "How your own cascade looks as it opens. Only you ever see it." }
 ];
 // Which tab is showing — persists across re-renders (buy/owned-state changes, the post-purchase
 // redirect back) the same way fakeShopMode does, so switching tabs doesn't get silently undone by
 // something else in the page re-rendering itself.
 var shopActiveKind = null;
+
+// One glyph per reveal effect, standing in for a static preview image (see buildShopTile) — an
+// animation has no single frame worth screenshotting the way a skin's board preview does.
+var REVEAL_EFFECT_GLYPHS = { spark: "⚡", shatter: "💥", crt: "📺", dust: "💨" };
 
 function shopStatusBanner(text, kind) {
 	var el = document.getElementById("shop_status");
@@ -53,6 +58,7 @@ function markOwnedLocally(itemId) {
 	// purchase dialog so the newly-owned item shows unlocked right away. No-ops if that modal isn't open.
 	if (typeof renderAvatarModalAvatars === "function") renderAvatarModalAvatars();
 	if (typeof renderAvatarModalSkins === "function") renderAvatarModalSkins();
+	if (typeof renderAvatarModalRevealEffect === "function") renderAvatarModalRevealEffect();
 	if (typeof closeItemPurchaseModal === "function") closeItemPurchaseModal();
 }
 
@@ -112,6 +118,14 @@ function buildShopTile(item) {
 	var preview = document.createElement("div"); preview.className = "shop-tile-preview";
 	if (item.kind === "avatar" && typeof buildAvatarCanvas === "function") preview.appendChild(buildAvatarCanvas(item.id, 64));
 	else if (item.kind === "skin" && typeof buildSkinPreview === "function") preview.appendChild(buildSkinPreview(item.id));
+	else if (item.kind === "revealEffect") {
+		// No static preview image makes sense for an animation — a simple per-effect emoji glyph
+		// instead of a canvas swatch. Try the real thing live in the Appearance modal/a game.
+		var glyph = document.createElement("span");
+		glyph.className = "shop-tile-fx-glyph";
+		glyph.textContent = REVEAL_EFFECT_GLYPHS[item.id] || "✨";
+		preview.appendChild(glyph);
+	}
 	tile.appendChild(preview);
 
 	var body = document.createElement("div"); body.className = "shop-tile-body";

@@ -39,3 +39,14 @@ test("the tactical skin item is priced higher than an avatar preset", () => {
 	assert.strictEqual(skin.priceCents, 499);
 	assert.ok(skin.priceCents > avatar.priceCents);
 });
+
+test("every REVEAL_EFFECT_LIST entry past the free default (ripple) has a catalog entry, and vice versa", () => {
+	const effectIds = Cosmetics.REVEAL_EFFECT_LIST.filter((id) => id !== Cosmetics.DEFAULT_REVEAL_EFFECT);
+	const catalogEffectIds = ShopCatalog.ITEMS.filter((i) => i.kind === "revealEffect").map((i) => i.id);
+	assert.deepStrictEqual(catalogEffectIds.sort(), effectIds.sort());
+});
+
+test("ripple (the free/default reveal effect) is not purchasable, shatter is", () => {
+	assert.strictEqual(ShopCatalog.isPurchasable("revealEffect", "ripple"), false);
+	assert.strictEqual(ShopCatalog.isPurchasable("revealEffect", "shatter"), true);
+});

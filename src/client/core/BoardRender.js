@@ -38,17 +38,23 @@ var localBoardSkin = "classic";
 // other draw helper here already uses. localRevealEffect only ever affects the LOCAL player's own
 // board (an opponent's reveal isn't "yours" to customize) — see queueRevealAnimations/BoardView's
 // animAt, which only ever runs against the local canvas.
-var REVEAL_EFFECT_LIST = ["ripple", "spark", "shatter", "crt", "dust"];
-var localRevealEffect = "ripple";
+var REVEAL_EFFECT_LIST = Cosmetics.REVEAL_EFFECT_LIST;
+var localRevealEffect = Cosmetics.DEFAULT_REVEAL_EFFECT;
 function applyRevealEffect(id) {
-	if (REVEAL_EFFECT_LIST.indexOf(id) === -1) id = "ripple";
+	if (REVEAL_EFFECT_LIST.indexOf(id) === -1) id = Cosmetics.DEFAULT_REVEAL_EFFECT;
 	localRevealEffect = id;
 }
+// User picked an effect in the avatar-editor modal: persist, apply, and tell the server so it can
+// verify ownership (set_reveal_effect/reveal_effect_rejected, session.js/Main.js) — same
+// optimistic-apply-then-maybe-revert flow setBoardSkin uses, even though (unlike a skin) nobody but
+// the local player ever sees this rendered; it's still a real purchasable, so it still needs a
+// server-side check a client can't just bypass by editing localStorage.
 function setRevealEffect(id) {
 	applyRevealEffect(id);
 	try { localStorage.setItem("ms_reveal_effect", localRevealEffect); } catch (e) {}
+	if (typeof socket !== "undefined" && socket) socket.emit("set_reveal_effect", { effect: localRevealEffect });
 }
-applyRevealEffect((function () { try { return localStorage.getItem("ms_reveal_effect"); } catch (e) { return null; } })() || "ripple");
+applyRevealEffect((function () { try { return localStorage.getItem("ms_reveal_effect"); } catch (e) { return null; } })() || Cosmetics.DEFAULT_REVEAL_EFFECT);
 
 // Load a skin's colours into the module palette vars the draw helpers read.
 function setPaletteVars(id) {

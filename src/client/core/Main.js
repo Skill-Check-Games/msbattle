@@ -1653,6 +1653,11 @@ socket.on("skin_rejected", function() {
 	try { localStorage.setItem("ms_board_skin", "classic"); } catch (e) {}
 	if (typeof renderAvatarModalSkins === "function") renderAvatarModalSkins();
 });
+socket.on("reveal_effect_rejected", function() {
+	if (typeof applyRevealEffect === "function") applyRevealEffect("ripple");
+	try { localStorage.setItem("ms_reveal_effect", "ripple"); } catch (e) {}
+	if (typeof renderAvatarModalRevealEffect === "function") renderAvatarModalRevealEffect();
+});
 socket.on("avatar_rejected", function() {
 	if (account) account.avatarColor = null;
 	if (typeof refreshAvatarDisplays === "function") refreshAvatarDisplays();

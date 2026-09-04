@@ -95,6 +95,24 @@
 		// through priciest/flashiest), since this order also drives the skin picker's display order
 		// (ShopCatalog.js's own item order is separate, hand-authored to match).
 		BOARD_SKIN_LIST: ["classic", "monochrome", "tactical", "frost", "gold", "neon"],
+
+		// Cascade reveal effects — how a covered cell looks as YOUR OWN board's cascade uncovers it
+		// (BoardRender.js's drawRevealLid). Purely local rendering, never sent to or seen by anyone
+		// else (unlike a board skin, which opponents see too) — but still ownership-gated server-side
+		// (session.js's set_reveal_effect) the same way every other cosmetic here is, rather than
+		// trusting the client: a purchasable preference with no server enforcement at all would mean
+		// "pay, or just edit localStorage" for anyone who opens devtools, which would undermine
+		// selling it in the first place. "ripple" is the free/default treatment (closest to the
+		// board's original plain fade-off); every other id here is a ShopCatalog.js purchasable.
+		REVEAL_EFFECT_LIST: ["ripple", "spark", "shatter", "crt", "dust"],
+		DEFAULT_REVEAL_EFFECT: "ripple",
+		REVEAL_EFFECTS: {
+			ripple: { label: "Ripple", blurb: "A soft wave outward as the cascade opens — the default." },
+			spark: { label: "Spark Trail", blurb: "A quick flash at each cell as the cascade races outward." },
+			shatter: { label: "Shatter", blurb: "Covered tiles crack into shards and fly apart." },
+			crt: { label: "CRT Flicker", blurb: "A brief flicker and scanline sweep, like an old display waking up." },
+			dust: { label: "Dust Puff", blurb: "A soft puff blooms as each tile clears, like brushing away sand." }
+		},
 		// Avatar cloth colour — the in-game flag. The first entry (matching DEFAULT_AVATAR_COLOR) is
 		// free/default; any other colour here would be a purchasable shop item (ShopCatalog.js derives
 		// one from every entry past this first one automatically). Deliberately just the one entry for

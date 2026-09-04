@@ -235,6 +235,23 @@ function registerSocketHandlers(socket, playerID) {
 		}
 	});
 
+	// Cascade reveal effect: a PURELY LOCAL rendering preference (see Cosmetics.js's own comment) —
+	// unlike set_skin above, there's no opponent-visible state to persist or rebroadcast, since
+	// nobody but the local player ever sees their own reveal effect. Still a real ShopCatalog
+	// purchasable though, so still needs the same server-side ownership check a client can't bypass
+	// by just editing localStorage — this is purely a verify-and-reject-if-not-owned round trip.
+	socket.on("set_reveal_effect", function(data) {
+		var effect = (data && typeof data.effect === "string") ? data.effect.trim().slice(0, 32) : "";
+		if (!/^[a-z0-9_-]*$/i.test(effect)) return;
+		effect = effect || "ripple";
+		if (ShopCatalog.isPurchasable("revealEffect", effect)) {
+			var acc = accounts[playerID];
+			if (!acc || !db.ownsItem(acc.userId, "revealEffect", effect)) {
+				socket.emit("reveal_effect_rejected", { reason: "not_owned", effect: effect });
+			}
+		}
+	});
+
 	// Avatar cloth colour (the in-game flag, recoloured). Persisted on the account + mirrored to opponents.
 	// Purchasable avatars ("img:<id>" presets — see ShopCatalog.js) require ownership; the free values
 	// (a #rrggbb colour, "anon", "mine") are never in the catalog so isPurchasable is always false for them.

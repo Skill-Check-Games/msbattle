@@ -17,6 +17,13 @@
 	var FROST_SKIN_PRICE_CENTS = 499;
 	var GOLD_SKIN_PRICE_CENTS = 599;
 	var NEON_SKIN_PRICE_CENTS = 699;
+	// Reveal effects are pure code (no art asset), and each only ever affects the local player's own
+	// board (see Cosmetics.js's own comment) — priced as a lighter "flourish" tier below the avatars/
+	// skins rather than matched to them.
+	var DUST_FX_PRICE_CENTS = 149;
+	var SPARK_FX_PRICE_CENTS = 199;
+	var CRT_FX_PRICE_CENTS = 249;
+	var SHATTER_FX_PRICE_CENTS = 299;
 
 	function avatarLabel(id) {
 		return id.split("-").map(function(w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(" ");
@@ -89,6 +96,37 @@
 			tier: "epic"
 		});
 
+		// Cascade reveal effects (Cosmetics.js's own REVEAL_EFFECTS has the label/blurb copy already —
+		// not duplicated here, this is just id/price/tier). "ripple" is the free/default treatment, so
+		// it's the one REVEAL_EFFECT_LIST entry with no catalog item, same as classic/anon/mine above.
+		items.push({
+			id: "dust", kind: "revealEffect", productType: "reveal_effect",
+			label: Cosmetics.REVEAL_EFFECTS.dust.label,
+			priceCents: DUST_FX_PRICE_CENTS, currency: "usd",
+			// Cheapest/most subtle candidate — common fits both its price and its own restraint.
+			tier: "common"
+		});
+		items.push({
+			id: "spark", kind: "revealEffect", productType: "reveal_effect",
+			label: Cosmetics.REVEAL_EFFECTS.spark.label,
+			priceCents: SPARK_FX_PRICE_CENTS, currency: "usd",
+			tier: "common"
+		});
+		items.push({
+			id: "crt", kind: "revealEffect", productType: "reveal_effect",
+			label: Cosmetics.REVEAL_EFFECTS.crt.label,
+			priceCents: CRT_FX_PRICE_CENTS, currency: "usd",
+			tier: "rare"
+		});
+		items.push({
+			id: "shatter", kind: "revealEffect", productType: "reveal_effect",
+			label: Cosmetics.REVEAL_EFFECTS.shatter.label,
+			priceCents: SHATTER_FX_PRICE_CENTS, currency: "usd",
+			// The most dramatic candidate, and the one that deliberately echoes the rank-up Shatter &
+			// Reform animation's own visual language — epic fits.
+			tier: "epic"
+		});
+
 		// Boot-time integrity check: every catalog id must be a real cosmetic id, so a typo or a
 		// cosmetic later removed from Cosmetics.js can't silently sell (or gate) a nonexistent item.
 		items.forEach(function(item) {
@@ -99,6 +137,8 @@
 				if (Cosmetics.AVATAR_COLORS.indexOf(item.id) === -1) throw new Error("ShopCatalog: unknown avatar colour \"" + item.id + "\"");
 			} else if (item.kind === "skin") {
 				if (Cosmetics.BOARD_SKIN_LIST.indexOf(item.id) === -1) throw new Error("ShopCatalog: unknown skin id \"" + item.id + "\"");
+			} else if (item.kind === "revealEffect") {
+				if (Cosmetics.REVEAL_EFFECT_LIST.indexOf(item.id) === -1) throw new Error("ShopCatalog: unknown reveal effect id \"" + item.id + "\"");
 			} else {
 				throw new Error("ShopCatalog: unknown item kind \"" + item.kind + "\"");
 			}

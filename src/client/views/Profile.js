@@ -139,6 +139,12 @@ function openItemPurchaseModal(item) {
 	var preview = document.createElement("div"); preview.className = "item-purchase-preview";
 	if (item.kind === "avatar" && typeof buildAvatarCanvas === "function") preview.appendChild(buildAvatarCanvas(item.id, 72));
 	else if (item.kind === "skin" && typeof buildSkinPreview === "function") preview.appendChild(buildSkinPreview(item.id));
+	else if (item.kind === "revealEffect") {
+		var glyph = document.createElement("span");
+		glyph.className = "shop-tile-fx-glyph";
+		glyph.textContent = (typeof REVEAL_EFFECT_GLYPHS !== "undefined" && REVEAL_EFFECT_GLYPHS[item.id]) || "✨";
+		preview.appendChild(glyph);
+	}
 	body.appendChild(preview);
 	var name = document.createElement("div"); name.className = "item-purchase-name"; name.textContent = item.label;
 	body.appendChild(name);
@@ -204,32 +210,31 @@ function renderAvatarModalSkins() {
 	container.appendChild(buildSkinOptionsGrid());
 }
 
-// Reveal effect picker — same .skin-option row treatment as the board-skin grid above, minus the
-// preview swatch (there's no static image of an animation to show; try it live in a game instead).
-// Free for everyone for now, not gated through ShopCatalog like the skins are — this hasn't shipped
-// as a purchasable item yet.
-var REVEAL_EFFECT_META = {
-	ripple: { label: "Ripple", blurb: "A soft wave outward as the cascade opens — the default." },
-	spark: { label: "Spark Trail", blurb: "A quick flash at each cell as the cascade races outward." },
-	shatter: { label: "Shatter", blurb: "Covered tiles crack into shards and fly apart." },
-	crt: { label: "CRT Flicker", blurb: "A brief flicker and scanline sweep, like an old display waking up." },
-	dust: { label: "Dust Puff", blurb: "A soft puff blooms as each tile clears, like brushing away sand." }
-};
+// Reveal effect picker — same .skin-option row treatment + lock/price/purchase-modal handling as
+// the board-skin grid above, minus the preview swatch (there's no static image of an animation to
+// show; try it live in a game instead). Labels/blurbs live in Cosmetics.js (REVEAL_EFFECTS),
+// shared with the server for its own ownership check (session.js's set_reveal_effect).
 function buildRevealEffectOptionsGrid() {
 	var grid = document.createElement("div");
 	grid.className = "skin-options";
 	REVEAL_EFFECT_LIST.forEach(function(id) {
-		var meta = REVEAL_EFFECT_META[id];
+		var meta = Cosmetics.REVEAL_EFFECTS[id];
+		var unlocked = shopItemUnlocked("revealEffect", id);
 		var btn = document.createElement("button");
 		btn.type = "button";
-		btn.className = "skin-option" + (id === localRevealEffect ? " active" : "");
+		btn.className = "skin-option" + (id === localRevealEffect ? " active" : "") + (unlocked ? "" : " locked");
 		var metaEl = document.createElement("span");
 		metaEl.className = "skin-meta";
 		var name = document.createElement("span"); name.className = "skin-name"; name.textContent = meta.label;
 		var blurb = document.createElement("span"); blurb.className = "skin-blurb"; blurb.textContent = meta.blurb;
 		metaEl.appendChild(name); metaEl.appendChild(blurb);
+		if (!unlocked) {
+			var price = document.createElement("span"); price.className = "shop-lock-badge"; price.textContent = "🔒 " + shopPriceLabel(id);
+			metaEl.appendChild(price);
+		}
 		btn.appendChild(metaEl);
 		btn.addEventListener("click", function() {
+			if (!unlocked) { openItemPurchaseModal(ShopCatalog.byId(id)); return; }
 			if (typeof setRevealEffect === "function") setRevealEffect(id);
 			renderAvatarModalRevealEffect();
 		});

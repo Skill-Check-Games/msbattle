@@ -344,6 +344,14 @@ function applyAuthenticated(data) {
 		var skinOwned = localBoardSkin === "classic" || (data.ownedItems && data.ownedItems.indexOf(localBoardSkin) !== -1);
 		socket.emit("set_skin", { skin: skinOwned ? localBoardSkin : "classic" });
 	}
+	// Same idea as the board skin above, but for the reveal effect — check ownership locally first
+	// so an unowned stored pick (e.g. localStorage carried over from another account, or a signed-
+	// out guest who never actually bought it) just quietly falls back to "ripple" instead of
+	// round-tripping a doomed request.
+	if (typeof localRevealEffect !== "undefined" && typeof socket !== "undefined") {
+		var fxOwned = localRevealEffect === "ripple" || (data.ownedItems && data.ownedItems.indexOf(localRevealEffect) !== -1);
+		socket.emit("set_reveal_effect", { effect: fxOwned ? localRevealEffect : "ripple" });
+	}
 	renderRatingBadge();
 	// Topbar: real accounts show name + provider logo + Change + Sign out; guests show only Sign in.
 	applyUserIdentity(data);

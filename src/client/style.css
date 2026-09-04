@@ -3975,6 +3975,7 @@ body[data-board-skin="monochrome"] .board-press-highlight {
 	min-height: 78px; margin: 0.65rem 0.85rem 0; padding: 0.6rem;
 	background: rgba(0, 0, 0, 0.28); border-radius: 10px;
 }
+.shop-tile-fx-glyph { font-size: 2.2rem; line-height: 1; }
 .shop-tile-body { padding: 0.7rem 0.85rem 0.85rem; display: flex; flex-direction: column; gap: 0.5rem; text-align: center; }
 .shop-tile-owned {
 	display: block; padding: 0.4rem 0.5rem; border-radius: 8px;
