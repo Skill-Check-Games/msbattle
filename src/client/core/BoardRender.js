@@ -480,8 +480,11 @@ function revealLidShatter(ctx, w, h, rad, t, r, c) {
 	ctx.restore(); // pairs with the clip save at the top of this function
 }
 
-// 4) CRT Flicker — the lid flickers a couple of bright translucent-white pulses (again, no
-// ctx.filter — see Ripple's own comment) before cutting out, plus a thin scanline sweeping down.
+// 4) CRT Flicker — the lid flickers a couple of bright pulses (again, no ctx.filter — see Ripple's
+// own comment) before cutting out, plus a thin scanline sweeping down. Both the flicker wash and
+// the scanline are tinted with the active skin's own COLOR_UNKNOWN_TOP (the same accent Shatter's
+// shards use) rather than a fixed colour — was hardcoded light-cyan before, so every skin's CRT
+// effect looked identically blue-ish regardless of the board's own palette.
 function revealLidCrt(ctx, w, h, rad, t) {
 	if (t < 0.6) {
 		ctx.save();
@@ -492,7 +495,7 @@ function revealLidCrt(ctx, w, h, rad, t) {
 		if (flicker > 0.6) {
 			ctx.save();
 			ctx.globalAlpha = ((flicker - 0.6) / 0.4) * (1 - t / 0.6);
-			ctx.fillStyle = "#a5f3fc";
+			ctx.fillStyle = COLOR_UNKNOWN_TOP;
 			roundRectPath(ctx, 0, 0, w, h, rad);
 			ctx.fill();
 			ctx.restore();
@@ -501,7 +504,7 @@ function revealLidCrt(ctx, w, h, rad, t) {
 	if (t < 0.4) {
 		ctx.save();
 		ctx.globalAlpha = 1 - t / 0.4;
-		ctx.fillStyle = "#a5f3fc";
+		ctx.fillStyle = COLOR_UNKNOWN_TOP;
 		ctx.fillRect(0, (t / 0.4) * h, w, Math.max(1, h * 0.06));
 		ctx.restore();
 	}
