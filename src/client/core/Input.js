@@ -49,7 +49,11 @@ function clearPressed() {
 }
 function localReveal(r, c, revealed) {
 	return BoardLogic.cascadeReveal(r, c, rows, cols,
-		function(rr, cc) { return myState[rr][cc] === UNKNOWN; },
+		// Mirrors the server's dfs (GameCreator.js) exactly — a flagged cell no longer blocks the
+		// cascade, since a no-guess board's flood-fill neighbours are guaranteed safe by construction,
+		// so any flag a cascade reaches was necessarily a mistaken flag on a safe cell. Must stay in
+		// lockstep with the server's own predicate or the two sides' move-hash chains would diverge.
+		function(rr, cc) { return myState[rr][cc] === UNKNOWN || myState[rr][cc] === FLAGGED; },
 		function(rr, cc) {
 			myState[rr][cc] = KNOWN;
 			revealed.push([rr, cc]);

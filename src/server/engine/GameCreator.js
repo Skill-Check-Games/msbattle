@@ -226,7 +226,15 @@ function createGame(mineCount, gameRows, gameCols) {
 
 	function dfs(r, c) {
 		BoardLogic.cascadeReveal(r, c, rows, cols,
-			function(rr, cc) { return state[rr][cc] === UNKNOWN; },
+			// A flagged cell no longer blocks the flood-fill — on a no-guess board a cascade's
+			// neighbours are guaranteed safe by construction (a 0-cell never borders a mine), so any
+			// flag a cascade reaches was necessarily placed on a safe cell; there's nothing left to
+			// protect by stopping there. Sweeping through it (and implicitly clearing the flag, since
+			// the reveal callback below just overwrites state to KNOWN either way) replaces the old
+			// behaviour of leaving an island of flagged-but-unrevealed cells sitting in the middle of
+			// an otherwise fully-opened region — confusing to look at, and reported as leading to
+			// buggy-feeling situations.
+			function(rr, cc) { return state[rr][cc] === UNKNOWN || state[rr][cc] === FLAGGED; },
 			function(rr, cc) {
 				state[rr][cc] = KNOWN;
 				if (firstClick) {

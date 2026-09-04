@@ -96,7 +96,10 @@
 		var R = model.R, C = model.C, mines = model.mines, clue = model.clue;
 		function dfs(r, c) {
 			BoardLogic.cascadeReveal(r, c, R, C,
-				function(rr, cc) { return s[rr][cc] === UNKNOWN; },
+				// Mirrors GameCreator.js's dfs exactly (including flags no longer blocking the
+				// cascade — see its own comment) so a replay renders identically to how the match
+				// actually played live, whether it was recorded before or after that change.
+				function(rr, cc) { return s[rr][cc] === UNKNOWN || s[rr][cc] === FLAGGED; },
 				function(rr, cc) { s[rr][cc] = KNOWN; return false; },
 				function(rr, cc) { return mines[rr][cc] ? -1 : clue[rr][cc]; });
 		}
