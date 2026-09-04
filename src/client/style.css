@@ -2998,7 +2998,15 @@ body.ranked-game .game-grid { padding: 1.25rem 1.5rem 1.5rem; }
    value (RANK_BADGE_STAGE_PADDING) to size shard travel safely within it — keep the two in sync. */
 .ranked-result-badge-stage-outer { position: relative; padding: 24px; margin: -24px; overflow: hidden; }
 .ranked-result-badge-stage { position: relative; width: 5em; height: 5em; }
-.ranked-result-badge-stage .rank-badge { position: absolute; inset: 0; }
+/* width/height:100%, not just inset:0 — .rank-badge hard-codes its own width/height:5em (relative
+   to ITS OWN font-size, 16px, unconditionally — see its base rule), and inset:0 alone only stretches
+   an element whose width/height are auto; an element with explicit dimensions keeps them regardless
+   of inset. So every badge in here was actually rendering at a fixed 80px (5em x 16px) no matter what
+   size the stage itself was — barely noticeable against the desktop stage (65px, badge ~23% too
+   big) but glaringly wrong against the mobile duel-landscape one (45px, badge ~78% too big),
+   reported as "way too big" there specifically. Explicit 100% here has higher specificity (two
+   classes vs .rank-badge's one) and actually wins the width/height properties themselves. */
+.ranked-result-badge-stage .rank-badge { position: absolute; inset: 0; width: 100%; height: 100%; }
 
 /* Climb / Drop — demotion only now (a promotion uses Shatter & Reform instead, below); no .up
    variant needed any more since this direction is the only one still reachable. Durations ~1.8x the
