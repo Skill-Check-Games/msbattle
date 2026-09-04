@@ -526,8 +526,21 @@ function renderSearchScoreboard() {
 		li.appendChild(name);
 
 		var meta = document.createElement("span");
-		meta.className = "score-meta" + (p ? " score-meta-ready" : " score-meta-waiting");
-		meta.textContent = p ? "Found" : "Waiting…";
+		meta.className = "score-meta" + (p ? "" : " score-meta-waiting");
+		// A found seat shows the player's tier instead of a plain "Found" — reuses .score-meta's own
+		// grid slot (the room-based branch's .score-tier chip lives inline in the name instead, which
+		// the mobile-landscape layout explicitly has no room for — see its own "eating into the name's
+		// own room" comment, style.css — so this slot, already reserved for a short line of text next
+		// to the name, is the natural place for it here instead).
+		if (p && typeof p.rating === "number") {
+			var searchTier = tierFor(p.rating, p.provisional);
+			meta.textContent = searchTier.name;
+			meta.style.color = searchTier.color;
+			meta.style.fontWeight = "700";
+			if (p.isYou) meta.title = String(p.rating);
+		} else {
+			meta.textContent = p ? "Found" : "Waiting…";
+		}
 		li.appendChild(meta);
 
 		scoreboardEl.appendChild(li);
