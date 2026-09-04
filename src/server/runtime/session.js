@@ -140,6 +140,27 @@ function migrateReconnectedPlayer(oldID, newID, socket) {
 	roomState.broadcastRoomState(room);
 }
 
+// The pendingDisconnects handoff above only fires once the SERVER has itself noticed the old
+// connection drop — but socket.io's ping/pong heartbeat can take up to ~45s to flag a silent
+// disconnect (a locked/backgrounded phone, a wifi->cellular handoff — neither sends a clean close),
+// while the CLIENT typically reconnects and re-authenticates much faster than that on its own. If
+// the new socket's authenticate lands before the old one's disconnect event has fired, pendingDisconnects
+// isn't armed yet and the old seat was silently left to rot — the bug behind a match getting stuck
+// mid-round with no way to recover (reported as "progress stuck at 60%"). Either signal should be
+// enough to reclaim the seat, they don't need to agree — this is the client-noticed-first counterpart:
+// scan for another live connection already authenticated as this same user, still sitting in a room
+// mid-round. O(n) over currently-connected sockets (bounded by concurrent connection count, never
+// large) — not worth a dedicated index for.
+function findLiveSeatForUser(userId, excludePlayerID) {
+	for (var pid in accounts) {
+		if (pid === excludePlayerID) continue;
+		var acc = accounts[pid];
+		var room = roomMapping[pid];
+		if (acc && acc.userId === userId && room && room.phase === "playing") return pid;
+	}
+	return null;
+}
+
 function registerSocketHandlers(socket, playerID) {
 	socket.on("authenticate", function(data) {
 		var token = data && data.token;
@@ -150,6 +171,18 @@ function registerSocketHandlers(socket, playerID) {
 			clearTimeout(pending.timer);
 			delete appState.pendingDisconnects[user.id];
 			migrateReconnectedPlayer(pending.playerID, playerID, socket);
+		} else {
+			var staleID = findLiveSeatForUser(user.id, playerID);
+			if (staleID) {
+				migrateReconnectedPlayer(staleID, playerID, socket);
+				// Force the now-redundant old connection closed right away instead of leaving it to
+				// linger until its own ping/pong timeout — its "disconnect" handler runs the normal
+				// cleanup (minesweeperServer.js), which is already a safe no-op seat-removal-wise since
+				// roomMapping[staleID] is gone (migrated above), so it just clears the leftover
+				// sockets/names/accounts/etc. entries for that id.
+				var staleSocket = sockets[staleID];
+				if (staleSocket) staleSocket.disconnect(true);
+			}
 		}
 		loginSocket(socket, playerID, user, token, false);
 	});
