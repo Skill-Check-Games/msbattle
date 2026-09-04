@@ -44,9 +44,49 @@
 				// Same font as Classic too, for the same reason as the number colours above — digit
 				// shapes stay consistent across skins so recognition speed doesn't drop.
 				font: "Inter, system-ui, sans-serif", glow: false
+			},
+			monochrome: {
+				label: "Monochrome", blurb: "Black, white, and the numbers you already know by heart.",
+				// Numbers/mine deliberately reuse Classic's exact colours (not greyscale) — same
+				// "don't retrain a player's colour-to-value muscle memory" reasoning Gold's own comment
+				// gives, just leaned into harder here: EVERYTHING else goes pure black/white/grey, so
+				// the coloured numbers are the only colour on the board at all and pop that much more.
+				mine: "#fca5a5",
+				numbers: { 1: "#60a5fa", 2: "#4ade80", 3: "#f87171", 4: "#c084fc", 5: "#fbbf24", 6: "#22d3ee", 7: "#f9a8d4", 8: "#e2e8f0" },
+				knownBg: "#111114", knownEdge: "#000000",
+				unknownTop: "#e5e7eb", unknownBottom: "#6b7280", unknownEdge: "#1f2937",
+				unknownHilite: "rgba(255,255,255,0.3)",
+				// Flag stays red rather than going greyscale too — it's the one place on the board
+				// where "obviously not part of the neutral chrome" matters functionally, not just
+				// aesthetically (a mid-grey flag would read as just another tile at a glance).
+				flagCloth: "#ef4444", flagPole: "#e5e7eb",
+				font: "Inter, system-ui, sans-serif", glow: false
+			},
+			frost: {
+				label: "Frost", blurb: "Ice-blue tiles, cold as a 50/50 guess.",
+				mine: "#f87171",
+				numbers: { 1: "#38bdf8", 2: "#34d399", 3: "#fb7185", 4: "#a78bfa", 5: "#facc15", 6: "#22d3ee", 7: "#f0abfc", 8: "#f8fafc" },
+				knownBg: "#0b1626", knownEdge: "#050b14",
+				unknownTop: "#dbeafe", unknownBottom: "#7dd3fc", unknownEdge: "#0284c7",
+				unknownHilite: "rgba(255,255,255,0.45)",
+				flagCloth: "#f87171", flagPole: "#e2e8f0",
+				font: "Inter, system-ui, sans-serif", glow: false
+			},
+			neon: {
+				label: "Neon", blurb: "Cyberpunk violet tiles with glowing digits.",
+				mine: "#ff2e6c",
+				numbers: { 1: "#00e5ff", 2: "#39ff14", 3: "#ff2e6c", 4: "#d946ef", 5: "#fbbf24", 6: "#818cf8", 7: "#f472b6", 8: "#e2e8f0" },
+				knownBg: "#0a0518", knownEdge: "#050210",
+				unknownTop: "#7c3aed", unknownBottom: "#4c1d95", unknownEdge: "#2e1065",
+				unknownHilite: "rgba(217,70,239,0.28)",
+				flagCloth: "#00e5ff", flagPole: "#e2e8f0",
+				font: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace", glow: true
 			}
 		},
-		BOARD_SKIN_LIST: ["classic", "tactical", "gold"],
+		// Deliberately NOT alphabetical — a rough ascending "value ladder" (free, then cheapest paid
+		// through priciest/flashiest), since this order also drives the skin picker's display order
+		// (ShopCatalog.js's own item order is separate, hand-authored to match).
+		BOARD_SKIN_LIST: ["classic", "monochrome", "tactical", "frost", "gold", "neon"],
 		// Avatar cloth colour — the in-game flag. The first entry (matching DEFAULT_AVATAR_COLOR) is
 		// free/default; any other colour here would be a purchasable shop item (ShopCatalog.js derives
 		// one from every entry past this first one automatically). Deliberately just the one entry for

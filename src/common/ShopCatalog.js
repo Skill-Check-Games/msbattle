@@ -12,8 +12,11 @@
 // silently selling something that doesn't exist.
 (function() {
 	var AVATAR_PRICE_CENTS = 199;
+	var MONOCHROME_SKIN_PRICE_CENTS = 299;
 	var TACTICAL_SKIN_PRICE_CENTS = 499;
+	var FROST_SKIN_PRICE_CENTS = 499;
 	var GOLD_SKIN_PRICE_CENTS = 599;
+	var NEON_SKIN_PRICE_CENTS = 699;
 
 	function avatarLabel(id) {
 		return id.split("-").map(function(w) { return w.charAt(0).toUpperCase() + w.slice(1); }).join(" ");
@@ -39,6 +42,15 @@
 			items.push({ id: hex, kind: "avatar", productType: "flag", label: "Pirate Flag", priceCents: AVATAR_PRICE_CENTS, currency: "usd", tier: "common" });
 		});
 		items.push({
+			id: "monochrome", kind: "skin", productType: "board_skin",
+			label: Cosmetics.BOARD_SKINS.monochrome.label,
+			priceCents: MONOCHROME_SKIN_PRICE_CENTS, currency: "usd",
+			imagePath: "/skins/monochrome-preview.png",
+			// Cheapest paid skin, plainest palette (literally black/white/grey) — "common" fits both
+			// its price and its own look, unlike the others below which lean into a flashier tier.
+			tier: "common"
+		});
+		items.push({
 			id: "tactical", kind: "skin", productType: "board_skin",
 			label: Cosmetics.BOARD_SKINS.tactical.label,
 			priceCents: TACTICAL_SKIN_PRICE_CENTS, currency: "usd",
@@ -52,12 +64,28 @@
 			tier: "rare"
 		});
 		items.push({
+			id: "frost", kind: "skin", productType: "board_skin",
+			label: Cosmetics.BOARD_SKINS.frost.label,
+			priceCents: FROST_SKIN_PRICE_CENTS, currency: "usd",
+			imagePath: "/skins/frost-preview.png",
+			tier: "rare"
+		});
+		items.push({
 			id: "gold", kind: "skin", productType: "board_skin",
 			label: Cosmetics.BOARD_SKINS.gold.label,
 			priceCents: GOLD_SKIN_PRICE_CENTS, currency: "usd",
 			imagePath: "/skins/gold-preview.png",
 			// The one item in the shop actually named "Gold" gets the gold "epic" tile treatment —
 			// nice coincidence, not engineered, but too fitting to pass up.
+			tier: "epic"
+		});
+		items.push({
+			id: "neon", kind: "skin", productType: "board_skin",
+			label: Cosmetics.BOARD_SKINS.neon.label,
+			priceCents: NEON_SKIN_PRICE_CENTS, currency: "usd",
+			imagePath: "/skins/neon-preview.png",
+			// Flashiest/priciest skin (glowing digits, the only other `glow:true` skin besides
+			// Tactical) — epic fits.
 			tier: "epic"
 		});
 
