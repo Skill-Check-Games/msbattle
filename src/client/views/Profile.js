@@ -765,6 +765,9 @@ function checkAchievementUnlocks() {
 	achReached = now;
 }
 
+var ACH_TOAST_AUTO_MS = 5000;
+var ACH_TOAST_SWIPE_PX = 60; // drag distance (px) past which a release commits to dismiss, not snap back
+
 function showAchievementToast(c) {
 	var stack = document.getElementById("toast_stack");
 	if (!stack) { stack = document.createElement("div"); stack.id = "toast_stack"; stack.className = "toast-stack"; document.body.appendChild(stack); }
@@ -779,10 +782,53 @@ function showAchievementToast(c) {
 	stack.appendChild(t);
 	if (typeof sound !== "undefined" && sound && sound.beep) { try { sound.beep(c.complete ? 1175 : 988); } catch (e) {} }
 	requestAnimationFrame(function() { t.classList.add("ach-toast-in"); });
-	setTimeout(function() {
-		t.classList.remove("ach-toast-in"); t.classList.add("ach-toast-out");
+
+	// Dismissible on request — tap/click anywhere on it, or (touch) swipe it to either side. `dismissed`
+	// guards against the auto-timer and a manual dismiss racing each other (e.g. tapped right as the
+	// 5s timer was about to fire) both trying to remove the same node.
+	var dismissed = false;
+	// exitDX: how far (and which direction) to finish sliding off — a plain click/the auto-timer just
+	// uses the CSS class's own default (rightward, .ach-toast-out); a swipe past the threshold instead
+	// continues sliding the SAME direction the finger was already dragging it, so the exit reads as a
+	// continuation of the gesture rather than snapping back and then sliding off some other way.
+	function dismiss(exitDX) {
+		if (dismissed) return;
+		dismissed = true;
+		clearTimeout(autoTimer);
+		t.classList.remove("ach-toast-in", "ach-toast-dragging");
+		t.classList.add("ach-toast-out");
+		t.style.opacity = "";
+		t.style.transform = exitDX ? "translateX(" + (exitDX > 0 ? "125%" : "-125%") + ")" : "";
 		setTimeout(function() { if (t.parentNode) t.parentNode.removeChild(t); }, 450);
-	}, 5000);
+	}
+	var autoTimer = setTimeout(function() { dismiss(); }, ACH_TOAST_AUTO_MS);
+
+	t.addEventListener("click", function() { dismiss(); });
+
+	var dragStartX = null, dragDX = 0;
+	t.addEventListener("touchstart", function(e) {
+		if (dismissed || !e.touches.length) return;
+		dragStartX = e.touches[0].clientX;
+		dragDX = 0;
+		t.classList.add("ach-toast-dragging"); // disables the transition so the drag tracks 1:1, no lag
+	}, { passive: true });
+	t.addEventListener("touchmove", function(e) {
+		if (dragStartX == null || !e.touches.length) return;
+		dragDX = e.touches[0].clientX - dragStartX;
+		t.style.transform = "translateX(" + dragDX + "px)";
+		t.style.opacity = String(Math.max(0.15, 1 - Math.abs(dragDX) / 200));
+	}, { passive: true });
+	t.addEventListener("touchend", function() {
+		if (dragStartX == null) return;
+		t.classList.remove("ach-toast-dragging"); // re-enables the transition for the snap-back/exit below
+		if (Math.abs(dragDX) > ACH_TOAST_SWIPE_PX) {
+			dismiss(dragDX);
+		} else {
+			t.style.transform = "";
+			t.style.opacity = "";
+		}
+		dragStartX = null;
+	});
 }
 
 function renderRatingGraphCard() {

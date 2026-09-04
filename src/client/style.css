@@ -630,10 +630,17 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 	background: linear-gradient(180deg, var(--surface-2), var(--surface));
 	border: 1px solid var(--accent); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
 	transform: translateX(125%); opacity: 0; transition: transform 0.38s var(--ease, ease-out), opacity 0.38s;
+	/* .toast-stack itself is pointer-events:none (so the empty corner it occupies doesn't eat clicks on
+	   whatever's behind it) — opt back in per-toast so each one is actually tappable/swipeable
+	   (showAchievementToast, Profile.js: click or touch-drag to dismiss early). */
+	pointer-events: auto; cursor: pointer; touch-action: pan-y;
 }
 .ach-toast-complete { border-color: var(--success, #4ade80); }
 .ach-toast-in { transform: none; opacity: 1; }
 .ach-toast-out { transform: translateX(125%); opacity: 0; }
+/* While actively being dragged (touchmove, Profile.js) the transform is set inline every frame to
+   track the finger 1:1 — the transition above would otherwise fight/lag behind that. */
+.ach-toast-dragging { transition: none; }
 .ach-toast-icon { font-size: 1.7rem; line-height: 1; flex: 0 0 auto; }
 .ach-toast-text { min-width: 0; }
 .ach-toast-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.07em; font-weight: 700; color: var(--accent); }
