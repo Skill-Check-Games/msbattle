@@ -122,7 +122,24 @@ function hideReadyButton() {
 // and simply gets cut off when GO fires. This is the one function every "ready to start" call site
 // (Main.js, Solo.js) should schedule everything through — neither calls startBoardGoAnimation
 // themselves anymore.
+// Generation token, not tracked setTimeout ids — countdownDigitCycle/mobileCountdownDigitCycle
+// self-schedule recursively, so cancelling by id would mean threading a handle through every
+// recursive call. Bumping this instead just makes every pending callback (from THIS countdown or
+// any earlier one still in flight) a no-op the next time it fires, however many are queued up.
+// countDown() itself also bumps it on every call, so starting a fresh round's countdown always
+// supersedes any straggler from a previous one for free.
+var countdownGen = 0;
+// Kills any in-flight countdown — its digit ticks, its final GO/onDone, all of it — without
+// waiting for the timers to run out. Real bug this fixes: leaving mid-countdown (Exit game, or
+// navigating away) left every scheduled setTimeout armed with nothing to stop them, so the
+// tick/GO sounds kept playing and onDone (localRoundStartReveal in Main.js — reveals the opening
+// cascade and stamps roundStartTime) still fired for a match/round the player had already left,
+// stomping the global roundStartTime/board state whatever they'd navigated to next was using.
+// Call this from any "leaving/replacing the current game" teardown.
+function cancelCountdown() { countdownGen++; }
+
 function countDown(delayMs, onDone) {
+	var gen = ++countdownGen;
 	hideOverlay();
 	if (typeof startBoardGoAnimation === "function") startBoardGoAnimation(rows, cols);
 	if (typeof sound !== "undefined") sound.sweep();
@@ -137,9 +154,11 @@ function countDown(delayMs, onDone) {
 	// in style.css), so it's pinned to the same spot on screen no matter how far the board is panned.
 	var mobileDuel = (typeof isDuelLandscapeMobile === "function") && isDuelLandscapeMobile();
 	setTimeout(function() {
-		if (mobileDuel) mobileCountdownDigitCycle(3); else countdownDigitCycle(3);
+		if (gen !== countdownGen) return; // cancelled (left) or superseded (a newer round's own countDown)
+		if (mobileDuel) mobileCountdownDigitCycle(3, gen); else countdownDigitCycle(3, gen);
 	}, digitLeadDelay);
 	setTimeout(function() {
+		if (gen !== countdownGen) return;
 		sound.go();
 		roundStartTime = Date.now(); // danger-warning grace period starts here
 		if (mobileDuel) showOverlay("GO", "go", 550);
@@ -147,7 +166,8 @@ function countDown(delayMs, onDone) {
 	}, delayMs);
 }
 
-function countdownDigitCycle(number) {
+function countdownDigitCycle(number, gen) {
+	if (gen !== countdownGen) return; // cancelled mid-sequence — stop rescheduling, no more beeps
 	if (number <= 0) return; // decorative sequence exhausted — the real GO timer in countDown still governs
 	if (typeof startCountdownGlyph === "function") startCountdownGlyph(number);
 	sound.beep(392 + (3 - Math.min(number, 3)) * 110);
@@ -155,7 +175,7 @@ function countdownDigitCycle(number) {
 	// /admin/countdown — see COUNTDOWN_STYLE/countdownTickMs in Animations.js). Purely cosmetic
 	// pacing now — see the comment on countDown above for why it no longer drives gameplay timing.
 	var tickMs = (typeof countdownTickMs === "function") ? countdownTickMs() : 1000;
-	setTimeout(function() { countdownDigitCycle(number - 1); }, tickMs);
+	setTimeout(function() { countdownDigitCycle(number - 1, gen); }, tickMs);
 }
 
 // Mobile-duel counterpart to countdownDigitCycle above — same 3/2/1 pacing (shares countdownTickMs so
@@ -163,10 +183,11 @@ function countdownDigitCycle(number) {
 // text in #board_overlay instead of painting it into board cells. Stops at 1 (doesn't hide itself);
 // the delayMs timeout in countDown owns the handoff to "GO" so there's exactly one authoritative
 // transition instead of two timers racing to touch the overlay at the same instant.
-function mobileCountdownDigitCycle(number) {
+function mobileCountdownDigitCycle(number, gen) {
+	if (gen !== countdownGen) return;
 	if (number <= 0) return;
 	showOverlay(String(number), "count");
 	sound.beep(392 + (3 - Math.min(number, 3)) * 110);
 	var tickMs = (typeof countdownTickMs === "function") ? countdownTickMs() : 1000;
-	setTimeout(function() { mobileCountdownDigitCycle(number - 1); }, tickMs);
+	setTimeout(function() { mobileCountdownDigitCycle(number - 1, gen); }, tickMs);
 }

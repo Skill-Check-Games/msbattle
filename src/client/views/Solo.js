@@ -141,6 +141,10 @@ function beginSolo() {
 
 function exitSolo() {
 	exitGameFullscreenUnlessMobile();
+	// beginSolo's own session guard (above) already stops a stray countDown from setting started=true
+	// on a board that's been replaced, but that alone didn't stop its ticks/GO SOUND from still playing
+	// after leaving outright — cancelCountdown (Overlay.js) kills the whole in-flight timer chain.
+	if (typeof cancelCountdown === "function") cancelCountdown();
 	soloSession = null;
 	stopSoloTimer();
 	hideOverlay();

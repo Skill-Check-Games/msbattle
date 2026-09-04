@@ -1794,6 +1794,11 @@ socket.on("admin_rating_set", function(data) {
 // current URL — used by navigate-away (clicking a nav link mid-game), where the URL is already the
 // target and we must honour it, not force home.
 function teardownRoomUI(toHome) {
+	// Kills any in-flight round-start countdown (ticks, GO, the onDone reveal) — see cancelCountdown's
+	// own comment (Overlay.js) for the bug this fixes: leaving mid-countdown otherwise left it running
+	// to completion in the background (audible ticks/GO after "Exit game", and a stray roundStartTime/
+	// board-reveal stomp landing on whatever the player navigated to next).
+	if (typeof cancelCountdown === "function") cancelCountdown();
 	if (typeof clearPlaceBadges === "function") clearPlaceBadges();
 	if (typeof music !== "undefined") music.pause(); // stop the music only when truly leaving the game
 	// #game_view is shared across every game type (solo/puzzle/racing/…), so a leftover
