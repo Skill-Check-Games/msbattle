@@ -70,10 +70,13 @@
 				unknownTop: "#dbeafe", unknownBottom: "#7dd3fc", unknownEdge: "#0284c7",
 				// Was a translucent white (rgba(255,255,255,0.45)) — reported as hard to see: unlike
 				// every other skin, Frost's own unknownTop is ALREADY nearly white, so a white highlight
-				// stroke on top of it had almost no contrast to begin with. A deeper, more saturated
-				// blue (the same family as unknownEdge, at higher opacity) actually reads as a raised
-				// highlight instead of disappearing into the tile.
-				unknownHilite: "rgba(2,132,199,0.6)",
+				// stroke on top of it had almost no contrast to begin with. A first pass switched to
+				// sky-600 (the same shade as unknownEdge); this deepens it one step further to sky-700
+				// (#0369a1) — still squarely a BLUE, on request, just rich/dark enough to read clearly
+				// as a highlight against the pale ice background instead of blending toward it. Blended
+				// contrast against unknownTop: ~161 RGB units of separation vs. the original white's
+				// ~18 (and sky-600's own ~147) — the deepest, clearest of the three so far.
+				unknownHilite: "rgba(3,105,161,0.6)",
 				flagCloth: "#f87171", flagPole: "#e2e8f0",
 				font: "Inter, system-ui, sans-serif", glow: false
 			},
