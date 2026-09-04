@@ -35,8 +35,11 @@ var SHOP_CATEGORIES = [
 var shopActiveKind = null;
 
 // One glyph per reveal effect, standing in for a static preview image (see buildShopTile) — an
-// animation has no single frame worth screenshotting the way a skin's board preview does.
-var REVEAL_EFFECT_GLYPHS = { spark: "⚡", shatter: "💥", crt: "📺", dust: "💨" };
+// animation has no single frame worth screenshotting the way a skin's board preview does. "ripple"
+// isn't a ShopCatalog item (it's the free default, never shown in the Shop grid itself) but the
+// picker in the Appearance modal (Profile.js) lists it alongside the purchasable ones, so it needs
+// a glyph here too.
+var REVEAL_EFFECT_GLYPHS = { ripple: "🌊", spark: "⚡", shatter: "💥", crt: "📺", dust: "💨" };
 
 function shopStatusBanner(text, kind) {
 	var el = document.getElementById("shop_status");

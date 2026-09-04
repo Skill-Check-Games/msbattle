@@ -536,10 +536,11 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 .avatar-swatch { position: relative; border-radius: 14px; border: none; background: transparent; cursor: pointer; line-height: 0; transition: box-shadow .12s; }
 .avatar-swatch:hover { box-shadow: 0 0 0 2px var(--muted); }
 .avatar-swatch.active { box-shadow: 0 0 0 2px var(--accent); }
-/* Shop-locked cosmetics (avatar swatches + skin options): dimmed but still clickable — unlike
-   .learn-course-card.locked (an inert, disabled card), these route to /shop on click, so they
-   deliberately keep the pointer cursor instead of not-allowed. */
-.avatar-swatch.locked, .skin-option.locked { opacity: 0.55; }
+/* Shop-locked cosmetics (avatar swatches + the Appearance modal's skin/reveal-effect tiles):
+   dimmed but still clickable — unlike .learn-course-card.locked (an inert, disabled card), these
+   open the purchase modal on click, so they deliberately keep the pointer cursor instead of
+   not-allowed. */
+.avatar-swatch.locked, .shop-tile.locked { opacity: 0.55; }
 .avatar-swatch.locked .shop-lock-badge { position: absolute; top: -6px; right: -6px; padding: 0.1rem 0.35rem; border-radius: 999px; }
 .shop-lock-badge { font-size: 0.72rem; font-weight: 700; color: var(--muted); background: rgba(148, 163, 184, 0.12); border-radius: 6px; padding: 0.05rem 0.4rem; }
 .appearance-note { font-size: 0.78rem; color: var(--muted); margin-top: 0.4rem; }
@@ -612,7 +613,18 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 	opacity: 0; transition: opacity .12s;
 }
 .dash-avatar-edit:hover::after { opacity: 1; }
-.avatar-editor-preview { display: flex; justify-content: center; margin: 0.25rem 0 1rem; }
+/* ── Appearance/customization modal ── */
+.avatar-editor-dialog { width: min(760px, 100%); }
+.avatar-editor-hero {
+	display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
+	padding: 1.1rem 1rem 1.3rem; margin-bottom: 0.5rem;
+	background: radial-gradient(ellipse at top, rgba(99, 102, 241, 0.12), transparent 70%);
+	border-bottom: 1px solid var(--border);
+}
+.avatar-editor-preview { display: flex; justify-content: center; }
+.avatar-editor-hero-name { font-weight: 700; font-size: 1.05rem; }
+.avatar-editor-tabs { margin-top: 0; }
+.avatar-editor-panel { margin-top: 1.1rem; }
 
 /* Small in-place "buy this?" dialog opened from inside the avatar-editor modal (openItemPurchaseModal
    in Profile.js) — stacks on top of #avatar_modal (same .cr-modal chrome, later in DOM so it paints
@@ -3894,23 +3906,12 @@ body[data-board-skin="monochrome"] .board-press-highlight {
 .toggle-switch.on { background: var(--accent); border-color: var(--accent); }
 .toggle-switch.on::after { transform: translateX(18px); background: #fff; }
 
-.skin-options { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.75rem; }
-.skin-option {
-	display: flex; align-items: center; gap: 0.9rem; width: 100%;
-	padding: 0.7rem 0.85rem; border-radius: 11px; cursor: pointer; text-align: left;
-	background: var(--bg); border: 1px solid var(--border); color: var(--text);
-	font: inherit; transition: border-color 0.15s, background 0.15s;
-}
-.skin-option:hover { border-color: var(--muted); }
-.skin-option.active { border-color: var(--accent); background: rgba(99, 102, 241, 0.1); box-shadow: 0 0 0 1px var(--accent); }
 /* Wraps the real mini-board canvas buildSkinPreview draws (Profile.js) — padding + a dark
    backdrop frame it, overflow:hidden clips the canvas's square corners to the wrapper's rounded
    ones. display:block on the canvas itself avoids the few px of inline-baseline whitespace a
    canvas otherwise leaves under itself. */
 .skin-preview { display: flex; flex: 0 0 auto; padding: 5px; border-radius: 6px; background: #030e12; overflow: hidden; }
 .skin-preview-board { display: block; border-radius: 3px; }
-.skin-meta { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
-.skin-name { font-weight: 700; font-size: 0.95rem; }
 .skin-blurb { font-size: 0.8rem; color: var(--muted); }
 
 /* Shop page */
@@ -3954,8 +3955,18 @@ body[data-board-skin="monochrome"] .board-press-highlight {
 	display: flex; flex-direction: column;
 	border-radius: 14px; overflow: hidden;
 	background: var(--bg); border: 1px solid var(--border);
-	transition: border-color 0.15s, transform 0.15s;
+	transition: border-color 0.15s, transform 0.15s, outline-color 0.15s;
+	/* Button-reset properties — the Appearance modal's picker (Profile.js) renders this same class
+	   on a real <button> (so the whole tile is one click target, not a separate "select" control
+	   inside it), unlike the Shop page's own read-only <div> tiles. Harmless there: a <div> has none
+	   of this default chrome to begin with. */
+	cursor: pointer; font: inherit; text-align: left; padding: 0; width: 100%;
 }
+.shop-tile:hover { border-color: var(--muted); }
+/* "Currently selected" state — the picker's own concept, distinct from a tier's border colour and
+   from the Shop's "owned" badge (a tile can be owned but not the one currently applied). An outline
+   (not another box-shadow) so it never fights the epic tier's own glow. */
+.shop-tile.active { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* Rarity ramp (common -> rare -> epic, item.tier in ShopCatalog.js) — purely a shop-display
    framing, unrelated to ownership/gameplay. Common stays the plain default border above; rare
    picks up a violet border matching --mode-standard elsewhere in this file, epic a gold one

@@ -101,14 +101,8 @@ function buildAvatarSwatchesGrid() {
 	return swatches;
 }
 
-// Re-render-only counterpart, mirroring renderAvatarModalSkins — refreshes the swatch grid in place
-// (active/locked state) without rebuilding the whole modal. A no-op if the modal isn't open.
-function renderAvatarModalAvatars() {
-	var container = document.getElementById("avatar_modal_avatars");
-	if (!container) return;
-	container.innerHTML = "";
-	container.appendChild(buildAvatarSwatchesGrid());
-}
+// Re-render-only counterpart, mirroring renderAvatarModalSkins — see its own comment.
+function renderAvatarModalAvatars() { renderAvatarEditorTabsAndPanel(); }
 
 // Small in-place "buy this?" confirmation opened from inside the avatar-editor modal instead of
 // navigating to /shop — clicking a locked item shouldn't kick the player out of what they were
@@ -164,90 +158,110 @@ function closeItemPurchaseModal() {
 	if (modal) modal.setAttribute("hidden", "");
 }
 
-// The skin-option button grid: one button per BOARD_SKIN_LIST entry, each showing a tiny palette
-// swatch (buildSkinPreview), label/blurb, and — for a purchasable-but-unowned skin (currently just
-// "tactical"/"gold" — see ShopCatalog.js) — a locked/priced state instead of being hidden, so the
-// picker doubles as shop discovery. Clicking a locked one goes to the Shop instead of selecting it.
-// The only picker for it lives in the avatar-editor modal (renderAvatarModalSkins, below) — there
-// used to be a second copy on the Settings page too, dropped as redundant once the modal covered it.
+// Board skin picker — a grid of cards (Shop.js's own .shop-tile treatment, reused verbatim so
+// "browse in the Shop" and "customize here" read as the same design language) instead of a plain
+// list of rows. Each shows a live mini-board preview (buildSkinPreview), the tier-coloured border
+// Shop tiles already use, and one of three states: the currently-applied skin ("✓ Selected"), an
+// owned-but-not-applied one (click to switch), or a locked/priced one (click opens the purchase
+// modal instead of applying it) — so the picker doubles as shop discovery, same as before.
 function buildSkinOptionsGrid() {
 	var grid = document.createElement("div");
-	grid.className = "skin-options";
+	grid.className = "shop-grid";
 	BOARD_SKIN_LIST.forEach(function(id) {
 		var s = BOARD_SKINS[id];
 		var unlocked = shopItemUnlocked("skin", id);
-		var btn = document.createElement("button");
-		btn.type = "button";
-		btn.className = "skin-option" + (id === localBoardSkin ? " active" : "") + (unlocked ? "" : " locked");
-		btn.appendChild(buildSkinPreview(id));
-		var meta = document.createElement("span");
-		meta.className = "skin-meta";
-		var name = document.createElement("span"); name.className = "skin-name"; name.textContent = s.label;
+		var isActive = id === localBoardSkin;
+		var item = (typeof ShopCatalog !== "undefined") ? ShopCatalog.byId(id) : null;
+		var tile = document.createElement("button");
+		tile.type = "button";
+		tile.className = "shop-tile" + (item && item.tier ? " shop-tile-" + item.tier : "") + (isActive ? " active" : "") + (unlocked ? "" : " locked");
+
+		var head = document.createElement("div"); head.className = "shop-tile-head";
+		var name = document.createElement("div"); name.className = "shop-tile-name"; name.textContent = s.label;
+		head.appendChild(name);
+		tile.appendChild(head);
+
+		var preview = document.createElement("div"); preview.className = "shop-tile-preview";
+		preview.appendChild(buildSkinPreview(id));
+		tile.appendChild(preview);
+
+		var body = document.createElement("div"); body.className = "shop-tile-body";
 		var blurb = document.createElement("span"); blurb.className = "skin-blurb"; blurb.textContent = s.blurb;
-		meta.appendChild(name); meta.appendChild(blurb);
-		if (!unlocked) {
+		body.appendChild(blurb);
+		if (isActive) {
+			var selected = document.createElement("span"); selected.className = "shop-tile-owned"; selected.textContent = "✓ Selected";
+			body.appendChild(selected);
+		} else if (!unlocked) {
 			var price = document.createElement("span"); price.className = "shop-lock-badge"; price.textContent = "🔒 " + shopPriceLabel(id);
-			meta.appendChild(price);
+			body.appendChild(price);
 		}
-		btn.appendChild(meta);
-		btn.addEventListener("click", function() {
+		tile.appendChild(body);
+
+		tile.addEventListener("click", function() {
 			if (!unlocked) { openItemPurchaseModal(ShopCatalog.byId(id)); return; }
 			if (typeof setBoardSkin === "function") setBoardSkin(id);
+			renderAvatarEditorTabsAndPanel();
 		});
-		grid.appendChild(btn);
+		grid.appendChild(tile);
 	});
 	return grid;
 }
 
-// The picker, inside the avatar-editor modal (#avatar_modal_skins) — re-render-only, so it can be
-// called both when the modal (re)opens and whenever the skin changes elsewhere (setBoardSkin calls
-// this too, so a selection made in the modal itself updates its own "active" state). A no-op if the
-// modal hasn't been built yet (container isn't in the DOM) — harmless to call while hidden too.
-function renderAvatarModalSkins() {
-	var container = document.getElementById("avatar_modal_skins");
-	if (!container) return;
-	container.innerHTML = "";
-	container.appendChild(buildSkinOptionsGrid());
-}
+// Re-render-only entry point — kept as its own named function since Shop.js/Main.js/BoardRender.js
+// all call it directly after a purchase/rejection, from outside this file. Delegates to the shared
+// tab+panel rebuild (which is a no-op if the modal isn't open, or repaints nothing this picker
+// cares about if a DIFFERENT tab happens to be the active one — either way harmless to call).
+function renderAvatarModalSkins() { renderAvatarEditorTabsAndPanel(); }
 
-// Reveal effect picker — same .skin-option row treatment + lock/price/purchase-modal handling as
-// the board-skin grid above, minus the preview swatch (there's no static image of an animation to
-// show; try it live in a game instead). Labels/blurbs live in Cosmetics.js (REVEAL_EFFECTS),
-// shared with the server for its own ownership check (session.js's set_reveal_effect).
+// Reveal effect picker — same card treatment as the board-skin grid above, with a per-effect emoji
+// glyph (REVEAL_EFFECT_GLYPHS, Shop.js) standing in for a preview image (there's no static frame of
+// an animation worth showing). Labels/blurbs live in Cosmetics.js (REVEAL_EFFECTS), shared with the
+// server for its own ownership check (session.js's set_reveal_effect).
 function buildRevealEffectOptionsGrid() {
 	var grid = document.createElement("div");
-	grid.className = "skin-options";
+	grid.className = "shop-grid";
 	REVEAL_EFFECT_LIST.forEach(function(id) {
 		var meta = Cosmetics.REVEAL_EFFECTS[id];
 		var unlocked = shopItemUnlocked("revealEffect", id);
-		var btn = document.createElement("button");
-		btn.type = "button";
-		btn.className = "skin-option" + (id === localRevealEffect ? " active" : "") + (unlocked ? "" : " locked");
-		var metaEl = document.createElement("span");
-		metaEl.className = "skin-meta";
-		var name = document.createElement("span"); name.className = "skin-name"; name.textContent = meta.label;
+		var isActive = id === localRevealEffect;
+		var item = (typeof ShopCatalog !== "undefined") ? ShopCatalog.byId(id) : null;
+		var tile = document.createElement("button");
+		tile.type = "button";
+		tile.className = "shop-tile" + (item && item.tier ? " shop-tile-" + item.tier : "") + (isActive ? " active" : "") + (unlocked ? "" : " locked");
+
+		var head = document.createElement("div"); head.className = "shop-tile-head";
+		var name = document.createElement("div"); name.className = "shop-tile-name"; name.textContent = meta.label;
+		head.appendChild(name);
+		tile.appendChild(head);
+
+		var preview = document.createElement("div"); preview.className = "shop-tile-preview";
+		var glyph = document.createElement("span"); glyph.className = "shop-tile-fx-glyph";
+		glyph.textContent = (typeof REVEAL_EFFECT_GLYPHS !== "undefined" && REVEAL_EFFECT_GLYPHS[id]) || "✨";
+		preview.appendChild(glyph);
+		tile.appendChild(preview);
+
+		var body = document.createElement("div"); body.className = "shop-tile-body";
 		var blurb = document.createElement("span"); blurb.className = "skin-blurb"; blurb.textContent = meta.blurb;
-		metaEl.appendChild(name); metaEl.appendChild(blurb);
-		if (!unlocked) {
+		body.appendChild(blurb);
+		if (isActive) {
+			var selected = document.createElement("span"); selected.className = "shop-tile-owned"; selected.textContent = "✓ Selected";
+			body.appendChild(selected);
+		} else if (!unlocked) {
 			var price = document.createElement("span"); price.className = "shop-lock-badge"; price.textContent = "🔒 " + shopPriceLabel(id);
-			metaEl.appendChild(price);
+			body.appendChild(price);
 		}
-		btn.appendChild(metaEl);
-		btn.addEventListener("click", function() {
+		tile.appendChild(body);
+
+		tile.addEventListener("click", function() {
 			if (!unlocked) { openItemPurchaseModal(ShopCatalog.byId(id)); return; }
 			if (typeof setRevealEffect === "function") setRevealEffect(id);
-			renderAvatarModalRevealEffect();
+			renderAvatarEditorTabsAndPanel();
 		});
-		grid.appendChild(btn);
+		grid.appendChild(tile);
 	});
 	return grid;
 }
-function renderAvatarModalRevealEffect() {
-	var container = document.getElementById("avatar_modal_reveal_fx");
-	if (!container) return;
-	container.innerHTML = "";
-	container.appendChild(buildRevealEffectOptionsGrid());
-}
+function renderAvatarModalRevealEffect() { renderAvatarEditorTabsAndPanel(); }
 
 // Profile renders from the account cache plus the most recent leaderboard snapshot.
 // The profile is split into three tabs (the page had grown large): Overview (identity + lifetime/
@@ -476,20 +490,28 @@ function renderPublicProfileData(profile) {
 	card.appendChild(pz);
 }
 
-// Avatar (recolored flag) palette + country dropdown. Choices persist via set_avatar / set_country and
-// update the header chip in place (no full re-render → no refetch/toast churn).
-function renderAppearance() {
-	var wrap = document.createElement("div");
-	wrap.className = "appearance";
+// ---- Appearance/customization modal ----------------------------------------------------------
+// A tabbed "customization page" feel (Avatar / Board Skin / Reveal Effect — the same three
+// categories the Shop itself uses) instead of one long scroll through every category stacked
+// vertically — each tab's content is a card grid built with the exact .shop-tile treatment the
+// Shop page uses, so browsing here and browsing the Shop read as one consistent design language.
+var AVATAR_EDITOR_TABS = [
+	{ id: "avatar", label: "Avatar" },
+	{ id: "skin", label: "Board Skin" },
+	{ id: "revealEffect", label: "Reveal Effect" }
+];
+var avatarEditorTab = "avatar"; // remembered across re-opens within the session
 
+// Tab content builders — one per AVATAR_EDITOR_TABS entry.
+function buildAvatarEditorAvatarTab() {
+	var wrap = document.createElement("div");
 	// Flag first — its flag becomes the avatar's pennant when set. The colour swatches below are the
-	// fallback when no flag is set. Uses the searchable flag-picker (FlagPicker.js) instead of a plain
-	// <select>, ported from Mathias's achtung-royale picker.
+	// fallback when no flag is set. Uses the searchable flag-picker (FlagPicker.js) instead of a
+	// plain <select>, ported from Mathias's achtung-royale picker.
 	var cLabel = document.createElement("div"); cLabel.className = "appearance-sub"; cLabel.textContent = "Flag"; wrap.appendChild(cLabel);
 	if (typeof buildFlagPickerTrigger === "function") {
 		wrap.appendChild(buildFlagPickerTrigger(account.country || null, function(code) { setCountry(code || ""); }));
 	}
-
 	var aLabel = document.createElement("div"); aLabel.className = "appearance-sub"; aLabel.textContent = "Avatar"; wrap.appendChild(aLabel);
 	var swatchesContainer = document.createElement("div"); swatchesContainer.id = "avatar_modal_avatars";
 	swatchesContainer.appendChild(buildAvatarSwatchesGrid());
@@ -499,8 +521,52 @@ function renderAppearance() {
 	wrap.appendChild(note);
 	return wrap;
 }
+function buildAvatarEditorSkinTab() {
+	var container = document.createElement("div"); container.id = "avatar_modal_skins";
+	container.appendChild(buildSkinOptionsGrid());
+	return container;
+}
+function buildAvatarEditorRevealFxTab() {
+	var container = document.createElement("div"); container.id = "avatar_modal_reveal_fx";
+	container.appendChild(buildRevealEffectOptionsGrid());
+	return container;
+}
 
-// Avatar editor modal — reuses the Appearance picker; opened by clicking the home/profile avatar.
+// Rebuilds the tab bar + the active tab's content from scratch — cheap enough (a handful of DOM
+// nodes) to just call unconditionally on every tab switch / selection / purchase, rather than
+// hand-tracking which specific piece actually needs to change. A no-op if the modal isn't open
+// (its container isn't in the DOM yet) — every external caller (Shop.js, Main.js, BoardRender.js)
+// relies on that to call this safely regardless of whether the modal happens to be open.
+function renderAvatarEditorTabsAndPanel() {
+	var container = document.getElementById("avatar_modal_tabpanel");
+	if (!container) return;
+	container.innerHTML = "";
+
+	var tabs = document.createElement("div");
+	tabs.className = "shop-tabs avatar-editor-tabs";
+	AVATAR_EDITOR_TABS.forEach(function(t) {
+		var b = document.createElement("button");
+		b.type = "button";
+		b.className = "shop-tab" + (t.id === avatarEditorTab ? " active" : "");
+		b.textContent = t.label;
+		b.addEventListener("click", function() {
+			if (avatarEditorTab === t.id) return;
+			avatarEditorTab = t.id;
+			renderAvatarEditorTabsAndPanel();
+		});
+		tabs.appendChild(b);
+	});
+	container.appendChild(tabs);
+
+	var panel = document.createElement("div");
+	panel.className = "avatar-editor-panel";
+	if (avatarEditorTab === "skin") panel.appendChild(buildAvatarEditorSkinTab());
+	else if (avatarEditorTab === "revealEffect") panel.appendChild(buildAvatarEditorRevealFxTab());
+	else panel.appendChild(buildAvatarEditorAvatarTab());
+	container.appendChild(panel);
+}
+
+// Avatar editor modal — opened by clicking the home/profile avatar.
 function openAvatarEditor() {
 	if (!account) return;
 	var modal = document.getElementById("avatar_modal");
@@ -511,8 +577,8 @@ function openAvatarEditor() {
 		modal.setAttribute("hidden", "");
 		modal.innerHTML =
 			'<div class="cr-backdrop" data-avatar-close></div>' +
-			'<div class="cr-dialog" role="dialog" aria-modal="true" aria-labelledby="avatar_modal_title">' +
-				'<div class="cr-dialog-head"><h2 id="avatar_modal_title">Appearance</h2>' +
+			'<div class="cr-dialog avatar-editor-dialog" role="dialog" aria-modal="true" aria-labelledby="avatar_modal_title">' +
+				'<div class="cr-dialog-head"><h2 id="avatar_modal_title">Customize</h2>' +
 				'<button class="cr-close" type="button" data-avatar-close aria-label="Close">×</button></div>' +
 				'<div id="avatar_modal_body"></div>' +
 			'</div>';
@@ -522,24 +588,22 @@ function openAvatarEditor() {
 	}
 	var body = modal.querySelector("#avatar_modal_body");
 	body.innerHTML = "";
+
+	// Hero: a bigger live preview of the whole identity (avatar + flag), name underneath — the
+	// "who you are" header the tabbed categories below all feed into.
+	var hero = document.createElement("div"); hero.className = "avatar-editor-hero";
 	var preview = document.createElement("div"); preview.className = "avatar-editor-preview";
-	if (typeof buildAvatarChip === "function") preview.appendChild(buildAvatarChip(account.avatarColor || DEFAULT_AVATAR, account.country || null, 92));
-	body.appendChild(preview);
-	body.appendChild(renderAppearance());
-	if (typeof BOARD_SKINS !== "undefined") {
-		var sLabel = document.createElement("div"); sLabel.className = "appearance-sub"; sLabel.textContent = "Board skin";
-		body.appendChild(sLabel);
-		var skinsContainer = document.createElement("div"); skinsContainer.id = "avatar_modal_skins";
-		body.appendChild(skinsContainer);
-		renderAvatarModalSkins();
-	}
-	if (typeof REVEAL_EFFECT_LIST !== "undefined") {
-		var rLabel = document.createElement("div"); rLabel.className = "appearance-sub"; rLabel.textContent = "Reveal effect";
-		body.appendChild(rLabel);
-		var revealContainer = document.createElement("div"); revealContainer.id = "avatar_modal_reveal_fx";
-		body.appendChild(revealContainer);
-		renderAvatarModalRevealEffect();
-	}
+	if (typeof buildAvatarChip === "function") preview.appendChild(buildAvatarChip(account.avatarColor || DEFAULT_AVATAR, account.country || null, 96));
+	hero.appendChild(preview);
+	var heroName = document.createElement("div"); heroName.className = "avatar-editor-hero-name";
+	heroName.textContent = myName || (account.name || "You");
+	hero.appendChild(heroName);
+	body.appendChild(hero);
+
+	var tabpanel = document.createElement("div"); tabpanel.id = "avatar_modal_tabpanel";
+	body.appendChild(tabpanel);
+	renderAvatarEditorTabsAndPanel();
+
 	modal.removeAttribute("hidden");
 }
 
