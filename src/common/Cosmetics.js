@@ -68,7 +68,12 @@
 				numbers: { 1: "#38bdf8", 2: "#34d399", 3: "#fb7185", 4: "#a78bfa", 5: "#facc15", 6: "#22d3ee", 7: "#f0abfc", 8: "#f8fafc" },
 				knownBg: "#0b1626", knownEdge: "#050b14",
 				unknownTop: "#dbeafe", unknownBottom: "#7dd3fc", unknownEdge: "#0284c7",
-				unknownHilite: "rgba(255,255,255,0.45)",
+				// Was a translucent white (rgba(255,255,255,0.45)) — reported as hard to see: unlike
+				// every other skin, Frost's own unknownTop is ALREADY nearly white, so a white highlight
+				// stroke on top of it had almost no contrast to begin with. A deeper, more saturated
+				// blue (the same family as unknownEdge, at higher opacity) actually reads as a raised
+				// highlight instead of disappearing into the tile.
+				unknownHilite: "rgba(2,132,199,0.6)",
 				flagCloth: "#f87171", flagPole: "#e2e8f0",
 				font: "Inter, system-ui, sans-serif", glow: false
 			},
