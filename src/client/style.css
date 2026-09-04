@@ -3858,6 +3858,17 @@ body[data-board-skin="gold"] .board-scroll::after {
 	background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.35) 100%);
 }
 
+/* Touch-press cell highlight (.board-press-highlight, above) is a fixed translucent WHITE wash —
+   reads fine against every skin's covered-cell colour except the ones whose own covered cells are
+   ALREADY pale (Frost's icy-blue gradient starts almost white; Monochrome's starts light grey), where
+   a white-on-white wash was reported as barely visible while actually playing. Swap to a translucent
+   DARK wash for just those two skins instead — same idea, opposite polarity, so it still reads as a
+   highlight rather than blending into the tile underneath it. */
+body[data-board-skin="frost"] .board-press-highlight,
+body[data-board-skin="monochrome"] .board-press-highlight {
+	background: rgba(15, 23, 42, 0.4);
+}
+
 /* ── Board-skin picker (Profile) ──────────────────────────────────────────── */
 /* Generic on/off row for Settings (e.g. auto-fullscreen) — a label + a pill switch. */
 .setting-row {
