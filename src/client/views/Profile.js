@@ -102,7 +102,7 @@ function buildAvatarSwatchesGrid() {
 }
 
 // Re-render-only counterpart, mirroring renderAvatarModalSkins — see its own comment.
-function renderAvatarModalAvatars() { renderAvatarEditorTabsAndPanel(); }
+function renderAvatarModalAvatars() { refreshCosmeticModals(); }
 
 // Small in-place "buy this?" confirmation opened from inside the avatar-editor modal instead of
 // navigating to /shop — clicking a locked item shouldn't kick the player out of what they were
@@ -205,7 +205,7 @@ function buildOwnedCosmeticGrid(opts) {
 
 		tile.addEventListener("click", function() {
 			opts.onSelect(id);
-			renderAvatarEditorTabsAndPanel();
+			refreshCosmeticModals();
 		});
 		grid.appendChild(tile);
 	});
@@ -242,8 +242,13 @@ function buildShopLinkTile(kind, lockedCount) {
 
 	tile.addEventListener("click", function() {
 		if (typeof shopActiveKind !== "undefined") shopActiveKind = kind;
-		var modal = document.getElementById("avatar_modal");
-		if (modal) modal.setAttribute("hidden", "");
+		// Hide both stacked modals — this tile now renders inside the cosmetic picker, which itself
+		// sits on top of the Customize modal (see openCosmeticPicker) — so both need clearing before
+		// navigating away, not just the one this tile happens to live in.
+		["cosmetic_picker_modal", "avatar_modal"].forEach(function(id) {
+			var modal = document.getElementById(id);
+			if (modal) modal.setAttribute("hidden", "");
+		});
 		navigate("/shop");
 	});
 	return tile;
@@ -264,7 +269,7 @@ function buildSkinOptionsGrid() {
 // all call it directly after a purchase/rejection, from outside this file. Delegates to the shared
 // tab+panel rebuild (which is a no-op if the modal isn't open, or repaints nothing this picker
 // cares about if a DIFFERENT tab happens to be the active one — either way harmless to call).
-function renderAvatarModalSkins() { renderAvatarEditorTabsAndPanel(); }
+function renderAvatarModalSkins() { refreshCosmeticModals(); }
 
 // Reveal effect picker — same treatment, using the per-effect emoji glyph (REVEAL_EFFECT_GLYPHS,
 // Shop.js) in place of a preview image (there's no static frame of an animation worth showing).
@@ -281,7 +286,7 @@ function buildRevealEffectOptionsGrid() {
 		onSelect: function(id) { if (typeof setRevealEffect === "function") setRevealEffect(id); }
 	});
 }
-function renderAvatarModalRevealEffect() { renderAvatarEditorTabsAndPanel(); }
+function renderAvatarModalRevealEffect() { refreshCosmeticModals(); }
 
 // Profile renders from the account cache plus the most recent leaderboard snapshot.
 // The profile is split into three tabs (the page had grown large): Overview (identity + lifetime/
@@ -511,19 +516,89 @@ function renderPublicProfileData(profile) {
 }
 
 // ---- Appearance/customization modal ----------------------------------------------------------
-// A tabbed "customization page" feel (Avatar / Board Skin / Reveal Effect — the same three
-// categories the Shop itself uses) instead of one long scroll through every category stacked
-// vertically — each tab's content is a card grid built with the exact .shop-tile treatment the
-// Shop page uses, so browsing here and browsing the Shop read as one consistent design language.
-var AVATAR_EDITOR_TABS = [
-	{ id: "avatar", label: "Avatar" },
-	{ id: "skin", label: "Board Skin" },
-	{ id: "revealEffect", label: "Reveal Effect" }
-];
-var avatarEditorTab = "avatar"; // remembered across re-opens within the session
+// A "current loadout" summary — one card per cosmetic category (Avatar, Board Skin, Reveal
+// Effect) showing what's equipped right now, instead of tabs to switch between category pickers
+// in place. Clicking a card opens a picker modal (openCosmeticPicker) scoped to just that
+// category; the card underneath updates the moment a new pick is made, whether or not the picker
+// is then closed.
+var COSMETIC_CATEGORIES = {
+	avatar: { label: "Avatar", title: "Choose Avatar" },
+	skin: { label: "Board Skin", title: "Choose Board Skin" },
+	revealEffect: { label: "Reveal Effect", title: "Choose Reveal Effect" }
+};
+var cosmeticPickerKind = null; // which category's picker modal is currently open, if any
 
-// Tab content builders — one per AVATAR_EDITOR_TABS entry.
-function buildAvatarEditorAvatarTab() {
+// Human label for a raw avatar value (a colour hex / "anon" / "mine" / "img:<id>"). ShopCatalog
+// only names the purchasable ones (image presets + the flag colour) — the always-free "anon"/
+// "mine" specials need their own names here.
+function avatarValueLabel(value) {
+	if (value === "anon") return "Anonymous";
+	if (value === "mine") return "Mine";
+	var item = (typeof ShopCatalog !== "undefined") ? ShopCatalog.byId(value) : null;
+	if (item) return item.label;
+	return "Flag"; // the free default red flag colour, or any other bare hex not in the catalog
+}
+
+// One "current loadout" card. Reuses the .shop-tile visual treatment (border/padding/preview box)
+// the Shop page established, but the whole tile is a button that opens a picker rather than a
+// selectable item itself — the "Change" line under the name signals that. No hover lift/pop added
+// (the site-wide hover convention — border-colour/opacity only — already covers this via the
+// inherited .shop-tile:hover rule, so nothing extra was needed here).
+function cosmeticSummaryTile(kind, previewEl, nameText) {
+	var tile = document.createElement("button");
+	tile.type = "button";
+	tile.className = "shop-tile cosmetic-summary-tile";
+
+	var head = document.createElement("div"); head.className = "shop-tile-head";
+	var kicker = document.createElement("div"); kicker.className = "shop-tile-kicker"; kicker.textContent = COSMETIC_CATEGORIES[kind].label;
+	head.appendChild(kicker);
+	tile.appendChild(head);
+
+	var preview = document.createElement("div"); preview.className = "shop-tile-preview";
+	preview.appendChild(previewEl);
+	tile.appendChild(preview);
+
+	var body = document.createElement("div"); body.className = "shop-tile-body";
+	var name = document.createElement("span"); name.className = "cosmetic-summary-name"; name.textContent = nameText;
+	body.appendChild(name);
+	var change = document.createElement("span"); change.className = "cosmetic-summary-change"; change.textContent = "Change";
+	body.appendChild(change);
+	tile.appendChild(body);
+
+	tile.addEventListener("click", function() { openCosmeticPicker(kind); });
+	return tile;
+}
+
+// Rebuilds the three loadout cards from the live account/local-cosmetic state. Cheap enough to
+// call unconditionally after any cosmetic change; a no-op if the modal isn't open (its container
+// isn't in the DOM).
+function renderCosmeticSummary() {
+	var container = document.getElementById("avatar_modal_summary");
+	if (!container) return;
+	container.innerHTML = "";
+	var grid = document.createElement("div"); grid.className = "cosmetic-summary-grid";
+
+	var avatarValue = account.avatarColor || DEFAULT_AVATAR;
+	var avatarPreview = (typeof buildAvatarChip === "function")
+		? buildAvatarChip(avatarValue, account.country || null, 56)
+		: document.createElement("span");
+	grid.appendChild(cosmeticSummaryTile("avatar", avatarPreview, avatarValueLabel(avatarValue)));
+
+	var skin = BOARD_SKINS[localBoardSkin];
+	grid.appendChild(cosmeticSummaryTile("skin", buildSkinPreview(localBoardSkin), skin ? skin.label : localBoardSkin));
+
+	var effect = Cosmetics.REVEAL_EFFECTS[localRevealEffect];
+	var glyph = document.createElement("span"); glyph.className = "shop-tile-fx-glyph";
+	glyph.textContent = (typeof REVEAL_EFFECT_GLYPHS !== "undefined" && REVEAL_EFFECT_GLYPHS[localRevealEffect]) || "✨";
+	grid.appendChild(cosmeticSummaryTile("revealEffect", glyph, effect ? effect.label : localRevealEffect));
+
+	container.appendChild(grid);
+}
+
+// Picker-modal body builders — one per category. Content is unchanged from the old tab panels
+// (still owned-items-only + a "More in Shop" tile via buildOwnedCosmeticGrid), just no longer
+// nested inside a tab strip.
+function buildAvatarPickerBody() {
 	var wrap = document.createElement("div");
 	// Flag first — its flag becomes the avatar's pennant when set. The colour swatches below are the
 	// fallback when no flag is set. Uses the searchable flag-picker (FlagPicker.js) instead of a
@@ -541,49 +616,63 @@ function buildAvatarEditorAvatarTab() {
 	wrap.appendChild(note);
 	return wrap;
 }
-function buildAvatarEditorSkinTab() {
+function buildSkinPickerBody() {
 	var container = document.createElement("div"); container.id = "avatar_modal_skins";
 	container.appendChild(buildSkinOptionsGrid());
 	return container;
 }
-function buildAvatarEditorRevealFxTab() {
+function buildRevealFxPickerBody() {
 	var container = document.createElement("div"); container.id = "avatar_modal_reveal_fx";
 	container.appendChild(buildRevealEffectOptionsGrid());
 	return container;
 }
 
-// Rebuilds the tab bar + the active tab's content from scratch — cheap enough (a handful of DOM
-// nodes) to just call unconditionally on every tab switch / selection / purchase, rather than
-// hand-tracking which specific piece actually needs to change. A no-op if the modal isn't open
-// (its container isn't in the DOM yet) — every external caller (Shop.js, Main.js, BoardRender.js)
-// relies on that to call this safely regardless of whether the modal happens to be open.
-function renderAvatarEditorTabsAndPanel() {
-	var container = document.getElementById("avatar_modal_tabpanel");
-	if (!container) return;
+// Rebuilds the currently-open picker modal's body from `cosmeticPickerKind` — a no-op if the
+// picker isn't open (container not in the DOM) or nothing is active, so it's harmless to call
+// unconditionally, same contract the old tab-rebuild function had.
+function renderCosmeticPickerBody() {
+	var container = document.getElementById("cosmetic_picker_body");
+	if (!container || !cosmeticPickerKind) return;
 	container.innerHTML = "";
+	if (cosmeticPickerKind === "skin") container.appendChild(buildSkinPickerBody());
+	else if (cosmeticPickerKind === "revealEffect") container.appendChild(buildRevealFxPickerBody());
+	else container.appendChild(buildAvatarPickerBody());
+}
 
-	var tabs = document.createElement("div");
-	tabs.className = "shop-tabs avatar-editor-tabs";
-	AVATAR_EDITOR_TABS.forEach(function(t) {
-		var b = document.createElement("button");
-		b.type = "button";
-		b.className = "shop-tab" + (t.id === avatarEditorTab ? " active" : "");
-		b.textContent = t.label;
-		b.addEventListener("click", function() {
-			if (avatarEditorTab === t.id) return;
-			avatarEditorTab = t.id;
-			renderAvatarEditorTabsAndPanel();
-		});
-		tabs.appendChild(b);
-	});
-	container.appendChild(tabs);
+// Refreshes the (possibly open) picker and the summary cards underneath it — called after any
+// cosmetic selection/purchase/rejection, both from inside this file and from the external
+// renderAvatarModal* entry points below (kept for Shop.js/Main.js/BoardRender.js call sites).
+function refreshCosmeticModals() {
+	renderCosmeticPickerBody();
+	renderCosmeticSummary();
+}
 
-	var panel = document.createElement("div");
-	panel.className = "avatar-editor-panel";
-	if (avatarEditorTab === "skin") panel.appendChild(buildAvatarEditorSkinTab());
-	else if (avatarEditorTab === "revealEffect") panel.appendChild(buildAvatarEditorRevealFxTab());
-	else panel.appendChild(buildAvatarEditorAvatarTab());
-	container.appendChild(panel);
+// Picker modal — opened by clicking a summary card. Stacks on top of #avatar_modal (same
+// .cr-modal chrome, later in DOM so it paints above), the same idiom openItemPurchaseModal already
+// uses to stack on top of THIS modal, one level further in — a locked item clicked from inside the
+// picker opens the purchase modal on top of both.
+function openCosmeticPicker(kind) {
+	cosmeticPickerKind = kind;
+	var modal = document.getElementById("cosmetic_picker_modal");
+	if (!modal) {
+		modal = document.createElement("div");
+		modal.id = "cosmetic_picker_modal";
+		modal.className = "cr-modal";
+		modal.setAttribute("hidden", "");
+		modal.innerHTML =
+			'<div class="cr-backdrop" data-picker-close></div>' +
+			'<div class="cr-dialog cosmetic-picker-dialog" role="dialog" aria-modal="true" aria-labelledby="cosmetic_picker_title">' +
+				'<div class="cr-dialog-head"><h2 id="cosmetic_picker_title"></h2>' +
+				'<button class="cr-close" type="button" data-picker-close aria-label="Close">×</button></div>' +
+				'<div id="cosmetic_picker_body"></div>' +
+			'</div>';
+		document.body.appendChild(modal);
+		modal.addEventListener("click", function(e) { if (e.target.closest("[data-picker-close]")) modal.setAttribute("hidden", ""); });
+		document.addEventListener("keydown", function(e) { if (e.key === "Escape" && !modal.hasAttribute("hidden")) modal.setAttribute("hidden", ""); });
+	}
+	modal.querySelector("#cosmetic_picker_title").textContent = COSMETIC_CATEGORIES[kind].title;
+	renderCosmeticPickerBody();
+	modal.removeAttribute("hidden");
 }
 
 // Avatar editor modal — opened by clicking the home/profile avatar.
@@ -610,7 +699,7 @@ function openAvatarEditor() {
 	body.innerHTML = "";
 
 	// Hero: a bigger live preview of the whole identity (avatar + flag), name underneath — the
-	// "who you are" header the tabbed categories below all feed into.
+	// "who you are" header the loadout cards below all feed into.
 	var hero = document.createElement("div"); hero.className = "avatar-editor-hero";
 	var preview = document.createElement("div"); preview.className = "avatar-editor-preview";
 	if (typeof buildAvatarChip === "function") preview.appendChild(buildAvatarChip(account.avatarColor || DEFAULT_AVATAR, account.country || null, 96));
@@ -620,9 +709,9 @@ function openAvatarEditor() {
 	hero.appendChild(heroName);
 	body.appendChild(hero);
 
-	var tabpanel = document.createElement("div"); tabpanel.id = "avatar_modal_tabpanel";
-	body.appendChild(tabpanel);
-	renderAvatarEditorTabsAndPanel();
+	var summary = document.createElement("div"); summary.id = "avatar_modal_summary";
+	body.appendChild(summary);
+	renderCosmeticSummary();
 
 	modal.removeAttribute("hidden");
 }
@@ -638,6 +727,7 @@ function refreshAvatarDisplays() {
 	if (typeof renderDashIdentity === "function") renderDashIdentity();
 	var prev = document.querySelector("#avatar_modal .avatar-editor-preview");
 	if (prev && typeof buildAvatarChip === "function") { prev.innerHTML = ""; prev.appendChild(buildAvatarChip(account.avatarColor || DEFAULT_AVATAR, account.country || null, 92)); }
+	if (typeof renderCosmeticSummary === "function") renderCosmeticSummary();
 }
 function setAvatarColor(col) {
 	account.avatarColor = col;

@@ -626,13 +626,23 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 }
 .avatar-editor-preview { display: flex; justify-content: center; }
 .avatar-editor-hero-name { font-weight: 700; font-size: 1.05rem; }
-.avatar-editor-tabs { margin-top: 0; }
-/* Fixed height, not just min-height — the whole point is the dialog's own size must stay exactly
-   the same no matter which tab is active or how many tiles it has (a real reported bug: switching
-   tabs was resizing the modal). Content taller than this scrolls internally instead of growing the
-   panel; min(…, 50dvh) keeps it from overflowing a short mobile viewport, where .cr-dialog's own
-   max-height/overflow-y would otherwise have to scroll the tab bar out of view along with it. */
-.avatar-editor-panel { margin-top: 1.1rem; height: min(420px, 50dvh); overflow-y: auto; }
+
+/* "Current loadout" summary grid (Profile.js renderCosmeticSummary) — one card per cosmetic
+   category. auto-fit (not auto-fill, unlike .shop-grid below) deliberately: there are always
+   exactly 3 cards, so empty tracks should collapse and let the real ones stretch to fill the row,
+   rather than leaving a lopsided gap the way a long, page-length catalog grid's auto-fill can. */
+.cosmetic-summary-grid { margin-top: 1.1rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }
+.shop-tile-kicker { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.cosmetic-summary-name { font-weight: 700; font-size: 0.95rem; }
+.cosmetic-summary-change { font-size: 0.78rem; color: var(--muted); }
+
+/* Picker modal (Profile.js openCosmeticPicker) — opened by clicking a summary card, stacks on top
+   of #avatar_modal same as .item-purchase-dialog below. max-height (not a fixed height like the old
+   tabbed panel needed) is just a short-viewport scroll fallback — each open shows exactly one
+   category's content, so there's no in-place resizing between differently-sized panels to guard
+   against here. */
+.cr-dialog.cosmetic-picker-dialog { width: min(760px, 100%); }
+.cosmetic-picker-dialog #cosmetic_picker_body { margin-top: 0.2rem; max-height: min(480px, 60dvh); overflow-y: auto; }
 
 /* Small in-place "buy this?" dialog opened from inside the avatar-editor modal (openItemPurchaseModal
    in Profile.js) — stacks on top of #avatar_modal (same .cr-modal chrome, later in DOM so it paints
