@@ -4228,6 +4228,18 @@ body.touch .flag-mode-button { display: inline-flex; }
 .board-focus-ring {
 	border: 2px solid #facc15;
 }
+/* Frost override: the plain yellow border reads fine on every other skin's dark unrevealed-cell
+   colour, but Frost's own unrevealed gradient is pale/near-white (unknownTop #dbeafe) — a thin
+   yellow line all but disappears against it (this is the actual bug report: "the highlight shown
+   when you move the cursor with arrow keys", not the raised-tile hover highlight fixed earlier,
+   which is a different overlay). Reuses the same sky-700 (#0369a1) already established as Frost's
+   high-contrast accent (Cosmetics.js's unknownHilite comment) for visual consistency between the
+   two highlights, plus a white outer ring via box-shadow so it also still reads clearly against a
+   revealed cell's dark background (knownBg #0b1626), where sky-700 alone would be comparatively dim. */
+body[data-board-skin="frost"] .board-focus-ring {
+	border-color: #0369a1;
+	box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.85);
+}
 .board-press-highlight {
 	background: rgba(255, 255, 255, 0.32);
 }
