@@ -647,9 +647,9 @@ function buildRevealEffectCardDemo(effectId) {
 }
 
 var LAB_TABS = [
-	{ id: "avatar", label: "Avatar", icon: "🧑" },
-	{ id: "skin", label: "Board", icon: "🧩" },
-	{ id: "revealEffect", label: "Reveal FX", icon: "✨" }
+	{ id: "avatar", label: "Avatar" },
+	{ id: "skin", label: "Board" },
+	{ id: "revealEffect", label: "Reveal FX" }
 ];
 var labTab = "avatar";       // remembered across opens within the session
 var labDemo = null;          // the persistent main-preview demo board — (re)built fresh per open
@@ -668,7 +668,7 @@ function renderLabTabs() {
 		var b = document.createElement("button");
 		b.type = "button";
 		b.className = "lab-tab" + (t.id === labTab ? " active" : "");
-		b.innerHTML = '<span class="lab-tab-icon">' + t.icon + '</span><span>' + t.label + '</span>';
+		b.textContent = t.label;
 		b.addEventListener("click", function() {
 			if (labTab === t.id) return;
 			labTab = t.id;
@@ -679,28 +679,16 @@ function renderLabTabs() {
 	});
 }
 
+// No title/sub, no flag picker — on request. Country-flag picking (buildFlagPickerTrigger,
+// FlagPicker.js) has no other entry point in the app right now, so removing it here means a
+// player currently has no UI to set/change their flag at all (setCountry itself is untouched, in
+// case a flag picker gets a new home later).
 function buildLabAvatarPanel() {
 	var wrap = document.createElement("div");
-	var title = document.createElement("h3"); title.className = "lab-right-title"; title.textContent = "Choose Avatar";
-	wrap.appendChild(title);
-	var sub = document.createElement("p"); sub.className = "lab-right-sub";
-	sub.textContent = "Your flag and avatar show up to opponents in every match.";
-	wrap.appendChild(sub);
-
-	// Flag first — its flag becomes the avatar's pennant when set. The colour swatches below are the
-	// fallback when no flag is set. Uses the searchable flag-picker (FlagPicker.js) instead of a
-	// plain <select>, ported from Mathias's achtung-royale picker.
-	var cLabel = document.createElement("div"); cLabel.className = "appearance-sub"; cLabel.textContent = "Flag"; wrap.appendChild(cLabel);
-	if (typeof buildFlagPickerTrigger === "function") {
-		wrap.appendChild(buildFlagPickerTrigger(account.country || null, function(code) { setCountry(code || ""); }));
-	}
 	var aLabel = document.createElement("div"); aLabel.className = "appearance-sub"; aLabel.textContent = "Avatar"; wrap.appendChild(aLabel);
 	var swatchesContainer = document.createElement("div"); swatchesContainer.id = "avatar_modal_avatars";
 	swatchesContainer.appendChild(buildAvatarSwatchesGrid());
 	wrap.appendChild(swatchesContainer);
-	var note = document.createElement("div"); note.className = "appearance-note";
-	note.textContent = "Flag colours are used when no flag is set above; an image avatar replaces the flag colour.";
-	wrap.appendChild(note);
 	return wrap;
 }
 
