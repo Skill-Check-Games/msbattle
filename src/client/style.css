@@ -524,26 +524,10 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 /* in-game name tag now holds a chip + text */
 [id^="player_name"] { display: inline-flex; align-items: center; gap: 0.4rem; }
 .hud-name-text { white-space: nowrap; }
-/* Appearance picker (profile) */
-.appearance { display: flex; flex-direction: column; gap: 0.5rem; }
-.appearance-sub { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin-top: 0.35rem; }
-.avatar-swatches { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-/* No border/padding of its own — buildAvatarCanvas already draws its own subtle rounded-square
-   border (matching every other avatar display site-wide, e.g. buildAvatarChip), so a second CSS
-   border+padding here used to sit just outside it as a visible concentric "double ring". Hover/active
-   state is a box-shadow ring flush against the canvas edge instead (radius matched to the canvas's
-   own ~28%-of-size rounding), so only one ring is ever visible at a time. */
-.avatar-swatch { position: relative; border-radius: 14px; border: none; background: transparent; cursor: pointer; line-height: 0; transition: box-shadow .12s; }
-.avatar-swatch:hover { box-shadow: 0 0 0 2px var(--muted); }
-.avatar-swatch.active { box-shadow: 0 0 0 2px var(--accent); }
-/* Shop-locked cosmetics (avatar swatches + the Appearance modal's skin/reveal-effect tiles):
-   dimmed but still clickable — unlike .learn-course-card.locked (an inert, disabled card), these
-   open the purchase modal on click, so they deliberately keep the pointer cursor instead of
-   not-allowed. */
-.avatar-swatch.locked, .shop-tile.locked { opacity: 0.55; }
-.avatar-swatch.locked .shop-lock-badge { position: absolute; top: -6px; right: -6px; padding: 0.1rem 0.35rem; border-radius: 999px; }
-.shop-lock-badge { font-size: 0.72rem; font-weight: 700; color: var(--muted); background: rgba(148, 163, 184, 0.12); border-radius: 6px; padding: 0.05rem 0.4rem; }
-.appearance-note { font-size: 0.78rem; color: var(--muted); margin-top: 0.4rem; }
+/* Shop-locked cosmetics (the Customize Lab's skin/avatar/reveal-effect tiles): dimmed but still
+   clickable — unlike .learn-course-card.locked (an inert, disabled card), these open the purchase
+   modal on click, so they deliberately keep the pointer cursor instead of not-allowed. */
+.shop-tile.locked { opacity: 0.55; }
 
 /* Flag picker (FlagPicker.js) — ported from Mathias's achtung-royale component: a small square
    trigger that opens a searchable, alphabetized grid (desktop popover / mobile centered sheet). */
@@ -637,10 +621,11 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
    the container owns the outer border/radius/clip, individual tabs are borderless and share a
    single divider line, and "selected" is a plain solid accent fill instead of a border+tint combo. */
 .lab-tabs {
-	display: flex; align-self: flex-start; margin-bottom: 1rem; flex: 0 0 auto;
+	display: flex; margin-bottom: 1rem; flex: 0 0 auto;
 	border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
 }
 .lab-tab {
+	flex: 1 1 0; /* each segment grows equally to fill the tab bar's full width, on request */
 	display: flex; align-items: center; justify-content: center;
 	padding: 0.55rem 1.1rem;
 	background: var(--bg); border: none; color: var(--muted);

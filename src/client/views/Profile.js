@@ -64,41 +64,49 @@ function shopPriceLabel(id) {
 	var item = typeof ShopCatalog !== "undefined" && ShopCatalog.byId(id);
 	return item ? "$" + (item.priceCents / 100).toFixed(2) : "";
 }
-// The avatar swatch grid — its own function (rather than inline in renderAppearance) so it can be
-// rebuilt in place after a purchase, the same way buildCosmeticCardGrid/renderAvatarModalSkins works.
-function buildAvatarSwatchesGrid() {
-	var swatches = document.createElement("div"); swatches.className = "avatar-swatches";
-	var current = (account.avatarColor || DEFAULT_AVATAR).toLowerCase();
-	// Unowned image presets render locked (dimmed, priced, still clickable) instead of being hidden, so
-	// the picker doubles as a discovery surface for the shop; clicking one opens the purchase modal
-	// instead of selecting it. Free values (anon/mine/the default flag colour) are never gated —
-	// shopItemUnlocked returns true for anything not in the catalog.
-	function swatch(value) {
-		var unlocked = shopItemUnlocked("avatar", value);
-		var b = document.createElement("button"); b.type = "button";
-		b.className = "avatar-swatch" + (value.toLowerCase() === current ? " active" : "") + (unlocked ? "" : " locked");
-		b.dataset.color = value;
-		b.appendChild(buildAvatarCanvas(value, 50));
-		if (!unlocked) {
-			var price = document.createElement("span"); price.className = "shop-lock-badge"; price.textContent = "🔒";
-			b.appendChild(price);
-		}
-		b.addEventListener("click", function() {
-			if (!unlocked) { openItemPurchaseModal(ShopCatalog.byId(value)); return; }
-			setAvatarColor(value);
-		});
-		swatches.appendChild(b);
-	}
-	// Sorted so everything owned from the start (anon, mine, the default flag colour) comes before
-	// anything purchasable (currently just the image presets) — sorted by lock status, not by which
-	// array a value came from, so a future purchasable colour would slot in the same way an image does.
+// Human label for a raw avatar value (a colour hex / "anon" / "mine" / "img:<id>"). ShopCatalog
+// only names the purchasable ones (image presets + the flag colour) — the always-free "anon"/
+// "mine" specials need their own names here.
+function avatarValueLabel(value) {
+	if (value === "anon") return "Anonymous";
+	if (value === "mine") return "Mine";
+	var item = (typeof ShopCatalog !== "undefined") ? ShopCatalog.byId(value) : null;
+	if (item) return item.label;
+	return "Flag"; // the free default red flag colour, or any other bare hex not in the catalog
+}
+// Flavour text for the avatar card grid — keyed by the exact wire value, same as everywhere else
+// (a hex colour, "anon", "mine", or "img:<id>"). Purely decorative/client-display, so it lives here
+// rather than in Cosmetics.js (shared with the server, which has no use for it).
+var AVATAR_BLURBS = {
+	anon: "The default anonymous silhouette.",
+	mine: "The classic sea mine, staring back.",
+	"img:scout-dog": "Sniffs out the safest tile first.",
+	"img:sentry-fox": "Keeps a sharp eye on the board.",
+	"img:sentry-owl": "Never misses a clue.",
+	"img:signal-cat": "Always alert for danger.",
+	"img:guard-teddy": "A cuddly line of defense."
+};
+function avatarBlurb(value) {
+	return AVATAR_BLURBS[value] || "The default flag colour.";
+}
+// The avatar card grid — same big-card treatment (buildCosmeticCardGrid) the Board Skin and Reveal
+// Effect tabs use, rather than a separate small-icon-swatch layout, so all three tabs read as one
+// consistent design and fill the available space the same way.
+function buildAvatarCardGrid() {
+	var current = account.avatarColor || DEFAULT_AVATAR;
 	var allAvatarValues = ["anon", "mine"]
 		.concat(AVATAR_COLORS)
 		.concat(typeof AVATAR_IMAGES !== "undefined" ? Object.keys(AVATAR_IMAGES).map(function(id) { return "img:" + id; }) : []);
-	var unlockedValues = allAvatarValues.filter(function(v) { return shopItemUnlocked("avatar", v); });
-	var lockedValues = allAvatarValues.filter(function(v) { return !shopItemUnlocked("avatar", v); });
-	unlockedValues.concat(lockedValues).forEach(swatch);
-	return swatches;
+	return buildCosmeticCardGrid({
+		list: allAvatarValues, kind: "avatar", activeId: current,
+		buildPreview: function(id) { return buildAvatarCanvas(id, 64); },
+		labelOf: function(id) { return avatarValueLabel(id); },
+		blurbOf: function(id) { return avatarBlurb(id); },
+		onSelect: function(id) {
+			setAvatarColor(id);
+			renderLabRightPanel();
+		}
+	});
 }
 
 // Small in-place "buy this?" confirmation opened from inside the avatar-editor modal instead of
@@ -155,23 +163,28 @@ function closeItemPurchaseModal() {
 	if (modal) modal.setAttribute("hidden", "");
 }
 
-// Shared by the board-skin and reveal-effect grids in the Customize Lab (below): every item is
-// shown — owned or not — matching how the Avatar tab's swatches already work, rather than hiding
-// unowned ones behind a separate "browse the Shop" link. A locked tile is dimmed with a price
-// badge and opens the purchase modal instead of applying the pick; the currently-applied one gets
-// the shared active glow (.shop-tile.active) plus a small corner checkmark (.lab-tile-check) —
-// there's no more "✓ Selected" text pill (a UX-review ask: free up the card for the actual
-// preview, make selection obvious from the glow + a small badge instead). opts:
+// Shared by all three Customize Lab grids (Avatar/Board/Reveal Effect): every item is shown —
+// owned or not — matching how the Avatar tab's swatches used to work, rather than hiding unowned
+// ones behind a separate "browse the Shop" link. Owned items sort first, locked ones trail behind
+// (stable within each group — same relative order opts.list already had), so the stuff you can
+// actually use fills the front of the grid instead of being interleaved with stuff you can't. A
+// locked tile shows a centered lock glyph (no price — one tap into the purchase modal shows that)
+// instead of applying the pick; the currently-applied one gets the shared active glow
+// (.shop-tile.active) plus a small corner checkmark (.lab-tile-check) — no "✓ Selected" text pill,
+// a UX-review ask: free up the card for the actual preview, make selection obvious from the glow +
+// a small badge instead. opts:
 //   list             — every id in this category (owned + locked)
-//   kind             — ShopCatalog kind ("skin"/"revealEffect")
+//   kind             — ShopCatalog kind ("avatar"/"skin"/"revealEffect")
 //   activeId         — the currently-applied id
 //   buildPreview(id) — returns the .shop-tile-preview's child element
 //   labelOf(id), blurbOf(id)
-//   onSelect(id)     — applies the pick (setBoardSkin/setRevealEffect)
+//   onSelect(id)     — applies the pick (setAvatarColor/setBoardSkin/setRevealEffect)
 function buildCosmeticCardGrid(opts) {
 	var grid = document.createElement("div");
 	grid.className = "shop-grid lab-grid";
-	opts.list.forEach(function(id) {
+	var unlockedIds = opts.list.filter(function(id) { return shopItemUnlocked(opts.kind, id); });
+	var lockedIds = opts.list.filter(function(id) { return !shopItemUnlocked(opts.kind, id); });
+	unlockedIds.concat(lockedIds).forEach(function(id) {
 		var unlocked = shopItemUnlocked(opts.kind, id);
 		var isActive = id === opts.activeId;
 		var item = (typeof ShopCatalog !== "undefined") ? ShopCatalog.byId(id) : null;
@@ -685,10 +698,9 @@ function renderLabTabs() {
 // case a flag picker gets a new home later).
 function buildLabAvatarPanel() {
 	var wrap = document.createElement("div");
-	var aLabel = document.createElement("div"); aLabel.className = "appearance-sub"; aLabel.textContent = "Avatar"; wrap.appendChild(aLabel);
-	var swatchesContainer = document.createElement("div"); swatchesContainer.id = "avatar_modal_avatars";
-	swatchesContainer.appendChild(buildAvatarSwatchesGrid());
-	wrap.appendChild(swatchesContainer);
+	var container = document.createElement("div"); container.id = "avatar_modal_avatars";
+	container.appendChild(buildAvatarCardGrid());
+	wrap.appendChild(container);
 	return wrap;
 }
 
@@ -925,8 +937,6 @@ function setAvatarColor(col) {
 	account.avatarColor = col;
 	if (typeof socket !== "undefined") socket.emit("set_avatar", { color: col });
 	refreshAvatarDisplays();
-	var btns = document.querySelectorAll(".avatar-swatch");
-	for (var i = 0; i < btns.length; i++) btns[i].classList.toggle("active", (btns[i].dataset.color || "").toLowerCase() === col.toLowerCase());
 }
 function setCountry(code) {
 	account.country = code || null;
