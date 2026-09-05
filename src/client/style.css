@@ -645,16 +645,25 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 .lab-tab.active { color: var(--accent-hover); border-color: var(--accent); background: rgba(99, 102, 241, 0.14); }
 .lab-tab-icon { font-size: 1rem; line-height: 1; }
 
+/* Picker (.lab-right) placed first in the DOM (Profile.js's openAvatarEditor), preview board
+   (.lab-left) second — .lab-left/.lab-right keep their historical names (not renamed to match, to
+   avoid a big mechanical rename across this file + Profile.js) even though .lab-left now renders
+   on the physical right, per request to swap which side the preview board sits on. Track widths
+   below match that DOM order: column 1 (picker) narrower, column 2 (preview) wider. */
 .lab-body {
 	flex: 1 1 auto; min-height: 0;
-	display: grid; grid-template-columns: minmax(300px, 1.15fr) minmax(320px, 1fr); gap: 1.4rem;
+	display: grid; grid-template-columns: minmax(320px, 1fr) minmax(300px, 1.15fr); gap: 1.4rem;
 	margin-top: 1.2rem;
 }
 @media (max-width: 860px) {
 	/* Stacked layout: one shared scroll region for the whole body instead of two independent ones —
-	   there's no "board stays fixed while the list scrolls" benefit once they're not side by side. */
+	   there's no "board stays fixed while the list scrolls" benefit once they're not side by side.
+	   order:1 puts the preview board back on top when stacked (matching the pre-swap experience —
+	   it's second in DOM, so without this it would stack BELOW the picker instead). */
 	.lab-body { grid-template-columns: 1fr; overflow-y: auto; }
 	.lab-left, #lab_right_panel { overflow: visible; }
+	.lab-left { order: 1; }
+	.lab-right { order: 2; }
 }
 
 /* The persistent left panel: identity header + the live preview board + its controls — never
@@ -682,8 +691,12 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 
 .lab-right { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 /* The tab content itself is the one thing that scrolls (not the tabs above it) — min-height:0 lets
-   it actually shrink to the flex row's remaining height instead of pushing the dialog taller. */
-#lab_right_panel { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-right: 0.2rem; }
+   it actually shrink to the flex row's remaining height instead of pushing the dialog taller.
+   Horizontal padding matters here, not just cosmetic spacing: setting overflow-y alone still makes
+   the computed overflow-x "auto" too (an "at least one axis non-visible" CSS rule), so a selected
+   tile's glow/outline right at the grid's own edge was being clipped by this scroll container with
+   no room to bleed into — the padding is what was actually reported as "clips the edges". */
+#lab_right_panel { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 0.4rem; margin: -0.4rem; }
 .lab-right-title { margin: 0; font-size: 1.05rem; font-weight: 800; }
 .lab-right-sub { margin: 0.2rem 0 0.9rem; color: var(--muted); font-size: 0.85rem; }
 .lab-fx-preview { padding: 0; background: rgba(0, 0, 0, 0.28); }
@@ -697,10 +710,14 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 	display: flex; align-items: center; justify-content: center;
 	font-size: 0.8rem; font-weight: 700; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
 }
+/* Just the lock glyph, centered over the whole card (not a corner price pill) — the price is one
+   click away in the purchase modal this tile already opens, so it doesn't need to live here too. */
 .lab-tile-lock {
-	position: absolute; top: 0.5rem; right: 0.5rem; padding: 0.2rem 0.5rem; border-radius: 999px;
-	background: rgba(0, 0, 0, 0.55); border: 1px solid var(--border); color: var(--muted);
-	font-size: 0.72rem; font-weight: 700; white-space: nowrap;
+	position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+	width: 2.6rem; height: 2.6rem; border-radius: 50%;
+	background: rgba(0, 0, 0, 0.6); border: 1px solid var(--border);
+	display: flex; align-items: center; justify-content: center;
+	font-size: 1.15rem; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
 /* Small in-place "buy this?" dialog opened from inside the Customize Lab (openItemPurchaseModal

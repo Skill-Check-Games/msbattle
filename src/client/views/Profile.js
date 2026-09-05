@@ -186,7 +186,7 @@ function buildCosmeticCardGrid(opts) {
 
 		if (!unlocked) {
 			var lock = document.createElement("span"); lock.className = "lab-tile-lock";
-			lock.textContent = "🔒 " + shopPriceLabel(id);
+			lock.textContent = "🔒";
 			tile.appendChild(lock);
 		} else if (isActive) {
 			var check = document.createElement("span"); check.className = "lab-tile-check"; check.textContent = "✓";
@@ -747,7 +747,7 @@ function buildRevealEffectCard(id) {
 
 	if (!unlocked) {
 		var lock = document.createElement("span"); lock.className = "lab-tile-lock";
-		lock.textContent = "🔒 " + shopPriceLabel(id);
+		lock.textContent = "🔒";
 		tile.appendChild(lock);
 	} else if (isActive) {
 		var check = document.createElement("span"); check.className = "lab-tile-check"; check.textContent = "✓";
@@ -899,11 +899,11 @@ function openAvatarEditor() {
 					'<button class="cr-close" type="button" data-avatar-close aria-label="Close">×</button>' +
 				'</div>' +
 				'<div class="lab-body">' +
-					'<div id="lab_left_panel"></div>' +
 					'<div class="lab-right">' +
 						'<div class="lab-tabs" id="lab_tabs"></div>' +
 						'<div id="lab_right_panel"></div>' +
 					'</div>' +
+					'<div id="lab_left_panel"></div>' +
 				'</div>' +
 			'</div>';
 		document.body.appendChild(modal);
