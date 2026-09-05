@@ -455,17 +455,6 @@ function renderPublicProfileData(profile) {
 // left plays a REAL cascade through the exact production reveal-effect code (BoardRender.js's
 // forceRevealEffect), so trying a style is something you do to a board, not just a name you read.
 
-// Human label for a raw avatar value (a colour hex / "anon" / "mine" / "img:<id>"). ShopCatalog
-// only names the purchasable ones (image presets + the flag colour) — the always-free "anon"/
-// "mine" specials need their own names here.
-function avatarValueLabel(value) {
-	if (value === "anon") return "Anonymous";
-	if (value === "mine") return "Mine";
-	var item = (typeof ShopCatalog !== "undefined") ? ShopCatalog.byId(value) : null;
-	if (item) return item.label;
-	return "Flag"; // the free default red flag colour, or any other bare hex not in the catalog
-}
-
 // A small, self-contained toy board: its own local anim state + RAF loop, entirely independent of
 // the real game's globals (cellAnims/myState/playerCanvas/rows/cols) so it can run happily whether
 // or not a real match exists anywhere else in the app. Not a real puzzle — nobody can lose, and
@@ -500,7 +489,8 @@ function buildRevealDemoBoard(opts) {
 		animAt: function(r, c) {
 			var a = anims[r + "," + c];
 			if (!a) return null;
-			return { type: "reveal", t: (performance.now() - a.start) / REVEAL_DUR };
+			var dur = a.mine ? MINE_DUR : REVEAL_DUR;
+			return { type: a.mine ? "mine" : "reveal", t: (performance.now() - a.start) / dur };
 		}
 	});
 
@@ -508,7 +498,8 @@ function buildRevealDemoBoard(opts) {
 	function loop() {
 		var now = performance.now(), stillAnimating = false;
 		for (var key in anims) {
-			if (now - anims[key].start < REVEAL_DUR + STAGGER_CAP) stillAnimating = true;
+			var dur = (anims[key].mine ? MINE_DUR : REVEAL_DUR) + STAGGER_CAP;
+			if (now - anims[key].start < dur) stillAnimating = true;
 			else delete anims[key];
 		}
 		bv.draw();
@@ -516,8 +507,10 @@ function buildRevealDemoBoard(opts) {
 	}
 
 	// BFS flood from (r,c) — same shape as a real cascade: reveal it, and if it's a 0-clue, recurse
-	// into its covered neighbours too. `animate` false paints instantly (the board's resting state);
-	// true staggers each newly-opened cell's reveal by its BFS distance from the origin.
+	// into its covered neighbours too (a mine never recurses into, or is auto-revealed by, a
+	// flood — only an explicit direct click on it, in reveal() below, can uncover one — same as a
+	// real board). `animate` false paints instantly (the board's resting state); true staggers each
+	// newly-opened cell's reveal by its BFS distance from the origin.
 	function floodFrom(r, c, animate) {
 		var queue = [[r, c, 0]], seen = {};
 		seen[r + "," + c] = true;
@@ -528,7 +521,7 @@ function buildRevealDemoBoard(opts) {
 				state[cr][cc] = KNOWN;
 				if (animate) anims[cr + "," + cc] = { start: startedAt + Math.min(STAGGER_CAP, dist * STAGGER_MS) };
 			}
-			if (clueAt(cr, cc) === 0) {
+			if (!isMineAt(cr, cc) && clueAt(cr, cc) === 0) {
 				BoardLogic.forEachNeighbour(cr, cc, rows, cols, function(nr, nc) {
 					var k = nr + "," + nc;
 					if (!seen[k] && state[nr][nc] === UNKNOWN) { seen[k] = true; queue.push([nr, nc, dist + 1]); }
@@ -547,13 +540,32 @@ function buildRevealDemoBoard(opts) {
 		bv.draw();
 	}
 
-	// Click-to-test: reveal the real cascade starting at (r,c), animated.
+	// Click-to-test: reveal the real cascade starting at (r,c), animated — including a direct click
+	// on a mine itself, which real Minesweeper allows (and shows exploding) rather than silently
+	// ignoring; this board reuses that same rule instead of treating mines as unclickable.
 	function reveal(r, c) {
 		if (r < 0 || r >= rows || c < 0 || c >= cols) return;
-		if (state[r][c] !== UNKNOWN || isMineAt(r, c)) return;
+		if (state[r][c] !== UNKNOWN) return; // already revealed, or flagged (flag first to reveal)
+		if (isMineAt(r, c)) {
+			state[r][c] = KNOWN;
+			anims[r + "," + c] = { start: performance.now(), mine: true };
+			stopLoop(); loop();
+			return;
+		}
 		floodFrom(r, c, true);
 		stopLoop();
 		loop();
+	}
+
+	// Right-click-to-flag, same as a real board: toggles a covered cell between plain-covered and
+	// flagged; a revealed cell can't be flagged. The caller is responsible for calling
+	// e.preventDefault() on the contextmenu event so the browser's own menu doesn't appear.
+	function toggleFlag(r, c) {
+		if (r < 0 || r >= rows || c < 0 || c >= cols) return;
+		if (state[r][c] === UNKNOWN) state[r][c] = FLAGGED;
+		else if (state[r][c] === FLAGGED) state[r][c] = UNKNOWN;
+		else return;
+		bv.draw();
 	}
 
 	// A scripted demonstration: reveal a given list of covered cells with a stagger, as if they'd
@@ -589,16 +601,27 @@ function buildRevealDemoBoard(opts) {
 
 	function setEffect(id) { bv.forceRevealEffect = id; }
 
-	canvas.addEventListener("click", function(e) {
-		if (opts.interactive === false) return;
+	function cellFromEvent(e) {
 		var rect = canvas.getBoundingClientRect();
 		var cw = rect.width / cols, ch = rect.height / rows;
-		reveal(Math.floor((e.clientY - rect.top) / ch), Math.floor((e.clientX - rect.left) / cw));
+		return [Math.floor((e.clientY - rect.top) / ch), Math.floor((e.clientX - rect.left) / cw)];
+	}
+	canvas.addEventListener("click", function(e) {
+		if (opts.interactive === false) return;
+		var rc = cellFromEvent(e);
+		reveal(rc[0], rc[1]);
+	});
+	// Real board rule, reused here: right-click flags instead of opening the browser's context menu.
+	canvas.addEventListener("contextmenu", function(e) {
+		e.preventDefault();
+		if (opts.interactive === false) return;
+		var rc = cellFromEvent(e);
+		toggleFlag(rc[0], rc[1]);
 	});
 
 	reset();
 	return {
-		canvas: canvas, bv: bv, reset: reset, reveal: reveal, playDemo: playDemo,
+		canvas: canvas, bv: bv, reset: reset, reveal: reveal, toggleFlag: toggleFlag, playDemo: playDemo,
 		frontierCells: frontierCells, setEffect: setEffect, redraw: function() { bv.draw(); }, stopLoop: stopLoop
 	};
 }
@@ -825,29 +848,27 @@ function buildLabLeftPanel() {
 	});
 	wrap.appendChild(resetBtn);
 
-	renderLabIdentity();
+	// NOT renderLabIdentity() here — `identity` isn't attached to the document yet at this point
+	// (buildLabLeftPanel's caller appends the returned `wrap` afterward), and renderLabIdentity looks
+	// its target up by id via getElementById, which only finds elements already in the document. The
+	// caller (openAvatarEditor) fills it in right after appending instead.
 	return wrap;
 }
 
-// Updates just the name/avatar header above the preview board — called on open and whenever the
-// avatar/flag changes (refreshAvatarDisplays), without touching the board itself.
+// Updates just the identity header above the preview board — called on open and whenever the
+// avatar/flag changes (refreshAvatarDisplays), without touching the board itself. Reuses the exact
+// in-game duel-HUD identity builder (fillDuelId, Main.js) instead of a bespoke row, so it looks and
+// reads identically to how a player's own name/avatar/rank actually render in a live match — avatar
+// + name + rank tier pill, never the exact rating (hidden info everywhere, including your own).
 function renderLabIdentity() {
 	var el = document.getElementById("lab_identity");
-	if (!el || !account) return;
-	el.innerHTML = "";
-	var avatarValue = account.avatarColor || DEFAULT_AVATAR;
-	if (typeof buildAvatarChip === "function") {
-		var chip = buildAvatarChip(avatarValue, account.country || null, 56);
-		chip.classList.add("lab-identity-avatar");
-		el.appendChild(chip);
-	}
-	var text = document.createElement("div"); text.className = "lab-identity-text";
-	var name = document.createElement("div"); name.className = "lab-identity-name";
-	name.textContent = myName || (account.name || "You");
-	text.appendChild(name);
-	var sub = document.createElement("div"); sub.className = "lab-identity-sub"; sub.textContent = avatarValueLabel(avatarValue);
-	text.appendChild(sub);
-	el.appendChild(text);
+	if (!el || !account || typeof fillDuelId !== "function") return;
+	fillDuelId(el, {
+		avatar: account.avatarColor || DEFAULT_AVATAR,
+		country: account.country || null,
+		name: myName || account.name || "You",
+		rating: typeof overallRating === "function" ? overallRating(account) : 0
+	});
 }
 
 // Stops the preview board's RAF loop + any reveal-effect auto-replay timers before hiding the
@@ -877,10 +898,12 @@ function openAvatarEditor() {
 					'<p class="cr-dialog-sub">Make it yours. Try different styles and see them in action!</p></div>' +
 					'<button class="cr-close" type="button" data-avatar-close aria-label="Close">×</button>' +
 				'</div>' +
-				'<div class="lab-tabs" id="lab_tabs"></div>' +
 				'<div class="lab-body">' +
 					'<div id="lab_left_panel"></div>' +
-					'<div class="lab-right" id="lab_right_panel"></div>' +
+					'<div class="lab-right">' +
+						'<div class="lab-tabs" id="lab_tabs"></div>' +
+						'<div id="lab_right_panel"></div>' +
+					'</div>' +
 				'</div>' +
 			'</div>';
 		document.body.appendChild(modal);
@@ -892,6 +915,7 @@ function openAvatarEditor() {
 	var leftPanel = document.getElementById("lab_left_panel");
 	leftPanel.innerHTML = "";
 	leftPanel.appendChild(buildLabLeftPanel());
+	renderLabIdentity();
 	renderLabRightPanel();
 
 	modal.removeAttribute("hidden");
