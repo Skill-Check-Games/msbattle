@@ -99,7 +99,7 @@ function buildAvatarCardGrid() {
 		.concat(typeof AVATAR_IMAGES !== "undefined" ? Object.keys(AVATAR_IMAGES).map(function(id) { return "img:" + id; }) : []);
 	return buildCosmeticCardGrid({
 		list: allAvatarValues, kind: "avatar", activeId: current,
-		buildPreview: function(id) { return buildAvatarCanvas(id, 64); },
+		buildPreview: function(id) { return buildAvatarCanvas(id, 96); },
 		labelOf: function(id) { return avatarValueLabel(id); },
 		blurbOf: function(id) { return avatarBlurb(id); },
 		onSelect: function(id) {
@@ -698,6 +698,11 @@ function renderLabTabs() {
 // case a flag picker gets a new home later).
 function buildLabAvatarPanel() {
 	var wrap = document.createElement("div");
+	var title = document.createElement("h3"); title.className = "lab-right-title"; title.textContent = "Choose Avatar";
+	wrap.appendChild(title);
+	var sub = document.createElement("p"); sub.className = "lab-right-sub";
+	sub.textContent = "Your avatar shows up to opponents in every match.";
+	wrap.appendChild(sub);
 	var container = document.createElement("div"); container.id = "avatar_modal_avatars";
 	container.appendChild(buildAvatarCardGrid());
 	wrap.appendChild(container);
@@ -713,7 +718,7 @@ function buildLabSkinPanel() {
 	wrap.appendChild(sub);
 	wrap.appendChild(buildCosmeticCardGrid({
 		list: BOARD_SKIN_LIST, kind: "skin", activeId: localBoardSkin,
-		buildPreview: function(id) { return buildSkinPreview(id); },
+		buildPreview: function(id) { return buildSkinPreview(id, 34); },
 		labelOf: function(id) { return BOARD_SKINS[id].label; },
 		blurbOf: function(id) { return BOARD_SKINS[id].blurb; },
 		onSelect: function(id) {

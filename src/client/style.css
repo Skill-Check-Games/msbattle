@@ -617,24 +617,26 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 /* Tabs now live inside the right panel only (not spanning the preview board too) — browsing
    categories is a right-panel-only action, so only the right panel's own header area should imply
    "there's more to switch between here". A single connected segmented control (tabs touching, one
-   shared border, one accent colour for the active segment) rather than separate pill buttons —
-   the container owns the outer border/radius/clip, individual tabs are borderless and share a
-   single divider line, and "selected" is a plain solid accent fill instead of a border+tint combo. */
+   shared border, sharing dividers between segments) rather than separate pill buttons. "Selected"
+   is a soft accent tint + a bottom underline (the site's existing tab idiom — .shop-tab/.lb-tab use
+   the same underline language elsewhere) rather than a solid full-colour fill, which read as too
+   heavy/blocky on request. */
 .lab-tabs {
 	display: flex; margin-bottom: 1rem; flex: 0 0 auto;
 	border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+	background: var(--bg);
 }
 .lab-tab {
 	flex: 1 1 0; /* each segment grows equally to fill the tab bar's full width, on request */
 	display: flex; align-items: center; justify-content: center;
 	padding: 0.55rem 1.1rem;
-	background: var(--bg); border: none; color: var(--muted);
+	background: transparent; border: none; border-bottom: 2px solid transparent; color: var(--muted);
 	font-weight: 700; font-size: 0.84rem; cursor: pointer;
-	transition: color 0.15s, background 0.15s;
+	transition: color 0.15s, background 0.15s, border-color 0.15s;
 }
 .lab-tab + .lab-tab { border-left: 1px solid var(--border); }
 .lab-tab:hover { color: var(--text); }
-.lab-tab.active { color: #fff; background: var(--accent); }
+.lab-tab.active { color: var(--accent-hover); background: rgba(99, 102, 241, 0.14); border-bottom-color: var(--accent); }
 
 /* Picker (.lab-right) placed first in the DOM (Profile.js's openAvatarEditor), preview board
    (.lab-left) second — .lab-left/.lab-right keep their historical names (not renamed to match, to
