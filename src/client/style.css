@@ -613,38 +613,79 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 	opacity: 0; transition: opacity .12s;
 }
 .dash-avatar-edit:hover::after { opacity: 1; }
-/* ── Appearance/customization modal ── */
-/* .cr-dialog.avatar-editor-dialog (two classes), not a bare .avatar-editor-dialog — the base
-   .cr-dialog rule (style.css, defined later in the file) sets its own width at equal specificity
-   otherwise, and source order would let IT win regardless of which rule looks like the override. */
-.cr-dialog.avatar-editor-dialog { width: min(760px, 100%); }
-.avatar-editor-hero {
-	display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
-	padding: 1.1rem 1rem 1.3rem; margin-bottom: 0.5rem;
-	background: radial-gradient(ellipse at top, rgba(99, 102, 241, 0.12), transparent 70%);
-	border-bottom: 1px solid var(--border);
+/* ── Customize Lab (Profile.js openAvatarEditor) ──────────────────────────────────────────────
+   A "showroom" redesign: a persistent live preview board on the left, compact category tabs +
+   the matching picker grid on the right — see the big comment above buildRevealDemoBoard in
+   Profile.js for the full reasoning. */
+/* .cr-dialog.customize-lab-dialog (two classes), not a bare class — the base .cr-dialog rule
+   (below, defined later in the file) sets its own width at equal specificity otherwise, and
+   source order would let IT win regardless of which rule looks like the override. */
+.cr-dialog.customize-lab-dialog { width: min(1200px, 96vw); }
+
+.lab-tabs { display: flex; gap: 0.6rem; margin-top: 1.1rem; flex-wrap: wrap; }
+.lab-tab {
+	display: flex; align-items: center; gap: 0.45rem;
+	padding: 0.6rem 1rem; border-radius: 10px;
+	background: var(--bg); border: 1px solid var(--border); color: var(--muted);
+	font-weight: 700; font-size: 0.88rem; cursor: pointer;
+	transition: border-color 0.15s, color 0.15s, background 0.15s;
 }
-.avatar-editor-preview { display: flex; justify-content: center; }
-.avatar-editor-hero-name { font-weight: 700; font-size: 1.05rem; }
+.lab-tab:hover { color: var(--text); border-color: var(--muted); }
+.lab-tab.active { color: var(--accent-hover); border-color: var(--accent); background: rgba(99, 102, 241, 0.14); }
+.lab-tab-icon { font-size: 1rem; line-height: 1; }
 
-/* "Current loadout" summary grid (Profile.js renderCosmeticSummary) — one card per cosmetic
-   category. auto-fit (not auto-fill, unlike .shop-grid below) deliberately: there are always
-   exactly 3 cards, so empty tracks should collapse and let the real ones stretch to fill the row,
-   rather than leaving a lopsided gap the way a long, page-length catalog grid's auto-fill can. */
-.cosmetic-summary-grid { margin-top: 1.1rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; }
-.shop-tile-kicker { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
-.cosmetic-summary-name { font-weight: 700; font-size: 0.95rem; }
-.cosmetic-summary-change { font-size: 0.78rem; color: var(--muted); }
+.lab-body { display: grid; grid-template-columns: minmax(300px, 1.15fr) minmax(320px, 1fr); gap: 1.4rem; margin-top: 1.2rem; align-items: start; }
+@media (max-width: 860px) { .lab-body { grid-template-columns: 1fr; } }
 
-/* Picker modal (Profile.js openCosmeticPicker) — opened by clicking a summary card, stacks on top
-   of #avatar_modal same as .item-purchase-dialog below. max-height (not a fixed height like the old
-   tabbed panel needed) is just a short-viewport scroll fallback — each open shows exactly one
-   category's content, so there's no in-place resizing between differently-sized panels to guard
-   against here. */
-.cr-dialog.cosmetic-picker-dialog { width: min(760px, 100%); }
-.cosmetic-picker-dialog #cosmetic_picker_body { margin-top: 0.2rem; max-height: min(480px, 60dvh); overflow-y: auto; }
+/* The persistent left panel: identity header + the live preview board + its controls — never
+   rebuilt on a tab switch, only when the whole modal reopens (see Profile.js's own comment). */
+.lab-left {
+	display: flex; flex-direction: column; align-items: center; gap: 0.9rem;
+	padding: 1.2rem; border-radius: 14px; background: var(--surface); border: 1px solid var(--border);
+	/* min-width:0 overrides the grid item's default min-width:auto, which otherwise lets the demo
+	   board's intrinsic (fixed pixel) width push this whole column wider than its grid track on a
+	   narrow viewport, overflowing the dialog instead of letting the canvas below scale down. */
+	min-width: 0; max-width: 100%;
+}
+.lab-identity { display: flex; align-items: center; gap: 0.75rem; align-self: flex-start; }
+.lab-identity-name { font-weight: 800; font-size: 1.05rem; }
+.lab-identity-sub { font-size: 0.82rem; color: var(--muted); }
+.lab-board-frame { display: flex; justify-content: center; max-width: 100%; overflow: auto; }
+/* Scales down to fit a narrow container instead of forcing horizontal scroll/overflow — the
+   canvas's backing resolution stays fixed (buildCellCanvas), so shrinking it via CSS just renders
+   crisper than its logical size, never blurrier. */
+.reveal-demo-canvas { display: block; max-width: 100%; height: auto; }
+.lab-board-hint { font-size: 0.82rem; color: var(--muted); text-align: center; }
+/* .btn-ghost.lab-reset-btn (two classes), not a bare .lab-reset-btn — .btn-ghost's own
+   border-color:transparent (style.css, defined later in the file) would otherwise win at equal
+   specificity regardless of source order, same gotcha documented elsewhere in this file. */
+.btn-ghost.lab-reset-btn { width: 100%; max-width: 260px; border-color: var(--border); }
 
-/* Small in-place "buy this?" dialog opened from inside the avatar-editor modal (openItemPurchaseModal
+.lab-right { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
+.lab-right-title { margin: 0; font-size: 1.05rem; font-weight: 800; }
+.lab-right-sub { margin: 0.2rem 0 0.9rem; color: var(--muted); font-size: 0.85rem; }
+/* Own scroll region (not the whole dialog) so the left preview board + tabs stay put while
+   browsing a longer grid on a short viewport — max-height is a fallback, not a fixed size (each
+   tab's grid is only ever shown one at a time, so there's no in-place resize to guard against). */
+.lab-grid { max-height: min(480px, 55dvh); overflow-y: auto; padding-right: 0.2rem; }
+.lab-fx-preview { padding: 0; background: rgba(0, 0, 0, 0.28); }
+
+/* Locked/selected badges for the Lab's grids (buildCosmeticCardGrid/buildRevealEffectCard) — a
+   corner badge instead of the old always-reserved-space text pill (a UX-review ask: the glowing
+   border already reads as "selected", freeing the card for the actual preview). */
+.lab-tile-check {
+	position: absolute; top: 0.5rem; right: 0.5rem; width: 1.5rem; height: 1.5rem;
+	border-radius: 50%; background: var(--accent); color: #fff;
+	display: flex; align-items: center; justify-content: center;
+	font-size: 0.8rem; font-weight: 700; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+.lab-tile-lock {
+	position: absolute; top: 0.5rem; right: 0.5rem; padding: 0.2rem 0.5rem; border-radius: 999px;
+	background: rgba(0, 0, 0, 0.55); border: 1px solid var(--border); color: var(--muted);
+	font-size: 0.72rem; font-weight: 700; white-space: nowrap;
+}
+
+/* Small in-place "buy this?" dialog opened from inside the Customize Lab (openItemPurchaseModal
    in Profile.js) — stacks on top of #avatar_modal (same .cr-modal chrome, later in DOM so it paints
    above it) rather than navigating to /shop. */
 .item-purchase-dialog { width: min(320px, 100%); text-align: center; }
@@ -3970,10 +4011,11 @@ body[data-board-skin="monochrome"] .board-press-highlight {
 
 .shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; }
 .shop-tile {
+	position: relative; /* positioning context for .lab-tile-check/.lab-tile-lock's corner badge */
 	display: flex; flex-direction: column;
 	border-radius: 14px; overflow: hidden;
 	background: var(--bg); border: 1px solid var(--border);
-	transition: border-color 0.15s, transform 0.15s, outline-color 0.15s;
+	transition: border-color 0.15s, transform 0.15s, outline-color 0.15s, box-shadow 0.15s;
 	/* Button-reset properties — the Appearance modal's picker (Profile.js) renders this same class
 	   on a real <button> (so the whole tile is one click target, not a separate "select" control
 	   inside it), unlike the Shop page's own read-only <div> tiles. Harmless there: a <div> has none
@@ -3982,9 +4024,13 @@ body[data-board-skin="monochrome"] .board-press-highlight {
 }
 .shop-tile:hover { border-color: var(--muted); }
 /* "Currently selected" state — the picker's own concept, distinct from a tier's border colour and
-   from the Shop's "owned" badge (a tile can be owned but not the one currently applied). An outline
-   (not another box-shadow) so it never fights the epic tier's own glow. */
-.shop-tile.active { outline: 2px solid var(--accent); outline-offset: 2px; }
+   from the Shop's "owned" badge (a tile can be owned but not the one currently applied). Outline
+   plus a soft matching glow (a UX-review ask to push the selected state further) — the outline
+   alone still wins over the epic tier's own glow since they're visually distinct effects. */
+.shop-tile.active {
+	outline: 2px solid var(--accent); outline-offset: 2px;
+	box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.25), 0 0 20px rgba(99, 102, 241, 0.35);
+}
 /* Rarity ramp (common -> rare -> epic, item.tier in ShopCatalog.js) — purely a shop-display
    framing, unrelated to ownership/gameplay. Common stays the plain default border above; rare
    picks up a violet border matching --mode-standard elsewhere in this file, epic a gold one
@@ -4011,25 +4057,6 @@ body[data-board-skin="monochrome"] .board-press-highlight {
 	font-size: 0.8rem; font-weight: 700; color: var(--success);
 	background: rgba(74, 222, 128, 0.1); border: 1px solid rgba(74, 222, 128, 0.35);
 }
-/* Appearance-modal picker's "✓ Selected" slot (buildOwnedCosmeticGrid, Profile.js) — same look as
-   .shop-tile-owned above, but ALWAYS rendered (never just omitted) so every tile in the grid
-   reserves identical space for it. -empty uses visibility (not display:none) specifically: the box
-   still occupies its layout space while invisible, so picking a different tile — which toggles
-   which ONE tile's slot is visible — never changes any tile's height. This was a real reported bug
-   (the badge appearing/disappearing on select shifted the whole grid). */
-.shop-tile-status {
-	display: block; box-sizing: border-box; min-height: 1.7rem;
-	padding: 0.4rem 0.5rem; border-radius: 8px;
-	font-size: 0.8rem; font-weight: 700; color: var(--success);
-	background: rgba(74, 222, 128, 0.1); border: 1px solid rgba(74, 222, 128, 0.35);
-}
-.shop-tile-status-empty { visibility: hidden; }
-/* The trailing "browse the rest in the Shop" tile (buildShopLinkTile) — same footprint as a real
-   cosmetic tile (so it doesn't throw off the grid's row height) but dashed/muted so it reads as a
-   navigation link, not another pickable item. */
-.shop-tile-more { border-style: dashed; background: transparent; }
-.shop-tile-more:hover { border-color: var(--accent); }
-.shop-tile-more .shop-tile-name { color: var(--muted); }
 .shop-tile-btn.btn {
 	width: 100%; font-size: 0.82rem; padding: 0.45rem 0.5rem;
 	background: rgba(0, 0, 0, 0.35); border: 1px solid var(--border); color: var(--text);

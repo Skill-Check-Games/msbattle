@@ -65,7 +65,7 @@ function shopPriceLabel(id) {
 	return item ? "$" + (item.priceCents / 100).toFixed(2) : "";
 }
 // The avatar swatch grid — its own function (rather than inline in renderAppearance) so it can be
-// rebuilt in place after a purchase, the same way buildSkinOptionsGrid/renderAvatarModalSkins works.
+// rebuilt in place after a purchase, the same way buildCosmeticCardGrid/renderAvatarModalSkins works.
 function buildAvatarSwatchesGrid() {
 	var swatches = document.createElement("div"); swatches.className = "avatar-swatches";
 	var current = (account.avatarColor || DEFAULT_AVATAR).toLowerCase();
@@ -100,9 +100,6 @@ function buildAvatarSwatchesGrid() {
 	unlockedValues.concat(lockedValues).forEach(swatch);
 	return swatches;
 }
-
-// Re-render-only counterpart, mirroring renderAvatarModalSkins — see its own comment.
-function renderAvatarModalAvatars() { refreshCosmeticModals(); }
 
 // Small in-place "buy this?" confirmation opened from inside the avatar-editor modal instead of
 // navigating to /shop — clicking a locked item shouldn't kick the player out of what they were
@@ -158,135 +155,70 @@ function closeItemPurchaseModal() {
 	if (modal) modal.setAttribute("hidden", "");
 }
 
-// Shared by the board-skin and reveal-effect pickers below: only OWNED items get a tile (a locked
-// one you can't use yet just adds clutter/noise to a picker, unlike the Shop itself where browsing
-// locked items IS the point) — the shop-tile treatment already established (tier-coloured border,
-// live preview) plus a trailing "browse the rest in the Shop" tile for whatever's left locked, so
-// discovery isn't lost, just moved to where it belongs. opts:
-//   list         — the full id list (owned + locked)
-//   kind         — ShopCatalog kind ("skin"/"revealEffect")
-//   activeId     — the currently-applied id, for the "✓ Selected" state
+// Shared by the board-skin and reveal-effect grids in the Customize Lab (below): every item is
+// shown — owned or not — matching how the Avatar tab's swatches already work, rather than hiding
+// unowned ones behind a separate "browse the Shop" link. A locked tile is dimmed with a price
+// badge and opens the purchase modal instead of applying the pick; the currently-applied one gets
+// the shared active glow (.shop-tile.active) plus a small corner checkmark (.lab-tile-check) —
+// there's no more "✓ Selected" text pill (a UX-review ask: free up the card for the actual
+// preview, make selection obvious from the glow + a small badge instead). opts:
+//   list             — every id in this category (owned + locked)
+//   kind             — ShopCatalog kind ("skin"/"revealEffect")
+//   activeId         — the currently-applied id
 //   buildPreview(id) — returns the .shop-tile-preview's child element
 //   labelOf(id), blurbOf(id)
-//   onSelect(id) — applies the pick (setBoardSkin/setRevealEffect)
-// Every tile's status line (.shop-tile-status) is ALWAYS rendered, present-but-invisible when
-// empty (visibility:hidden, not omitted) — reserves identical space whether or not it has text, so
-// picking a different tile never changes any tile's height (a real reported bug: the "✓ Selected"
-// badge appearing/disappearing was shifting the whole grid's layout on every selection).
-function buildOwnedCosmeticGrid(opts) {
+//   onSelect(id)     — applies the pick (setBoardSkin/setRevealEffect)
+function buildCosmeticCardGrid(opts) {
 	var grid = document.createElement("div");
-	grid.className = "shop-grid";
-	var lockedCount = 0;
+	grid.className = "shop-grid lab-grid";
 	opts.list.forEach(function(id) {
-		if (!shopItemUnlocked(opts.kind, id)) { lockedCount++; return; }
+		var unlocked = shopItemUnlocked(opts.kind, id);
 		var isActive = id === opts.activeId;
 		var item = (typeof ShopCatalog !== "undefined") ? ShopCatalog.byId(id) : null;
 		var tile = document.createElement("button");
 		tile.type = "button";
-		tile.className = "shop-tile" + (item && item.tier ? " shop-tile-" + item.tier : "") + (isActive ? " active" : "");
-
-		var head = document.createElement("div"); head.className = "shop-tile-head";
-		var name = document.createElement("div"); name.className = "shop-tile-name"; name.textContent = opts.labelOf(id);
-		head.appendChild(name);
-		tile.appendChild(head);
+		tile.className = "shop-tile" + (item && item.tier ? " shop-tile-" + item.tier : "") +
+			(isActive ? " active" : "") + (unlocked ? "" : " locked");
 
 		var preview = document.createElement("div"); preview.className = "shop-tile-preview";
 		preview.appendChild(opts.buildPreview(id));
 		tile.appendChild(preview);
 
+		if (!unlocked) {
+			var lock = document.createElement("span"); lock.className = "lab-tile-lock";
+			lock.textContent = "🔒 " + shopPriceLabel(id);
+			tile.appendChild(lock);
+		} else if (isActive) {
+			var check = document.createElement("span"); check.className = "lab-tile-check"; check.textContent = "✓";
+			tile.appendChild(check);
+		}
+
 		var body = document.createElement("div"); body.className = "shop-tile-body";
+		var name = document.createElement("div"); name.className = "shop-tile-name"; name.textContent = opts.labelOf(id);
+		body.appendChild(name);
 		var blurb = document.createElement("span"); blurb.className = "skin-blurb"; blurb.textContent = opts.blurbOf(id);
 		body.appendChild(blurb);
-		var status = document.createElement("span");
-		status.className = "shop-tile-status" + (isActive ? "" : " shop-tile-status-empty");
-		status.textContent = "✓ Selected";
-		body.appendChild(status);
 		tile.appendChild(body);
 
 		tile.addEventListener("click", function() {
+			if (!unlocked) { openItemPurchaseModal(item); return; }
 			opts.onSelect(id);
-			refreshCosmeticModals();
 		});
 		grid.appendChild(tile);
 	});
-	if (lockedCount > 0) grid.appendChild(buildShopLinkTile(opts.kind, lockedCount));
 	return grid;
 }
 
-// The trailing "browse the rest in the Shop" tile — same footprint as a real cosmetic tile (so the
-// grid row height stays consistent) but visually a navigation affordance, not a pickable item:
-// closes this modal and opens the Shop pre-selected to the matching category.
-function buildShopLinkTile(kind, lockedCount) {
-	var tile = document.createElement("button");
-	tile.type = "button";
-	tile.className = "shop-tile shop-tile-more";
-
-	var head = document.createElement("div"); head.className = "shop-tile-head";
-	var name = document.createElement("div"); name.className = "shop-tile-name"; name.textContent = "More in Shop";
-	head.appendChild(name);
-	tile.appendChild(head);
-
-	var preview = document.createElement("div"); preview.className = "shop-tile-preview";
-	var glyph = document.createElement("span"); glyph.className = "shop-tile-fx-glyph"; glyph.textContent = "🛍️";
-	preview.appendChild(glyph);
-	tile.appendChild(preview);
-
-	var body = document.createElement("div"); body.className = "shop-tile-body";
-	var blurb = document.createElement("span"); blurb.className = "skin-blurb";
-	blurb.textContent = lockedCount + (lockedCount === 1 ? " more to unlock." : " more to unlock.");
-	body.appendChild(blurb);
-	var status = document.createElement("span"); status.className = "shop-tile-status shop-tile-status-empty";
-	status.textContent = "✓ Selected"; // same reserved slot as the real tiles — never shown (see CSS)
-	body.appendChild(status);
-	tile.appendChild(body);
-
-	tile.addEventListener("click", function() {
-		if (typeof shopActiveKind !== "undefined") shopActiveKind = kind;
-		// Hide both stacked modals — this tile now renders inside the cosmetic picker, which itself
-		// sits on top of the Customize modal (see openCosmeticPicker) — so both need clearing before
-		// navigating away, not just the one this tile happens to live in.
-		["cosmetic_picker_modal", "avatar_modal"].forEach(function(id) {
-			var modal = document.getElementById(id);
-			if (modal) modal.setAttribute("hidden", "");
-		});
-		navigate("/shop");
-	});
-	return tile;
+// Re-render-only entry points — kept as their own named functions since Shop.js/Main.js/
+// BoardRender.js all call them directly after a purchase/rejection/skin change, from outside this
+// file. Delegate to the Lab's own rebuild (renderLabRightPanel, harmless/no-op if the modal isn't
+// open or a different tab is active — see its own comment).
+function renderAvatarModalAvatars() { renderLabRightPanel(); renderLabIdentity(); }
+function renderAvatarModalSkins() { renderLabRightPanel(); if (labDemo) labDemo.redraw(); }
+function renderAvatarModalRevealEffect() {
+	renderLabRightPanel();
+	if (labDemo && typeof localRevealEffect !== "undefined") labDemo.setEffect(localRevealEffect);
 }
-
-// Board skin picker.
-function buildSkinOptionsGrid() {
-	return buildOwnedCosmeticGrid({
-		list: BOARD_SKIN_LIST, kind: "skin", activeId: localBoardSkin,
-		buildPreview: function(id) { return buildSkinPreview(id); },
-		labelOf: function(id) { return BOARD_SKINS[id].label; },
-		blurbOf: function(id) { return BOARD_SKINS[id].blurb; },
-		onSelect: function(id) { if (typeof setBoardSkin === "function") setBoardSkin(id); }
-	});
-}
-
-// Re-render-only entry point — kept as its own named function since Shop.js/Main.js/BoardRender.js
-// all call it directly after a purchase/rejection, from outside this file. Delegates to the shared
-// tab+panel rebuild (which is a no-op if the modal isn't open, or repaints nothing this picker
-// cares about if a DIFFERENT tab happens to be the active one — either way harmless to call).
-function renderAvatarModalSkins() { refreshCosmeticModals(); }
-
-// Reveal effect picker — same treatment, using the per-effect emoji glyph (REVEAL_EFFECT_GLYPHS,
-// Shop.js) in place of a preview image (there's no static frame of an animation worth showing).
-function buildRevealEffectOptionsGrid() {
-	return buildOwnedCosmeticGrid({
-		list: REVEAL_EFFECT_LIST, kind: "revealEffect", activeId: localRevealEffect,
-		buildPreview: function(id) {
-			var glyph = document.createElement("span"); glyph.className = "shop-tile-fx-glyph";
-			glyph.textContent = (typeof REVEAL_EFFECT_GLYPHS !== "undefined" && REVEAL_EFFECT_GLYPHS[id]) || "✨";
-			return glyph;
-		},
-		labelOf: function(id) { return Cosmetics.REVEAL_EFFECTS[id].label; },
-		blurbOf: function(id) { return Cosmetics.REVEAL_EFFECTS[id].blurb; },
-		onSelect: function(id) { if (typeof setRevealEffect === "function") setRevealEffect(id); }
-	});
-}
-function renderAvatarModalRevealEffect() { refreshCosmeticModals(); }
 
 // Profile renders from the account cache plus the most recent leaderboard snapshot.
 // The profile is split into three tabs (the page had grown large): Overview (identity + lifetime/
@@ -515,18 +447,13 @@ function renderPublicProfileData(profile) {
 	card.appendChild(pz);
 }
 
-// ---- Appearance/customization modal ----------------------------------------------------------
-// A "current loadout" summary — one card per cosmetic category (Avatar, Board Skin, Reveal
-// Effect) showing what's equipped right now, instead of tabs to switch between category pickers
-// in place. Clicking a card opens a picker modal (openCosmeticPicker) scoped to just that
-// category; the card underneath updates the moment a new pick is made, whether or not the picker
-// is then closed.
-var COSMETIC_CATEGORIES = {
-	avatar: { label: "Avatar", title: "Choose Avatar" },
-	skin: { label: "Board Skin", title: "Choose Board Skin" },
-	revealEffect: { label: "Reveal Effect", title: "Choose Reveal Effect" }
-};
-var cosmeticPickerKind = null; // which category's picker modal is currently open, if any
+// ---- Customize Lab (Avatar / Board Skin / Reveal Effect) -------------------------------------
+// A UX-review redesign of the old tabs-and-modals appearance picker: instead of drilling down
+// (Customize → Reveal Effect → Back → Board Skin → …), everything lives in ONE view — a persistent
+// live mini board on the left (your real identity + your real board skin), with compact category
+// tabs across the top switching only the picker grid on the right. Clicking a covered cell on the
+// left plays a REAL cascade through the exact production reveal-effect code (BoardRender.js's
+// forceRevealEffect), so trying a style is something you do to a board, not just a name you read.
 
 // Human label for a raw avatar value (a colour hex / "anon" / "mine" / "img:<id>"). ShopCatalog
 // only names the purchasable ones (image presets + the flag colour) — the always-free "anon"/
@@ -539,67 +466,204 @@ function avatarValueLabel(value) {
 	return "Flag"; // the free default red flag colour, or any other bare hex not in the catalog
 }
 
-// One "current loadout" card. Reuses the .shop-tile visual treatment (border/padding/preview box)
-// the Shop page established, but the whole tile is a button that opens a picker rather than a
-// selectable item itself — the "Change" line under the name signals that. No hover lift/pop added
-// (the site-wide hover convention — border-colour/opacity only — already covers this via the
-// inherited .shop-tile:hover rule, so nothing extra was needed here).
-function cosmeticSummaryTile(kind, previewEl, nameText) {
-	var tile = document.createElement("button");
-	tile.type = "button";
-	tile.className = "shop-tile cosmetic-summary-tile";
+// A small, self-contained toy board: its own local anim state + RAF loop, entirely independent of
+// the real game's globals (cellAnims/myState/playerCanvas/rows/cols) so it can run happily whether
+// or not a real match exists anywhere else in the app. Not a real puzzle — nobody can lose, and
+// there's no no-guess guarantee — but every number is still computed from a real, fixed mine
+// layout (never faked), so the board reads as authentic rather than a mockup of one. Reveals are
+// driven through the exact production canvas code (BoardView + drawRevealLid via
+// view.forceRevealEffect), staggered by BFS distance the same way a live cascade is
+// (STAGGER_MS/STAGGER_CAP), so what plays here is really what plays in a real match.
+// opts: rows, cols, mines [[r,c],...], openAt [r,c] (the cell whose flood becomes the board's
+// resting "opening" state), cellPx, effectId, interactive (attach click-to-reveal; default true).
+function buildRevealDemoBoard(opts) {
+	var rows = opts.rows, cols = opts.cols, mines = opts.mines, openAt = opts.openAt;
+	function isMineAt(r, c) { return mines.some(function(m) { return m[0] === r && m[1] === c; }); }
+	function clueAt(r, c) {
+		if (isMineAt(r, c)) return MINE;
+		var n = 0;
+		BoardLogic.forEachNeighbour(r, c, rows, cols, function(nr, nc) { if (isMineAt(nr, nc)) n++; });
+		return n;
+	}
+	function freshState() {
+		var s = [];
+		for (var r = 0; r < rows; r++) { var row = []; for (var c = 0; c < cols; c++) row.push(UNKNOWN); s.push(row); }
+		return s;
+	}
 
-	var head = document.createElement("div"); head.className = "shop-tile-head";
-	var kicker = document.createElement("div"); kicker.className = "shop-tile-kicker"; kicker.textContent = COSMETIC_CATEGORIES[kind].label;
-	head.appendChild(kicker);
-	tile.appendChild(head);
+	var canvas = buildCellCanvas(cols, rows, opts.cellPx || 40, "reveal-demo-canvas");
+	var state = freshState();
+	var anims = {}, raf = null;
 
-	var preview = document.createElement("div"); preview.className = "shop-tile-preview";
-	preview.appendChild(previewEl);
-	tile.appendChild(preview);
+	var bv = new BoardView(canvas, rows, cols, state, clueAt, {
+		forceRevealEffect: opts.effectId || "ripple",
+		animAt: function(r, c) {
+			var a = anims[r + "," + c];
+			if (!a) return null;
+			return { type: "reveal", t: (performance.now() - a.start) / REVEAL_DUR };
+		}
+	});
 
-	var body = document.createElement("div"); body.className = "shop-tile-body";
-	var name = document.createElement("span"); name.className = "cosmetic-summary-name"; name.textContent = nameText;
-	body.appendChild(name);
-	var change = document.createElement("span"); change.className = "cosmetic-summary-change"; change.textContent = "Change";
-	body.appendChild(change);
-	tile.appendChild(body);
+	function stopLoop() { if (raf) { cancelAnimationFrame(raf); raf = null; } }
+	function loop() {
+		var now = performance.now(), stillAnimating = false;
+		for (var key in anims) {
+			if (now - anims[key].start < REVEAL_DUR + STAGGER_CAP) stillAnimating = true;
+			else delete anims[key];
+		}
+		bv.draw();
+		raf = stillAnimating ? requestAnimationFrame(loop) : null;
+	}
 
-	tile.addEventListener("click", function() { openCosmeticPicker(kind); });
-	return tile;
+	// BFS flood from (r,c) — same shape as a real cascade: reveal it, and if it's a 0-clue, recurse
+	// into its covered neighbours too. `animate` false paints instantly (the board's resting state);
+	// true staggers each newly-opened cell's reveal by its BFS distance from the origin.
+	function floodFrom(r, c, animate) {
+		var queue = [[r, c, 0]], seen = {};
+		seen[r + "," + c] = true;
+		var startedAt = performance.now();
+		while (queue.length) {
+			var cur = queue.shift(), cr = cur[0], cc = cur[1], dist = cur[2];
+			if (state[cr][cc] === UNKNOWN) {
+				state[cr][cc] = KNOWN;
+				if (animate) anims[cr + "," + cc] = { start: startedAt + Math.min(STAGGER_CAP, dist * STAGGER_MS) };
+			}
+			if (clueAt(cr, cc) === 0) {
+				BoardLogic.forEachNeighbour(cr, cc, rows, cols, function(nr, nc) {
+					var k = nr + "," + nc;
+					if (!seen[k] && state[nr][nc] === UNKNOWN) { seen[k] = true; queue.push([nr, nc, dist + 1]); }
+				});
+			}
+		}
+	}
+
+	// Re-covers the board and re-opens its resting state (no animation) — the demo's "start over".
+	function reset() {
+		stopLoop();
+		anims = {};
+		state = freshState();
+		bv._state = state;
+		if (openAt) floodFrom(openAt[0], openAt[1], false);
+		bv.draw();
+	}
+
+	// Click-to-test: reveal the real cascade starting at (r,c), animated.
+	function reveal(r, c) {
+		if (r < 0 || r >= rows || c < 0 || c >= cols) return;
+		if (state[r][c] !== UNKNOWN || isMineAt(r, c)) return;
+		floodFrom(r, c, true);
+		stopLoop();
+		loop();
+	}
+
+	// A scripted demonstration: reveal a given list of covered cells with a stagger, as if they'd
+	// been flooded in that order — used to show an effect off without depending on where the
+	// player happens to have clicked (the reveal-effect cards, and "Reset board"'s own replay).
+	function playDemo(cells) {
+		var startedAt = performance.now();
+		cells.forEach(function(p, i) {
+			var r = p[0], c = p[1];
+			if (state[r][c] !== UNKNOWN) return;
+			state[r][c] = KNOWN;
+			anims[r + "," + c] = { start: startedAt + i * STAGGER_MS * 3 };
+		});
+		stopLoop();
+		loop();
+	}
+
+	// Every currently-covered, non-mine cell touching an already-revealed one — the natural next
+	// "ring" to demonstrate on, so a scripted replay always reads as a continuation of whatever's
+	// already open rather than an arbitrary patch with no relation to what's on screen.
+	function frontierCells() {
+		var out = [];
+		for (var r = 0; r < rows; r++) {
+			for (var c = 0; c < cols; c++) {
+				if (state[r][c] !== UNKNOWN || isMineAt(r, c)) continue;
+				var touches = false;
+				BoardLogic.forEachNeighbour(r, c, rows, cols, function(nr, nc) { if (state[nr][nc] === KNOWN) touches = true; });
+				if (touches) out.push([r, c]);
+			}
+		}
+		return out;
+	}
+
+	function setEffect(id) { bv.forceRevealEffect = id; }
+
+	canvas.addEventListener("click", function(e) {
+		if (opts.interactive === false) return;
+		var rect = canvas.getBoundingClientRect();
+		var cw = rect.width / cols, ch = rect.height / rows;
+		reveal(Math.floor((e.clientY - rect.top) / ch), Math.floor((e.clientX - rect.left) / cw));
+	});
+
+	reset();
+	return {
+		canvas: canvas, bv: bv, reset: reset, reveal: reveal, playDemo: playDemo,
+		frontierCells: frontierCells, setEffect: setEffect, redraw: function() { bv.draw(); }, stopLoop: stopLoop
+	};
 }
 
-// Rebuilds the three loadout cards from the live account/local-cosmetic state. Cheap enough to
-// call unconditionally after any cosmetic change; a no-op if the modal isn't open (its container
-// isn't in the DOM).
-function renderCosmeticSummary() {
-	var container = document.getElementById("avatar_modal_summary");
-	if (!container) return;
-	container.innerHTML = "";
-	var grid = document.createElement("div"); grid.className = "cosmetic-summary-grid";
+// The main preview board's fixed layout — hand-picked (not random) so the same demo replays
+// identically every time the Lab opens: an ~19% mine density (close to Standard's 20%), with the
+// top-left 3×3 block kept mine-free so `openAt` gives a decent-sized natural opening to start from,
+// leaving most of the board covered for the player to click into on their own.
+var LAB_DEMO_ROWS = 8, LAB_DEMO_COLS = 11;
+var LAB_DEMO_MINES = [
+	[0, 5], [1, 7], [1, 9], [2, 3], [2, 8], [2, 10], [3, 0], [3, 5], [3, 10],
+	[4, 2], [4, 7], [5, 4], [5, 9], [6, 1], [6, 6], [7, 3], [7, 8]
+];
+var LAB_DEMO_OPEN_AT = [1, 1];
 
-	var avatarValue = account.avatarColor || DEFAULT_AVATAR;
-	var avatarPreview = (typeof buildAvatarChip === "function")
-		? buildAvatarChip(avatarValue, account.country || null, 56)
-		: document.createElement("span");
-	grid.appendChild(cosmeticSummaryTile("avatar", avatarPreview, avatarValueLabel(avatarValue)));
-
-	var skin = BOARD_SKINS[localBoardSkin];
-	grid.appendChild(cosmeticSummaryTile("skin", buildSkinPreview(localBoardSkin), skin ? skin.label : localBoardSkin));
-
-	var effect = Cosmetics.REVEAL_EFFECTS[localRevealEffect];
-	var glyph = document.createElement("span"); glyph.className = "shop-tile-fx-glyph";
-	glyph.textContent = (typeof REVEAL_EFFECT_GLYPHS !== "undefined" && REVEAL_EFFECT_GLYPHS[localRevealEffect]) || "✨";
-	grid.appendChild(cosmeticSummaryTile("revealEffect", glyph, effect ? effect.label : localRevealEffect));
-
-	container.appendChild(grid);
+// A tiny demo board for one reveal-effect card's own thumbnail — a couple of mines just so a
+// number or two shows next to the covered cells being demonstrated.
+function buildRevealEffectCardDemo(effectId) {
+	return buildRevealDemoBoard({
+		rows: 3, cols: 4, cellPx: 30, effectId: effectId, interactive: false,
+		mines: [[0, 3], [2, 0]], openAt: [1, 1]
+	});
 }
 
-// Picker-modal body builders — one per category. Content is unchanged from the old tab panels
-// (still owned-items-only + a "More in Shop" tile via buildOwnedCosmeticGrid), just no longer
-// nested inside a tab strip.
-function buildAvatarPickerBody() {
+var LAB_TABS = [
+	{ id: "avatar", label: "Avatar", icon: "🧑" },
+	{ id: "skin", label: "Board", icon: "🧩" },
+	{ id: "revealEffect", label: "Reveal FX", icon: "✨" }
+];
+var labTab = "avatar";       // remembered across opens within the session
+var labDemo = null;          // the persistent main-preview demo board — (re)built fresh per open
+var labReplayTimers = [];    // periodic auto-replay intervals for the active reveal-effect card
+
+function stopLabReplayTimers() {
+	labReplayTimers.forEach(function(iv) { clearInterval(iv); });
+	labReplayTimers = [];
+}
+
+function renderLabTabs() {
+	var bar = document.getElementById("lab_tabs");
+	if (!bar) return;
+	bar.innerHTML = "";
+	LAB_TABS.forEach(function(t) {
+		var b = document.createElement("button");
+		b.type = "button";
+		b.className = "lab-tab" + (t.id === labTab ? " active" : "");
+		b.innerHTML = '<span class="lab-tab-icon">' + t.icon + '</span><span>' + t.label + '</span>';
+		b.addEventListener("click", function() {
+			if (labTab === t.id) return;
+			labTab = t.id;
+			renderLabTabs();
+			renderLabRightPanel();
+		});
+		bar.appendChild(b);
+	});
+}
+
+function buildLabAvatarPanel() {
 	var wrap = document.createElement("div");
+	var title = document.createElement("h3"); title.className = "lab-right-title"; title.textContent = "Choose Avatar";
+	wrap.appendChild(title);
+	var sub = document.createElement("p"); sub.className = "lab-right-sub";
+	sub.textContent = "Your flag and avatar show up to opponents in every match.";
+	wrap.appendChild(sub);
+
 	// Flag first — its flag becomes the avatar's pennant when set. The colour swatches below are the
 	// fallback when no flag is set. Uses the searchable flag-picker (FlagPicker.js) instead of a
 	// plain <select>, ported from Mathias's achtung-royale picker.
@@ -612,70 +676,191 @@ function buildAvatarPickerBody() {
 	swatchesContainer.appendChild(buildAvatarSwatchesGrid());
 	wrap.appendChild(swatchesContainer);
 	var note = document.createElement("div"); note.className = "appearance-note";
-	note.textContent = "Flag colours are used when no flag is set above; an image avatar replaces the flag colour. Locked presets are in the Shop.";
+	note.textContent = "Flag colours are used when no flag is set above; an image avatar replaces the flag colour.";
 	wrap.appendChild(note);
 	return wrap;
 }
-function buildSkinPickerBody() {
-	var container = document.createElement("div"); container.id = "avatar_modal_skins";
-	container.appendChild(buildSkinOptionsGrid());
-	return container;
-}
-function buildRevealFxPickerBody() {
-	var container = document.createElement("div"); container.id = "avatar_modal_reveal_fx";
-	container.appendChild(buildRevealEffectOptionsGrid());
-	return container;
+
+function buildLabSkinPanel() {
+	var wrap = document.createElement("div");
+	var title = document.createElement("h3"); title.className = "lab-right-title"; title.textContent = "Choose Board Skin";
+	wrap.appendChild(title);
+	var sub = document.createElement("p"); sub.className = "lab-right-sub";
+	sub.textContent = "Changes how your board looks to everyone in a match — try one on the board to the left.";
+	wrap.appendChild(sub);
+	wrap.appendChild(buildCosmeticCardGrid({
+		list: BOARD_SKIN_LIST, kind: "skin", activeId: localBoardSkin,
+		buildPreview: function(id) { return buildSkinPreview(id); },
+		labelOf: function(id) { return BOARD_SKINS[id].label; },
+		blurbOf: function(id) { return BOARD_SKINS[id].blurb; },
+		onSelect: function(id) {
+			setBoardSkin(id);
+			renderLabRightPanel();
+			if (labDemo) labDemo.redraw();
+		}
+	}));
+	return wrap;
 }
 
-// Rebuilds the currently-open picker modal's body from `cosmeticPickerKind` — a no-op if the
-// picker isn't open (container not in the DOM) or nothing is active, so it's harmless to call
-// unconditionally, same contract the old tab-rebuild function had.
-function renderCosmeticPickerBody() {
-	var container = document.getElementById("cosmetic_picker_body");
-	if (!container || !cosmeticPickerKind) return;
-	container.innerHTML = "";
-	if (cosmeticPickerKind === "skin") container.appendChild(buildSkinPickerBody());
-	else if (cosmeticPickerKind === "revealEffect") container.appendChild(buildRevealFxPickerBody());
-	else container.appendChild(buildAvatarPickerBody());
-}
+// One reveal-effect card: a live mini board (not an emoji) so the effect's actual look communicates
+// itself. Hovering (or a touch tap, via the click handler below) plays a short demo on the card's
+// OWN board; the currently-applied effect also auto-replays periodically so the grid doesn't sit
+// dead once you've picked one, without animating every OTHER card constantly (a UX-review ask —
+// hover/selected-only, to keep the grid from turning into visual chaos).
+function buildRevealEffectCard(id) {
+	var unlocked = shopItemUnlocked("revealEffect", id);
+	var isActive = id === localRevealEffect;
+	var item = (typeof ShopCatalog !== "undefined") ? ShopCatalog.byId(id) : null;
+	var demo = buildRevealEffectCardDemo(id);
 
-// Refreshes the (possibly open) picker and the summary cards underneath it — called after any
-// cosmetic selection/purchase/rejection, both from inside this file and from the external
-// renderAvatarModal* entry points below (kept for Shop.js/Main.js/BoardRender.js call sites).
-function refreshCosmeticModals() {
-	renderCosmeticPickerBody();
-	renderCosmeticSummary();
-}
+	var tile = document.createElement("button");
+	tile.type = "button";
+	tile.className = "shop-tile lab-fx-tile" + (item && item.tier ? " shop-tile-" + item.tier : "") +
+		(isActive ? " active" : "") + (unlocked ? "" : " locked");
 
-// Picker modal — opened by clicking a summary card. Stacks on top of #avatar_modal (same
-// .cr-modal chrome, later in DOM so it paints above), the same idiom openItemPurchaseModal already
-// uses to stack on top of THIS modal, one level further in — a locked item clicked from inside the
-// picker opens the purchase modal on top of both.
-function openCosmeticPicker(kind) {
-	cosmeticPickerKind = kind;
-	var modal = document.getElementById("cosmetic_picker_modal");
-	if (!modal) {
-		modal = document.createElement("div");
-		modal.id = "cosmetic_picker_modal";
-		modal.className = "cr-modal";
-		modal.setAttribute("hidden", "");
-		modal.innerHTML =
-			'<div class="cr-backdrop" data-picker-close></div>' +
-			'<div class="cr-dialog cosmetic-picker-dialog" role="dialog" aria-modal="true" aria-labelledby="cosmetic_picker_title">' +
-				'<div class="cr-dialog-head"><h2 id="cosmetic_picker_title"></h2>' +
-				'<button class="cr-close" type="button" data-picker-close aria-label="Close">×</button></div>' +
-				'<div id="cosmetic_picker_body"></div>' +
-			'</div>';
-		document.body.appendChild(modal);
-		modal.addEventListener("click", function(e) { if (e.target.closest("[data-picker-close]")) modal.setAttribute("hidden", ""); });
-		document.addEventListener("keydown", function(e) { if (e.key === "Escape" && !modal.hasAttribute("hidden")) modal.setAttribute("hidden", ""); });
+	var preview = document.createElement("div"); preview.className = "shop-tile-preview lab-fx-preview";
+	preview.appendChild(demo.canvas);
+	tile.appendChild(preview);
+
+	if (!unlocked) {
+		var lock = document.createElement("span"); lock.className = "lab-tile-lock";
+		lock.textContent = "🔒 " + shopPriceLabel(id);
+		tile.appendChild(lock);
+	} else if (isActive) {
+		var check = document.createElement("span"); check.className = "lab-tile-check"; check.textContent = "✓";
+		tile.appendChild(check);
 	}
-	modal.querySelector("#cosmetic_picker_title").textContent = COSMETIC_CATEGORIES[kind].title;
-	renderCosmeticPickerBody();
-	modal.removeAttribute("hidden");
+
+	var body = document.createElement("div"); body.className = "shop-tile-body";
+	var name = document.createElement("div"); name.className = "shop-tile-name";
+	name.textContent = Cosmetics.REVEAL_EFFECTS[id].label;
+	body.appendChild(name);
+	var blurb = document.createElement("span"); blurb.className = "skin-blurb";
+	blurb.textContent = Cosmetics.REVEAL_EFFECTS[id].blurb;
+	body.appendChild(blurb);
+	tile.appendChild(body);
+
+	function demoPlay() { demo.reset(); demo.playDemo(demo.frontierCells().slice(0, 3)); }
+	tile.addEventListener("mouseenter", demoPlay);
+	tile.addEventListener("mouseleave", function() { demo.reset(); });
+
+	tile.addEventListener("click", function() {
+		if (!unlocked) { openItemPurchaseModal(item); return; }
+		if (id === localRevealEffect) { demoPlay(); return; } // already selected: just replay it
+		setRevealEffect(id);
+		renderLabRightPanel();
+		if (labDemo) {
+			labDemo.setEffect(id);
+			labDemo.reset();
+			labDemo.playDemo(labDemo.frontierCells().slice(0, 8));
+		}
+	});
+
+	if (isActive) {
+		demoPlay();
+		labReplayTimers.push(setInterval(demoPlay, 4200));
+	}
+
+	return tile;
 }
 
-// Avatar editor modal — opened by clicking the home/profile avatar.
+function buildLabRevealEffectPanel() {
+	var wrap = document.createElement("div");
+	var title = document.createElement("h3"); title.className = "lab-right-title"; title.textContent = "Choose Reveal Effect";
+	wrap.appendChild(title);
+	var sub = document.createElement("p"); sub.className = "lab-right-sub";
+	sub.textContent = "See how each effect looks in action. Click a tile on the board to try it out.";
+	wrap.appendChild(sub);
+	var grid = document.createElement("div"); grid.className = "shop-grid lab-grid";
+	REVEAL_EFFECT_LIST.forEach(function(id) { grid.appendChild(buildRevealEffectCard(id)); });
+	wrap.appendChild(grid);
+	return wrap;
+}
+
+// Rebuilds only the right-hand picker panel for whichever tab is active — the left preview board
+// persists untouched across a tab switch (a UX-review goal: browsing categories should feel like
+// flipping through one collection, not navigating into and back out of separate screens). Clearing
+// any running reveal-effect auto-replay timers up front means this is safe to call unconditionally
+// (tab switch, a fresh selection, or an external purchase/rejection refresh) without ever leaking
+// one — a no-op if the modal isn't open (its container isn't in the DOM).
+function renderLabRightPanel() {
+	stopLabReplayTimers();
+	var panel = document.getElementById("lab_right_panel");
+	if (!panel) return;
+	panel.innerHTML = "";
+	if (labTab === "skin") panel.appendChild(buildLabSkinPanel());
+	else if (labTab === "revealEffect") panel.appendChild(buildLabRevealEffectPanel());
+	else panel.appendChild(buildLabAvatarPanel());
+}
+
+// The persistent left panel: identity header + the live preview board + its controls. Built fresh
+// every time the Lab opens (a brand new labDemo instance each time — simplest way to guarantee no
+// stale RAF loop survives a previous session), but never rebuilt again while the modal stays open,
+// so switching tabs can't interrupt whatever the player is in the middle of trying.
+function buildLabLeftPanel() {
+	var wrap = document.createElement("div"); wrap.className = "lab-left";
+
+	var identity = document.createElement("div"); identity.className = "lab-identity"; identity.id = "lab_identity";
+	wrap.appendChild(identity);
+
+	var frame = document.createElement("div"); frame.className = "lab-board-frame";
+	labDemo = buildRevealDemoBoard({
+		rows: LAB_DEMO_ROWS, cols: LAB_DEMO_COLS, cellPx: 38,
+		mines: LAB_DEMO_MINES, openAt: LAB_DEMO_OPEN_AT, effectId: localRevealEffect
+	});
+	frame.appendChild(labDemo.canvas);
+	wrap.appendChild(frame);
+
+	var hint = document.createElement("div"); hint.className = "lab-board-hint";
+	hint.textContent = "Click a tile to test the effect!";
+	wrap.appendChild(hint);
+
+	var resetBtn = document.createElement("button");
+	resetBtn.type = "button"; resetBtn.className = "btn btn-ghost lab-reset-btn";
+	resetBtn.textContent = "↻ Reset board";
+	resetBtn.addEventListener("click", function() {
+		labDemo.setEffect(typeof localRevealEffect !== "undefined" ? localRevealEffect : "ripple");
+		labDemo.reset();
+		labDemo.playDemo(labDemo.frontierCells().slice(0, 8));
+	});
+	wrap.appendChild(resetBtn);
+
+	renderLabIdentity();
+	return wrap;
+}
+
+// Updates just the name/avatar header above the preview board — called on open and whenever the
+// avatar/flag changes (refreshAvatarDisplays), without touching the board itself.
+function renderLabIdentity() {
+	var el = document.getElementById("lab_identity");
+	if (!el || !account) return;
+	el.innerHTML = "";
+	var avatarValue = account.avatarColor || DEFAULT_AVATAR;
+	if (typeof buildAvatarChip === "function") {
+		var chip = buildAvatarChip(avatarValue, account.country || null, 56);
+		chip.classList.add("lab-identity-avatar");
+		el.appendChild(chip);
+	}
+	var text = document.createElement("div"); text.className = "lab-identity-text";
+	var name = document.createElement("div"); name.className = "lab-identity-name";
+	name.textContent = myName || (account.name || "You");
+	text.appendChild(name);
+	var sub = document.createElement("div"); sub.className = "lab-identity-sub"; sub.textContent = avatarValueLabel(avatarValue);
+	text.appendChild(sub);
+	el.appendChild(text);
+}
+
+// Stops the preview board's RAF loop + any reveal-effect auto-replay timers before hiding the
+// modal — nothing here is expensive left running in the background, but there's no reason to let a
+// setInterval fire against a hidden dialog for the rest of the session either.
+function closeCustomizeLab() {
+	var modal = document.getElementById("avatar_modal");
+	if (modal) modal.setAttribute("hidden", "");
+	stopLabReplayTimers();
+	if (labDemo) { labDemo.stopLoop(); labDemo = null; }
+}
+
+// Customize Lab modal — opened by clicking the home/profile avatar.
 function openAvatarEditor() {
 	if (!account) return;
 	var modal = document.getElementById("avatar_modal");
@@ -686,37 +871,34 @@ function openAvatarEditor() {
 		modal.setAttribute("hidden", "");
 		modal.innerHTML =
 			'<div class="cr-backdrop" data-avatar-close></div>' +
-			'<div class="cr-dialog avatar-editor-dialog" role="dialog" aria-modal="true" aria-labelledby="avatar_modal_title">' +
-				'<div class="cr-dialog-head"><h2 id="avatar_modal_title">Customize</h2>' +
-				'<button class="cr-close" type="button" data-avatar-close aria-label="Close">×</button></div>' +
-				'<div id="avatar_modal_body"></div>' +
+			'<div class="cr-dialog customize-lab-dialog" role="dialog" aria-modal="true" aria-labelledby="avatar_modal_title">' +
+				'<div class="cr-dialog-head">' +
+					'<div><h2 id="avatar_modal_title">Customize</h2>' +
+					'<p class="cr-dialog-sub">Make it yours. Try different styles and see them in action!</p></div>' +
+					'<button class="cr-close" type="button" data-avatar-close aria-label="Close">×</button>' +
+				'</div>' +
+				'<div class="lab-tabs" id="lab_tabs"></div>' +
+				'<div class="lab-body">' +
+					'<div id="lab_left_panel"></div>' +
+					'<div class="lab-right" id="lab_right_panel"></div>' +
+				'</div>' +
 			'</div>';
 		document.body.appendChild(modal);
-		modal.addEventListener("click", function(e) { if (e.target.closest("[data-avatar-close]")) modal.setAttribute("hidden", ""); });
-		document.addEventListener("keydown", function(e) { if (e.key === "Escape" && !modal.hasAttribute("hidden")) modal.setAttribute("hidden", ""); });
+		modal.addEventListener("click", function(e) { if (e.target.closest("[data-avatar-close]")) closeCustomizeLab(); });
+		document.addEventListener("keydown", function(e) { if (e.key === "Escape" && !modal.hasAttribute("hidden")) closeCustomizeLab(); });
 	}
-	var body = modal.querySelector("#avatar_modal_body");
-	body.innerHTML = "";
 
-	// Hero: a bigger live preview of the whole identity (avatar + flag), name underneath — the
-	// "who you are" header the loadout cards below all feed into.
-	var hero = document.createElement("div"); hero.className = "avatar-editor-hero";
-	var preview = document.createElement("div"); preview.className = "avatar-editor-preview";
-	if (typeof buildAvatarChip === "function") preview.appendChild(buildAvatarChip(account.avatarColor || DEFAULT_AVATAR, account.country || null, 96));
-	hero.appendChild(preview);
-	var heroName = document.createElement("div"); heroName.className = "avatar-editor-hero-name";
-	heroName.textContent = myName || (account.name || "You");
-	hero.appendChild(heroName);
-	body.appendChild(hero);
-
-	var summary = document.createElement("div"); summary.id = "avatar_modal_summary";
-	body.appendChild(summary);
-	renderCosmeticSummary();
+	renderLabTabs();
+	var leftPanel = document.getElementById("lab_left_panel");
+	leftPanel.innerHTML = "";
+	leftPanel.appendChild(buildLabLeftPanel());
+	renderLabRightPanel();
 
 	modal.removeAttribute("hidden");
 }
 
-// Repaint every place the local user's avatar shows after a change (profile header + home identity).
+// Repaint every place the local user's avatar shows after a change (profile header + home identity
+// + the Lab's own identity header, if open).
 function refreshAvatarDisplays() {
 	var head = document.querySelector("#profile_card .profile-avatar");
 	if (head && typeof buildAvatarChip === "function") {
@@ -725,9 +907,7 @@ function refreshAvatarDisplays() {
 		head.replaceWith(chip);
 	}
 	if (typeof renderDashIdentity === "function") renderDashIdentity();
-	var prev = document.querySelector("#avatar_modal .avatar-editor-preview");
-	if (prev && typeof buildAvatarChip === "function") { prev.innerHTML = ""; prev.appendChild(buildAvatarChip(account.avatarColor || DEFAULT_AVATAR, account.country || null, 92)); }
-	if (typeof renderCosmeticSummary === "function") renderCosmeticSummary();
+	if (typeof renderLabIdentity === "function") renderLabIdentity();
 }
 function setAvatarColor(col) {
 	account.avatarColor = col;

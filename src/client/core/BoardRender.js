@@ -171,6 +171,11 @@ function BoardView(canvas, rows, cols, state, cellAt, opts) {
 	// Which skin to paint this board in (null → the local user's skin). Opponent boards
 	// pass the owner's skin so each player renders in their own theme.
 	this.skinId = opts.skin || null;
+	// Force a specific reveal-effect style regardless of canvas identity (null → the normal rule:
+	// localRevealEffect on the real live board, "ripple" elsewhere — see drawCell). Used by the
+	// Customize Lab's own demo boards, which aren't the live game canvas but still need to actually
+	// demonstrate whichever effect the player is trying, not always fall back to ripple.
+	this.forceRevealEffect = opts.forceRevealEffect || null;
 	this._underlays = [];
 	this._overlays = [];
 }
@@ -316,9 +321,12 @@ function drawCell(ctx, r, c, view, sw, sh, anim) {
 		// (the real live board) and paintOpponentRevealFrame (which mirrors the same cascade onto
 		// every OTHER player's thumbnail too, since everyone shares one board layout per round) set
 		// view.animAt, so that alone can't tell the two apart; the canvas identity can.
+		// view.forceRevealEffect skips this rule entirely (Profile.js's Customize Lab demo boards
+		// aren't the live canvas, but still need to demonstrate whichever effect is being tried).
 		if (revealing && anim.t < 1) {
 			var isOwnBoard = typeof playerCanvas !== "undefined" && view.canvas === playerCanvas;
-			drawRevealLid(ctx, w, h, rad, t, r, c, isOwnBoard ? localRevealEffect : "ripple");
+			var effectId = view.forceRevealEffect || (isOwnBoard ? localRevealEffect : "ripple");
+			drawRevealLid(ctx, w, h, rad, t, r, c, effectId);
 			ctx.globalAlpha = 1;
 		}
 	} else if (view.isFlagged(r, c)) {
