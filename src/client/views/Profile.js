@@ -553,12 +553,48 @@ function buildRevealDemoBoard(opts) {
 		bv.draw();
 	}
 
+	// Chord: clicking an already-revealed number whose surrounding flag count matches its own
+	// value auto-reveals its remaining covered neighbours — same rule and same BoardLogic.chordContext
+	// helper the real game's applyLocalLeftClick (Input.js) uses, so this isn't a reimplementation of
+	// the rule, just the same rule run against this board's own local state instead of myState.
+	function chordAt(r, c) {
+		var v = clueAt(r, c);
+		if (v <= 0) return;
+		var ctx = BoardLogic.chordContext(r, c, rows, cols,
+			function(nr, nc) { return state[nr][nc] === FLAGGED; },
+			function(nr, nc) { return state[nr][nc] === KNOWN && isMineAt(nr, nc); },
+			function(nr, nc) { return state[nr][nc] === UNKNOWN; }
+		);
+		if (ctx.flagCount !== v) return;
+		var startedAt = performance.now(), hitMine = false;
+		ctx.covered.forEach(function(p) {
+			var cr = p[0], cc = p[1];
+			if (isMineAt(cr, cc)) {
+				state[cr][cc] = KNOWN;
+				anims[cr + "," + cc] = { start: startedAt, mine: true };
+				hitMine = true;
+			} else {
+				floodFrom(cr, cc, true);
+			}
+		});
+		// A chord that hits a mine means a nearby flag was wrong — clear it, same as a real board.
+		if (hitMine) {
+			BoardLogic.forEachNeighbour(r, c, rows, cols, function(nr, nc) {
+				if (state[nr][nc] === FLAGGED && !isMineAt(nr, nc)) state[nr][nc] = UNKNOWN;
+			});
+		}
+		stopLoop();
+		loop();
+	}
+
 	// Click-to-test: reveal the real cascade starting at (r,c), animated — including a direct click
 	// on a mine itself, which real Minesweeper allows (and shows exploding) rather than silently
-	// ignoring; this board reuses that same rule instead of treating mines as unclickable.
+	// ignoring; this board reuses that same rule instead of treating mines as unclickable. A click
+	// on an already-revealed number chords instead (see chordAt above).
 	function reveal(r, c) {
 		if (r < 0 || r >= rows || c < 0 || c >= cols) return;
-		if (state[r][c] !== UNKNOWN) return; // already revealed, or flagged (flag first to reveal)
+		if (state[r][c] === KNOWN) { chordAt(r, c); return; }
+		if (state[r][c] !== UNKNOWN) return; // flagged — flag it off first to reveal
 		if (isMineAt(r, c)) {
 			state[r][c] = KNOWN;
 			anims[r + "," + c] = { start: performance.now(), mine: true };
