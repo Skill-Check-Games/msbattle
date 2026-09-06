@@ -4043,7 +4043,7 @@ body[data-board-skin="monochrome"] .board-press-highlight {
 	display: flex; flex-direction: column;
 	border-radius: 14px; overflow: hidden;
 	background: var(--bg); border: 1px solid var(--border);
-	transition: border-color 0.15s, transform 0.15s, outline-color 0.15s, box-shadow 0.15s;
+	transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
 	/* Button-reset properties — the Appearance modal's picker (Profile.js) renders this same class
 	   on a real <button> (so the whole tile is one click target, not a separate "select" control
 	   inside it), unlike the Shop page's own read-only <div> tiles. Harmless there: a <div> has none
@@ -4055,9 +4055,12 @@ body[data-board-skin="monochrome"] .board-press-highlight {
    from the Shop's "owned" badge (a tile can be owned but not the one currently applied). Outline
    plus a soft matching glow (a UX-review ask to push the selected state further) — the outline
    alone still wins over the epic tier's own glow since they're visually distinct effects. */
+/* One ring, not three — this used to stack the tile's own 1px border, a 2px offset outline, AND a
+   1px box-shadow ring (plus the glow) all at once, which read as a distracting "double border" on
+   request. Now it's just the tile's existing border recoloured to accent, plus the glow alone. */
 .shop-tile.active {
-	outline: 2px solid var(--accent); outline-offset: 2px;
-	box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.25), 0 0 20px rgba(99, 102, 241, 0.35);
+	border-color: var(--accent);
+	box-shadow: 0 0 20px rgba(99, 102, 241, 0.35);
 }
 /* Rarity ramp (common -> rare -> epic, item.tier in ShopCatalog.js) — purely a shop-display
    framing, unrelated to ownership/gameplay. Common stays the plain default border above; rare
