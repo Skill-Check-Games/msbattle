@@ -675,10 +675,11 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
    reparented #board_focus_ring/#board_press_highlight (Animations.js's .board-cell-highlight,
    position:absolute) position themselves against, same as #board_scroll normally provides them. */
 .lab-board-frame { position: relative; display: flex; justify-content: center; max-width: 100%; overflow: auto; }
-.lab-board-frame canvas { display: block; max-width: 100%; height: auto; }
 /* Scales down to fit a narrow container instead of forcing horizontal scroll/overflow — the
    canvas's backing resolution stays fixed (buildCellCanvas), so shrinking it via CSS just renders
-   crisper than its logical size, never blurrier. */
+   crisper than its logical size, never blurrier. Shared by the main preview board's own dedicated
+   canvas (enterLabDemoInput, Profile.js) and the small non-interactive reveal-effect card
+   thumbnails (buildRevealDemoBoard) — both are built via buildCellCanvas with this class. */
 .reveal-demo-canvas { display: block; max-width: 100%; height: auto; }
 .lab-board-hint { font-size: 0.82rem; color: var(--muted); text-align: center; }
 /* .btn-ghost.lab-reset-btn (two classes), not a bare .lab-reset-btn — .btn-ghost's own

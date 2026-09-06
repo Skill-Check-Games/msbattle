@@ -50,11 +50,12 @@ var ROUTE_VIEWS = {
 // SSR_INLINE:END
 
 function hideAllViews() {
-	// Safety net for the Customize Lab (Profile.js): it borrows the real #game0 canvas + its focus-
-	// ring/press-highlight overlays for as long as it's open (enterLabDemoInput), reparenting them
-	// out of #board_scroll. The modal has its own close paths (×/Escape/backdrop), but if the player
-	// navigates away some other way while it's open, this guarantees those elements get moved back
-	// before whatever real game view is about to show up needs #game0 back in its usual place.
+	// Safety net for the Customize Lab (Profile.js): it possesses the shared board-input engine
+	// (playerCanvas/myState/rows/cols/…) for as long as it's open (enterLabDemoInput), and reparents
+	// the real #board_focus_ring/#board_press_highlight overlays out of #board_scroll onto its own
+	// canvas. The modal has its own close paths (×/Escape/backdrop), but if the player navigates
+	// away some other way while it's open, this guarantees everything gets restored before whatever
+	// real game view is about to show up needs those globals/overlays back in their usual place.
 	if (typeof closeCustomizeLab === "function") closeCustomizeLab();
 	for (var i = 0; i < allViews.length; i++) {
 		var el = document.getElementById(allViews[i]);

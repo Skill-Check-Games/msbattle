@@ -650,27 +650,6 @@ function duelHandleTapForZoom(x, y, changed) {
 	duelLastTapChanged = changed;
 }
 
-playerCanvas.onclick = function(event) {
-	if (Date.now() - lastTouchAt < 500) return;
-	if (typeof isDuelLandscapeMobile === "function" && isDuelLandscapeMobile()) {
-		if (typeof duelZoomedOut !== "undefined" && duelZoomedOut) {
-			var cell = cellFromClient(event.clientX, event.clientY);
-			if (cell) zoomDuelIn(cell.r, cell.c);
-			return;
-		}
-		var mouseChanged = boardClicked(event);
-		duelHandleTapForZoom(event.clientX, event.clientY, !!mouseChanged);
-		return;
-	}
-	boardClicked(event);
-};
-playerCanvas.oncontextmenu = function(event) {
-	event.preventDefault();
-	if (Date.now() - lastTouchAt < 600) return false;
-	boardClicked(event);
-	return false;
-};
-
 var touchStartX = 0, touchStartY = 0, touchMoved = false, longPressFired = false, longPressTimer = null;
 var pressedCell = null; // cell currently under the finger — drawn highlighted for instant feedback
 var LONG_PRESS_MS = 420;
@@ -684,85 +663,118 @@ var TOUCH_MOVE_TOLERANCE = 12;
 // Single point of truth for "the user did a board action": optimistically apply
 // it locally and emit to the server. Called from mouse, touch, and keyboard.
 
-playerCanvas.addEventListener("touchstart", function(e) {
-	lastTouchAt = Date.now();
-	if (e.touches.length !== 1) {
-		if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
-		pressedCell = null;
-		return;
-	}
-	var t = e.touches[0];
-	touchStartX = t.clientX;
-	touchStartY = t.clientY;
-	touchMoved = false;
-	longPressFired = false;
-	// Immediate visual feedback so taps don't feel "lost" while the server processes. No board
-	// content changed — just show the touch highlight, no canvas work needed.
-	pressedCell = cellFromClient(t.clientX, t.clientY);
-	if (pressedCell) updatePressHighlightOverlay();
-	if (longPressTimer) clearTimeout(longPressTimer);
-	// Zoomed-out mobile duel: nothing here is precise enough to flag either — a stationary press just
-	// zooms in on release (touchend, below), same as a plain tap does at this zoom level. Skip starting
-	// the long-press timer entirely so it can't race that.
-	if (typeof isDuelLandscapeMobile === "function" && isDuelLandscapeMobile()
-		&& typeof duelZoomedOut !== "undefined" && duelZoomedOut) return;
-	longPressTimer = setTimeout(function() {
-		longPressTimer = null;
-		if (touchMoved) return;
-		// Long-press flags regardless of the current mode — a quick shortcut on top of the mode toggle.
-		// (Only fires on a stationary press; a pan sets touchMoved and cancels it.)
-		longPressFired = true;
-		pressedCell = null;
-		emitBoardActionAt(touchStartX, touchStartY, true);
-		if (navigator.vibrate) navigator.vibrate(15);
-	}, LONG_PRESS_MS);
-}, { passive: true });
-
-playerCanvas.addEventListener("touchmove", function(e) {
-	lastTouchAt = Date.now();
-	if (e.touches.length !== 1) return;
-	var t = e.touches[0];
-	if (Math.abs(t.clientX - touchStartX) > TOUCH_MOVE_TOLERANCE || Math.abs(t.clientY - touchStartY) > TOUCH_MOVE_TOLERANCE) {
-		touchMoved = true;
-		if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
-		clearPressed();
-	}
-}, { passive: true });
-
-playerCanvas.addEventListener("touchend", function(e) {
-	lastTouchAt = Date.now();
-	if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
-	pressedCell = null;
-	if (longPressFired || touchMoved) {
-		e.preventDefault();
-		updatePressHighlightOverlay(); // press cancelled without an action — just hide the highlight
-		return;
-	}
-	e.preventDefault();
-	if (typeof isDuelLandscapeMobile === "function" && isDuelLandscapeMobile()) {
-		if (typeof duelZoomedOut !== "undefined" && duelZoomedOut) {
-			// Zoomed out: any tap zooms back in on whatever's under it instead of attempting a reveal/
-			// flag — see zoomDuelIn's own comment for why.
-			var cell = cellFromClient(touchStartX, touchStartY);
-			if (cell) zoomDuelIn(cell.r, cell.c);
+// Wires up mouse + touch board input on `canvas` — reveal/flag click, right-click, long-press-to-
+// flag, drag-to-cancel, and the mobile-duel double-tap-zoom/zoomed-out-tap-to-zoom-in behaviors.
+// Not hardcoded to #game0/playerCanvas: every handler below dispatches through boardClicked/
+// cellFromClient/emitBoardActionAt (Input.js), which hit-test against whichever canvas the CURRENT
+// `playerCanvas` global happens to be — so this same wiring works on any canvas, as long as the
+// caller also points `playerCanvas` at it first (see Profile.js's Customize Lab preview board,
+// which wires its own dedicated canvas this same way instead of borrowing #game0's). The
+// touch-gesture bookkeeping above (touchStartX/Y, pressedCell, …) is shared singleton state rather
+// than per-canvas — safe because only one canvas is ever actually "live" for input at a time.
+function wireBoardCanvasInput(canvas) {
+	canvas.onclick = function(event) {
+		if (Date.now() - lastTouchAt < 500) return;
+		if (typeof isDuelLandscapeMobile === "function" && isDuelLandscapeMobile()) {
+			if (typeof duelZoomedOut !== "undefined" && duelZoomedOut) {
+				var cell = cellFromClient(event.clientX, event.clientY);
+				if (cell) zoomDuelIn(cell.r, cell.c);
+				return;
+			}
+			var mouseChanged = boardClicked(event);
+			duelHandleTapForZoom(event.clientX, event.clientY, !!mouseChanged);
 			return;
 		}
-		// Tap acts directly on the tapped cell, per the shared reveal/flag mode — same on mobile and
-		// desktop. duelHandleTapForZoom decides AFTER the fact whether this + the previous tap add up
-		// to a deliberate zoom-out (see its own comment) — never delays or blocks the action itself.
-		var touchChanged = emitBoardActionAt(touchStartX, touchStartY, flagMode);
-		duelHandleTapForZoom(touchStartX, touchStartY, !!touchChanged);
-		return;
-	}
-	// Tap acts directly on the tapped cell, per the shared reveal/flag mode — same on mobile and desktop.
-	emitBoardActionAt(touchStartX, touchStartY, flagMode);
-}, { passive: false });
+		boardClicked(event);
+	};
+	canvas.oncontextmenu = function(event) {
+		event.preventDefault();
+		if (Date.now() - lastTouchAt < 600) return false;
+		boardClicked(event);
+		return false;
+	};
 
-playerCanvas.addEventListener("touchcancel", function() {
-	if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
-	touchMoved = true;
-	clearPressed();
-});
+	canvas.addEventListener("touchstart", function(e) {
+		lastTouchAt = Date.now();
+		if (e.touches.length !== 1) {
+			if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+			pressedCell = null;
+			return;
+		}
+		var t = e.touches[0];
+		touchStartX = t.clientX;
+		touchStartY = t.clientY;
+		touchMoved = false;
+		longPressFired = false;
+		// Immediate visual feedback so taps don't feel "lost" while the server processes. No board
+		// content changed — just show the touch highlight, no canvas work needed.
+		pressedCell = cellFromClient(t.clientX, t.clientY);
+		if (pressedCell) updatePressHighlightOverlay();
+		if (longPressTimer) clearTimeout(longPressTimer);
+		// Zoomed-out mobile duel: nothing here is precise enough to flag either — a stationary press just
+		// zooms in on release (touchend, below), same as a plain tap does at this zoom level. Skip starting
+		// the long-press timer entirely so it can't race that.
+		if (typeof isDuelLandscapeMobile === "function" && isDuelLandscapeMobile()
+			&& typeof duelZoomedOut !== "undefined" && duelZoomedOut) return;
+		longPressTimer = setTimeout(function() {
+			longPressTimer = null;
+			if (touchMoved) return;
+			// Long-press flags regardless of the current mode — a quick shortcut on top of the mode toggle.
+			// (Only fires on a stationary press; a pan sets touchMoved and cancels it.)
+			longPressFired = true;
+			pressedCell = null;
+			emitBoardActionAt(touchStartX, touchStartY, true);
+			if (navigator.vibrate) navigator.vibrate(15);
+		}, LONG_PRESS_MS);
+	}, { passive: true });
+
+	canvas.addEventListener("touchmove", function(e) {
+		lastTouchAt = Date.now();
+		if (e.touches.length !== 1) return;
+		var t = e.touches[0];
+		if (Math.abs(t.clientX - touchStartX) > TOUCH_MOVE_TOLERANCE || Math.abs(t.clientY - touchStartY) > TOUCH_MOVE_TOLERANCE) {
+			touchMoved = true;
+			if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+			clearPressed();
+		}
+	}, { passive: true });
+
+	canvas.addEventListener("touchend", function(e) {
+		lastTouchAt = Date.now();
+		if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+		pressedCell = null;
+		if (longPressFired || touchMoved) {
+			e.preventDefault();
+			updatePressHighlightOverlay(); // press cancelled without an action — just hide the highlight
+			return;
+		}
+		e.preventDefault();
+		if (typeof isDuelLandscapeMobile === "function" && isDuelLandscapeMobile()) {
+			if (typeof duelZoomedOut !== "undefined" && duelZoomedOut) {
+				// Zoomed out: any tap zooms back in on whatever's under it instead of attempting a reveal/
+				// flag — see zoomDuelIn's own comment for why.
+				var cell = cellFromClient(touchStartX, touchStartY);
+				if (cell) zoomDuelIn(cell.r, cell.c);
+				return;
+			}
+			// Tap acts directly on the tapped cell, per the shared reveal/flag mode — same on mobile and
+			// desktop. duelHandleTapForZoom decides AFTER the fact whether this + the previous tap add up
+			// to a deliberate zoom-out (see its own comment) — never delays or blocks the action itself.
+			var touchChanged = emitBoardActionAt(touchStartX, touchStartY, flagMode);
+			duelHandleTapForZoom(touchStartX, touchStartY, !!touchChanged);
+			return;
+		}
+		// Tap acts directly on the tapped cell, per the shared reveal/flag mode — same on mobile and desktop.
+		emitBoardActionAt(touchStartX, touchStartY, flagMode);
+	}, { passive: false });
+
+	canvas.addEventListener("touchcancel", function() {
+		if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
+		touchMoved = true;
+		clearPressed();
+	});
+}
+wireBoardCanvasInput(playerCanvas);
 
 // Any actual pan kills the pending tap/long-press, even if the finger moved less
 // than TOUCH_MOVE_TOLERANCE before the browser started scrolling.

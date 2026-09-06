@@ -632,21 +632,28 @@ function labRestingState() {
 }
 
 var labInputSave = null; // stashed real-game globals + DOM positions while the Lab possesses the shared board engine
+var labCanvas = null;     // the Lab's own dedicated board canvas — NOT #game0, rebuilt fresh each open
 
-// Points the shared engine at the Lab's fixed demo layout and moves the REAL #game0 canvas (plus
-// its keyboard-focus-ring/touch-press-highlight overlays, Animations.js) into `frame`. `frame` must
-// already be attached to the document — positionBoardHighlight (Animations.js) needs real layout
-// measurements, so callers append it before calling this (same ordering requirement renderLabIdentity
-// already has, for the same reason).
+// Points the shared engine at the Lab's fixed demo layout and its OWN dedicated canvas — not
+// #game0. The engine (Input.js/Animations.js) only ever acts on whichever canvas the `playerCanvas`
+// global currently is, via wireBoardCanvasInput (Main.js) attaching the exact same click/touch
+// handlers to it, so there's no need to borrow/reparent the real game's own canvas element; any
+// canvas wired the same way works. Only the keyboard-focus-ring/touch-press-highlight overlays
+// (Animations.js) are still moved — those two small indicator elements are genuine DOM singletons
+// (looked up once by id), not part of "the engine" itself, and reparenting them is cheap/safe.
+// `frame` must already be attached to the document — positionBoardHighlight (Animations.js) needs
+// real layout measurements, so callers append it before calling this (same ordering requirement
+// renderLabIdentity already has, for the same reason).
 function enterLabDemoInput(frame) {
 	var ring = document.getElementById("board_focus_ring");
 	var press = document.getElementById("board_press_highlight");
+	labCanvas = buildCellCanvas(LAB_DEMO_COLS, LAB_DEMO_ROWS, LAB_DEMO_CELL_PX, "reveal-demo-canvas");
+	if (typeof wireBoardCanvasInput === "function") wireBoardCanvasInput(labCanvas);
+
 	labInputSave = {
 		rows: rows, cols: cols, myState: myState, prevPlayerState: prevPlayerState,
 		focusedR: focusedR, focusedC: focusedC, focusVisible: focusVisible, boardDecoder: boardDecoder,
-		canvasParent: playerCanvas.parentNode, canvasNext: playerCanvas.nextSibling,
-		canvasWidth: playerCanvas.style.width, canvasHeight: playerCanvas.style.height,
-		canvasMaxWidth: playerCanvas.style.maxWidth,
+		playerCanvas: playerCanvas,
 		ringParent: ring.parentNode, ringNext: ring.nextSibling,
 		pressParent: press.parentNode, pressNext: press.nextSibling
 	};
@@ -657,17 +664,18 @@ function enterLabDemoInput(frame) {
 	myState = labRestingState();
 	prevPlayerState = cloneState(myState);
 	focusedR = LAB_DEMO_OPEN_AT[0]; focusedC = LAB_DEMO_OPEN_AT[1]; focusVisible = false;
+	playerCanvas = labCanvas;
 
-	frame.appendChild(playerCanvas);
+	frame.appendChild(labCanvas);
 	frame.appendChild(ring);
 	frame.appendChild(press);
-	sizeBoardCanvas(playerCanvas, LAB_DEMO_CELL_PX);
 	redrawOwnBoardWithFocus();
 }
 
-// Restores every swapped global and moves #game0/the ring/the press-highlight back to exactly
-// where they were. Safe to call even when the Lab was never entered (labInputSave is null then) —
-// Router.js calls this unconditionally on every navigation as a safety net.
+// Restores every swapped global (including playerCanvas itself, back to the real #game0) and moves
+// the ring/press-highlight back to exactly where they were. Safe to call even when the Lab was
+// never entered (labInputSave is null then) — Router.js calls this unconditionally on every
+// navigation as a safety net.
 function exitLabDemoInput() {
 	if (!labInputSave) return;
 	labDemoActive = false;
@@ -677,18 +685,16 @@ function exitLabDemoInput() {
 		if (next && next.parentNode === parent) parent.insertBefore(el, next);
 		else parent.appendChild(el);
 	}
-	restoreNode(playerCanvas, labInputSave.canvasParent, labInputSave.canvasNext);
 	restoreNode(document.getElementById("board_focus_ring"), labInputSave.ringParent, labInputSave.ringNext);
 	restoreNode(document.getElementById("board_press_highlight"), labInputSave.pressParent, labInputSave.pressNext);
-	playerCanvas.style.width = labInputSave.canvasWidth;
-	playerCanvas.style.height = labInputSave.canvasHeight;
-	playerCanvas.style.maxWidth = labInputSave.canvasMaxWidth;
 
 	rows = labInputSave.rows; cols = labInputSave.cols; myState = labInputSave.myState;
 	prevPlayerState = labInputSave.prevPlayerState;
 	focusedR = labInputSave.focusedR; focusedC = labInputSave.focusedC; focusVisible = labInputSave.focusVisible;
 	boardDecoder = labInputSave.boardDecoder;
+	playerCanvas = labInputSave.playerCanvas;
 	labInputSave = null;
+	labCanvas = null; // let it be garbage-collected; a fresh one is built next open
 	redrawOwnBoardWithFocus(); // harmless no-op if myState is null again (no real game to repaint)
 }
 
