@@ -239,7 +239,15 @@ function performAction(r, c, asFlag) {
 	return didChange;
 }
 
+// True while Profile.js's Customize Lab preview board has "possessed" the shared board-input
+// engine (myState/rows/cols/playerCanvas/boardDecoder/focus state, swapped in by
+// enterLabDemoInput) — see its own comment for why this is safe: the Lab is only ever reachable
+// from the home dashboard, so it can never be open at the same time as a real solo/puzzle/
+// multiplayer session, and therefore never actually competes with one for these globals.
+var labDemoActive = false;
+
 function currentActionMode() {
+	if (labDemoActive) return "demo";
 	if (soloSession && !soloSession.finished) return "solo";
 	if ((typeof puzzleSession !== "undefined") && puzzleSession && !puzzleSession.finished) return "puzzle";
 	if (inRoom && currentRoom && currentRoom.phase === "playing") return "multiplayer";

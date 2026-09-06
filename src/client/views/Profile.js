@@ -227,11 +227,10 @@ function buildCosmeticCardGrid(opts) {
 // file. Delegate to the Lab's own rebuild (renderLabRightPanel, harmless/no-op if the modal isn't
 // open or a different tab is active — see its own comment).
 function renderAvatarModalAvatars() { renderLabRightPanel(); renderLabIdentity(); }
-function renderAvatarModalSkins() { renderLabRightPanel(); if (labDemo) labDemo.redraw(); }
-function renderAvatarModalRevealEffect() {
-	renderLabRightPanel();
-	if (labDemo && typeof localRevealEffect !== "undefined") labDemo.setEffect(localRevealEffect);
-}
+function renderAvatarModalSkins() { renderLabRightPanel(); if (labDemoActive) redrawOwnBoardWithFocus(); }
+// No board update needed here — drawRevealLid reads localRevealEffect live at reveal time, so a
+// rejection reverting it just changes what plays on the NEXT reveal, nothing already on screen.
+function renderAvatarModalRevealEffect() { renderLabRightPanel(); }
 
 // Profile renders from the account cache plus the most recent leaderboard snapshot.
 // The profile is split into three tabs (the page had grown large): Overview (identity + lifetime/
@@ -478,6 +477,11 @@ function renderPublicProfileData(profile) {
 // (STAGGER_MS/STAGGER_CAP), so what plays here is really what plays in a real match.
 // opts: rows, cols, mines [[r,c],...], openAt [r,c] (the cell whose flood becomes the board's
 // resting "opening" state), cellPx, effectId, interactive (attach click-to-reveal; default true).
+// Purely decorative — the main preview board doesn't use this at all any more (it plays real
+// cascades through the actual game engine instead; see enterLabDemoInput below). This is just for
+// the small reveal-effect card thumbnails, which are non-interactive by construction (nothing ever
+// clicks them directly — the card ITSELF is the click target, for selecting the effect), so it only
+// needs to look like a cascade, not implement the reveal rule.
 function buildRevealDemoBoard(opts) {
 	var rows = opts.rows, cols = opts.cols, mines = opts.mines, openAt = opts.openAt;
 	function isMineAt(r, c) { return mines.some(function(m) { return m[0] === r && m[1] === c; }); }
@@ -502,8 +506,7 @@ function buildRevealDemoBoard(opts) {
 		animAt: function(r, c) {
 			var a = anims[r + "," + c];
 			if (!a) return null;
-			var dur = a.mine ? MINE_DUR : REVEAL_DUR;
-			return { type: a.mine ? "mine" : "reveal", t: (performance.now() - a.start) / dur };
+			return { type: "reveal", t: (performance.now() - a.start) / REVEAL_DUR };
 		}
 	});
 
@@ -511,115 +514,41 @@ function buildRevealDemoBoard(opts) {
 	function loop() {
 		var now = performance.now(), stillAnimating = false;
 		for (var key in anims) {
-			var dur = (anims[key].mine ? MINE_DUR : REVEAL_DUR) + STAGGER_CAP;
-			if (now - anims[key].start < dur) stillAnimating = true;
+			if (now - anims[key].start < REVEAL_DUR + STAGGER_CAP) stillAnimating = true;
 			else delete anims[key];
 		}
 		bv.draw();
 		raf = stillAnimating ? requestAnimationFrame(loop) : null;
 	}
 
-	// BFS flood from (r,c) — same shape as a real cascade: reveal it, and if it's a 0-clue, recurse
-	// into its covered neighbours too (a mine never recurses into, or is auto-revealed by, a
-	// flood — only an explicit direct click on it, in reveal() below, can uncover one — same as a
-	// real board). `animate` false paints instantly (the board's resting state); true staggers each
-	// newly-opened cell's reveal by its BFS distance from the origin.
-	function floodFrom(r, c, animate) {
-		var queue = [[r, c, 0]], seen = {};
+	// Instant BFS flood (no animation), used once to compute the card's resting "opening" state.
+	function floodInstant(r, c) {
+		var queue = [[r, c]], seen = {};
 		seen[r + "," + c] = true;
-		var startedAt = performance.now();
 		while (queue.length) {
-			var cur = queue.shift(), cr = cur[0], cc = cur[1], dist = cur[2];
-			if (state[cr][cc] === UNKNOWN) {
-				state[cr][cc] = KNOWN;
-				if (animate) anims[cr + "," + cc] = { start: startedAt + Math.min(STAGGER_CAP, dist * STAGGER_MS) };
-			}
+			var cur = queue.shift(), cr = cur[0], cc = cur[1];
+			state[cr][cc] = KNOWN;
 			if (!isMineAt(cr, cc) && clueAt(cr, cc) === 0) {
 				BoardLogic.forEachNeighbour(cr, cc, rows, cols, function(nr, nc) {
 					var k = nr + "," + nc;
-					if (!seen[k] && state[nr][nc] === UNKNOWN) { seen[k] = true; queue.push([nr, nc, dist + 1]); }
+					if (!seen[k] && state[nr][nc] === UNKNOWN) { seen[k] = true; queue.push([nr, nc]); }
 				});
 			}
 		}
 	}
 
-	// Re-covers the board and re-opens its resting state (no animation) — the demo's "start over".
+	// Re-covers the board and re-opens its resting state — the card's "start over" between hovers.
 	function reset() {
 		stopLoop();
 		anims = {};
 		state = freshState();
 		bv._state = state;
-		if (openAt) floodFrom(openAt[0], openAt[1], false);
+		if (openAt) floodInstant(openAt[0], openAt[1]);
 		bv.draw();
 	}
 
-	// Chord: clicking an already-revealed number whose surrounding flag count matches its own
-	// value auto-reveals its remaining covered neighbours — same rule and same BoardLogic.chordContext
-	// helper the real game's applyLocalLeftClick (Input.js) uses, so this isn't a reimplementation of
-	// the rule, just the same rule run against this board's own local state instead of myState.
-	function chordAt(r, c) {
-		var v = clueAt(r, c);
-		if (v <= 0) return;
-		var ctx = BoardLogic.chordContext(r, c, rows, cols,
-			function(nr, nc) { return state[nr][nc] === FLAGGED; },
-			function(nr, nc) { return state[nr][nc] === KNOWN && isMineAt(nr, nc); },
-			function(nr, nc) { return state[nr][nc] === UNKNOWN; }
-		);
-		if (ctx.flagCount !== v) return;
-		var startedAt = performance.now(), hitMine = false;
-		ctx.covered.forEach(function(p) {
-			var cr = p[0], cc = p[1];
-			if (isMineAt(cr, cc)) {
-				state[cr][cc] = KNOWN;
-				anims[cr + "," + cc] = { start: startedAt, mine: true };
-				hitMine = true;
-			} else {
-				floodFrom(cr, cc, true);
-			}
-		});
-		// A chord that hits a mine means a nearby flag was wrong — clear it, same as a real board.
-		if (hitMine) {
-			BoardLogic.forEachNeighbour(r, c, rows, cols, function(nr, nc) {
-				if (state[nr][nc] === FLAGGED && !isMineAt(nr, nc)) state[nr][nc] = UNKNOWN;
-			});
-		}
-		stopLoop();
-		loop();
-	}
-
-	// Click-to-test: reveal the real cascade starting at (r,c), animated — including a direct click
-	// on a mine itself, which real Minesweeper allows (and shows exploding) rather than silently
-	// ignoring; this board reuses that same rule instead of treating mines as unclickable. A click
-	// on an already-revealed number chords instead (see chordAt above).
-	function reveal(r, c) {
-		if (r < 0 || r >= rows || c < 0 || c >= cols) return;
-		if (state[r][c] === KNOWN) { chordAt(r, c); return; }
-		if (state[r][c] !== UNKNOWN) return; // flagged — flag it off first to reveal
-		if (isMineAt(r, c)) {
-			state[r][c] = KNOWN;
-			anims[r + "," + c] = { start: performance.now(), mine: true };
-			stopLoop(); loop();
-			return;
-		}
-		floodFrom(r, c, true);
-		stopLoop();
-		loop();
-	}
-
-	// Right-click-to-flag, same as a real board: toggles a covered cell between plain-covered and
-	// flagged; a revealed cell can't be flagged. The caller is responsible for calling
-	// e.preventDefault() on the contextmenu event so the browser's own menu doesn't appear.
-	function toggleFlag(r, c) {
-		if (r < 0 || r >= rows || c < 0 || c >= cols) return;
-		if (state[r][c] === UNKNOWN) state[r][c] = FLAGGED;
-		else if (state[r][c] === FLAGGED) state[r][c] = UNKNOWN;
-		else return;
-		bv.draw();
-	}
-
-	// A scripted demonstration: reveal a given list of covered cells with a stagger, as if they'd
-	// been flooded in that order — used to show an effect off without depending on where the
-	// player happens to have clicked (the reveal-effect cards, and "Reset board"'s own replay).
+	// A scripted demonstration: reveal a given list of covered cells with a stagger, as if a real
+	// cascade had opened them in that order.
 	function playDemo(cells) {
 		var startedAt = performance.now();
 		cells.forEach(function(p, i) {
@@ -648,31 +577,8 @@ function buildRevealDemoBoard(opts) {
 		return out;
 	}
 
-	function setEffect(id) { bv.forceRevealEffect = id; }
-
-	function cellFromEvent(e) {
-		var rect = canvas.getBoundingClientRect();
-		var cw = rect.width / cols, ch = rect.height / rows;
-		return [Math.floor((e.clientY - rect.top) / ch), Math.floor((e.clientX - rect.left) / cw)];
-	}
-	canvas.addEventListener("click", function(e) {
-		if (opts.interactive === false) return;
-		var rc = cellFromEvent(e);
-		reveal(rc[0], rc[1]);
-	});
-	// Real board rule, reused here: right-click flags instead of opening the browser's context menu.
-	canvas.addEventListener("contextmenu", function(e) {
-		e.preventDefault();
-		if (opts.interactive === false) return;
-		var rc = cellFromEvent(e);
-		toggleFlag(rc[0], rc[1]);
-	});
-
 	reset();
-	return {
-		canvas: canvas, bv: bv, reset: reset, reveal: reveal, toggleFlag: toggleFlag, playDemo: playDemo,
-		frontierCells: frontierCells, setEffect: setEffect, redraw: function() { bv.draw(); }, stopLoop: stopLoop
-	};
+	return { canvas: canvas, reset: reset, playDemo: playDemo, frontierCells: frontierCells };
 }
 
 // The main preview board's fixed layout — hand-picked (not random) so the same demo replays
@@ -685,6 +591,141 @@ var LAB_DEMO_MINES = [
 	[4, 2], [4, 7], [5, 4], [5, 9], [6, 1], [6, 6], [7, 3], [7, 8]
 ];
 var LAB_DEMO_OPEN_AT = [1, 1];
+var LAB_DEMO_CELL_PX = 38;
+
+// ---- Main preview board: the REAL game engine, not a replica --------------------------------
+// Input.js/Animations.js are written against one shared set of module-level globals (myState,
+// rows, cols, playerCanvas, boardDecoder, focusedR/C, …) rather than being parameterized over a
+// board instance — normally a real constraint, but the Customize Lab is only ever reachable from
+// the home dashboard (the avatar click handler that opens it doesn't exist inside any game view),
+// so it can never be open at the same time as an actual solo/puzzle/multiplayer session. That
+// makes it safe to temporarily point those same globals at the Lab's own fixed demo layout and
+// literally reuse performAction/revealAt/applyLocalLeftClick/BoardLogic.chordContext/
+// queueRevealAnimations/startAnimLoop/the keyboard handler — reveal, flag, chord, arrow-key
+// navigation, and rebindable hotkeys all work here for free, because this IS the same board input
+// pipeline a real match uses, just "possessing" it for as long as the modal stays open rather than
+// reimplementing any part of it. enterLabDemoInput/exitLabDemoInput below are the swap in/out.
+
+// (r,c) -> MINE | clue count, in exactly the shape boardDecoder (BoardDecoder.js) already has —
+// boardCell() just calls whichever function boardDecoder currently is, so this is the entire
+// "decoding" side of pointing the real engine at the Lab's fixed layout.
+function labBoardDecoder(r, c) {
+	if (LAB_DEMO_MINES.some(function(m) { return m[0] === r && m[1] === c; })) return MINE;
+	var n = 0;
+	BoardLogic.forEachNeighbour(r, c, LAB_DEMO_ROWS, LAB_DEMO_COLS, function(nr, nc) {
+		if (LAB_DEMO_MINES.some(function(m) { return m[0] === nr && m[1] === nc; })) n++;
+	});
+	return n;
+}
+// The board's resting "opening" state, via the exact same BoardLogic.cascadeReveal flood a real
+// cascade uses (Input.js's own localReveal calls it the same way) — computed instantly up front
+// rather than animated, since this is just the starting picture before the player clicks anything.
+function labRestingState() {
+	var s = [];
+	for (var r = 0; r < LAB_DEMO_ROWS; r++) { var row = []; for (var c = 0; c < LAB_DEMO_COLS; c++) row.push(UNKNOWN); s.push(row); }
+	BoardLogic.cascadeReveal(LAB_DEMO_OPEN_AT[0], LAB_DEMO_OPEN_AT[1], LAB_DEMO_ROWS, LAB_DEMO_COLS,
+		function(r, c) { return s[r][c] === UNKNOWN; },
+		function(r, c) { s[r][c] = KNOWN; return labBoardDecoder(r, c) === MINE; },
+		function(r, c) { return labBoardDecoder(r, c); }
+	);
+	return s;
+}
+
+var labInputSave = null; // stashed real-game globals + DOM positions while the Lab possesses the shared board engine
+
+// Points the shared engine at the Lab's fixed demo layout and moves the REAL #game0 canvas (plus
+// its keyboard-focus-ring/touch-press-highlight overlays, Animations.js) into `frame`. `frame` must
+// already be attached to the document — positionBoardHighlight (Animations.js) needs real layout
+// measurements, so callers append it before calling this (same ordering requirement renderLabIdentity
+// already has, for the same reason).
+function enterLabDemoInput(frame) {
+	var ring = document.getElementById("board_focus_ring");
+	var press = document.getElementById("board_press_highlight");
+	labInputSave = {
+		rows: rows, cols: cols, myState: myState, prevPlayerState: prevPlayerState,
+		focusedR: focusedR, focusedC: focusedC, focusVisible: focusVisible, boardDecoder: boardDecoder,
+		canvasParent: playerCanvas.parentNode, canvasNext: playerCanvas.nextSibling,
+		canvasWidth: playerCanvas.style.width, canvasHeight: playerCanvas.style.height,
+		canvasMaxWidth: playerCanvas.style.maxWidth,
+		ringParent: ring.parentNode, ringNext: ring.nextSibling,
+		pressParent: press.parentNode, pressNext: press.nextSibling
+	};
+	resetBoardAnimations(); // clears cellAnims/prevPlayerState/lastActionCell, cancels any live RAF loop
+	labDemoActive = true;
+	rows = LAB_DEMO_ROWS; cols = LAB_DEMO_COLS;
+	boardDecoder = labBoardDecoder;
+	myState = labRestingState();
+	prevPlayerState = cloneState(myState);
+	focusedR = LAB_DEMO_OPEN_AT[0]; focusedC = LAB_DEMO_OPEN_AT[1]; focusVisible = false;
+
+	frame.appendChild(playerCanvas);
+	frame.appendChild(ring);
+	frame.appendChild(press);
+	sizeBoardCanvas(playerCanvas, LAB_DEMO_CELL_PX);
+	redrawOwnBoardWithFocus();
+}
+
+// Restores every swapped global and moves #game0/the ring/the press-highlight back to exactly
+// where they were. Safe to call even when the Lab was never entered (labInputSave is null then) —
+// Router.js calls this unconditionally on every navigation as a safety net.
+function exitLabDemoInput() {
+	if (!labInputSave) return;
+	labDemoActive = false;
+	resetBoardAnimations();
+	function restoreNode(el, parent, next) {
+		if (!parent) return;
+		if (next && next.parentNode === parent) parent.insertBefore(el, next);
+		else parent.appendChild(el);
+	}
+	restoreNode(playerCanvas, labInputSave.canvasParent, labInputSave.canvasNext);
+	restoreNode(document.getElementById("board_focus_ring"), labInputSave.ringParent, labInputSave.ringNext);
+	restoreNode(document.getElementById("board_press_highlight"), labInputSave.pressParent, labInputSave.pressNext);
+	playerCanvas.style.width = labInputSave.canvasWidth;
+	playerCanvas.style.height = labInputSave.canvasHeight;
+	playerCanvas.style.maxWidth = labInputSave.canvasMaxWidth;
+
+	rows = labInputSave.rows; cols = labInputSave.cols; myState = labInputSave.myState;
+	prevPlayerState = labInputSave.prevPlayerState;
+	focusedR = labInputSave.focusedR; focusedC = labInputSave.focusedC; focusVisible = labInputSave.focusVisible;
+	boardDecoder = labInputSave.boardDecoder;
+	labInputSave = null;
+	redrawOwnBoardWithFocus(); // harmless no-op if myState is null again (no real game to repaint)
+}
+
+// Re-covers the preview board back to its resting opening (no flags, no manual reveals) — "Reset
+// board"'s own action, and the first step before demonstrating a newly-picked reveal effect.
+function resetLabDemoBoard() {
+	if (!labDemoActive) return;
+	resetBoardAnimations();
+	myState = labRestingState();
+	prevPlayerState = cloneState(myState);
+	redrawOwnBoardWithFocus();
+}
+
+// Covered, non-mine cells touching the current board state — the natural next "ring" to
+// demonstrate a reveal effect on. Reads the live myState/rows/cols globals, so only meaningful
+// while labDemoActive.
+function labFrontierCells(limit) {
+	var out = [];
+	for (var r = 0; r < rows && out.length < limit; r++) {
+		for (var c = 0; c < cols && out.length < limit; c++) {
+			if (myState[r][c] !== UNKNOWN || labBoardDecoder(r, c) === MINE) continue;
+			var touches = false;
+			BoardLogic.forEachNeighbour(r, c, rows, cols, function(nr, nc) { if (myState[nr][nc] === KNOWN) touches = true; });
+			if (touches) out.push([r, c]);
+		}
+	}
+	return out;
+}
+
+// Resets the board, then reveals a handful of frontier cells through the REAL performAction
+// pipeline (Input.js) — the exact same call a real click makes — so picking a new reveal effect
+// gets a genuine multi-cell demonstration instead of a hand-rolled animation.
+function demonstrateLabEffect() {
+	if (!labDemoActive) return;
+	resetLabDemoBoard();
+	labFrontierCells(6).forEach(function(p) { performAction(p[0], p[1], false); });
+}
 
 // A tiny demo board for one reveal-effect card's own thumbnail — a couple of mines just so a
 // number or two shows next to the covered cells being demonstrated.
@@ -701,7 +742,6 @@ var LAB_TABS = [
 	{ id: "revealEffect", label: "Reveal FX" }
 ];
 var labTab = "avatar";       // remembered across opens within the session
-var labDemo = null;          // the persistent main-preview demo board — (re)built fresh per open
 var labReplayTimers = [];    // periodic auto-replay intervals for the active reveal-effect card
 
 function stopLabReplayTimers() {
@@ -750,7 +790,7 @@ function buildLabSkinPanel() {
 	var title = document.createElement("h3"); title.className = "lab-right-title"; title.textContent = "Choose Board Skin";
 	wrap.appendChild(title);
 	var sub = document.createElement("p"); sub.className = "lab-right-sub";
-	sub.textContent = "Changes how your board looks to everyone in a match — try one on the board to the left.";
+	sub.textContent = "Changes how your board looks to everyone in a match — try one on the preview board.";
 	wrap.appendChild(sub);
 	wrap.appendChild(buildCosmeticCardGrid({
 		list: BOARD_SKIN_LIST, kind: "skin", activeId: localBoardSkin,
@@ -760,7 +800,7 @@ function buildLabSkinPanel() {
 		onSelect: function(id) {
 			setBoardSkin(id);
 			renderLabRightPanel();
-			if (labDemo) labDemo.redraw();
+			if (labDemoActive) redrawOwnBoardWithFocus();
 		}
 	}));
 	return wrap;
@@ -813,11 +853,7 @@ function buildRevealEffectCard(id) {
 		if (id === localRevealEffect) { demoPlay(); return; } // already selected: just replay it
 		setRevealEffect(id);
 		renderLabRightPanel();
-		if (labDemo) {
-			labDemo.setEffect(id);
-			labDemo.reset();
-			labDemo.playDemo(labDemo.frontierCells().slice(0, 8));
-		}
+		demonstrateLabEffect();
 	});
 
 	if (isActive) {
@@ -833,7 +869,7 @@ function buildLabRevealEffectPanel() {
 	var title = document.createElement("h3"); title.className = "lab-right-title"; title.textContent = "Choose Reveal Effect";
 	wrap.appendChild(title);
 	var sub = document.createElement("p"); sub.className = "lab-right-sub";
-	sub.textContent = "See how each effect looks in action. Click a tile on the board to try it out.";
+	sub.textContent = "See how each effect looks in action. Click a tile on the preview board to try it out.";
 	wrap.appendChild(sub);
 	var grid = document.createElement("div"); grid.className = "shop-grid lab-grid";
 	REVEAL_EFFECT_LIST.forEach(function(id) { grid.appendChild(buildRevealEffectCard(id)); });
@@ -857,22 +893,20 @@ function renderLabRightPanel() {
 	else panel.appendChild(buildLabAvatarPanel());
 }
 
-// The persistent left panel: identity header + the live preview board + its controls. Built fresh
-// every time the Lab opens (a brand new labDemo instance each time — simplest way to guarantee no
-// stale RAF loop survives a previous session), but never rebuilt again while the modal stays open,
-// so switching tabs can't interrupt whatever the player is in the middle of trying.
+// The persistent left panel: identity header + the live preview board + its controls. Rebuilt fresh
+// every time the Lab opens (enterLabDemoInput re-possesses the real board each time), but never
+// rebuilt again while the modal stays open, so switching tabs can't interrupt whatever the player
+// is in the middle of trying.
 function buildLabLeftPanel() {
 	var wrap = document.createElement("div"); wrap.className = "lab-left";
 
 	var identity = document.createElement("div"); identity.className = "lab-identity"; identity.id = "lab_identity";
 	wrap.appendChild(identity);
 
-	var frame = document.createElement("div"); frame.className = "lab-board-frame";
-	labDemo = buildRevealDemoBoard({
-		rows: LAB_DEMO_ROWS, cols: LAB_DEMO_COLS, cellPx: 38,
-		mines: LAB_DEMO_MINES, openAt: LAB_DEMO_OPEN_AT, effectId: localRevealEffect
-	});
-	frame.appendChild(labDemo.canvas);
+	// Populated by enterLabDemoInput (the caller, after this is attached) with the REAL #game0
+	// canvas + its focus-ring/press-highlight overlays — not built here, since it's just an empty
+	// drop target at this point.
+	var frame = document.createElement("div"); frame.className = "lab-board-frame"; frame.id = "lab_board_frame";
 	wrap.appendChild(frame);
 
 	var hint = document.createElement("div"); hint.className = "lab-board-hint";
@@ -882,17 +916,13 @@ function buildLabLeftPanel() {
 	var resetBtn = document.createElement("button");
 	resetBtn.type = "button"; resetBtn.className = "btn btn-ghost lab-reset-btn";
 	resetBtn.textContent = "↻ Reset board";
-	resetBtn.addEventListener("click", function() {
-		labDemo.setEffect(typeof localRevealEffect !== "undefined" ? localRevealEffect : "ripple");
-		labDemo.reset();
-		labDemo.playDemo(labDemo.frontierCells().slice(0, 8));
-	});
+	resetBtn.addEventListener("click", function() { demonstrateLabEffect(); });
 	wrap.appendChild(resetBtn);
 
-	// NOT renderLabIdentity() here — `identity` isn't attached to the document yet at this point
-	// (buildLabLeftPanel's caller appends the returned `wrap` afterward), and renderLabIdentity looks
-	// its target up by id via getElementById, which only finds elements already in the document. The
-	// caller (openAvatarEditor) fills it in right after appending instead.
+	// NOT renderLabIdentity()/enterLabDemoInput() here — `identity`/`frame` aren't attached to the
+	// document yet (this function's caller appends the returned `wrap` afterward), and both need
+	// real layout/getElementById lookups that only work once attached. openAvatarEditor calls them
+	// right after appending instead.
 	return wrap;
 }
 
@@ -919,7 +949,7 @@ function closeCustomizeLab() {
 	var modal = document.getElementById("avatar_modal");
 	if (modal) modal.setAttribute("hidden", "");
 	stopLabReplayTimers();
-	if (labDemo) { labDemo.stopLoop(); labDemo = null; }
+	exitLabDemoInput();
 }
 
 // Customize Lab modal — opened by clicking the home/profile avatar.
@@ -957,6 +987,7 @@ function openAvatarEditor() {
 	leftPanel.innerHTML = "";
 	leftPanel.appendChild(buildLabLeftPanel());
 	renderLabIdentity();
+	enterLabDemoInput(document.getElementById("lab_board_frame"));
 	renderLabRightPanel();
 
 	modal.removeAttribute("hidden");

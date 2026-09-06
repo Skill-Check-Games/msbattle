@@ -671,7 +671,11 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 /* Wraps fillDuelId's own output (Main.js) — the exact avatar+name+rank-tier-pill row used in a
    live game's own HUD, reused here verbatim rather than a bespoke identity row, per request. */
 .lab-identity { display: flex; align-items: center; gap: 0.75rem; align-self: flex-start; min-height: 52px; }
-.lab-board-frame { display: flex; justify-content: center; max-width: 100%; overflow: auto; }
+/* position:relative is required, not cosmetic — this is the offsetParent enterLabDemoInput's
+   reparented #board_focus_ring/#board_press_highlight (Animations.js's .board-cell-highlight,
+   position:absolute) position themselves against, same as #board_scroll normally provides them. */
+.lab-board-frame { position: relative; display: flex; justify-content: center; max-width: 100%; overflow: auto; }
+.lab-board-frame canvas { display: block; max-width: 100%; height: auto; }
 /* Scales down to fit a narrow container instead of forcing horizontal scroll/overflow — the
    canvas's backing resolution stays fixed (buildCellCanvas), so shrinking it via CSS just renders
    crisper than its logical size, never blurrier. */
