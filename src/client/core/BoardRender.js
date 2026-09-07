@@ -661,6 +661,9 @@ function drawFlag(ctx, w, h, scale, clothColor) {
 // flag (the /flags SVGs are circular icons), drawn large so it's recognisable; without one it falls back
 // to a coloured pennant in `avatar_color`. Rendered to a canvas so the pole/tile match the board art.
 // The country flag loads async — we paint a placeholder, then repaint when the image arrives.
+// src -> Image, shared by every buildAvatarCanvas call across the whole page (see its own comment
+// on the image-avatar branch below for why this exists).
+var AVATAR_IMAGE_CACHE = {};
 function buildAvatarCanvas(color, px, country) {
 	px = px || 28;
 	var dpr = window.devicePixelRatio || 1;
@@ -724,9 +727,8 @@ function buildAvatarCanvas(color, px, country) {
 	// Image avatar ("img:<id>") — render the preset image contained in the rounded tile, ignoring the flag.
 	var imgId = (typeof color === "string" && color.indexOf("img:") === 0) ? color.slice(4) : null;
 	if (imgId && AVATAR_IMAGES[imgId]) {
-		tileBg();
-		var aim = new Image();
-		aim.onload = function() {
+		var imgSrc = AVATAR_IMAGES[imgId];
+		function paintAvatarImg() {
 			tileBg();
 			ctx.save();
 			roundRectPath(ctx, 0.5, 0.5, px - 1, px - 1, px * 0.28); ctx.clip();
@@ -735,8 +737,24 @@ function buildAvatarCanvas(color, px, country) {
 			var w = (aim.naturalWidth || px) * s, h = (aim.naturalHeight || px) * s;
 			ctx.drawImage(aim, (px - w) / 2, (px - h) / 2, w, h);
 			ctx.restore();
-		};
-		aim.src = AVATAR_IMAGES[imgId];
+		}
+		// Cached across every call (module-level, keyed by src) — every avatar canvas anywhere on
+		// the site (the Customize Lab's grid cards, the identity header above its preview board, the
+		// dashboard, …) shares ONE Image per preset instead of each freshly `new Image()`-ing its
+		// own copy. A freshly constructed Image always fires `onload` on a later tick even when the
+		// browser's own HTTP cache serves it instantly, so re-rendering the SAME avatar (e.g. every
+		// other card flashing when picking one in the grid, which rebuilds the whole grid) used to
+		// paint one blank tileBg()-only frame before the image came back — reported as those avatars
+		// "flickering". Reusing an already-`complete` Image paints synchronously instead, no blank frame.
+		var aim = AVATAR_IMAGE_CACHE[imgSrc];
+		if (aim && aim.complete && aim.naturalWidth) {
+			paintAvatarImg();
+			return c;
+		}
+		tileBg();
+		aim = aim || (AVATAR_IMAGE_CACHE[imgSrc] = new Image());
+		aim.onload = paintAvatarImg;
+		if (!aim.src) aim.src = imgSrc;
 		return c;
 	}
 
@@ -777,10 +795,18 @@ function buildAvatarCanvas(color, px, country) {
 	}
 
 	if (country && typeof countryFlagSrc === "function") {
-		drawPlaceholder();
-		var im = new Image();
-		im.onload = function() { drawCountry(im); };
-		im.src = countryFlagSrc(country);
+		// Same cached-Image approach as the image-avatar branch above (see its comment) — an
+		// already-loaded flag paints synchronously instead of flashing the placeholder first.
+		var flagSrc = countryFlagSrc(country);
+		var im = AVATAR_IMAGE_CACHE[flagSrc];
+		if (im && im.complete && im.naturalWidth) {
+			drawCountry(im);
+		} else {
+			drawPlaceholder();
+			im = im || (AVATAR_IMAGE_CACHE[flagSrc] = new Image());
+			im.onload = function() { drawCountry(im); };
+			if (!im.src) im.src = flagSrc;
+		}
 	} else {
 		drawPennant();
 	}

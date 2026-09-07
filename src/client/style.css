@@ -7314,16 +7314,33 @@ input[type="range"].sound-lab-rate-slider { grid-column: 1 / -1; grid-row: 2; wi
 .dash-you-badge .rank-badge { font-size: 9px; }
 .dash-you-main { min-width: 0; }
 .dash-you-name-row { display: flex; align-items: center; gap: 0.45rem; min-width: 0; }
-.dash-you-name { font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; letter-spacing: -0.01em; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* Inline rename: the name becomes a subtle text field in place (matches the name's type). */
-.dash-you-name-input {
+/* border/padding/line-height match .dash-you-name-input's exactly (both border-box, site-wide
+   reset) even though this one's border is transparent — otherwise the input's real border+padding
+   gave it a few px more box height than the plain text (an explicit line-height matters too: an
+   <input>'s intrinsic line box for its value doesn't compute the same as a <div>'s for the same
+   font-size, even with padding/border matched — measured a ~4.4px gap from that alone), so opening
+   the rename field visibly nudged .dash-you-line down beneath it. Same box model whether you're
+   looking at the text or the field. */
+.dash-you-name {
 	font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; letter-spacing: -0.01em;
+	min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+	border: 1px solid transparent; padding: 0.05rem 0.45rem; line-height: 1.4;
+}
+/* Inline rename: the name becomes a subtle text field in place (matches the name's type).
+   input[type="text"].dash-you-name-input (not a bare .dash-you-name-input) — the generic
+   input[type="text"] rule earlier in this file is a type+attribute selector, which outweighs a
+   lone class regardless of source order, so a bare class here silently lost every property they
+   both set (padding/font-size/font-family included) to that rule's own 0.6rem/0.95rem/inherit —
+   exactly the gap that broke the height match with .dash-you-name above. */
+input[type="text"].dash-you-name-input {
+	font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; letter-spacing: -0.01em;
+	line-height: 1.4;
 	color: var(--text); background: rgba(255, 255, 255, 0.05);
 	border: 1px solid var(--border); border-radius: 8px;
 	padding: 0.05rem 0.45rem; max-width: 13rem; min-width: 0; outline: none;
 	transition: border-color var(--motion-micro) var(--ease-out);
 }
-.dash-you-name-input:focus { border-color: var(--accent); }
+input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
 /* Pen button to rename, beside the dashboard name. */
 .dash-edit-name {
 	flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;

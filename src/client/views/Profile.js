@@ -577,8 +577,18 @@ function buildRevealDemoBoard(opts) {
 		return out;
 	}
 
+	// Every cell on the board, ordered by distance from the top-left corner — feeds playDemo to
+	// stage a cascade that starts at (0,0) and spreads outward, clearing the whole board (used by
+	// the reveal-effect cards below, whose demo layout has zero mines).
+	function cellsFromCorner() {
+		var out = [];
+		for (var r = 0; r < rows; r++) for (var c = 0; c < cols; c++) out.push([r, c]);
+		out.sort(function(a, b) { return (a[0] + a[1]) - (b[0] + b[1]); }); // Manhattan distance from (0,0)
+		return out;
+	}
+
 	reset();
-	return { canvas: canvas, reset: reset, playDemo: playDemo, frontierCells: frontierCells };
+	return { canvas: canvas, reset: reset, playDemo: playDemo, frontierCells: frontierCells, cellsFromCorner: cellsFromCorner };
 }
 
 // The main preview board's fixed layout — hand-picked (not random) so the same demo replays
@@ -733,12 +743,14 @@ function demonstrateLabEffect() {
 	labFrontierCells(6).forEach(function(p) { performAction(p[0], p[1], false); });
 }
 
-// A tiny demo board for one reveal-effect card's own thumbnail — a couple of mines just so a
-// number or two shows next to the covered cells being demonstrated.
+// A tiny demo board for one reveal-effect card's own thumbnail — no mines at all, so triggering it
+// (buildRevealEffectCard's demoPlay, via cellsFromCorner) cascades open the ENTIRE board starting
+// from the top-left corner, on request: a clean full clear best shows off each effect's look
+// rather than a partial reveal around a couple of numbered clues.
 function buildRevealEffectCardDemo(effectId) {
 	return buildRevealDemoBoard({
 		rows: 3, cols: 4, cellPx: 30, effectId: effectId, interactive: false,
-		mines: [[0, 3], [2, 0]], openAt: [1, 1]
+		mines: [], openAt: null
 	});
 }
 
@@ -850,7 +862,7 @@ function buildRevealEffectCard(id) {
 	body.appendChild(blurb);
 	tile.appendChild(body);
 
-	function demoPlay() { demo.reset(); demo.playDemo(demo.frontierCells().slice(0, 3)); }
+	function demoPlay() { demo.reset(); demo.playDemo(demo.cellsFromCorner()); }
 	tile.addEventListener("mouseenter", demoPlay);
 	tile.addEventListener("mouseleave", function() { demo.reset(); });
 
