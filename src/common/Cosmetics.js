@@ -89,12 +89,26 @@
 				unknownHilite: "rgba(217,70,239,0.28)",
 				flagCloth: "#00e5ff", flagPole: "#e2e8f0",
 				font: "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace", glow: true
+			},
+			nightwatch: {
+				label: "Night Watch", blurb: "A quiet night in the mountains. Same mines, new view.",
+				// The only skin with a real photo background (board-scroll::before, style.css) instead
+				// of a flat/gradient chrome — known cells need real opacity (not just a dark tint) to
+				// stay legible over the art, so knownBg carries an alpha channel here, unlike every
+				// other skin's opaque hex.
+				mine: "#f87171",
+				numbers: { 1: "#60a5fa", 2: "#4ade80", 3: "#f87171", 4: "#c084fc", 5: "#fbbf24", 6: "#22d3ee", 7: "#f9a8d4", 8: "#e2e8f0" },
+				knownBg: "rgba(8,14,28,0.82)", knownEdge: "rgba(3,6,14,0.9)",
+				unknownTop: "#3a557a", unknownBottom: "#1c2c47", unknownEdge: "#0f1a2e",
+				unknownHilite: "rgba(191,219,254,0.30)",
+				flagCloth: "#f87171", flagPole: "#e2e8f0",
+				font: "Inter, system-ui, sans-serif", glow: false
 			}
 		},
 		// Deliberately NOT alphabetical — a rough ascending "value ladder" (free, then cheapest paid
 		// through priciest/flashiest), since this order also drives the skin picker's display order
 		// (ShopCatalog.js's own item order is separate, hand-authored to match).
-		BOARD_SKIN_LIST: ["classic", "monochrome", "tactical", "frost", "gold", "neon"],
+		BOARD_SKIN_LIST: ["classic", "monochrome", "tactical", "frost", "gold", "neon", "nightwatch"],
 
 		// Cascade reveal effects — how a covered cell looks as YOUR OWN board's cascade uncovers it
 		// (BoardRender.js's drawRevealLid). Purely local rendering, never sent to or seen by anyone

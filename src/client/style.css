@@ -3962,6 +3962,35 @@ body[data-board-skin="gold"] .board-scroll::after {
 	background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.35) 100%);
 }
 
+/* ── Board skin: Night Watch (photo background) ───────────────────────────────
+   The only skin with a real photographic background instead of a painted/gradient
+   chrome. Unlike Tactical/Gold, the image goes on .player-board (the ~20px outer
+   bezel, .board-scroll's 10px inset) rather than .board-scroll itself — .board-scroll
+   is almost entirely covered by the opaque <canvas> (it paints every pixel, cell gaps
+   included, so an image sitting BEHIND it would only ever peek through a few px of
+   padding), while .player-board's roomier bezel actually shows the scene. A plain
+   inset box-shadow darkens the bezel's edges for legibility, deliberately not a
+   separate ::after layer — a ::after with its own z-index would stack ABOVE the
+   plain (non-positioned) canvas regardless of DOM order and dim the board itself,
+   which none of this skin's darkening is meant to touch.
+   Known cells carry an alpha-blended background (Cosmetics.js's knownBg/knownEdge are
+   rgba() here, unlike every other skin's opaque hex) so the covered/uncovered contrast
+   stays readable without leaning on the (barely visible) art behind the canvas. */
+body[data-board-skin="nightwatch"] .player-board {
+	background-image: url("/skins/nightwatch-bg.jpg");
+	background-size: cover;
+	background-position: center;
+	border-color: #253552;
+	box-shadow: 0 0 0 1px rgba(148, 197, 255, 0.10), 0 4px 40px rgba(0, 0, 0, 0.8), inset 0 0 40px rgba(3, 6, 14, 0.7);
+}
+body[data-board-skin="nightwatch"] .board-scroll {
+	position: relative;
+	padding: 10px;
+	border-radius: 6px;
+	background: rgba(5, 9, 20, 0.6);
+	box-shadow: inset 0 0 0 1px rgba(148, 197, 255, 0.16), inset 0 0 30px rgba(0, 0, 0, 0.4);
+}
+
 /* Touch-press cell highlight (.board-press-highlight, above) is a fixed translucent WHITE wash —
    reads fine against every skin's covered-cell colour except the ones whose own covered cells are
    ALREADY pale (Frost's icy-blue gradient starts almost white; Monochrome's starts light grey), where

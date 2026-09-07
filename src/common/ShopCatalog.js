@@ -17,6 +17,7 @@
 	var FROST_SKIN_PRICE_CENTS = 499;
 	var GOLD_SKIN_PRICE_CENTS = 599;
 	var NEON_SKIN_PRICE_CENTS = 699;
+	var NIGHTWATCH_SKIN_PRICE_CENTS = 799;
 	// Reveal effects are pure code (no art asset), and each only ever affects the local player's own
 	// board (see Cosmetics.js's own comment) — priced as a lighter "flourish" tier below the avatars/
 	// skins rather than matched to them.
@@ -93,6 +94,16 @@
 			imagePath: "/skins/neon-preview.png",
 			// Flashiest/priciest skin (glowing digits, the only other `glow:true` skin besides
 			// Tactical) — epic fits.
+			tier: "epic"
+		});
+
+		items.push({
+			id: "nightwatch", kind: "skin", productType: "board_skin",
+			label: Cosmetics.BOARD_SKINS.nightwatch.label,
+			priceCents: NIGHTWATCH_SKIN_PRICE_CENTS, currency: "usd",
+			imagePath: "/skins/nightwatch-preview.png",
+			// The only skin with a real photo background instead of a painted palette, priciest and
+			// newest skin so far - epic fits.
 			tier: "epic"
 		});
 
