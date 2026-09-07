@@ -278,6 +278,12 @@ function buildDuelIdentity() {
 		if (p.id === id || p.isYou) { if (!me) me = p; } else if (!opp) opp = p;
 	}
 	fillDuelId(document.getElementById("duel_id_you"), me);
+	// Admin-only: click your own in-game avatar to open the debug view (DebugView.js) comparing the
+	// client's local board state against the server's authoritative one. Gated here (not inside
+	// wireAdminDebugAvatar itself) so a non-admin's avatar never gets the extra listener at all.
+	if (account && account.isAdmin && typeof wireAdminDebugAvatar === "function") {
+		wireAdminDebugAvatar(document.getElementById("duel_id_you"));
+	}
 	if (isDuoRacing()) {
 		// No opponent matched yet mid-search — fillDuelId(el, null) would just wipe #duel_id_opp blank
 		// (an empty red-bordered box); same "Searching…" placeholder setOppIdentity already gives the
@@ -814,6 +820,18 @@ var inRoom = false;
 // myName + account + the auth IIFE live in Auth.js.
 
 var socket = io({ transports: ["websocket"] });
+
+// Admin debug tool (DebugView.js, loads before this file so `socket` doesn't exist yet there —
+// the actual event-log ring buffer + rendering live there, this just wires it to the real socket
+// once one exists). Recorded unconditionally for every session (cheap, capped) — only the VIEW is
+// admin-gated, so history from just before an admin thinks to open it is still available.
+if (typeof pushAdminDebugLog === "function") {
+	socket.onAny(function(event) { pushAdminDebugLog("in", event, Array.prototype.slice.call(arguments, 1)); });
+	socket.onAnyOutgoing(function(event) { pushAdminDebugLog("out", event, Array.prototype.slice.call(arguments, 1)); });
+}
+socket.on("admin_debug_snapshot_result", function(data) {
+	if (typeof onAdminDebugSnapshot === "function") onAdminDebugSnapshot(data);
+});
 
 // --- Split deployment: per-match game-server connection (P1-6) ---
 // In the split, a ranked match runs on a separate game server. On `match_handoff` the client opens a

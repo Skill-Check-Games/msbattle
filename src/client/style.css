@@ -7945,3 +7945,38 @@ body.game-fullscreen .game-view:not(.puzzle):not(.solo):not(.duo):not(.multi) .g
 .site-footer-legal a { color: var(--muted); text-decoration: none; }
 
 .site-footer-legal a:hover { color: var(--text); }
+
+/* ── Admin in-game debug view (DebugView.js) ──────────────────────────────────────────────────
+   Functional, not polished — an internal diagnostic tool for comparing the client's local board
+   state against the server's authoritative one, cell by cell, plus a raw socket event log. */
+.admin-debug-dialog { width: min(1100px, 96vw); max-height: min(860px, 92vh); }
+.admin-debug-head-actions { display: flex; align-items: center; gap: 0.6rem; }
+.admin-debug-summary { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; margin-top: 1rem; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.85rem; color: var(--muted); }
+.admin-debug-summary-mismatch { color: #fca5a5; font-weight: 700; }
+.admin-debug-grids { display: flex; flex-wrap: wrap; gap: 1.25rem; margin-top: 1rem; }
+.admin-debug-grid-wrap { flex: 1 1 340px; min-width: 0; }
+.admin-debug-grid-title { margin: 0 0 0.5rem; font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted); }
+.admin-debug-empty { color: var(--muted); font-size: 0.85rem; }
+.admin-debug-grid {
+	display: grid; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 6px;
+	overflow: hidden; max-width: 100%; overflow-x: auto;
+}
+.admin-debug-cell {
+	aspect-ratio: 1; min-width: 14px;
+	display: flex; align-items: center; justify-content: center;
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.62rem; font-weight: 700;
+	background: var(--bg); color: var(--text);
+}
+.admin-debug-cell-unknown { background: rgba(99, 102, 241, 0.18); color: transparent; }
+.admin-debug-cell-flagged { background: rgba(239, 68, 68, 0.25); color: #fca5a5; }
+.admin-debug-cell-known { background: var(--surface); }
+.admin-debug-cell-mismatch { outline: 2px solid #f87171; outline-offset: -2px; }
+.admin-debug-log-wrap { margin-top: 1.25rem; }
+.admin-debug-log {
+	max-height: 220px; overflow-y: auto; padding: 0.6rem 0.75rem; border-radius: 8px;
+	background: var(--bg); border: 1px solid var(--border);
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.74rem; line-height: 1.5;
+}
+.admin-debug-log-row { white-space: pre-wrap; word-break: break-all; color: var(--muted); }
+.admin-debug-log-in { color: var(--text); }
+.admin-debug-log-out { color: #93c5fd; }
