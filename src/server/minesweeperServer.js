@@ -815,6 +815,41 @@ function registerGameplayHandlers(socket, playerID) {
 		}
 		checkMoveSync(game, data);
 	});
+
+	// Admin debugging tool: dump this admin's OWN current game's authoritative server state (the
+	// real mine board + revealed/flagged grid + the move-hash chain) so it can be compared
+	// side-by-side against the client's own local state in the in-game debug view (DebugView.js) —
+	// built to finally root-cause the intermittent "client thinks the board is done but the server
+	// never confirms it" reports. No new information exposure in sending the raw board here: the
+	// client already fully decodes its own board's true mine layout locally regardless (see
+	// BoardDecoder.js's own comment), this just also ships the SERVER's copy of the revealed/
+	// flagged state + move counters for comparison.
+	// Registered HERE (shared by both the game-role and main/both branches — see the two call sites
+	// of registerGameplayHandlers above) rather than down with the rest of the lobby-only handlers:
+	// a real ranked match's gameplay socket, in the Phase 1 split, connects to a "game"-role server
+	// and RETURNS before ever reaching that lobby code — a copy registered only there is completely
+	// unreachable for exactly the live-match case this tool exists to debug (reproduced as "always
+	// shows No Data" once split-served, even though it worked fine against a single "both"-role
+	// dev server). `isSocketAdmin` still works here: attachGameClient (above) seeds
+	// `accounts[playerID] = {userId}` for a game-role socket too, which is all it needs to look the
+	// admin flag up fresh from `db`.
+	socket.on("admin_debug_snapshot", function() {
+		if (!isSocketAdmin(playerID)) return;
+		var g = games[playerID];
+		if (!g) { socket.emit("admin_debug_snapshot_result", { ok: false, reason: "not_in_game" }); return; }
+		var room = roomMapping[playerID];
+		socket.emit("admin_debug_snapshot_result", {
+			ok: true,
+			roomPhase: room ? room.phase : null,
+			rows: g.rows, cols: g.cols,
+			board: g.board, state: g.state,
+			playing: g.playing, finished: g.finished, finishedAt: g.finishedAt,
+			seq: g.seq, hash: g.hash,
+			safeCount: g.revealedSafeCount ? g.revealedSafeCount() : null,
+			totalSafe: g.totalSafeSquares || null,
+			serverNow: Date.now()
+		});
+	});
 }
 
 // ---- Game-server role (P1-5/P1-6) ----
@@ -1007,32 +1042,6 @@ io.on("connection", function (socket) {
 		});
 		socket.emit("admin_rating_set", {
 			ratingSprint: acc.ratingSprint, ratingStandard: acc.ratingStandard
-		});
-	});
-
-	// Admin debugging tool: dump this admin's OWN current game's authoritative server state (the
-	// real mine board + revealed/flagged grid + the move-hash chain) so it can be compared
-	// side-by-side against the client's own local state in the in-game debug view (DebugView.js) —
-	// built to finally root-cause the intermittent "client thinks the board is done but the server
-	// never confirms it" reports. No new information exposure in sending the raw board here: the
-	// client already fully decodes its own board's true mine layout locally regardless (see
-	// BoardDecoder.js's own comment), this just also ships the SERVER's copy of the revealed/
-	// flagged state + move counters for comparison.
-	socket.on("admin_debug_snapshot", function() {
-		if (!isSocketAdmin(playerID)) return;
-		var g = games[playerID];
-		if (!g) { socket.emit("admin_debug_snapshot_result", { ok: false, reason: "not_in_game" }); return; }
-		var room = roomMapping[playerID];
-		socket.emit("admin_debug_snapshot_result", {
-			ok: true,
-			roomPhase: room ? room.phase : null,
-			rows: g.rows, cols: g.cols,
-			board: g.board, state: g.state,
-			playing: g.playing, finished: g.finished, finishedAt: g.finishedAt,
-			seq: g.seq, hash: g.hash,
-			safeCount: g.revealedSafeCount ? g.revealedSafeCount() : null,
-			totalSafe: g.totalSafeSquares || null,
-			serverNow: Date.now()
 		});
 	});
 
