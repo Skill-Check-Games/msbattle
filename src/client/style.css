@@ -7404,7 +7404,7 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
 .dash-edit-name {
 	flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
 	width: 1.7rem; height: 1.7rem; padding: 0; border-radius: 5px;
-	margin-left: -0.35rem; /* pull the glyph in against the name (the 1.7rem hit box stays) — ~9px text→pen */
+	margin-left: -0.25rem; /* the glyph sits ~10px from the name text (the 1.7rem hit box stays) */
 	background: none; border: 1px solid transparent; color: var(--muted); cursor: pointer;
 	transition: color var(--motion-micro) var(--ease-out), background var(--motion-micro) var(--ease-out);
 }
