@@ -1632,7 +1632,9 @@ function renderDashIdentity() {
 var DASH_MODE_BOARDS = {
 	sprint: {
 		rows: 6, cols: 9,
-		mines: [[0,0],[0,3],[1,1],[3,3],[3,7],[3,8]],
+		// Mines along the bottom row too — with none there, the cascade left row 5 as a full line of
+		// revealed zeros, which reads as dead padding under the board rather than as part of it.
+		mines: [[0,0],[0,3],[1,1],[3,3],[3,7],[3,8],[5,1],[5,4],[5,8]],
 		revealStart: [3, 5],
 		flagged: [[3,3],[3,7],[3,8]]
 	},

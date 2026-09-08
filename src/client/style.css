@@ -6243,6 +6243,9 @@ body.duel-force-rotate .game-view.multi .game-side { display: flex !important; }
 	.logo { margin-right: auto; }
 	.topbar-right { order: 2; gap: 0.5rem; }
 	.nav-burger { display: inline-flex; order: 3; margin-left: 0.4rem; }
+	/* Compact bar everywhere the burger shows — same height at 740px as at 540px. */
+	.topbar { padding: 0.85rem 1rem; }
+	.topbar h1 { font-size: 1rem; }
 
 	/* Identity lives in the menu on mobile (the topbar badge is hidden here). */
 	.topbar-right .user-badge { display: none !important; }
@@ -6516,9 +6519,10 @@ body.duel-force-rotate .game-view.multi .game-side { display: flex !important; }
 	.game-view.solo .mobile-solo-strip { display: flex; }
 }
 
+/* The topbar's compact padding moved up to the burger breakpoint (the 900px block above) — it used
+   to switch at 640px, so between 640 and 900 the burger bar kept the desktop 1.25rem/2rem padding
+   and stood visibly taller than the same bar at phone widths. */
 @media (max-width: 640px) {
-	.topbar { padding: 0.85rem 1rem; }
-	.topbar h1 { font-size: 1rem; }
 	.user-badge { font-size: 0.85rem; gap: 0.4rem; }
 	main { padding: 1rem; }
 
@@ -7402,7 +7406,9 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
 .dash-row {
 	display: flex; align-items: center; gap: 0.9rem;
 	background: var(--surface); border: 1px solid var(--border);
-	border-radius: 12px; padding: 0.55rem 0.9rem;
+	border-radius: 12px; /* Same 0.75rem on the left, top and bottom so the board frame sits equidistant from three
+	   edges (the same rule the .dash-you avatar follows); the right keeps 0.9rem for the rank. */
+	padding: 0.75rem 0.9rem 0.75rem 0.75rem;
 	text-decoration: none; color: var(--text);
 	transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
@@ -7414,7 +7420,9 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
 /* Reserved to match .dash-board-preview canvas's fixed 92px height (+ its 3px top/bottom padding)
    below — the canvas only exists once renderModeBoardPreviews() runs (deferred bundle), so without
    this the empty slot has no height and the whole row grows once the preview actually appears. */
-.dash-row-board { flex: 0 0 auto; display: flex; align-items: center; width: 165px; min-height: 98px; }
+/* 144 × 98 = exactly the 6×9 preview board (92px canvas + 3px padding each side) every mode uses, so
+   the slot hugs the frame instead of leaving 21px of dead space to its right. */
+.dash-row-board { flex: 0 0 auto; display: flex; align-items: center; width: 144px; min-height: 98px; }
 .dash-row-info { min-width: 0; flex: 1 1 auto; }
 .dash-row-title { margin: 0; font-size: 1.1rem; font-weight: 700; }
 .dash-row-sub { margin: 0.1rem 0 0; font-size: 0.78rem; color: var(--muted); }
@@ -7440,7 +7448,12 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
 
 /* Mode previews use the real game board renderer (buildLearnPuzzle); scale it down to a fixed
    thumbnail and make it non-interactive. Uniform width so every mode row is the same size. */
-.dash-board-preview { pointer-events: none; padding: 0; gap: 0; min-height: 0; }
+/* margin: 0 — .learn-puzzle carries a 0.85rem margin-top for its normal Learn-page stacking, which
+   the preview never cleared: it pushed the board 13.6px down inside its slot, so the frame sat
+   visibly lower than centred (27px above vs 19px below). The board is a block, not the base
+   inline-block, so no baseline descender gap opens under it either. */
+.dash-board-preview { pointer-events: none; padding: 0; margin: 0; gap: 0; min-height: 0; }
+.dash-board-preview .learn-board { display: block; }
 .dash-board-preview .learn-puzzle-title, .dash-board-preview .learn-controls,
 .dash-board-preview .learn-kbd-hint { display: none; }
 /* Uniform board HEIGHT (so each mode's grid size controls the zoom — wide racing boards read
@@ -8031,3 +8044,33 @@ body.game-fullscreen .game-view:not(.puzzle):not(.solo):not(.duo):not(.multi) .g
 #settings_view .setting-row, #settings_view .keybind-row { background: var(--surface); }
 #settings_view .keybind-row { padding: 0.6rem 0.85rem; border-radius: 11px; }
 .nav-burger svg { display: block; }
+
+/* ── Narrow phones (≤ 480px; the target floor is 330px) ─────────────────────── */
+/* The home mode row is board | title+sub | rank in one flex line, which needs ~400px (165px board +
+   the rank's 4.5rem min-width + gaps/padding). At 330px the rank badge and "Wood · Lvl 1" were pushed
+   clean off the right edge and the whole page scrolled sideways. Here the row becomes a two-column
+   grid: a smaller preview on the left spanning both rows, title+sub on the right with the rank
+   tucked beneath them, left-aligned. */
+@media (max-width: 480px) {
+	.dash-row {
+		display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto;
+		column-gap: 0.75rem; row-gap: 0.25rem; align-items: center; padding: 0.5rem 0.7rem;
+	}
+	.dash-row-board { grid-row: 1 / 3; width: auto; min-height: 0; }
+	.dash-board-preview .learn-board canvas { height: 74px !important; max-width: 120px; }
+	.dash-row-info { grid-column: 2; align-self: end; }
+	.dash-row-stat { grid-column: 2; align-self: start; justify-content: flex-start; min-width: 0; min-height: 0; }
+	.dash-row-stat-text, .mode-card-rank-tiered .mode-card-rank-text { align-items: flex-start; text-align: left; }
+}
+/* The daily hero's board is a non-interactive preview (pointer-events: none) — the "Keyboard: arrows
+   to move…" caption buildLearnPuzzle adds under every board was leaking into it, same as the mode
+   previews already hide. */
+.lobby-daily-preview .learn-kbd-hint { display: none; }
+/* Picker modals (Sprint/Standard/Puzzles) at phone widths: the 3.6rem icon + 1rem gap took ~74px of
+   a ~290px card, leaving "Bronze I" to break across two lines and the subtitle to wrap four deep.
+   Drop the decorative icon and keep the tier on one line. */
+@media (max-width: 480px) {
+	.ranked-picker-head { grid-template-columns: 1fr auto; gap: 0.75rem; padding: 0.85rem 1rem; }
+	.ranked-picker-icon { display: none; }
+	.ranked-picker-rating-tier { white-space: nowrap; }
+}
