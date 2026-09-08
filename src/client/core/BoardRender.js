@@ -664,7 +664,11 @@ function drawFlag(ctx, w, h, scale, clothColor) {
 // src -> Image, shared by every buildAvatarCanvas call across the whole page (see its own comment
 // on the image-avatar branch below for why this exists).
 var AVATAR_IMAGE_CACHE = {};
-function buildAvatarCanvas(color, px, country) {
+// cornerPx (optional): the tile's corner radius in px. Defaults to 28% of the size (the free-standing
+// chip look); a caller that puts the avatar edge-to-edge inside a bordered box passes that box's inner
+// radius so the two sets of corners coincide (home identity tile: 7px box − 1px border = 6).
+function buildAvatarCanvas(color, px, country, cornerPx) {
+	var corner = (cornerPx != null) ? cornerPx : px * 0.28;
 	px = px || 28;
 	var dpr = window.devicePixelRatio || 1;
 	var c = document.createElement("canvas");
@@ -676,7 +680,7 @@ function buildAvatarCanvas(color, px, country) {
 
 	function tileBg() {
 		ctx.clearRect(0, 0, px, px);
-		roundRectPath(ctx, 0.5, 0.5, px - 1, px - 1, px * 0.28);
+		roundRectPath(ctx, 0.5, 0.5, px - 1, px - 1, corner);
 		ctx.fillStyle = "#1a2240"; ctx.fill();
 		ctx.strokeStyle = "rgba(255,255,255,0.10)"; ctx.lineWidth = 1; ctx.stroke();
 	}
@@ -685,7 +689,7 @@ function buildAvatarCanvas(color, px, country) {
 	if (color === "anon") {
 		tileBg();
 		ctx.save();
-		roundRectPath(ctx, 0.5, 0.5, px - 1, px - 1, px * 0.28); ctx.clip();
+		roundRectPath(ctx, 0.5, 0.5, px - 1, px - 1, corner); ctx.clip();
 		ctx.fillStyle = "#aab3d0";
 		ctx.beginPath(); ctx.arc(px * 0.5, px * 1.04, px * 0.37, 0, Math.PI * 2); ctx.fill(); // shoulders
 		ctx.beginPath(); ctx.arc(px * 0.5, px * 0.37, px * 0.17, 0, Math.PI * 2); ctx.fill(); // head
@@ -731,7 +735,7 @@ function buildAvatarCanvas(color, px, country) {
 		function paintAvatarImg() {
 			tileBg();
 			ctx.save();
-			roundRectPath(ctx, 0.5, 0.5, px - 1, px - 1, px * 0.28); ctx.clip();
+			roundRectPath(ctx, 0.5, 0.5, px - 1, px - 1, corner); ctx.clip();
 			var pad = px * 0.02; // minimal inset so image avatars (e.g. the teddy) fill the tile
 			var s = Math.min((px - pad * 2) / (aim.naturalWidth || 1), (px - pad * 2) / (aim.naturalHeight || 1));
 			var w = (aim.naturalWidth || px) * s, h = (aim.naturalHeight || px) * s;
@@ -773,7 +777,7 @@ function buildAvatarCanvas(color, px, country) {
 	function tri() { ctx.beginPath(); ctx.moveTo(Ax, Ay); ctx.lineTo(Bx, By); ctx.lineTo(Cx, Cy); ctx.closePath(); }
 	function base() {
 		ctx.clearRect(0, 0, px, px);
-		roundRectPath(ctx, 0.5, 0.5, px - 1, px - 1, px * 0.28);
+		roundRectPath(ctx, 0.5, 0.5, px - 1, px - 1, corner);
 		ctx.fillStyle = "#1a2240"; ctx.fill();
 		ctx.strokeStyle = "rgba(255,255,255,0.10)"; ctx.lineWidth = 1; ctx.stroke();
 		ctx.strokeStyle = "#e2e8f0"; ctx.lineWidth = Math.max(1, px * 0.045); ctx.lineCap = "round";
@@ -815,11 +819,11 @@ function buildAvatarCanvas(color, px, country) {
 
 // A reusable identity element: the flag avatar (country flag inside it, or coloured pennant). Used on the
 // profile, leaderboard, home card, match panels, and replays.
-function buildAvatarChip(color, country, px) {
+function buildAvatarChip(color, country, px, cornerPx) {
 	var wrap = document.createElement("span");
 	wrap.className = "avatar-chip";
 	wrap.title = (country && typeof countryName === "function") ? countryName(country) : "";
-	wrap.appendChild(buildAvatarCanvas(color, px || 28, country));
+	wrap.appendChild(buildAvatarCanvas(color, px || 28, country, cornerPx));
 	return wrap;
 }
 

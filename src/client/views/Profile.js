@@ -1693,7 +1693,7 @@ function renderDashIdentity() {
 	if (nameRow) { var stale = nameRow.querySelector(".dash-avatar"); if (stale) stale.remove(); } // drop the old inline avatar
 	if (badgeEl) {
 		badgeEl.innerHTML = "";
-		if (typeof buildAvatarChip === "function") badgeEl.appendChild(buildAvatarChip(account.avatarColor || DEFAULT_AVATAR, account.country || null, 63)); // fills the 65px tile (1px border each side)
+		if (typeof buildAvatarChip === "function") badgeEl.appendChild(buildAvatarChip(account.avatarColor || DEFAULT_AVATAR, account.country || null, 63, 6)); // fills the 65px tile (1px border each side); corner 6 = the tile's 7px radius − its 1px border
 		// Click the home avatar to edit it.
 		badgeEl.classList.add("dash-avatar-edit");
 		badgeEl.title = "Edit avatar";

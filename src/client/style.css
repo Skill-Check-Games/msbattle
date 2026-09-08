@@ -7323,10 +7323,11 @@ input[type="range"].sound-lab-rate-slider { grid-column: 1 / -1; grid-row: 2; wi
    actual board rendered. */
 /* ===== Home dashboard ("player dashboard" layout) ===== */
 .dash { max-width: 1180px; margin: 0 auto; padding: 0.3rem 0; }
-/* Three boxes in a row — avatar tile | info card | flag tile — with the same gap between them as the
-   column gap below. The wrapper itself is unstyled; each .dash-you-box carries the card look. */
+/* Three boxes in a row — avatar tile | info card | flag tile — with the "connected boxes" gap the three
+   mode rows use (.dash-modes, 0.55rem). The wrapper itself is unstyled; each .dash-you-box carries the
+   card look. */
 .dash-you {
-	display: flex; align-items: stretch; gap: 1.1rem;
+	display: flex; align-items: stretch; gap: 0.55rem;
 	margin-bottom: 1.1rem;
 	min-height: 65px;
 }
