@@ -65,6 +65,17 @@ function markOwnedLocally(itemId) {
 	if (typeof closeItemPurchaseModal === "function") closeItemPurchaseModal();
 }
 
+// Fake-shop access: a real admin account, or running against a DEV_AUTH-enabled local server (the
+// same "admin or local dev, for convenience" bar refreshAdminNavLink/PuzzleLab.js already uses for
+// the Admin nav link) — window.serverInfo.dev is set from the connected event's oauth.dev flag
+// (noteServerDev, PuzzleLab.js). Purely a client-side convenience: the server's own /api/shop/
+// fake-grant independently re-checks real is_admin (isSocketAdmin's DEV_AUTH bypass covers the rest
+// of that gap there), so showing this locally with no is_admin row set doesn't grant anything by
+// itself — it just lets a solo local dev exercise the toggle without hand-flipping their DB.
+function shopFakeShopAllowed() {
+	return !!(account && account.isAdmin) || !!(window.serverInfo && window.serverInfo.dev);
+}
+
 function buyShopItemFake(item, btn, originalLabel) {
 	// Deliberately doesn't swap the button's text for a "Starting checkout…" state — the price label
 	// is usually shorter than that string, so the swap widened the button and shifted whatever sits
@@ -87,10 +98,10 @@ function buyShopItemFake(item, btn, originalLabel) {
 
 function buyShopItem(item, btn) {
 	var originalLabel = btn.textContent;
-	// Also re-checks account.isAdmin here (not just the checkbox's own gating) so a stale in-memory
-	// fakeShopMode="true" can't leak into a real checkout for a non-admin account mid-session (e.g.
-	// an admin toggles it on, then signs out into a guest without a page reload).
-	if (fakeShopMode && account && account.isAdmin) { buyShopItemFake(item, btn, originalLabel); return; }
+	// Also re-checks shopFakeShopAllowed() here (not just the checkbox's own gating) so a stale
+	// in-memory fakeShopMode="true" can't leak into a real checkout for an account/session that no
+	// longer qualifies (e.g. an admin toggles it on, then signs out into a guest without a page reload).
+	if (fakeShopMode && shopFakeShopAllowed()) { buyShopItemFake(item, btn, originalLabel); return; }
 	btn.disabled = true; // see buyShopItemFake's comment on why this doesn't also swap the button text
 	fetch("/api/shop/checkout", {
 		method: "POST",
@@ -165,12 +176,13 @@ function renderShop() {
 	var title = document.createElement("h1"); title.className = "section-page-title"; title.textContent = "Shop";
 	titleRow.appendChild(title);
 
-	// Admin-only escape hatch for demoing/testing the shop (works in prod too) without a real charge —
-	// the server independently re-checks is_admin on every /api/shop/fake-grant call, so this toggle
-	// is just the client-side switch, not itself a trust boundary. Deliberately doesn't change the
-	// shop's appearance beyond itself (see buildShopTile) — flipping it should be invisible to anyone
-	// glancing at the page, only observable in what actually happens on a Buy click.
-	if (account && account.isAdmin) {
+	// Admin (or local DEV_AUTH) escape hatch for demoing/testing the shop (works in prod too, for a
+	// real admin) without a real charge — the server independently re-checks is_admin on every
+	// /api/shop/fake-grant call (isSocketAdmin's own DEV_AUTH bypass covers the local case), so this
+	// toggle is just the client-side switch, not itself a trust boundary. Deliberately doesn't change
+	// the shop's appearance beyond itself (see buildShopTile) — flipping it should be invisible to
+	// anyone glancing at the page, only observable in what actually happens on a Buy click.
+	if (shopFakeShopAllowed()) {
 		var fakeRow = document.createElement("div"); fakeRow.className = "shop-fake-toggle";
 		var fakeTxt = document.createElement("span"); fakeTxt.className = "shop-fake-toggle-label";
 		fakeTxt.textContent = "Fake shop";
@@ -179,7 +191,7 @@ function renderShop() {
 		sw.type = "button";
 		sw.className = "toggle-switch" + (fakeShopMode ? " on" : "");
 		sw.setAttribute("aria-pressed", fakeShopMode ? "true" : "false");
-		sw.setAttribute("aria-label", "Fake shop: activate items instantly, skip checkout (admin only)");
+		sw.setAttribute("aria-label", "Fake shop: activate items instantly, skip checkout (admin or local dev)");
 		sw.addEventListener("click", function() { fakeShopMode = !fakeShopMode; renderShop(); });
 		fakeRow.appendChild(sw);
 		titleRow.appendChild(fakeRow);

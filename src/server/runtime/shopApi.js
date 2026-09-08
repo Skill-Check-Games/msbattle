@@ -186,8 +186,12 @@ function serveWebhook(req, res) {
 // Admin-only bypass: grants an item immediately with no Stripe interaction at all, so admins can
 // demo/test the shop (in prod included) without spending real money or needing Stripe configured
 // locally. Re-checks is_admin from the DB — never trusts a client claim — same pattern as
-// session.js's admin_reset_puzzles. Recorded with price_cents 0 and a distinguishing
-// stripe_session_id so these rows are identifiable later if anyone audits shop_purchases.
+// session.js's admin_reset_puzzles. Deliberately NOT bypassed for DEV_AUTH in general (unlike
+// minesweeperServer.js's isSocketAdmin) — test/shopapi.test.js's "fake-grant as a non-admin ->
+// 403 forbidden" exercises exactly a dev-logged-in, non-admin account and expects this to still
+// hold, so DEV_AUTH alone must never imply admin here. To use this locally, dev-login with an
+// email on ADMIN_EMAILS/db.js's HARDCODED_ADMIN_EMAILS (the dev sign-in prompt now asks for one)
+// — that's a REAL is_admin=1 row via the normal applyAdminForEmail path, same as a real OAuth login.
 function serveFakeGrant(req, res) {
 	var user = resolveUser(req);
 	if (!user) { send(res, 401, { error: "unauthenticated" }); return; }

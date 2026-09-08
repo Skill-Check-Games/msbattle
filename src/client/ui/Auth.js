@@ -274,7 +274,15 @@ discordSigninButton.addEventListener("click", function() {
 
 devSigninButton.addEventListener("click", function() {
 	var name = (prompt("Dev sign-in name:", "Dev") || "").trim();
-	if (name) window.location.href = "/auth/dev?name=" + encodeURIComponent(name) + guestUpgradeQuery("&");
+	if (!name) return;
+	// Optional — only matters if it's on the server's admin email list (db.js), in which case this
+	// dev account becomes a REAL local admin (same applyAdminForEmail path a real OAuth login uses),
+	// needed to use admin-gated tools locally (e.g. the Shop's Fake Shop toggle) without hand-editing
+	// the DB. Blank/Cancel behaves exactly as before — an ordinary non-admin dev account.
+	var email = (prompt("Admin email (optional — blank for a plain dev account):", "") || "").trim();
+	var url = "/auth/dev?name=" + encodeURIComponent(name);
+	if (email) url += "&email=" + encodeURIComponent(email);
+	window.location.href = url + guestUpgradeQuery("&");
 });
 
 // Guests tap "Sign in" to open the sign-in / rename card.

@@ -216,7 +216,14 @@ function authDiscordCallback(req, res, url) {
 
 function authDev(req, res, url) {
 	var name = (url.searchParams.get("name") || "Dev").slice(0, 24);
-	var user = resolveOAuthUser("dev", name.toLowerCase(), name, null, null, url.searchParams.get("upgrade"));
+	// Optional — lets a local dev log in AS THEMSELVES (their real email) so db.js's
+	// applyAdminForEmail (run inside upsertUser, same as a real OAuth login) can promote them to a
+	// genuine is_admin=1 account if that email is on HARDCODED_ADMIN_EMAILS/ADMIN_EMAILS. Without
+	// this there was no way to become a real local admin at all short of hand-editing the DB — the
+	// Fake Shop toggle (Shop.js) needs one, since DEV_AUTH deliberately does NOT imply admin on its
+	// own (see shopApi.js's serveFakeGrant comment). Blank/omitted behaves exactly as before.
+	var email = (url.searchParams.get("email") || "").trim().slice(0, 254) || null;
+	var user = resolveOAuthUser("dev", name.toLowerCase(), name, null, email, url.searchParams.get("upgrade"));
 	finishLogin(res, user.id);
 }
 
