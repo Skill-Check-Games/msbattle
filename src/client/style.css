@@ -1427,7 +1427,7 @@ main:has(.game-view.multi) { max-width: none; }
    14px padding, 10px radius, plus .learn-puzzle's 0.85rem margin-top and the base inline-block's
    baseline gap under the board). Now the same 3px / 4px frame every other preview board wears. */
 .help-board .learn-puzzle { margin: 0; padding: 0; border: 0; background: none; border-radius: 0; display: inline-block; }
-.help-board .learn-board { display: block; line-height: 0; padding: 3px; border-radius: 4px; }
+.help-board .learn-board { display: block; line-height: 0; padding: 3px; border-radius: 7px; }
 .help-board .learn-board canvas { display: block; height: 84px !important; width: auto !important; border-radius: 4px; }
 .help-example-cap { font-size: 0.74rem; color: var(--muted); text-align: center; line-height: 1.35; }
 .help-foot { margin: 0.75rem 0 0; font-size: 0.82rem; color: var(--muted); }
@@ -4038,7 +4038,7 @@ body[data-board-skin="monochrome"] .board-press-highlight {
    ones. display:block on the canvas itself avoids the few px of inline-baseline whitespace a
    canvas otherwise leaves under itself. */
 /* Wrapper and board share one radius (4px), same as every other preview-board frame on the site. */
-.skin-preview { display: flex; flex: 0 0 auto; padding: 4px; border-radius: 4px; background: #030e12; overflow: hidden; }
+.skin-preview { display: flex; flex: 0 0 auto; padding: 4px; border-radius: 8px; background: #030e12; overflow: hidden; } /* 4 (board) + 4 (padding): concentric corners */
 .skin-preview-board { display: block; border-radius: 4px; }
 .skin-blurb { font-size: 0.8rem; color: var(--muted); }
 
@@ -7450,6 +7450,7 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
 
 .dash-aside { display: flex; flex-direction: column; gap: 0.8rem; }
 .dash-aside .lobby-daily-hero { flex: 1 1 auto; }
+.lobby-daily-hero .lobby-daily-body { flex: 1 1 auto; }
 .lobby-daily-hero .lobby-daily-board-wrap { flex: 1 1 auto; display: flex; flex-direction: column; }
 .lobby-daily-hero .lobby-daily-board { flex: 1 1 auto; }
 .dash-card { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 0.85rem 1rem; }
@@ -7472,7 +7473,10 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
 .dash-board-preview .learn-kbd-hint { display: none; }
 /* Uniform board HEIGHT (so each mode's grid size controls the zoom — wide racing boards read
    zoomed-out, the small puzzle board zoomed-in); width follows the aspect, capped to the slot. */
-.dash-board-preview .learn-board { line-height: 0; padding: 3px; border-radius: 4px; } /* half the base 8px — a tighter frame on a small board */
+/* Frame radius = canvas radius (4) + frame padding (3), so the corners are CONCENTRIC and the 3px frame
+   keeps its width around the corner. With both at 4px the inner curve outran the outer one and the frame
+   visibly vanished at every corner. Same rule for every preview frame below. */
+.dash-board-preview .learn-board { line-height: 0; padding: 3px; border-radius: 7px; }
 .dash-board-preview .learn-board canvas { display: block; height: 92px !important; width: auto !important; max-width: 144px; border-radius: 4px; } /* same radius as the frame around it */
 .lobby-grid {
 	display: grid;
@@ -7568,7 +7572,7 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
    inline-block .learn-board left a baseline descender gap under it. Frame padding/radius match the
    home mode previews (3px / 4px) so every preview board on the page wears the same frame. */
 .lobby-daily-preview, .lobby-daily-preview.learn-puzzle { padding: 0; margin: 0; gap: 0; min-height: 0; }
-.lobby-daily-preview .learn-board { display: block; width: 100%; box-sizing: border-box; padding: 3px; border-radius: 4px; line-height: 0; }
+.lobby-daily-preview .learn-board { display: block; width: 100%; box-sizing: border-box; padding: 3px; border-radius: 7px; line-height: 0; }
 .lobby-daily-preview .learn-board canvas { display: block; width: 100%; max-width: 100%; height: auto !important; border-radius: 4px; }
 .lobby-daily-preview .learn-controls, .lobby-daily-preview .learn-puzzle-title { display: none; }
 
