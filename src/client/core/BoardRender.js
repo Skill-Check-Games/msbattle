@@ -684,6 +684,7 @@ function buildAvatarCanvas(color, px, country, cornerPx, rimStyle) {
 
 	function tileBg() {
 		ctx.clearRect(0, 0, px, px);
+		if (corner <= 0) { ctx.fillStyle = "#1a2240"; ctx.fillRect(0, 0, px, px); return; } // square, edge to edge: the caller's box supplies border + corners
 		roundRectPath(ctx, 0.5, 0.5, px - 1, px - 1, corner);
 		ctx.fillStyle = "#1a2240"; ctx.fill();
 		ctx.strokeStyle = rim; ctx.lineWidth = 1; ctx.stroke();

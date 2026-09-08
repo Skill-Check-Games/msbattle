@@ -3549,8 +3549,9 @@ body.ranked-game .game-grid { padding: 1.25rem 1.5rem 1.5rem; }
    metallic gradient. Clean — no wings. */
 .rank-emblem {
 	width: 100%; height: 100%;
-	/* shape-following shadow + tier glow — replaces the old square card behind the hexagon */
-	filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, 0.5)) drop-shadow(0 0 5px var(--rb-glow));
+	/* Matte on request (2026-09-08): no tier glow and no drop shadow — the badge sits flat on the surface
+	   like every other element. --rb-glow is kept on the tier classes in case it's wanted back. */
+	filter: none;
 }
 .rank-hex-fill { fill: rgba(9, 13, 26, 0.66); }
 .rank-hex-rim { fill: none; stroke: var(--rb-c2); stroke-width: 4.6; stroke-linejoin: round; }
@@ -7366,7 +7367,9 @@ input[type="range"].sound-lab-rate-slider { grid-column: 1 / -1; grid-row: 2; wi
 .dash-skel-cover.skel-hide { opacity: 0; pointer-events: none; }
 .dash-you-badge { flex: 0 0 auto; display: inline-flex; }
 .dash-you-badge .rank-badge { font-size: 9px; }
-.dash-you-main { min-width: 0; }
+/* Name row and tier line side by side (name, pen, then "Diamond I" / "Unranked" / the guest sign-in link) —
+   one line, vertically centred in the 65px card, instead of the tier as a second line under the name. */
+.dash-you-main { min-width: 0; display: flex; align-items: center; gap: 0.6rem; }
 /* Pulled left by exactly .dash-you-name's own border+padding (kept so the rename field can swap
    in without a shift) so the name TEXT lines up with .dash-you-line beneath it. */
 .dash-you-name-row { display: flex; align-items: center; gap: 0.45rem; min-width: 0; margin-left: calc(-0.45rem - 1px); }
@@ -7406,7 +7409,7 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
 }
 .dash-edit-name:hover { color: var(--text); background: rgba(255, 255, 255, 0.07); }
 .dash-edit-name svg { width: 0.95rem; height: 0.95rem; fill: currentColor; display: block; }
-.dash-you-line { color: var(--muted); font-size: 0.86rem; margin-top: 0; line-height: 1.2; }
+.dash-you-line { color: var(--muted); font-size: 0.86rem; margin: 0; line-height: 1.2; white-space: nowrap; }
 /* Guest's line is a call to action, not a label. Hover: colour only (site rule — no lift/underline noise). */
 .dash-you-signin { color: var(--accent); font-weight: 600; text-decoration: none; }
 .dash-you-signin:hover { color: var(--accent-hover, #818cf8); }
@@ -8169,5 +8172,5 @@ body.game-fullscreen .game-view:not(.puzzle):not(.solo):not(.duo):not(.multi) .g
 /* Home avatar tile: the canvas draws the border + corners itself (see renderDashIdentity), so the box
    carries none — otherwise the two rims and two corner curves showed as a double frame. The hover
    pencil sits inside the tile's corner instead of hanging off it (the tile clips overflow). */
-.dash-you-box-avatar { border: 0; background: none; }
+/* (box keeps its own border + radius — the canvas inside is a plain square, clipped by the box) */
 .dash-you-box-avatar .dash-avatar-edit::after { right: 4px; bottom: 4px; }

@@ -1694,11 +1694,11 @@ function renderDashIdentity() {
 	if (badgeEl) {
 		badgeEl.innerHTML = "";
 		if (typeof buildAvatarChip === "function") {
-			// The canvas IS the 65px tile: it draws its own 1px rim in the site border colour at the box's
-			// 7px radius, and the box itself has no CSS border (see .dash-you-box-avatar) — one border, one
-			// set of corners. The chip's country tooltip is dropped here: the flag tile beside it covers that,
-			// and this tile's tooltip is "Edit avatar" (set on the holder below).
-			var homeChip = buildAvatarChip(account.avatarColor || DEFAULT_AVATAR, account.country || null, 65, 7, "#283057");
+			// A plain SQUARE canvas (corner 0, no rim) filling the box's 63px content area — the box's own CSS
+			// border, 7px radius and overflow:hidden give it exactly the corners every other box has, instead
+			// of the canvas imitating them. The chip's country tooltip is dropped here: the flag tile beside
+			// it covers that, and this tile's tooltip is "Edit avatar" (set on the holder below).
+			var homeChip = buildAvatarChip(account.avatarColor || DEFAULT_AVATAR, account.country || null, 63, 0);
 			homeChip.removeAttribute("title");
 			badgeEl.appendChild(homeChip);
 		}

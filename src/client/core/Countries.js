@@ -38,7 +38,45 @@
 			.sort(function (a, b) { return a.name.localeCompare(b.name); });
 	}
 
+	// Best-effort guess of where the visitor is, used as a fresh GUEST's default flag (they can change
+	// it from the home card's flag tile; signed-in accounts are never guessed for). No geo-IP is
+	// available on the host, so this is browser-side: (1) an explicit region in the UI language
+	// ("sv-SE" → SE); (2) the IANA time zone via a compact city→country table — covers the common
+	// "English-UI browser in Stockholm" case, which reports just "en" + Europe/Stockholm; (3) Intl.Locale's
+	// likely-subtags for a bare language ("sv" → SE). Returns an uppercase code that has a flag, or null.
+	var TZ_COUNTRY = {
+		"Europe/Stockholm": "SE", "Europe/Oslo": "NO", "Europe/Copenhagen": "DK", "Europe/Helsinki": "FI", "Atlantic/Reykjavik": "IS",
+		"Europe/London": "GB", "Europe/Dublin": "IE", "Europe/Paris": "FR", "Europe/Berlin": "DE", "Europe/Amsterdam": "NL",
+		"Europe/Brussels": "BE", "Europe/Luxembourg": "LU", "Europe/Zurich": "CH", "Europe/Vienna": "AT", "Europe/Prague": "CZ",
+		"Europe/Warsaw": "PL", "Europe/Budapest": "HU", "Europe/Bratislava": "SK", "Europe/Ljubljana": "SI", "Europe/Zagreb": "HR",
+		"Europe/Belgrade": "RS", "Europe/Sarajevo": "BA", "Europe/Skopje": "MK", "Europe/Sofia": "BG", "Europe/Bucharest": "RO",
+		"Europe/Athens": "GR", "Europe/Istanbul": "TR", "Europe/Kiev": "UA", "Europe/Kyiv": "UA", "Europe/Minsk": "BY",
+		"Europe/Moscow": "RU", "Europe/Riga": "LV", "Europe/Tallinn": "EE", "Europe/Vilnius": "LT", "Europe/Rome": "IT",
+		"Europe/Madrid": "ES", "Europe/Lisbon": "PT", "Europe/Malta": "MT",
+		"America/New_York": "US", "America/Chicago": "US", "America/Denver": "US", "America/Los_Angeles": "US", "America/Phoenix": "US",
+		"America/Anchorage": "US", "Pacific/Honolulu": "US", "America/Toronto": "CA", "America/Vancouver": "CA", "America/Edmonton": "CA",
+		"America/Winnipeg": "CA", "America/Halifax": "CA", "America/Mexico_City": "MX", "America/Sao_Paulo": "BR",
+		"America/Argentina/Buenos_Aires": "AR", "America/Santiago": "CL", "America/Bogota": "CO", "America/Lima": "PE",
+		"Asia/Tokyo": "JP", "Asia/Seoul": "KR", "Asia/Shanghai": "CN", "Asia/Hong_Kong": "HK", "Asia/Taipei": "TW", "Asia/Singapore": "SG",
+		"Asia/Kolkata": "IN", "Asia/Dubai": "AE", "Asia/Jerusalem": "IL", "Asia/Bangkok": "TH", "Asia/Jakarta": "ID", "Asia/Manila": "PH",
+		"Asia/Kuala_Lumpur": "MY", "Australia/Sydney": "AU", "Australia/Melbourne": "AU", "Australia/Brisbane": "AU", "Australia/Perth": "AU",
+		"Pacific/Auckland": "NZ", "Africa/Johannesburg": "ZA", "Africa/Cairo": "EG", "Africa/Lagos": "NG", "Africa/Nairobi": "KE"
+	};
+	function guessCountry() {
+		function ok(c) { return (c && CODES.indexOf(String(c).toLowerCase()) !== -1) ? String(c).toUpperCase() : null; }
+		try {
+			var lang = (navigator.languages && navigator.languages[0]) || navigator.language || "";
+			var m = /^[A-Za-z]{2,3}(?:-[A-Za-z]{4})?-([A-Za-z]{2})(?:-|$)/.exec(lang);
+			if (m && ok(m[1])) return ok(m[1]);
+			var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+			if (tz && TZ_COUNTRY[tz] && ok(TZ_COUNTRY[tz])) return ok(TZ_COUNTRY[tz]);
+			if (typeof Intl.Locale === "function" && lang) { var r = new Intl.Locale(lang).maximize().region; if (ok(r)) return ok(r); }
+		} catch (e) {}
+		return null;
+	}
+
 	window.COUNTRY_CODES = CODES;
+	window.guessCountry = guessCountry;
 	window.countryName = countryName;
 	window.countryFlagSrc = countryFlagSrc;
 	window.countryFlagSrcSquare = countryFlagSrcSquare;

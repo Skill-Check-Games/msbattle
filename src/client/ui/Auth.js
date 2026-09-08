@@ -363,6 +363,13 @@ function applyPreviewRanks(acc) {
 
 function applyAuthenticated(data) {
 	applyPreviewRanks(data);
+	// A fresh guest has no flag: guess one from the browser (guessCountry, Countries.js — UI-language
+	// region, else time zone) and store it on the guest row, so the flag tile is filled from the first
+	// paint. Guests only, and only while unset — a flag they picked (or cleared) is never overwritten.
+	if (data.guest && !data.country && typeof guessCountry === "function") {
+		var guessed = guessCountry();
+		if (guessed) { data.country = guessed; if (typeof socket !== "undefined") socket.emit("set_country", { country: guessed }); }
+	}
 	account = data;
 	myName = data.name;
 	// A freshly-minted guest session ships its token back so it survives reloads.

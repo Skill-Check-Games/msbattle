@@ -214,10 +214,12 @@ function rankEmblemSVG(info) {
 	var subN = info.subNum ? Math.max(1, SUB_TIER_NUMERALS.indexOf(info.subNum) + 1) : 3;
 	var grad = "rg" + (++_rankGradSeq);
 	var svg = '<svg class="rank-emblem" viewBox="0 0 100 100" aria-hidden="true">';
+	// Matte: the emblem is the flat mid tier colour. (It was a 3-stop c1→c2→c3 "metallic" gradient —
+	// the highlight/shadow read as shine; the stops are kept as a one-colour gradient so nothing else
+	// that references the gradient id has to change.)
 	svg += '<defs><linearGradient id="' + grad + '" x1="0" y1="0" x2="0.3" y2="1">'
-		+ '<stop offset="0" style="stop-color:var(--rb-c1)"/>'
-		+ '<stop offset="0.55" style="stop-color:var(--rb-c2)"/>'
-		+ '<stop offset="1" style="stop-color:var(--rb-c3)"/></linearGradient></defs>';
+		+ '<stop offset="0" style="stop-color:var(--rb-c2)"/>'
+		+ '<stop offset="1" style="stop-color:var(--rb-c2)"/></linearGradient></defs>';
 	svg += rankHexSVG();
 	svg += isMaster ? rankHexStarSVG(grad) : rankHexChevrons(subN, grad);
 	svg += '</svg>';
