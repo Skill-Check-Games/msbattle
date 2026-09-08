@@ -307,6 +307,15 @@ function doSignOut() {
 	socket.emit("guest_session"); // drop back to a fresh guest rather than a login wall
 }
 signinButton.addEventListener("click", doSignIn);
+// The home card's "Sign in to keep your progress" link (paintYouCardEarly, Profile.js) — delegated,
+// since that line is re-rendered on every account update and may be painted by the SSR inline
+// script before this file even loads.
+document.addEventListener("click", function(e) {
+	var a = e.target && e.target.closest ? e.target.closest("#dash_you_signin") : null;
+	if (!a) return;
+	e.preventDefault();
+	doSignIn();
+});
 signOutButton.addEventListener("click", doSignOut);
 // The mobile menu's account card uses the same actions.
 if (menuSigninButton) menuSigninButton.addEventListener("click", doSignIn);

@@ -7399,6 +7399,9 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
 .dash-edit-name:hover { color: var(--text); background: rgba(255, 255, 255, 0.07); }
 .dash-edit-name svg { width: 0.95rem; height: 0.95rem; fill: currentColor; display: block; }
 .dash-you-line { color: var(--muted); font-size: 0.86rem; margin-top: 0.1rem; }
+/* Guest's line is a call to action, not a label. Hover: colour only (site rule — no lift/underline noise). */
+.dash-you-signin { color: var(--accent); font-weight: 600; text-decoration: none; }
+.dash-you-signin:hover { color: var(--accent-hover, #818cf8); }
 .dash-you-stats { margin-left: auto; display: flex; gap: 1.5rem; }
 .dash-stat { display: flex; flex-direction: column; align-items: center; text-align: center; }
 .dash-stat b { font-family: var(--font-display); font-size: 1.15rem; font-weight: 700; }

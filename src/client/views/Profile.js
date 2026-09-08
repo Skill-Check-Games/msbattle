@@ -1556,7 +1556,14 @@ function paintYouCardEarly(account) {
 	var nameEl = document.getElementById("dash_you_name");
 	if (nameEl) nameEl.textContent = account.name || "Player";
 	var lineEl = document.getElementById("dash_you_line");
-	if (lineEl) lineEl.innerHTML = "<b style=\"color:" + t.color + "\">" + t.name + "</b>";
+	if (lineEl) {
+		// A guest's progress lives on one session cookie — the most useful thing this line can say
+		// is how to keep it. The link does exactly what the topbar Sign in button does (a delegated
+		// click handler in Auth.js calls doSignIn) — plain markup here since this block is SSR-inlined
+		// and must stay dependency-free. Signed-in players keep the tier line.
+		if (account.guest) lineEl.innerHTML = "<a href=\"#\" id=\"dash_you_signin\" class=\"dash-you-signin\">Sign in to keep your progress</a>";
+		else lineEl.innerHTML = "<b style=\"color:" + t.color + "\">" + t.name + "</b>";
+	}
 	// Topbar's compact mobile-landscape copy of the same name/tier — see #topbar_you in index.html.
 	var topbarNameEl = document.getElementById("topbar_you_name");
 	if (topbarNameEl) topbarNameEl.textContent = account.name || "Player";
