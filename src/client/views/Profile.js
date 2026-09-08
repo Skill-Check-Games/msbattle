@@ -1251,41 +1251,40 @@ function relTime(ms) {
 }
 
 // Server reply: cache + render the graph (only if there's rating data) and the games list.
-// Fill the home card's win-streak and today cells from the match list: the streak is the run of wins at
-// the head of the (newest-first) list; "today" is the count and net rating change of matches played
-// since local midnight. Called whenever fresh history lands (renderMatchHistory).
+// The home card's stat strip, built from the match list (newest first): matches played since local
+// midnight, today's win rate, the current win streak (the run of wins at the head of the list — it may
+// span days), and today's net rating change. No matches today → no strip. Called whenever fresh
+// history lands (renderMatchHistory).
 function updateDashYouCells(matches) {
-	var streakEl = document.getElementById("dash_you_cell_streak");
-	var todayEl = document.getElementById("dash_you_cell_today");
-	if (!streakEl && !todayEl) return;
+	var statsEl = document.getElementById("dash_you_stats");
+	if (!statsEl) return;
 	matches = matches || [];
 	// /?preview=ranks (Auth.js): a fake history so every cell is populated for design review.
 	if (typeof account !== "undefined" && account && account.previewRanks) {
 		var t = Date.now();
+		// Today (newest first): W +18, W +15, L −9, W +8 → 4 played, 75%, streak 2, +32.
 		matches = [
-			{ won: 1, rating_before: 1232, rating_after: 1250, created_at: t - 2 * 3600e3 },
-			{ won: 1, rating_before: 1217, rating_after: 1232, created_at: t - 3 * 3600e3 },
-			{ won: 1, rating_before: 1209, rating_after: 1217, created_at: t - 4 * 3600e3 },
-			{ won: 0, rating_before: 1221, rating_after: 1209, created_at: t - 26 * 3600e3 }
+			{ won: 1, rating_before: 1232, rating_after: 1250, created_at: t - 1 * 3600e3 },
+			{ won: 1, rating_before: 1217, rating_after: 1232, created_at: t - 2 * 3600e3 },
+			{ won: 0, rating_before: 1226, rating_after: 1217, created_at: t - 3 * 3600e3 },
+			{ won: 1, rating_before: 1218, rating_after: 1226, created_at: t - 4 * 3600e3 },
+			{ won: 0, rating_before: 1230, rating_after: 1218, created_at: t - 26 * 3600e3 }
 		];
 	}
+	var midnight = new Date(); midnight.setHours(0, 0, 0, 0);
+	var n = 0, wins = 0, gain = 0;
+	matches.forEach(function(m) { if (m.created_at >= midnight.getTime()) { n++; if (m.won) wins++; gain += (m.rating_after || 0) - (m.rating_before || 0); } });
 	var streak = 0;
 	for (var i = 0; i < matches.length; i++) { if (matches[i].won) streak++; else break; }
-	var midnight = new Date(); midnight.setHours(0, 0, 0, 0);
-	var n = 0, gain = 0;
-	matches.forEach(function(m) { if (m.created_at >= midnight.getTime()) { n++; gain += (m.rating_after || 0) - (m.rating_before || 0); } });
-	// A streak of 0 or 1 isn't a streak, and a day with no matches isn't news — those cells stay hidden.
-	if (streakEl) {
-		streakEl.hidden = streak < 2;
-		if (streak >= 2) streakEl.innerHTML = "<span>Win streak</span><b>🔥 " + streak + "</b>";
-	}
-	if (todayEl) {
-		todayEl.hidden = n === 0;
-		if (n > 0) {
-			var g = "<em class=\"" + (gain > 0 ? "up" : gain < 0 ? "dn" : "") + "\">" + (gain > 0 ? "+" : "") + gain + "</em>";
-			todayEl.innerHTML = "<span>Rank change</span><b>" + g + "</b>";
-		}
-	}
+	statsEl.dataset.today = "1";
+	if (n === 0) { statsEl.innerHTML = ""; statsEl.hidden = true; return; }
+	var cell = function(label, value) { return "<span class=\"dash-you-cell\"><span>" + label + "</span><b>" + value + "</b></span>"; };
+	var g = "<em class=\"" + (gain > 0 ? "up" : gain < 0 ? "dn" : "") + "\">" + (gain > 0 ? "+" : "") + gain + "</em>";
+	statsEl.innerHTML = cell("Played today", n)
+		+ cell("Win rate", Math.round(wins / n * 100) + "%")
+		+ (streak >= 2 ? cell("Win streak", "🔥 " + streak) : "") // 0 or 1 isn't a streak
+		+ cell("Rank change", g);
+	statsEl.hidden = false;
 }
 
 function renderMatchHistory(data) {
@@ -1661,22 +1660,11 @@ function paintYouCardEarly(account) {
 	if (topbarTierEl) { topbarTierEl.textContent = t.name; topbarTierEl.style.color = t.color; }
 	var statsEl = document.getElementById("dash_you_stats");
 	if (statsEl) {
-		var played = account.played || 0, wins = account.wins || 0;
-		var wr = played ? Math.round(wins / played * 100) + "%" : "—";
-		// Stat cells split by full-height hairlines (see .dash-you-cells). Only cells with something to
-		// say are shown: nothing at all until the first match (played 0), then Played + Win rate from
-		// the account; Win streak (≥ 2) and Today (matches since midnight) are added by updateDashYouCells
-		// once the match history arrives, since both are computed from it.
-		if (played > 0) {
-			statsEl.innerHTML = "<span class=\"dash-you-cell\"><span>Played</span><b>" + played + "</b></span>"
-				+ "<span class=\"dash-you-cell\"><span>Win rate</span><b>" + wr + "</b></span>"
-				+ "<span class=\"dash-you-cell\" id=\"dash_you_cell_streak\" hidden></span>"
-				+ "<span class=\"dash-you-cell\" id=\"dash_you_cell_today\" hidden></span>";
-			statsEl.hidden = false;
-		} else {
-			statsEl.innerHTML = "";
-			statsEl.hidden = true;
-		}
+		// The stat strip is TODAY's session — played today, win rate today, current win streak, rank
+		// change today — all computed from the match history once it arrives (updateDashYouCells, from
+		// renderMatchHistory). Nothing is known at first paint, so the strip starts hidden, and it stays
+		// hidden on a day with no matches: only stats with something to say are shown.
+		if (!statsEl.dataset.today) { statsEl.innerHTML = ""; statsEl.hidden = true; }
 	}
 	var badgeEl = document.getElementById("dash_you_badge");
 	if (badgeEl && !badgeEl.firstChild) {
