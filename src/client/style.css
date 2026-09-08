@@ -8203,3 +8203,11 @@ body.game-fullscreen .game-view:not(.puzzle):not(.solo):not(.duo):not(.multi) .g
 .dash-you-box-avatar canvas, .dash-you-box-flag img { border-radius: 6px; }
 /* The strip and its cells are display:flex, which beats the UA's [hidden] rule — restate it. */
 .dash-you-stats[hidden], .dash-you-cell[hidden] { display: none; }
+
+/* Empty-day cells: the em dash in the border colour, light weight, so it reads as "not yet" rather than a value. */
+.dash-you-cell-empty b { color: var(--border); font-weight: 500; }
+/* A previous day's session: values greyed, and a "Last played · Mon" tag beside the name. */
+.dash-you-stats-past .dash-you-cell b { color: var(--muted); }
+.dash-you-tag { display: inline-flex; align-items: center; padding: 0.1rem 0.5rem; border-radius: 999px; border: 1px solid var(--border); font-size: 0.6rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.dash-you-tag[hidden] { display: none; }
+.dash-you-stats-past .dash-you-cell em { color: inherit; } /* the rank change greys too — it's not today's */

@@ -353,13 +353,14 @@ function applyConnected(data) {
 // param is dropped as soon as you navigate, so it never leaks into normal play.
 function applyPreviewRanks(acc) {
 	if (!acc || typeof URLSearchParams !== "function") return;
-	if (new URLSearchParams(location.search).get("preview") !== "ranks") return;
+	var mode = new URLSearchParams(location.search).get("preview");
+	if (mode !== "ranks" && mode !== "past") return; // "past": same account, but the fake matches were two days ago
 	if (location.hostname !== "localhost" && location.hostname !== "127.0.0.1" && !acc.isAdmin) return;
 	acc.ratingSprint = 1250; acc.ratingStandard = 2450;
 	acc.playedSprint = 12; acc.playedStandard = 9; acc.played = 21; acc.wins = 13;
 	acc.puzzlePoints = 3120;
 	acc.guest = false;
-	acc.previewRanks = true; // updateDashYouCells (Profile.js) fakes a match history off this
+	acc.previewRanks = mode; // "ranks" | "past" — updateDashYouCells (Profile.js) fakes a match history off this
 }
 
 function applyAuthenticated(data) {
