@@ -1423,8 +1423,12 @@ main:has(.game-view.multi) { max-width: none; }
 .help-board { line-height: 0; }
 .help-board .learn-puzzle-title, .help-board .learn-status, .help-board .learn-controls,
 .help-board .learn-kbd-hint { display: none; }
-.help-board .learn-board { line-height: 0; padding: 0; }
-.help-board .learn-board canvas { display: block; height: 84px !important; width: auto !important; border-radius: 5px; }
+/* The two example boards used to sit inside the full Learn-page card (border, surface background,
+   14px padding, 10px radius, plus .learn-puzzle's 0.85rem margin-top and the base inline-block's
+   baseline gap under the board). Now the same 3px / 4px frame every other preview board wears. */
+.help-board .learn-puzzle { margin: 0; padding: 0; border: 0; background: none; border-radius: 0; display: inline-block; }
+.help-board .learn-board { display: block; line-height: 0; padding: 3px; border-radius: 4px; }
+.help-board .learn-board canvas { display: block; height: 84px !important; width: auto !important; border-radius: 4px; }
 .help-example-cap { font-size: 0.74rem; color: var(--muted); text-align: center; line-height: 1.35; }
 .help-foot { margin: 0.75rem 0 0; font-size: 0.82rem; color: var(--muted); }
 .help-foot a { color: var(--accent); text-decoration: none; font-weight: 600; }
@@ -4033,8 +4037,9 @@ body[data-board-skin="monochrome"] .board-press-highlight {
    backdrop frame it, overflow:hidden clips the canvas's square corners to the wrapper's rounded
    ones. display:block on the canvas itself avoids the few px of inline-baseline whitespace a
    canvas otherwise leaves under itself. */
-.skin-preview { display: flex; flex: 0 0 auto; padding: 5px; border-radius: 6px; background: #030e12; overflow: hidden; }
-.skin-preview-board { display: block; border-radius: 3px; }
+/* Wrapper and board share one radius (4px), same as every other preview-board frame on the site. */
+.skin-preview { display: flex; flex: 0 0 auto; padding: 4px; border-radius: 4px; background: #030e12; overflow: hidden; }
+.skin-preview-board { display: block; border-radius: 4px; }
 .skin-blurb { font-size: 0.8rem; color: var(--muted); }
 
 /* Shop page */
@@ -7459,7 +7464,7 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
 /* Uniform board HEIGHT (so each mode's grid size controls the zoom — wide racing boards read
    zoomed-out, the small puzzle board zoomed-in); width follows the aspect, capped to the slot. */
 .dash-board-preview .learn-board { line-height: 0; padding: 3px; border-radius: 4px; } /* half the base 8px — a tighter frame on a small board */
-.dash-board-preview .learn-board canvas { display: block; height: 92px !important; width: auto !important; max-width: 144px; border-radius: 2px; }
+.dash-board-preview .learn-board canvas { display: block; height: 92px !important; width: auto !important; max-width: 144px; border-radius: 4px; } /* same radius as the frame around it */
 .lobby-grid {
 	display: grid;
 	grid-template-columns: minmax(0, 1.55fr) minmax(0, 0.85fr);
@@ -7549,9 +7554,13 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
 }
 .lobby-daily-board-empty { color: var(--muted); font-size: 0.9rem; }
 .lobby-daily-preview { width: 100%; max-width: 132px; pointer-events: none; }
-.lobby-daily-preview, .lobby-daily-preview.learn-puzzle { padding: 0; gap: 0; min-height: 0; }
-.lobby-daily-preview .learn-board { width: 100%; box-sizing: border-box; }
-.lobby-daily-preview .learn-board canvas { display: block; width: 100%; max-width: 100%; height: auto !important; }
+/* margin: 0 + display: block — same two fixes as .dash-board-preview: .learn-puzzle's inherited
+   0.85rem margin-top pushed the board 13.6px below centre inside .lobby-daily-board, and the base
+   inline-block .learn-board left a baseline descender gap under it. Frame padding/radius match the
+   home mode previews (3px / 4px) so every preview board on the page wears the same frame. */
+.lobby-daily-preview, .lobby-daily-preview.learn-puzzle { padding: 0; margin: 0; gap: 0; min-height: 0; }
+.lobby-daily-preview .learn-board { display: block; width: 100%; box-sizing: border-box; padding: 3px; border-radius: 4px; line-height: 0; }
+.lobby-daily-preview .learn-board canvas { display: block; width: 100%; max-width: 100%; height: auto !important; border-radius: 4px; }
 .lobby-daily-preview .learn-controls, .lobby-daily-preview .learn-puzzle-title { display: none; }
 
 .lobby-daily-meta {
