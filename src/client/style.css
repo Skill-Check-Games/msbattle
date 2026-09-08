@@ -171,7 +171,7 @@ body.in-game { overflow: hidden; }
 	font-weight: 600;
 	font-size: 0.92rem;
 	padding: 0.45rem 0.85rem;
-	border-radius: 8px;
+	border-radius: 5px;
 	transition: color 120ms ease, background 120ms ease;
 }
 
@@ -197,7 +197,7 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 	background: var(--surface-2);
 	border: 1px solid var(--border);
 	color: var(--text);
-	border-radius: 10px;
+	border-radius: 6px;
 	cursor: pointer;
 	-webkit-tap-highlight-color: transparent;
 }
@@ -224,7 +224,7 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 .section-card {
 	background: var(--surface);
 	border: 1px solid var(--border);
-	border-radius: 12px;
+	border-radius: 6px;
 	padding: 1.25rem 1.4rem;
 	box-shadow: var(--shadow);
 	margin-bottom: 1rem;
@@ -291,7 +291,7 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 .solo-stat {
 	background: rgba(255, 255, 255, 0.04);
 	border: 1px solid var(--border);
-	border-radius: 8px;
+	border-radius: 5px;
 	padding: 0.55rem 0.7rem;
 	display: flex;
 	flex-direction: column;
@@ -365,14 +365,14 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 	gap: 1rem;
 	padding: 0.45rem 0.7rem;
 	border: 1px solid var(--border);
-	border-radius: 0.5rem;
+	border-radius: 5px;
 }
 .keybind-label { font-size: 0.95rem; }
 .keybind-key {
 	min-width: 5.5rem;
 	padding: 0.35rem 0.7rem;
 	border: 1px solid var(--border);
-	border-radius: 0.45rem;
+	border-radius: 4px;
 	background: var(--bg);
 	color: inherit;
 	font-weight: 700;
@@ -396,7 +396,7 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 .profile-stat {
 	background: rgba(255, 255, 255, 0.03);
 	border: 1px solid var(--border);
-	border-radius: 10px;
+	border-radius: 6px;
 	padding: 0.8rem 0.9rem;
 }
 
@@ -425,7 +425,7 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 @media (max-width: 520px) { .profile-ladders { grid-template-columns: 1fr; } }
 .profile-ladder {
 	display: flex; align-items: center; gap: 0.7rem;
-	padding: 0.6rem 0.8rem; border-radius: 10px;
+	padding: 0.6rem 0.8rem; border-radius: 6px;
 	background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border);
 }
 .profile-ladder-badge { font-size: 11px; flex: 0 0 auto; }
@@ -450,7 +450,7 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 .games-list { display: flex; flex-direction: column; gap: 0.3rem; }
 .game-row {
 	display: grid; grid-template-columns: 5.5rem auto 1fr auto 4.5rem 5.5rem; align-items: center; gap: 0.6rem;
-	padding: 0.4rem 0.6rem; border-radius: 9px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border);
+	padding: 0.4rem 0.6rem; border-radius: 5px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border);
 	font-size: 0.86rem;
 }
 .game-chip {
@@ -499,7 +499,7 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 .replay-stage-board .replay-board-label { font-size: 1rem; }
 /* Filmstrip of all players — click a thumbnail to focus it */
 .replay-strip { display: flex; gap: 0.9rem; flex-wrap: wrap; justify-content: center; margin-bottom: 1.25rem; }
-.replay-thumb { cursor: pointer; padding: 0.4rem; border-radius: 10px; border: 1px solid transparent; opacity: 0.72; transition: opacity .12s, border-color .12s, background .12s; }
+.replay-thumb { cursor: pointer; padding: 0.4rem; border-radius: 6px; border: 1px solid transparent; opacity: 0.72; transition: opacity .12s, border-color .12s, background .12s; }
 .replay-thumb .replay-board-label { font-size: 0.78rem; }
 .replay-thumb:hover { opacity: 1; border-color: var(--border); background: rgba(255,255,255,0.03); }
 .replay-thumb.focused { opacity: 1; border-color: var(--accent); background: rgba(99, 102, 241, 0.1); cursor: default; }
@@ -507,14 +507,14 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 .replay-board-label { display: flex; align-items: center; gap: 0.4rem; font-weight: 600; font-size: 0.9rem; }
 .replay-bot-tag { font-size: 0.64rem; font-weight: 700; letter-spacing: 0.04em; padding: 0.05rem 0.35rem; border-radius: 4px; background: rgba(255,255,255,0.08); color: var(--muted); }
 .replay-win-tag { font-size: 0.95rem; }
-.replay-canvas { border-radius: 8px; box-shadow: var(--shadow); }
-.replay-controls { display: flex; align-items: center; gap: 0.9rem; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 0.7rem 1rem; }
-.replay-play { background: var(--accent); border: none; color: #fff; font-weight: 700; padding: 0.45rem 1rem; border-radius: 8px; cursor: pointer; min-width: 6.5rem; }
+.replay-canvas { border-radius: 5px; box-shadow: var(--shadow); }
+.replay-controls { display: flex; align-items: center; gap: 0.9rem; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 1rem; }
+.replay-play { background: var(--accent); border: none; color: #fff; font-weight: 700; padding: 0.45rem 1rem; border-radius: 5px; cursor: pointer; min-width: 6.5rem; }
 .replay-play:hover { background: var(--accent-hover); }
 .replay-slider { flex: 1; min-width: 180px; accent-color: var(--accent); cursor: pointer; }
 .replay-time { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 0.85rem; min-width: 5.5rem; text-align: center; }
 .replay-speeds { display: flex; gap: 0.3rem; }
-.replay-speed { background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); padding: 0.3rem 0.55rem; border-radius: 7px; cursor: pointer; font-weight: 600; font-size: 0.8rem; }
+.replay-speed { background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); padding: 0.3rem 0.55rem; border-radius: 5px; cursor: pointer; font-weight: 600; font-size: 0.8rem; }
 .replay-speed.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 
 /* --- Avatars (recoloured game flag) + country flags --- */
@@ -534,7 +534,7 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 /* Flag picker (FlagPicker.js) — ported from Mathias's achtung-royale component: a small square
    trigger that opens a searchable, alphabetized grid (desktop popover / mobile centered sheet). */
 .flag-picker-trigger {
-	width: 52px; height: 52px; padding: 0; border-radius: 8px;
+	width: 52px; height: 52px; padding: 0; border-radius: 5px;
 	border: 1px solid var(--border); background: var(--surface-2); cursor: pointer;
 	overflow: hidden; line-height: 0; transition: border-color .12s;
 }
@@ -545,23 +545,23 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 .flag-picker-scrim { position: fixed; inset: 0; z-index: 299; background: rgba(3, 6, 12, 0.72); }
 .flag-picker-panel {
 	position: fixed; z-index: 300; width: 320px; height: 420px; display: flex; flex-direction: column;
-	background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+	background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
 	box-shadow: 0 18px 44px rgba(0, 0, 0, 0.6); overflow: hidden;
 }
 .flag-picker-panel.narrow {
 	position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-	width: min(94vw, 360px); height: 82vh; border-radius: 14px;
+	width: min(94vw, 360px); height: 82vh; border-radius: 7px;
 }
 .flag-picker-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.85rem 0.9rem 0.5rem; }
 .flag-picker-title { font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
 .flag-picker-close {
-	flex: 0 0 auto; width: 1.8rem; height: 1.8rem; border-radius: 8px;
+	flex: 0 0 auto; width: 1.8rem; height: 1.8rem; border-radius: 5px;
 	background: none; border: 1px solid var(--border); color: var(--muted);
 	font-size: 1.2rem; line-height: 1; cursor: pointer;
 }
 .flag-picker-close:hover { color: var(--text); border-color: var(--muted); }
 .flag-picker-search {
-	margin: 0 0.9rem 0.6rem; padding: 0.5rem 0.7rem; border-radius: 8px;
+	margin: 0 0.9rem 0.6rem; padding: 0.5rem 0.7rem; border-radius: 5px;
 	background: var(--bg); border: 1px solid var(--border); color: var(--text); font: inherit;
 }
 .flag-picker-search:focus { outline: none; border-color: var(--accent); }
@@ -571,7 +571,7 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 }
 .flag-cell {
 	display: flex; flex-direction: column; align-items: center; gap: 0.3rem;
-	padding: 6px 6px 5px; border-radius: 8px; border: 1px solid transparent;
+	padding: 6px 6px 5px; border-radius: 5px; border: 1px solid transparent;
 	background: var(--bg); color: var(--text); cursor: pointer; font: inherit; transition: border-color .12s, background .12s;
 }
 .flag-cell:hover { background: var(--surface-2); border-color: var(--muted); }
@@ -625,7 +625,7 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
    heavy/blocky on request. */
 .lab-tabs {
 	display: flex; margin-bottom: 1rem; flex: 0 0 auto;
-	border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+	border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
 	background: var(--bg);
 }
 .lab-tab {
@@ -667,7 +667,7 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
    growing to fit its content (the default min-height:auto would otherwise force the row taller). */
 .lab-left {
 	display: flex; flex-direction: column; align-items: center; gap: 0.9rem;
-	padding: 1.2rem; border-radius: 14px; background: var(--surface); border: 1px solid var(--border);
+	padding: 1.2rem; border-radius: 7px; background: var(--surface); border: 1px solid var(--border);
 	min-width: 0; max-width: 100%; min-height: 0; overflow-y: auto;
 }
 /* Wraps fillDuelId's own output (Main.js) — the exact avatar+name+rank-tier-pill row used in a
@@ -732,7 +732,7 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 .toast-stack { position: fixed; right: 16px; bottom: 16px; z-index: 1000; display: flex; flex-direction: column; gap: 0.5rem; pointer-events: none; }
 .ach-toast {
 	display: flex; align-items: center; gap: 0.7rem; min-width: 240px; max-width: 320px;
-	padding: 0.7rem 0.9rem; border-radius: 12px;
+	padding: 0.7rem 0.9rem; border-radius: 6px;
 	background: linear-gradient(180deg, var(--surface-2), var(--surface));
 	border: 1px solid var(--accent); box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
 	transform: translateX(125%); opacity: 0; transition: transform 0.38s var(--ease, ease-out), opacity 0.38s;
@@ -761,7 +761,7 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 @media (max-width: 620px) { .ach-grid { grid-template-columns: 1fr; } }
 .ach-tile {
 	display: flex; gap: 0.7rem; align-items: flex-start;
-	padding: 0.7rem 0.85rem; border-radius: 11px;
+	padding: 0.7rem 0.85rem; border-radius: 6px;
 	background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border);
 }
 .ach-partial { border-color: rgba(99, 102, 241, 0.45); background: rgba(99, 102, 241, 0.08); }
@@ -845,7 +845,7 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 	top: calc(100% + 0.4rem); right: 0;
 	background: var(--surface);
 	border: 1px solid var(--border);
-	border-radius: 0.5rem;
+	border-radius: 5px;
 	box-shadow: var(--shadow);
 	padding: 0.5rem;
 	display: flex;
@@ -871,7 +871,7 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 	width: 100%;
 	text-align: left;
 	padding: 0.45rem 0.5rem;
-	border-radius: 0.4rem;
+	border-radius: 4px;
 	border: 0;
 	background: none;
 	color: var(--text);
@@ -888,7 +888,7 @@ input[type="number"] {
 	background: var(--surface);
 	border: 1px solid var(--border);
 	color: var(--text);
-	border-radius: 8px;
+	border-radius: 5px;
 	padding: 0.6rem 0.85rem;
 	font-size: 0.95rem;
 	font-family: inherit;
@@ -907,7 +907,7 @@ select {
 	background: var(--surface);
 	border: 1px solid var(--border);
 	color: var(--text);
-	border-radius: 8px;
+	border-radius: 5px;
 	padding: 0.4rem 0.6rem;
 	font-size: 0.9rem;
 	font-family: inherit;
@@ -948,7 +948,7 @@ main:has(.game-view.multi) { max-width: none; }
 .name-card {
 	background: var(--surface);
 	border: 1px solid var(--border);
-	border-radius: 14px;
+	border-radius: 7px;
 	padding: 2rem 2.25rem;
 	box-shadow: var(--shadow);
 	width: 100%;
@@ -970,7 +970,7 @@ main:has(.game-view.multi) { max-width: none; }
 	display: flex; align-items: center; justify-content: center; gap: 0.65rem;
 	width: 100%;
 	font: inherit; font-weight: 600; font-size: 0.98rem;
-	padding: 0.7rem 1rem; border-radius: 10px; border: 1px solid transparent;
+	padding: 0.7rem 1rem; border-radius: 6px; border: 1px solid transparent;
 	cursor: pointer; user-select: none;
 	transition: background var(--motion-micro) var(--ease-out);
 }
@@ -1032,7 +1032,7 @@ main:has(.game-view.multi) { max-width: none; }
 	align-items: center;
 	gap: 0.7rem;
 	padding: 0.4rem 0.7rem;
-	border-radius: 8px;
+	border-radius: 5px;
 	background: rgba(255, 255, 255, 0.02);
 	border: 1px solid transparent;
 }
@@ -1088,7 +1088,7 @@ main:has(.game-view.multi) { max-width: none; }
 	left: 50%;
 	transform: translate(-50%, -50%);
 	padding: 1.5rem 2.5rem;
-	border-radius: 18px;
+	border-radius: 8px;
 	text-align: center;
 	z-index: 1000;
 	pointer-events: none;
@@ -1136,7 +1136,7 @@ main:has(.game-view.multi) { max-width: none; }
 .ranked-panel {
 	background: linear-gradient(135deg, rgba(99,102,241,0.18), rgba(99,102,241,0.06));
 	border: 1px solid rgba(99,102,241,0.4);
-	border-radius: 12px;
+	border-radius: 6px;
 	padding: 1rem 1.25rem;
 	margin-bottom: 1.5rem;
 }
@@ -1171,7 +1171,7 @@ main:has(.game-view.multi) { max-width: none; }
 .home-card {
 	background: var(--surface);
 	border: 1px solid var(--border);
-	border-radius: 14px;
+	border-radius: 7px;
 	padding: 1.4rem 1.3rem 1.3rem;
 	display: flex;
 	flex-direction: column;
@@ -1270,7 +1270,7 @@ main:has(.game-view.multi) { max-width: none; }
 	font-weight: 700;
 	letter-spacing: 0.1em;
 	padding: 0.18rem 0.45rem;
-	border-radius: 5px;
+	border-radius: 4px;
 	background: rgba(99, 102, 241, 0.25);
 	color: var(--accent-hover);
 	border: 1px solid rgba(99, 102, 241, 0.45);
@@ -1303,7 +1303,7 @@ main:has(.game-view.multi) { max-width: none; }
 	padding: 0.55rem 0.7rem;
 	background: rgba(11, 16, 32, 0.45);
 	border: 1px solid rgba(255, 255, 255, 0.08);
-	border-radius: 8px;
+	border-radius: 5px;
 }
 
 .home-card-rank-label {
@@ -1378,7 +1378,7 @@ main:has(.game-view.multi) { max-width: none; }
 	overflow-y: auto;
 	background: linear-gradient(180deg, var(--surface-2), var(--surface));
 	border: 1px solid var(--border);
-	border-radius: 16px;
+	border-radius: 8px;
 	box-shadow: 0 24px 64px -16px rgba(0, 0, 0, 0.7);
 	padding: 1.5rem 1.6rem 1.4rem;
 	animation: cr-pop var(--motion-standard) var(--ease) both;
@@ -1387,7 +1387,7 @@ main:has(.game-view.multi) { max-width: none; }
 .cr-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .cr-dialog-head h2 { margin: 0; font-size: 1.4rem; }
 .cr-close {
-	flex: 0 0 auto; width: 2rem; height: 2rem; border-radius: 8px;
+	flex: 0 0 auto; width: 2rem; height: 2rem; border-radius: 5px;
 	background: none; border: 1px solid var(--border); color: var(--muted);
 	font-size: 1.3rem; line-height: 1; cursor: pointer; transition: all var(--motion-micro) var(--ease-out);
 }
@@ -1408,7 +1408,7 @@ main:has(.game-view.multi) { max-width: none; }
 .help-controls { display: flex; flex-direction: column; gap: 0.4rem; }
 .help-ctrl {
 	display: flex; align-items: center; justify-content: space-between; gap: 1rem;
-	padding: 0.4rem 0.6rem; border-radius: 9px; background: var(--bg); border: 1px solid var(--border);
+	padding: 0.4rem 0.6rem; border-radius: 5px; background: var(--bg); border: 1px solid var(--border);
 }
 .help-ctrl-act { font-size: 0.88rem; font-weight: 600; }
 .help-ctrl-keys { font-size: 0.82rem; color: var(--muted); text-align: right; }
@@ -1416,7 +1416,7 @@ main:has(.game-view.multi) { max-width: none; }
 .help-ctrl-keys kbd {
 	font-family: var(--font-display, inherit); font-size: 0.78rem; font-weight: 700;
 	color: var(--text); background: var(--surface-2); border: 1px solid var(--border);
-	border-bottom-width: 2px; border-radius: 6px; padding: 0.12rem 0.42rem; white-space: nowrap;
+	border-bottom-width: 2px; border-radius: 4px; padding: 0.12rem 0.42rem; white-space: nowrap;
 }
 .help-examples { display: flex; gap: 1rem; margin-top: 0.9rem; }
 .help-example { margin: 0; flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.45rem; }
@@ -1443,7 +1443,7 @@ main:has(.game-view.multi) { max-width: none; }
 	font: inherit; font-weight: 600; font-size: 0.92rem;
 	padding: 0.5rem 0.4rem;
 	background: var(--surface); color: var(--text);
-	border: 1px solid var(--border); border-radius: 10px;
+	border: 1px solid var(--border); border-radius: 6px;
 	cursor: pointer; transition: all var(--motion-micro) var(--ease-out);
 }
 .cr-seg button small { font-size: 0.68rem; font-weight: 600; color: var(--muted); }
@@ -1493,7 +1493,7 @@ input[type="range"]:disabled { opacity: 0.55; cursor: not-allowed; }
 	background: var(--surface);
 	color: var(--text);
 	border: 1px solid var(--border);
-	border-radius: 6px;
+	border-radius: 4px;
 	padding: 0.32rem 0.6rem;
 	font-weight: 600;
 	font-size: 0.85rem;
@@ -1513,7 +1513,7 @@ input[type="range"]:disabled { opacity: 0.55; cursor: not-allowed; }
 	background: var(--surface);
 	color: var(--text);
 	border: 1px solid var(--border);
-	border-radius: 6px;
+	border-radius: 4px;
 	padding: 0.32rem 0.7rem;
 	font-weight: 600;
 	font-size: 0.85rem;
@@ -1536,7 +1536,7 @@ input[type="range"]:disabled { opacity: 0.55; cursor: not-allowed; }
 	padding: 1.4rem 1.2rem;
 	background: var(--surface);
 	border: 1px solid var(--border);
-	border-radius: 12px;
+	border-radius: 6px;
 	color: var(--text);
 	text-decoration: none;
 	transition: border-color 120ms ease;
@@ -1559,16 +1559,16 @@ input[type="range"]:disabled { opacity: 0.55; cursor: not-allowed; }
 	padding: 1.1rem 0.5rem 0.9rem;
 	background: var(--surface);
 	border: 1px solid var(--border);
-	border-radius: 12px;
+	border-radius: 6px;
 }
 .design-rank-name { font-size: 0.86rem; font-weight: 700; text-align: center; }
 .design-rank-rating { font-size: 0.78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 /* Admin rank-setter panel on the Design page. */
-.design-rankset { margin-top: 1rem; max-width: 580px; padding: 1.1rem 1.25rem; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; display: flex; flex-direction: column; gap: 1rem; }
+.design-rankset { margin-top: 1rem; max-width: 580px; padding: 1.1rem 1.25rem; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; display: flex; flex-direction: column; gap: 1rem; }
 .design-rankset-current { display: flex; align-items: center; gap: 0.7rem; }
 .design-rankset-label { font-weight: 700; }
 .design-rankset-controls { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: center; }
-.design-select { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 0.45rem 0.6rem; font-size: 0.9rem; }
+.design-select { background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 5px; padding: 0.45rem 0.6rem; font-size: 0.9rem; }
 
 .puzzle-play-header {
 	display: flex; gap: 1.2rem; align-items: center; margin: 0.6rem 0 1rem;
@@ -1583,7 +1583,7 @@ input[type="range"]:disabled { opacity: 0.55; cursor: not-allowed; }
 .puzzle-play-board {
 	display: flex; justify-content: center; align-items: center;
 	min-height: 240px; padding: 1.2rem; background: var(--surface);
-	border: 1px solid var(--border); border-radius: 10px;
+	border: 1px solid var(--border); border-radius: 6px;
 }
 .puzzle-play-loading, .puzzle-play-empty {
 	color: var(--muted); font-style: italic; margin: 0;
@@ -1591,7 +1591,7 @@ input[type="range"]:disabled { opacity: 0.55; cursor: not-allowed; }
 .puzzle-play-result {
 	margin-top: 1.2rem; padding: 1rem 1.2rem;
 	background: var(--surface); border: 1px solid var(--border);
-	border-radius: 10px;
+	border-radius: 6px;
 }
 .puzzle-play-result.puzzle-play-result-ok { border-color: rgba(74, 222, 128, 0.6); }
 .puzzle-play-result.puzzle-play-result-fail { border-color: rgba(248, 113, 113, 0.6); }
@@ -1610,7 +1610,7 @@ input[type="range"]:disabled { opacity: 0.55; cursor: not-allowed; }
 	top: 50%; left: 50%;
 	transform: translate(-50%, -50%);
 	padding: 1rem 1.6rem;
-	border-radius: 14px;
+	border-radius: 7px;
 	background: rgba(15, 23, 42, 0.92);
 	border: 2px solid var(--border);
 	text-align: center;
@@ -1727,7 +1727,7 @@ input[type="range"]:disabled { opacity: 0.55; cursor: not-allowed; }
 	overflow: hidden;
 	background: var(--surface);
 	border: 1px solid var(--border);
-	border-radius: 12px;
+	border-radius: 6px;
 	box-shadow: var(--shadow);
 }
 .game-view.puzzle .board-wrap { display: block; }
@@ -2008,7 +2008,7 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 		width: 34px;
 		height: 34px;
 		font-size: 1.3rem;
-		border-radius: 8px;
+		border-radius: 5px;
 		border: 1px solid var(--border);
 		background: rgba(255, 255, 255, 0.05);
 	}
@@ -2211,7 +2211,7 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 	background: var(--surface);
 	color: var(--text);
 	border: 1px solid var(--border);
-	border-radius: 6px;
+	border-radius: 4px;
 	padding: 0.32rem 0.7rem;
 	font-weight: 700;
 	font-size: 0.85rem;
@@ -2235,7 +2235,7 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 }
 .bot-card {
 	border: 1px solid var(--border);
-	border-radius: 10px;
+	border-radius: 6px;
 	padding: 0.9rem;
 	background: var(--surface);
 	display: flex;
@@ -2248,7 +2248,7 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 	background: var(--accent);
 	color: #fff;
 	padding: 0.2rem 0.55rem;
-	border-radius: 0.5rem;
+	border-radius: 5px;
 	font-size: 0.95rem;
 }
 .bot-card-id { color: var(--muted); font-size: 0.8rem; font-variant-numeric: tabular-nums; }
@@ -2273,7 +2273,7 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 	border: 1px solid var(--accent);
 	background: transparent;
 	color: var(--accent);
-	border-radius: 0.45rem;
+	border-radius: 4px;
 	padding: 0.25rem 0.55rem;
 	font-size: 0.8rem;
 	font-weight: 700;
@@ -2284,7 +2284,7 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 	width: 64px;
 	padding: 0.3rem 0.4rem;
 	border: 1px solid var(--border);
-	border-radius: 0.4rem;
+	border-radius: 4px;
 	background: var(--bg);
 	color: inherit;
 }
@@ -2302,7 +2302,7 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 .starting-pos-card {
 	background: var(--surface);
 	border: 1px solid var(--border);
-	border-radius: 10px;
+	border-radius: 6px;
 	padding: 0.7rem;
 	display: flex;
 	flex-direction: column;
@@ -2320,7 +2320,7 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 	font-weight: 900;
 	font-size: 1.15rem;
 	padding: 0.18rem 0.6rem;
-	border-radius: 6px;
+	border-radius: 4px;
 	background: rgba(99, 102, 241, 0.18);
 	color: var(--accent-hover);
 }
@@ -2360,7 +2360,7 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 	font-size: 0.7rem;
 	font-weight: 700;
 	padding: 0.15rem 0.45rem;
-	border-radius: 0.4rem;
+	border-radius: 4px;
 	background: rgba(99, 102, 241, 0.15);
 	color: var(--accent);
 	font-variant-numeric: tabular-nums;
@@ -2368,7 +2368,7 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 .pattern-card {
 	background: var(--surface);
 	border: 1px solid var(--border);
-	border-radius: 10px;
+	border-radius: 6px;
 	padding: 0.85rem;
 	display: flex;
 	flex-direction: column;
@@ -2386,7 +2386,7 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 	font-weight: 900;
 	font-size: 1.15rem;
 	padding: 0.18rem 0.6rem;
-	border-radius: 6px;
+	border-radius: 4px;
 	background: rgba(99, 102, 241, 0.18);
 	color: var(--accent-hover);
 }
@@ -2419,7 +2419,7 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 .puzzle-card {
 	background: var(--surface);
 	border: 1px solid var(--border);
-	border-radius: 10px;
+	border-radius: 6px;
 	padding: 0.7rem 0.8rem 0.6rem;
 	display: flex;
 	flex-direction: column;
@@ -2455,7 +2455,7 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 .marathon-row.puzzle-diff-6 .puzzle-diff-badge { background: rgba(192, 132, 252, 0.22); color: #c084fc; }
 
 /* Marathon boards admin page — plain metadata table (no board thumbnails; these boards are too big). */
-.marathon-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 12px; }
+.marathon-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; }
 .marathon-row {
 	display: grid;
 	grid-template-columns: 4.5rem 5.5rem 4.5rem 5rem 3rem 8rem 3.5rem 4rem 5rem 4rem;
@@ -2489,7 +2489,7 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 	margin: 0.9rem 0;
 	padding: 0.7rem 0.9rem;
 	border: 1px solid var(--border);
-	border-radius: 10px;
+	border-radius: 6px;
 	background: var(--surface);
 }
 .marathon-gen-bar-error { border-color: rgba(248, 113, 113, 0.5); }
@@ -2510,7 +2510,7 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 .marathon-gen-log-details summary { cursor: pointer; font-size: 0.8rem; color: var(--muted); }
 .marathon-gen-log {
 	max-height: 12rem; overflow-y: auto; margin: 0.5rem 0 0;
-	background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+	background: var(--bg); border: 1px solid var(--border); border-radius: 5px;
 	padding: 0.6rem 0.75rem; font-size: 0.76rem; line-height: 1.5; white-space: pre-wrap;
 }
 
@@ -2635,7 +2635,7 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 .ranked-slot {
 	background: rgba(255, 255, 255, 0.04);
 	border: 1px solid rgba(99, 102, 241, 0.18);
-	border-radius: 10px;
+	border-radius: 6px;
 	padding: 0.75rem 0.9rem;
 	display: flex;
 	flex-direction: column;
@@ -2715,7 +2715,7 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 	font-size: 0.7rem;
 	letter-spacing: 0.06em;
 	padding: 0.15rem 0.45rem;
-	border-radius: 6px;
+	border-radius: 4px;
 }
 
 .name-form {
@@ -2730,7 +2730,7 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 	padding: 0.6rem 0.85rem;
 	background: rgba(239, 68, 68, 0.1);
 	border: 1px solid rgba(239, 68, 68, 0.3);
-	border-radius: 8px;
+	border-radius: 5px;
 	color: #fecaca;
 	font-size: 0.9rem;
 }
@@ -2765,7 +2765,7 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 .room-row, .room-empty {
 	background: var(--surface);
 	border: 1px solid var(--border);
-	border-radius: 10px;
+	border-radius: 6px;
 	padding: 0.9rem 1.1rem;
 	display: flex;
 	align-items: center;
@@ -2799,7 +2799,7 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 	padding: 0.75rem 1rem;
 	background: rgba(239, 68, 68, 0.1);
 	border: 1px solid rgba(239, 68, 68, 0.3);
-	border-radius: 8px;
+	border-radius: 5px;
 	color: #fecaca;
 	font-size: 0.9rem;
 }
@@ -2811,7 +2811,7 @@ body.in-game .game-view.puzzle .game-side { display: flex; }
 	font: inherit;
 	font-weight: 600;
 	border: 1px solid transparent;
-	border-radius: 9px;
+	border-radius: 5px;
 	padding: 0.55rem 1rem;
 	cursor: pointer;
 	transition: background var(--motion-micro) var(--ease-out),
@@ -2986,7 +2986,7 @@ body.ranked-game .game-grid { padding: 1.25rem 1.5rem 1.5rem; }
 .player-board {
 	background: var(--surface);
 	border: 1px solid var(--border);
-	border-radius: 12px;
+	border-radius: 6px;
 	padding: 1.25rem;
 	box-shadow: var(--shadow);
 	display: inline-block;
@@ -3099,7 +3099,7 @@ body.ranked-game .game-grid { padding: 1.25rem 1.5rem 1.5rem; }
 	background: rgba(11, 16, 32, 0.98);
 	backdrop-filter: blur(8px);
 	border: 1px solid rgba(99, 102, 241, 0.32);
-	border-radius: 18px;
+	border-radius: 8px;
 	box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), 0 0 0 100vmax rgba(2, 6, 23, 0.55);
 	padding: 2rem 2.2rem;
 	pointer-events: auto;
@@ -3236,7 +3236,7 @@ body.ranked-game .game-grid { padding: 1.25rem 1.5rem 1.5rem; }
 
 /* rating card: before / delta / after + tier progress */
 .ranked-result-ratingcard {
-	background: var(--surface-2); border: 1px solid var(--border); border-radius: 12px;
+	background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px;
 	padding: 1.1rem 1.2rem; display: flex; flex-direction: column; gap: 0.65rem;
 }
 .ranked-result-cols { display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; gap: 0.5rem; }
@@ -3302,7 +3302,7 @@ body.ranked-game .game-grid { padding: 1.25rem 1.5rem 1.5rem; }
 .ranked-result-standings { display: flex; flex-direction: column; gap: 2px; }
 .ranked-result-row {
 	display: grid; grid-template-columns: 1.4rem 1fr auto auto; align-items: center; gap: 0.5rem;
-	font-size: 0.85rem; padding: 0.35rem 0.45rem; border-radius: 6px;
+	font-size: 0.85rem; padding: 0.35rem 0.45rem; border-radius: 4px;
 }
 .ranked-result-row.me { background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.2); font-weight: 700; }
 .ranked-result-rank { font-weight: 800; color: var(--muted); text-align: center; font-size: 0.78rem; }
@@ -3375,7 +3375,7 @@ body.ranked-game .game-grid { padding: 1.25rem 1.5rem 1.5rem; }
 	align-items: center;
 	gap: 0.6rem;
 	padding: 0.4rem 0.65rem;
-	border-radius: 8px;
+	border-radius: 5px;
 	background: rgba(255, 255, 255, 0.05);
 	font-size: 0.95rem;
 	font-weight: 500;
@@ -3418,7 +3418,7 @@ body.ranked-game .game-grid { padding: 1.25rem 1.5rem 1.5rem; }
 	padding: 1.2rem 0.9rem 1rem;
 	background: rgba(15, 23, 42, 0.55);
 	border: 1px solid rgba(148, 163, 184, 0.18);
-	border-radius: 14px;
+	border-radius: 7px;
 	min-width: 0;
 }
 .vs-card-me { background: rgba(99, 102, 241, 0.18); border-color: rgba(99, 102, 241, 0.5); }
@@ -3464,7 +3464,7 @@ body.ranked-game .game-grid { padding: 1.25rem 1.5rem 1.5rem; }
 	padding: 0.85rem 0.6rem 0.7rem;
 	background: rgba(15, 23, 42, 0.55);
 	border: 1px solid rgba(148, 163, 184, 0.18);
-	border-radius: 12px;
+	border-radius: 6px;
 	min-width: 0;
 	opacity: 0;
 	animation: result-row-in 0.32s ease-out forwards;
@@ -3599,7 +3599,7 @@ body.ranked-game .game-grid { padding: 1.25rem 1.5rem 1.5rem; }
 	height: 190px;
 	display: flex; align-items: center; justify-content: center;
 	background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.035), transparent 70%);
-	border-radius: 12px;
+	border-radius: 6px;
 	overflow: hidden;
 	margin-bottom: 0.8rem;
 }
@@ -3707,13 +3707,13 @@ body.ranked-game .game-grid { padding: 1.25rem 1.5rem 1.5rem; }
 .cascadelab-cell {
 	position: relative;
 	background: #162033;
-	border-radius: 5px;
+	border-radius: 4px;
 	display: flex; align-items: center; justify-content: center;
 }
 .cascadelab-num { font-size: 0.85rem; font-weight: 700; font-family: var(--font-display, inherit); }
 .cascadelab-fx { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
 .cascadelab-lid {
-	position: absolute; inset: 0; border-radius: 5px;
+	position: absolute; inset: 0; border-radius: 4px;
 	background: linear-gradient(180deg, #4f93f7, #2563eb);
 	box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
 }
@@ -3791,7 +3791,7 @@ body.ranked-game .game-grid { padding: 1.25rem 1.5rem 1.5rem; }
 	height: 190px;
 	display: flex; align-items: center; justify-content: center;
 	background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.035), transparent 70%);
-	border-radius: 12px;
+	border-radius: 6px;
 	overflow: hidden;
 	margin-bottom: 0.8rem;
 }
@@ -3927,7 +3927,7 @@ body[data-board-skin="tactical"] .board-scroll {
 	position: relative;
 	padding: 10px;
 	background: #030e12;
-	border-radius: 6px;
+	border-radius: 4px;
 	box-shadow: inset 0 0 50px rgba(0, 232, 200, 0.05), inset 0 0 0 1px rgba(0, 232, 200, 0.16), 0 0 26px rgba(0, 232, 200, 0.08);
 }
 /* Scanline overlay drawn over the board (under the board-wrap overlays at z-index 3+). */
@@ -3936,7 +3936,7 @@ body[data-board-skin="tactical"] .board-scroll::after {
 	position: absolute;
 	inset: 0;
 	pointer-events: none;
-	border-radius: 6px;
+	border-radius: 4px;
 	z-index: 2;
 	background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0, 232, 200, 0.045) 3px, rgba(0, 232, 200, 0.045) 4px);
 }
@@ -3954,7 +3954,7 @@ body[data-board-skin="gold"] .board-scroll {
 	position: relative;
 	padding: 10px;
 	background: #0d0904;
-	border-radius: 6px;
+	border-radius: 4px;
 	box-shadow: inset 0 0 50px rgba(250, 204, 21, 0.05), inset 0 0 0 1px rgba(250, 204, 21, 0.22), 0 0 26px rgba(250, 204, 21, 0.10);
 }
 /* Soft warm vignette drawn over the board (Gold's counterpart to Tactical's scanlines). */
@@ -3963,7 +3963,7 @@ body[data-board-skin="gold"] .board-scroll::after {
 	position: absolute;
 	inset: 0;
 	pointer-events: none;
-	border-radius: 6px;
+	border-radius: 4px;
 	z-index: 2;
 	background: radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.35) 100%);
 }
@@ -3992,7 +3992,7 @@ body[data-board-skin="nightwatch"] .player-board {
 body[data-board-skin="nightwatch"] .board-scroll {
 	position: relative;
 	padding: 10px;
-	border-radius: 6px;
+	border-radius: 4px;
 	background: rgba(5, 9, 20, 0.6);
 	box-shadow: inset 0 0 0 1px rgba(148, 197, 255, 0.16), inset 0 0 30px rgba(0, 0, 0, 0.4);
 }
@@ -4012,7 +4012,7 @@ body[data-board-skin="monochrome"] .board-press-highlight {
 /* Generic on/off row for Settings (e.g. auto-fullscreen) — a label + a pill switch. */
 .setting-row {
 	display: flex; align-items: center; justify-content: space-between; gap: 1rem;
-	padding: 0.7rem 0.85rem; border-radius: 11px;
+	padding: 0.7rem 0.85rem; border-radius: 6px;
 	background: var(--bg); border: 1px solid var(--border);
 }
 /* .section-card is a plain block container (no gap) — consecutive rows (e.g. Music/Effects on the
@@ -4082,7 +4082,7 @@ body[data-board-skin="monochrome"] .board-press-highlight {
 .shop-tile {
 	position: relative; /* positioning context for .lab-tile-check/.lab-tile-lock's corner badge */
 	display: flex; flex-direction: column;
-	border-radius: 14px; overflow: hidden;
+	border-radius: 7px; overflow: hidden;
 	background: var(--bg); border: 1px solid var(--border);
 	transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
 	/* Button-reset properties — the Appearance modal's picker (Profile.js) renders this same class
@@ -4120,12 +4120,12 @@ body[data-board-skin="monochrome"] .board-press-highlight {
 .shop-tile-preview {
 	display: flex; align-items: center; justify-content: center;
 	min-height: 78px; margin: 0.65rem 0.85rem 0; padding: 0.6rem;
-	background: rgba(0, 0, 0, 0.28); border-radius: 10px;
+	background: rgba(0, 0, 0, 0.28); border-radius: 6px;
 }
 .shop-tile-fx-glyph { font-size: 2.2rem; line-height: 1; }
 .shop-tile-body { padding: 0.7rem 0.85rem 0.85rem; display: flex; flex-direction: column; gap: 0.5rem; text-align: center; }
 .shop-tile-owned {
-	display: block; padding: 0.4rem 0.5rem; border-radius: 8px;
+	display: block; padding: 0.4rem 0.5rem; border-radius: 5px;
 	font-size: 0.8rem; font-weight: 700; color: var(--success);
 	background: rgba(74, 222, 128, 0.1); border: 1px solid rgba(74, 222, 128, 0.35);
 }
@@ -4173,7 +4173,7 @@ body[data-board-skin="monochrome"] .board-press-highlight {
 	font-weight: 700;
 	font-size: 1.25rem;
 	letter-spacing: 0.01em;
-	border-radius: 14px;
+	border-radius: 7px;
 	cursor: pointer;
 	user-select: none;
 	touch-action: manipulation;
@@ -4210,7 +4210,7 @@ body[data-board-skin="monochrome"] .board-press-highlight {
 	background: var(--surface-2);
 	border: 1px solid var(--border);
 	color: var(--text);
-	border-radius: 8px;
+	border-radius: 5px;
 	width: 36px;
 	height: 36px;
 	font-size: 1.1rem;
@@ -4228,7 +4228,7 @@ body[data-board-skin="monochrome"] .board-press-highlight {
 	inset: auto 0 0 0;
 	border: none;
 	border-top: 1px solid var(--border);
-	border-radius: 1rem 1rem 0 0;
+	border-radius: 8px 8px 0 0;
 	padding: 0;
 	width: 100%;
 	max-width: 100%;
@@ -4277,7 +4277,7 @@ body[data-board-skin="monochrome"] .board-press-highlight {
 	background: var(--surface-2);
 	border: 1px solid var(--border);
 	color: var(--text);
-	border-radius: 8px;
+	border-radius: 5px;
 	padding: 0.55rem 0.9rem;
 	cursor: pointer;
 	user-select: none;
@@ -4393,7 +4393,7 @@ body.touch .find-next-arrow { display: inline-flex; }
 .opponent_div {
 	background: var(--surface);
 	border: 1px solid var(--border);
-	border-radius: 10px;
+	border-radius: 6px;
 	padding: 0.75rem;
 	box-shadow: var(--shadow);
 }
@@ -4452,7 +4452,7 @@ body.touch .find-next-arrow { display: inline-flex; }
 .game-view.duo .player-board,
 .game-view.duo .opponent_div {
 	padding: 1rem 1.15rem 1.15rem;
-	border-radius: 14px;
+	border-radius: 7px;
 	border: 1px solid var(--duel-you);
 	box-shadow: 0 0 22px -6px var(--duel-you), inset 0 0 22px -14px var(--duel-you);
 	transition: box-shadow 0.25s ease, border-color 0.25s ease;
@@ -4498,7 +4498,7 @@ body.touch .find-next-arrow { display: inline-flex; }
 	position: relative;
 	flex: 1 1 auto;
 	height: 1.3rem;
-	border-radius: 7px;
+	border-radius: 5px;
 	background: rgba(255, 255, 255, 0.06);
 	overflow: hidden;
 }
@@ -4579,7 +4579,7 @@ body.touch .find-next-arrow { display: inline-flex; }
 	display: flex; align-items: center; justify-content: center;
 	font-family: var(--font-display); font-weight: 800; font-size: 1rem; letter-spacing: 0.04em;
 	color: var(--text);
-	border-radius: 16px;
+	border-radius: 8px;
 	transform: rotate(45deg);
 	border: 1px solid var(--accent);
 	background: var(--surface);
@@ -4644,7 +4644,7 @@ body.touch .find-next-arrow { display: inline-flex; }
 .duel-timer-badge { display: contents; }
 .game-view.duo .duel-timer-badge {
 	display: flex; flex-direction: column; align-items: center; gap: 0.15rem;
-	padding: 0.35rem 1.1rem; border-radius: 12px;
+	padding: 0.35rem 1.1rem; border-radius: 6px;
 	border: 1px solid transparent;
 	/* Gradient border trick: two backgrounds, the inner one clipped to the padding box (the visible
 	   fill), the outer one to the border box (only the 1px ring shows, tinted cyan-you -> red-opp). */
@@ -4806,7 +4806,7 @@ body.duel-landscape-mode .game-view.duo .opponent_div {
 	text-align: center;
 	gap: 0.6rem;
 	padding: 0.6rem 0.5rem;
-	border-radius: 14px;
+	border-radius: 7px;
 	border: 1px solid var(--duel-you);
 	background: linear-gradient(180deg, color-mix(in srgb, var(--duel-you) 12%, var(--surface)), var(--surface) 60%);
 	box-shadow: 0 0 26px -6px var(--duel-you), inset 0 0 22px -14px var(--duel-you);
@@ -4847,7 +4847,7 @@ body.duel-landscape-mode .game-view.duo .duel-back-btn {
 	left: 0.5rem;
 	width: 28px;
 	height: 28px;
-	border-radius: 8px;
+	border-radius: 5px;
 	border: 1px solid var(--border);
 	background: rgba(255, 255, 255, 0.05);
 	color: var(--muted);
@@ -4872,7 +4872,7 @@ body.duel-landscape-mode .game-view.duo .duel-fullscreen-btn {
 	right: 0.5rem;
 	width: 28px;
 	height: 28px;
-	border-radius: 8px;
+	border-radius: 5px;
 	border: 1px solid var(--border);
 	background: rgba(255, 255, 255, 0.05);
 	color: var(--muted);
@@ -4984,7 +4984,7 @@ body.duel-landscape-mode .game-view.duo .duel-timer-landscape-box {
 	gap: 0.15rem;
 	width: 100%;
 	padding: 0.4rem;
-	border-radius: 10px;
+	border-radius: 6px;
 	border: 1px solid transparent;
 	background:
 		linear-gradient(var(--surface), var(--surface)) padding-box,
@@ -5050,7 +5050,7 @@ body.duel-landscape-mode .game-view.duo .board-wrap {
 	display: flex;
 	flex-direction: column;
 	min-height: 0;
-	border-radius: 14px;
+	border-radius: 7px;
 	border: 1px solid var(--duel-you);
 	background: var(--surface);
 	box-shadow: 0 0 22px -6px var(--duel-you), inset 0 0 22px -14px var(--duel-you);
@@ -5170,7 +5170,7 @@ body.duel-landscape-mode .game-view.duo .duel-mode-btn {
 	justify-content: center;
 	gap: 0.4rem;
 	padding: 0.6rem;
-	border-radius: 10px;
+	border-radius: 6px;
 	border: 1px solid var(--border);
 	background: var(--surface);
 	color: var(--muted);
@@ -5410,7 +5410,7 @@ body.duel-force-rotate .game-view.duo .game-side { display: contents !important;
 .game-view.multi .opponent_div {
 	position: relative;
 	padding: 0.6rem 0.7rem 0.7rem;
-	border-radius: 12px;
+	border-radius: 6px;
 	transition: box-shadow 0.25s ease, border-color 0.25s ease;
 	min-width: 0;
 }
@@ -5425,7 +5425,7 @@ body.duel-force-rotate .game-view.duo .game-side { display: contents !important;
 	min-width: 0;
 	flex: 1 1 auto;
 }
-.game-view.multi .opponent_div canvas { width: 100%; height: auto; display: block; border-radius: 5px; }
+.game-view.multi .opponent_div canvas { width: 100%; height: auto; display: block; border-radius: 4px; }
 /* Opponent card name row (6-player battle layout): a flex row so the rank insignia and name sit
    centred on a shared line with a clean gap — no overlap, no cramping. The duel shows the full badge
    in its identity panel instead, so this row + insignia are hidden there. */
@@ -5529,7 +5529,7 @@ body.multi-landscape-mode .game-view.multi .duel-header-row {
 	text-align: center;
 	gap: 0.6rem;
 	padding: 0.6rem 0.5rem;
-	border-radius: 14px;
+	border-radius: 7px;
 	border: 1px solid var(--duel-you);
 	background: linear-gradient(180deg, color-mix(in srgb, var(--duel-you) 12%, var(--surface)), var(--surface) 60%);
 	box-shadow: 0 0 26px -6px var(--duel-you), inset 0 0 22px -14px var(--duel-you);
@@ -5546,7 +5546,7 @@ body.multi-landscape-mode .game-view.multi .duel-back-btn {
 	left: 0.5rem;
 	width: 28px;
 	height: 28px;
-	border-radius: 8px;
+	border-radius: 5px;
 	border: 1px solid var(--border);
 	background: rgba(255, 255, 255, 0.05);
 	color: var(--muted);
@@ -5563,7 +5563,7 @@ body.multi-landscape-mode .game-view.multi .duel-fullscreen-btn {
 	right: 0.5rem;
 	width: 28px;
 	height: 28px;
-	border-radius: 8px;
+	border-radius: 5px;
 	border: 1px solid var(--border);
 	background: rgba(255, 255, 255, 0.05);
 	color: var(--muted);
@@ -5631,7 +5631,7 @@ body.multi-landscape-mode .game-view.multi .duel-timer-landscape-box {
 	gap: 0.15rem;
 	width: 100%;
 	padding: 0.4rem;
-	border-radius: 10px;
+	border-radius: 6px;
 	border: 1px solid transparent;
 	/* Solid tint instead of the duel's cyan-to-red gradient border — there's no "opponent colour" to
 	   gradient toward here, every player shares the one blue accent. */
@@ -5647,7 +5647,7 @@ body.multi-landscape-mode .game-view.multi .board-wrap {
 	display: flex;
 	flex-direction: column;
 	min-height: 0;
-	border-radius: 14px;
+	border-radius: 7px;
 	border: 1px solid var(--duel-you);
 	background: var(--surface);
 	box-shadow: 0 0 22px -6px var(--duel-you), inset 0 0 22px -14px var(--duel-you);
@@ -5723,7 +5723,7 @@ body.multi-landscape-mode .game-view.multi .duel-mode-btn {
 	justify-content: center;
 	gap: 0.4rem;
 	padding: 0.6rem;
-	border-radius: 10px;
+	border-radius: 6px;
 	border: 1px solid var(--border);
 	background: var(--surface);
 	color: var(--muted);
@@ -5761,7 +5761,7 @@ body.touch .game-view.puzzle .duel-mode-btn {
 	justify-content: center;
 	gap: 0.4rem;
 	height: 56px;
-	border-radius: 12px;
+	border-radius: 6px;
 	border: 1px solid var(--border);
 	background: var(--surface);
 	color: var(--muted);
@@ -5806,7 +5806,7 @@ body.multi-landscape-mode .game-view.multi .game-side > #scoreboard_card {
 	width: 100%;
 	background: var(--surface);
 	border: 1px solid var(--border);
-	border-radius: 14px;
+	border-radius: 7px;
 	padding: 0.6rem 0.5rem;
 }
 body.multi-landscape-mode .game-view.multi .side-title { margin: 0 0 0.5rem; font-size: 0.66rem; text-align: center; }
@@ -5924,7 +5924,7 @@ body.duel-force-rotate .game-view.multi .game-side { display: flex !important; }
 	gap: 0.7rem;
 	min-height: 4rem; /* match filled rows so seats don't reflow as players join / leave */
 	padding: 0.6rem 0.8rem;
-	border-radius: 10px;
+	border-radius: 6px;
 	background: rgba(255, 255, 255, 0.03);
 	border: 1px solid var(--border);
 }
@@ -5948,11 +5948,11 @@ body.duel-force-rotate .game-view.multi .game-side { display: flex !important; }
 .lobby-slot-diff {
 	flex: 0 0 auto; font: inherit; font-size: 0.78rem; padding: 0.25rem 0.4rem;
 	background: var(--surface-2); color: var(--text);
-	border: 1px solid var(--border); border-radius: 7px;
+	border: 1px solid var(--border); border-radius: 5px;
 }
 .lobby-slot-remove {
 	flex: 0 0 auto; width: 1.5rem; height: 1.5rem; line-height: 1;
-	border-radius: 6px; border: 1px solid var(--border);
+	border-radius: 4px; border: 1px solid var(--border);
 	background: none; color: var(--muted); cursor: pointer; font-size: 1.05rem;
 	transition: color var(--motion-micro) var(--ease-out), border-color var(--motion-micro) var(--ease-out);
 }
@@ -5970,7 +5970,7 @@ body.duel-force-rotate .game-view.multi .game-side { display: flex !important; }
 .lobby-slot-add {
 	flex: 0 0 auto; margin-left: auto;
 	font: inherit; font-weight: 600; font-size: 0.85rem;
-	padding: 0.4rem 0.75rem; border-radius: 8px;
+	padding: 0.4rem 0.75rem; border-radius: 5px;
 	background: var(--surface-2); border: 1px solid var(--border); color: var(--accent-hover);
 	cursor: pointer; transition: all var(--motion-micro) var(--ease-out);
 }
@@ -5978,19 +5978,19 @@ body.duel-force-rotate .game-view.multi .game-side { display: flex !important; }
 
 /* Bigger, easier-to-hit dropdowns in the lobby (bot difficulty + the ruleset selects). */
 .game-view.lobby .lobby-slot-diff {
-	min-width: 6.5rem; padding: 0.45rem 0.6rem; font-size: 0.9rem; border-radius: 8px;
+	min-width: 6.5rem; padding: 0.45rem 0.6rem; font-size: 0.9rem; border-radius: 5px;
 }
 .game-view.lobby .series-config { gap: 0.9rem; margin-bottom: 1rem; }
 .game-view.lobby .series-config-label { flex: 0 0 6rem; font-size: 0.9rem; }
 .game-view.lobby .series-config select {
-	flex: 1 1 auto; padding: 0.55rem 0.7rem; font-size: 0.95rem; border-radius: 9px;
+	flex: 1 1 auto; padding: 0.55rem 0.7rem; font-size: 0.95rem; border-radius: 5px;
 }
 .game-view.lobby .series-config-readonly { flex: 1 1 auto; }
 
 .side-card {
 	background: var(--surface);
 	border: 1px solid var(--border);
-	border-radius: 12px;
+	border-radius: 6px;
 	padding: 1.1rem 1.2rem;
 	box-shadow: var(--shadow);
 }
@@ -6045,7 +6045,7 @@ body.duel-force-rotate .game-view.multi .game-side { display: flex !important; }
 	align-items: center;
 	gap: 0.5rem;
 	padding: 0.5rem 0.6rem;
-	border-radius: 8px;
+	border-radius: 5px;
 	background: rgba(255, 255, 255, 0.02);
 	border: 1px solid transparent;
 	position: relative;
@@ -6265,7 +6265,7 @@ body.duel-force-rotate .game-view.multi .game-side { display: flex !important; }
 		padding: 0.7rem;
 		background: var(--surface);
 		border: 1px solid var(--border);
-		border-radius: 14px;
+		border-radius: 7px;
 	}
 	.menu-account-id {
 		display: flex;
@@ -6279,7 +6279,7 @@ body.duel-force-rotate .game-view.multi .game-side { display: flex !important; }
 	.menu-account-text { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
 	.menu-account-text strong { font-size: 1.05rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 	.menu-account-tier { font-size: 0.85rem; color: var(--muted); }
-	.menu-account-btn { width: 100%; justify-content: center; gap: 0.45rem; padding: 0.75rem; font-size: 1rem; border-radius: 11px; }
+	.menu-account-btn { width: 100%; justify-content: center; gap: 0.45rem; padding: 0.75rem; font-size: 1rem; border-radius: 6px; }
 	/* Sign out is secondary — lift it off the card surface so it still reads as a button. */
 	.menu-account .btn-ghost { background: var(--surface-2); border: 1px solid var(--border); }
 
@@ -6305,7 +6305,7 @@ body.duel-force-rotate .game-view.multi .game-side { display: flex !important; }
 		white-space: nowrap;
 		padding: 0.7rem 0.85rem;
 		font-size: 1rem;
-		border-radius: 10px;
+		border-radius: 6px;
 		text-align: left; /* the Help item is a <button> (defaults centred) — keep it flush-left like the links */
 		width: 100%;
 	}
@@ -6416,7 +6416,7 @@ body.duel-force-rotate .game-view.multi .game-side { display: flex !important; }
 	.game-view.duo #mobile_duel_progress {
 		display: flex; flex-direction: column; gap: 0.4rem;
 		margin: 0.5rem 1rem 0; padding: 0.6rem 0.7rem;
-		border: 1px solid var(--border); border-radius: 10px;
+		border: 1px solid var(--border); border-radius: 6px;
 		background: var(--surface); flex-shrink: 0;
 	}
 	.mobile-duel-progress-row { display: flex; align-items: center; gap: 0.6rem; }
@@ -6653,7 +6653,7 @@ body.duel-force-rotate .game-view.multi .game-side { display: flex !important; }
 	flex: 0 0 auto;
 	width: 1.6rem;
 	height: 1.6rem;
-	border-radius: 6px;
+	border-radius: 4px;
 	background: rgba(99, 102, 241, 0.18);
 	color: var(--accent-hover);
 	font-weight: 800;
@@ -6680,13 +6680,13 @@ body.duel-force-rotate .game-view.multi .game-side { display: flex !important; }
 .learn-puzzle {
 	background: var(--surface-2);
 	border: 1px solid var(--border);
-	border-radius: 10px;
+	border-radius: 6px;
 	padding: 0.85rem 0.9rem;
 	margin-top: 0.85rem;
 }
 .learn-puzzle-title { font-weight: 600; font-size: 0.92rem; color: var(--text); display: block; margin-bottom: 0.6rem; }
 
-.learn-board { display: inline-block; padding: 6px; background: var(--bg); border-radius: 8px; }
+.learn-board { display: inline-block; padding: 6px; background: var(--bg); border-radius: 5px; }
 .learn-board canvas { display: block; }
 /* The board itself draws a per-cell focus ring (see buildLearnPuzzle's keydown handler in
    Learn.js) — that's the real indicator, so the browser's default rectangle-around-the-whole-
@@ -6699,7 +6699,7 @@ body.duel-force-rotate .game-view.multi .game-side { display: flex !important; }
 .learn-btn {
 	font-size: 0.8rem;
 	padding: 0.32rem 0.7rem;
-	border-radius: 6px;
+	border-radius: 4px;
 	border: 1px solid var(--border);
 	background: var(--surface);
 	color: var(--text);
@@ -6718,7 +6718,7 @@ body.duel-force-rotate .game-view.multi .game-side { display: flex !important; }
 	line-height: 1.6;
 	display: none;
 	background: rgba(99, 102, 241, 0.08);
-	border-radius: 8px;
+	border-radius: 5px;
 	padding: 0.6rem 0.75rem;
 	white-space: pre-line;
 }
@@ -6729,7 +6729,7 @@ body.duel-force-rotate .game-view.multi .game-side { display: flex !important; }
 	padding: 0.85rem 0.9rem;
 	background: rgba(96, 165, 250, 0.06);
 	border: 1px solid rgba(96, 165, 250, 0.22);
-	border-radius: 10px;
+	border-radius: 6px;
 }
 .learn-demo-label {
 	font-size: 0.7rem;
@@ -6802,7 +6802,7 @@ body.duel-force-rotate .game-view.multi .game-side { display: flex !important; }
 	align-items: center;
 	background: var(--surface);
 	border: 1px solid var(--border);
-	border-radius: 14px;
+	border-radius: 7px;
 	padding: 0.75rem 1rem;
 }
 /* The tail: a rotated square clipped to its own border+background, poking out toward the avatar to
@@ -6878,7 +6878,7 @@ body.duel-force-rotate .game-view.multi .game-side { display: flex !important; }
 	padding: 1rem;
 	background: var(--surface);
 	border: 1px solid var(--border);
-	border-radius: 12px;
+	border-radius: 6px;
 	text-align: center;
 }
 .learn-rule-card-label {
@@ -6917,7 +6917,7 @@ body.duel-force-rotate .game-view.multi .game-side { display: flex !important; }
 	text-align: left;
 	background: var(--surface-2);
 	border: 1px solid var(--border);
-	border-radius: 12px;
+	border-radius: 6px;
 	padding: 1.1rem 1.15rem;
 	color: var(--text);
 	cursor: pointer;
@@ -6943,7 +6943,7 @@ body.duel-force-rotate .game-view.multi .game-side { display: flex !important; }
 	font-weight: 700;
 	background: rgba(74, 222, 128, 0.12);
 	padding: 0.15rem 0.5rem;
-	border-radius: 6px;
+	border-radius: 4px;
 }
 .learn-course-badge.locked { color: var(--muted); background: rgba(148, 163, 184, 0.12); }
 .learn-course-card-title { margin: 0; font-size: 1.15rem; font-weight: 700; }
@@ -6990,7 +6990,7 @@ body.duel-force-rotate .game-view.multi .game-side { display: flex !important; }
 	color: var(--accent);
 	background: transparent;
 	border: 1px solid var(--border);
-	border-radius: 0.4rem;
+	border-radius: 4px;
 	cursor: pointer;
 }
 .puzzle-card-analyze:hover { background: rgba(99, 102, 241, 0.12); border-color: var(--accent); }
@@ -7004,7 +7004,7 @@ body.duel-force-rotate .game-view.multi .game-side { display: flex !important; }
 .analyze-modal {
 	background: var(--surface);
 	border: 1px solid var(--border);
-	border-radius: 0.8rem;
+	border-radius: 7px;
 	box-shadow: var(--shadow);
 	width: min(960px, 100%);
 	max-height: calc(100vh - 3rem);
@@ -7021,7 +7021,7 @@ body.duel-force-rotate .game-view.multi .game-side { display: flex !important; }
 .analyze-modal-close {
 	padding: 0.3rem 0.8rem;
 	background: transparent; color: var(--text);
-	border: 1px solid var(--border); border-radius: 0.4rem;
+	border: 1px solid var(--border); border-radius: 4px;
 	cursor: pointer;
 }
 .analyze-modal-close:hover { background: rgba(99, 102, 241, 0.12); }
@@ -7037,7 +7037,7 @@ body.duel-force-rotate .game-view.multi .game-side { display: flex !important; }
 .analyze-trace-list {
 	list-style: none; padding: 0; margin: 0;
 	max-height: 480px; overflow-y: auto;
-	border: 1px solid var(--border); border-radius: 0.4rem;
+	border: 1px solid var(--border); border-radius: 4px;
 }
 .analyze-trace-move {
 	display: block;
@@ -7060,7 +7060,7 @@ body.duel-force-rotate .game-view.multi .game-side { display: flex !important; }
 	padding: 0.25rem 0.7rem;
 	font-size: 0.8rem;
 	background: var(--accent); color: white;
-	border: none; border-radius: 0.4rem;
+	border: none; border-radius: 4px;
 	cursor: pointer;
 }
 .analyze-trace-playall:hover:not(:disabled) { background: var(--accent-hover); }
@@ -7116,7 +7116,7 @@ body.duel-force-rotate .game-view.multi .game-side { display: flex !important; }
 .puzzles-stats {
 	margin: 0.6rem 0 1rem;
 	border: 1px solid var(--border);
-	border-radius: 0.5rem;
+	border-radius: 5px;
 	background: var(--surface-2);
 	overflow: hidden;
 }
@@ -7197,7 +7197,7 @@ input[type="range"].setting-row-slider {
 	height: auto;
 	aspect-ratio: 600 / 480;
 	background: var(--bg);
-	border-radius: 10px;
+	border-radius: 6px;
 }
 .countdown-lab-controls .cr-seg { margin-bottom: 1.1rem; }
 .countdown-lab-tune-title { margin-top: 1.4rem; }
@@ -7227,7 +7227,7 @@ input[type="color"].countdown-lab-color {
 	width: 44px;
 	height: 32px;
 	padding: 2px;
-	border-radius: 8px;
+	border-radius: 5px;
 	border: 1px solid var(--border);
 	background: var(--surface-2);
 	cursor: pointer;
@@ -7308,7 +7308,7 @@ input[type="range"].sound-lab-rate-slider { grid-column: 1 / -1; grid-row: 2; wi
 
 .sound-lab-layer {
 	display: flex; flex-direction: column; gap: 0.75rem;
-	padding: 0.9rem 1rem; border-radius: 12px;
+	padding: 0.9rem 1rem; border-radius: 6px;
 	background: var(--bg); border: 1px solid var(--border);
 }
 .sound-lab-layer-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
@@ -7327,7 +7327,7 @@ input[type="range"].sound-lab-rate-slider { grid-column: 1 / -1; grid-row: 2; wi
 	position: relative;
 	display: flex; align-items: center; gap: 1rem;
 	background: linear-gradient(110deg, var(--surface-2), var(--surface));
-	border: 1px solid var(--border); border-radius: 14px;
+	border: 1px solid var(--border); border-radius: 7px;
 	/* Left padding matches the avatar's top/bottom gap (0.75rem each side of the 62px avatar =
 	   the 86px min-height below) so the avatar sits equidistant from three edges; the right keeps
 	   the wider 1.2rem for the stats. */
@@ -7384,7 +7384,7 @@ input[type="text"].dash-you-name-input {
 	font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; letter-spacing: -0.01em;
 	line-height: 1.4;
 	color: var(--text); background: rgba(255, 255, 255, 0.05);
-	border: 1px solid var(--border); border-radius: 8px;
+	border: 1px solid var(--border); border-radius: 5px;
 	padding: 0.05rem 0.45rem; max-width: 13rem; min-width: 0; outline: none;
 	transition: border-color var(--motion-micro) var(--ease-out);
 }
@@ -7392,7 +7392,7 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
 /* Pen button to rename, beside the dashboard name. */
 .dash-edit-name {
 	flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
-	width: 1.7rem; height: 1.7rem; padding: 0; border-radius: 7px;
+	width: 1.7rem; height: 1.7rem; padding: 0; border-radius: 5px;
 	background: none; border: 1px solid transparent; color: var(--muted); cursor: pointer;
 	transition: color var(--motion-micro) var(--ease-out), background var(--motion-micro) var(--ease-out);
 }
@@ -7417,7 +7417,7 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
 .dash-row {
 	display: flex; align-items: center; gap: 0.9rem;
 	background: var(--surface); border: 1px solid var(--border);
-	border-radius: 12px; /* Same 0.75rem on the left, top and bottom so the board frame sits equidistant from three
+	border-radius: 6px; /* Same 0.75rem on the left, top and bottom so the board frame sits equidistant from three
 	   edges (the same rule the .dash-you avatar follows); the right keeps 0.9rem for the rank. */
 	padding: 0.75rem 0.9rem 0.75rem 0.75rem;
 	text-decoration: none; color: var(--text);
@@ -7453,7 +7453,7 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
 .lobby-daily-hero .lobby-daily-body { flex: 1 1 auto; }
 .lobby-daily-hero .lobby-daily-board-wrap { flex: 1 1 auto; display: flex; flex-direction: column; }
 .lobby-daily-hero .lobby-daily-board { flex: 1 1 auto; }
-.dash-card { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 0.85rem 1rem; }
+.dash-card { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 0.85rem 1rem; }
 .dash-card-title { font-size: 1rem; margin: 0 0 0.4rem; }
 .dash-lb-list { list-style: none; margin: 0; padding: 0; }
 .dash-lb-list .lb-row { font-size: 0.84rem; padding: 0.32rem 0.6rem; background: transparent; }
@@ -7509,7 +7509,7 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
 	padding: 0.7rem 0.9rem;
 	background: var(--surface);
 	border: 1px solid var(--border);
-	border-radius: 0.55rem;
+	border-radius: 5px;
 	transition: border-color 0.15s;
 }
 .lobby-mode:hover { border-color: var(--accent); }
@@ -7535,7 +7535,7 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
 .lobby-daily-hero {
 	background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
 	border: 1px solid var(--border);
-	border-radius: 0.8rem;
+	border-radius: 7px;
 	padding: 0.8rem 1rem 0.9rem;
 	display: flex; flex-direction: column; gap: 0.45rem;
 }
@@ -7556,7 +7556,7 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
 
 .lobby-daily-board {
 	background: rgba(11, 16, 32, 0.4);
-	border-radius: 0.5rem;
+	border-radius: 5px;
 	padding: 0.4rem;
 	/* Reserved so the card doesn't collapse-then-grow while waiting for the puzzle to draw (the
 	   canvas's own size depends on that day's rows/cols, computed only once JS runs — see
@@ -7585,7 +7585,7 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
 	padding: 0.35rem 0.6rem;
 	background: var(--surface-2);
 	border: 1px solid var(--border);
-	border-radius: 0.4rem;
+	border-radius: 4px;
 }
 .lobby-daily-meta-label {
 	font-size: 0.66rem; font-weight: 600; letter-spacing: 0.04em;
@@ -7701,7 +7701,7 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
 /* Ranked is the headline of the home page — its cards are larger than the casual/solo rows. */
 .mode-card-list-feature { gap: 0.85rem; }
 .mode-card-list-feature .mode-card { padding: 1.3rem 1.4rem; gap: 1.1rem; }
-.mode-card-list-feature .mode-card-icon { width: 3.2rem; height: 3.2rem; border-radius: 0.7rem; }
+.mode-card-list-feature .mode-card-icon { width: 3.2rem; height: 3.2rem; border-radius: 6px; }
 .mode-card-list-feature .mode-card-icon svg { width: 2.1rem; height: 2.1rem; }
 .mode-card-list-feature .mode-card-title { font-size: 1.4rem; }
 .mode-card-list-feature .mode-card-pitch { font-size: 0.9rem; }
@@ -7713,7 +7713,7 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
 	gap: 0.8rem;
 	align-items: center;
 	padding: 0.9rem 1.1rem;
-	border-radius: 0.7rem;
+	border-radius: 6px;
 	border: 1px solid var(--border);
 	background: var(--surface);
 	color: var(--text);
@@ -7739,7 +7739,7 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
 }
 .mode-card-icon {
 	width: 2.6rem; height: 2.6rem;
-	border-radius: 0.55rem;
+	border-radius: 5px;
 	display: flex; align-items: center; justify-content: center;
 }
 .mode-card-icon svg { width: 1.7rem; height: 1.7rem; }
@@ -7812,7 +7812,7 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
 	align-items: center;
 	margin: 0.6rem 0 1rem;
 	padding: 1rem 1.2rem;
-	border-radius: 0.7rem;
+	border-radius: 6px;
 	background: var(--surface);
 	border: 1px solid var(--border);
 }
@@ -7843,7 +7843,7 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
 	display: flex; flex-direction: column; align-items: flex-start;
 	gap: 0.4rem;
 	padding: 1.5rem;
-	border-radius: 0.8rem;
+	border-radius: 7px;
 	background: var(--surface);
 	border: 1px solid var(--border);
 	color: var(--text);
@@ -7944,7 +7944,7 @@ body.game-fullscreen .game-view:not(.puzzle):not(.solo):not(.duo):not(.multi) .g
 .confirm-modal {
 	background: var(--surface);
 	border: 1px solid var(--border);
-	border-radius: 14px;
+	border-radius: 7px;
 	box-shadow: var(--shadow);
 	padding: 1.6rem 1.6rem 1.3rem;
 	max-width: 380px;
@@ -8038,7 +8038,7 @@ body.game-fullscreen .game-view:not(.puzzle):not(.solo):not(.duo):not(.multi) .g
 .admin-debug-grid-title { margin: 0 0 0.5rem; font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--muted); }
 .admin-debug-empty { color: var(--muted); font-size: 0.85rem; }
 .admin-debug-grid {
-	display: grid; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 6px;
+	display: grid; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 4px;
 	overflow: hidden; max-width: 100%; overflow-x: auto;
 }
 .admin-debug-cell {
@@ -8053,7 +8053,7 @@ body.game-fullscreen .game-view:not(.puzzle):not(.solo):not(.duo):not(.multi) .g
 .admin-debug-cell-mismatch { outline: 2px solid #f87171; outline-offset: -2px; }
 .admin-debug-log-wrap { margin-top: 1.25rem; }
 .admin-debug-log {
-	max-height: 220px; overflow-y: auto; padding: 0.6rem 0.75rem; border-radius: 8px;
+	max-height: 220px; overflow-y: auto; padding: 0.6rem 0.75rem; border-radius: 5px;
 	background: var(--bg); border: 1px solid var(--border);
 	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.74rem; line-height: 1.5;
 }
@@ -8070,9 +8070,14 @@ body.game-fullscreen .game-view:not(.puzzle):not(.solo):not(.duo):not(.multi) .g
 #settings_view .section-card { background: none; border: 0; box-shadow: none; padding: 0; margin-bottom: 2rem; }
 #settings_view .section-card h2 { margin-bottom: 0.75rem; }
 #settings_view .setting-row, #settings_view .keybind-row { background: var(--surface); }
-#settings_view .keybind-row { padding: 0.6rem 0.85rem; border-radius: 11px; }
+#settings_view .keybind-row { padding: 0.6rem 0.85rem; border-radius: 6px; }
 .nav-burger svg { display: block; }
 
+/* ── Corner radius scale (2026-09-08) ──────────────────────────────────────────
+   Box radii were halved site-wide on request ("cleaner with just slightly rounded corners"): the old
+   14/12/10/8px cards, rows, modals, inputs and buttons are now 7/6/6/5px. Pills (999px), circles (50%)
+   and the ≤4px details were left alone, and the preview-board frames keep radius = canvas radius +
+   padding (7px / 8px) so their corners stay concentric — see the note at .dash-board-preview. */
 /* ── Narrow phones (≤ 480px; the target floor is 330px) ─────────────────────── */
 /* The home mode row is board | title+sub | rank in one flex line, which needs ~400px (165px board +
    the rank's 4.5rem min-width + gaps/padding). At 330px the rank badge and "Wood · Lvl 1" were pushed
