@@ -1541,10 +1541,14 @@ function renderHomeRankChips() {
 	// Sprint/Standard) instead of the hidden puzzle rating or a solved count.
 	var puzzleTierEl = document.getElementById("puzzle_ladder_tier");
 	if (puzzleTierEl) {
+		var puzzleBadgeEl = document.getElementById("puzzle_ladder_badge");
+		if (puzzleBadgeEl) puzzleBadgeEl.innerHTML = "";
 		if (account && !(account.puzzlePoints > 0)) {
-			// Puzzles has no placement: points only go up from 0, so before the first rated solve the
-			// ladder simply hasn't started — not "unranked", and not the first tier's name either.
-			puzzleTierEl.textContent = "Not started";
+			// Before the first rated solve: the locked badge (a dashed medal + padlock, the Puzzle
+			// Ladder's own shape) and "Unranked" — same treatment as the ranked rows' placement state,
+			// minus the dots, since points only go up from 0 and there's no placement to count.
+			if (puzzleBadgeEl && typeof buildPuzzleLockedBadge === "function") puzzleBadgeEl.appendChild(buildPuzzleLockedBadge());
+			puzzleTierEl.textContent = "Unranked";
 			puzzleTierEl.style.color = "";
 		} else if (account && typeof puzzleLadder === "function" && typeof puzzleLadderLabel === "function") {
 			puzzleTierEl.textContent = puzzleLadderLabel(account.puzzlePoints || 0);

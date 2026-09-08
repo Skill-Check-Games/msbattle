@@ -71,6 +71,19 @@ function buildRankBadge(rating) {
 // Placement badge: the same hexagon plate as a dashed outline with a padlock inside — the slot a real
 // rank badge fills once the first PROVISIONAL_GAMES matches in that mode are played (see
 // renderHomeRankChips, Profile.js). Same .rank-badge sizing so it drops into any rank-badge slot.
+// Puzzle Ladder counterpart of buildPlacementBadge: the ladder's badge is a round medal, so before the
+// first rated solve the slot shows a dashed circle with the same padlock (see renderHomeRankChips).
+function buildPuzzleLockedBadge() {
+	var badge = document.createElement("div");
+	badge.className = "rank-badge rank-badge-placement";
+	badge.innerHTML = '<svg viewBox="0 0 100 100" aria-hidden="true">'
+		+ '<circle cx="50" cy="53" r="36" fill="rgba(255,255,255,0.03)" stroke="currentColor" stroke-width="4" stroke-dasharray="7 6"/>'
+		+ '<rect x="38" y="50" width="24" height="18" rx="4" fill="currentColor"/>'
+		+ '<path d="M43 50 V44 a7 7 0 0 1 14 0 V50" fill="none" stroke="currentColor" stroke-width="4.5"/>'
+		+ '</svg>';
+	return badge;
+}
+
 function buildPlacementBadge() {
 	var badge = document.createElement("div");
 	badge.className = "rank-badge rank-badge-placement";
