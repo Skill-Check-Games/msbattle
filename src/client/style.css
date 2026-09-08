@@ -183,6 +183,9 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 /* The in-menu account card only exists in the mobile burger menu; desktop uses the topbar badge. */
 .menu-account { display: none; }
 
+/* The icon is an inline SVG (index.html), not the ☰ text glyph it used to be: a glyph sits on a text
+   baseline whose offset inside the line box differs per platform font, so it rendered ~0.5px high on
+   phones and several px LOW on desktop. An SVG is a plain box, centred by the flex rules below. */
 /* Burger toggle — desktop hides it (the nav is laid out inline); mobile shows it (see media query). */
 .nav-burger {
 	display: none;
@@ -190,8 +193,7 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 	justify-content: center;
 	width: 44px;
 	height: 44px;
-	font-size: 1.5rem;
-	line-height: 1;
+	padding: 0;
 	background: var(--surface-2);
 	border: 1px solid var(--border);
 	color: var(--text);
@@ -6230,7 +6232,10 @@ body.duel-force-rotate .game-view.multi .game-side { display: flex !important; }
    (pointer: coarse) is the same "phone landscape, not just a short desktop window" idiom used
    elsewhere in this file (see the puzzle-landscape media query's own comment) — without
    pointer:coarse a short, non-maximized desktop browser window would match too. */
-@media (max-width: 700px), (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
+/* 900px, not 700: the full inline nav (logo + 7 links + Sign in, at desktop padding) needs ~880px to
+   sit on one row. Between 700 and 900 it used to WRAP — Help dropped to a second line at ~800px and
+   the Sign in button broke into two lines at ~730px — before the burger ever kicked in. */
+@media (max-width: 900px), (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
 	/* The burger sits next to the logo; the nav becomes a dropdown panel anchored below the topbar,
 	   shown only when open. */
 	/* Single-row header: logo far-left, then the audio toggle and the burger hard-right (burger last).
@@ -7314,7 +7319,10 @@ input[type="range"].sound-lab-rate-slider { grid-column: 1 / -1; grid-row: 2; wi
 	display: flex; align-items: center; gap: 1rem;
 	background: linear-gradient(110deg, var(--surface-2), var(--surface));
 	border: 1px solid var(--border); border-radius: 14px;
-	padding: 0.7rem 1.2rem; margin-bottom: 0.8rem;
+	/* Left padding matches the avatar's top/bottom gap (0.75rem each side of the 62px avatar =
+	   the 86px min-height below) so the avatar sits equidistant from three edges; the right keeps
+	   the wider 1.2rem for the stats. */
+	padding: 0.75rem 1.2rem 0.75rem 0.75rem; margin-bottom: 0.8rem;
 	/* Reserved to match the fully-populated card's height (badge + name row + stats) — without this,
 	   a pageload that lands here before real account data arrives (e.g. straight back from an OAuth/dev
 	   sign-in redirect, which has no cookie for SSR to inline account data from) renders a shorter card
@@ -7342,7 +7350,9 @@ input[type="range"].sound-lab-rate-slider { grid-column: 1 / -1; grid-row: 2; wi
 .dash-you-badge { flex: 0 0 auto; display: inline-flex; }
 .dash-you-badge .rank-badge { font-size: 9px; }
 .dash-you-main { min-width: 0; }
-.dash-you-name-row { display: flex; align-items: center; gap: 0.45rem; min-width: 0; }
+/* Pulled left by exactly .dash-you-name's own border+padding (kept so the rename field can swap
+   in without a shift) so the name TEXT lines up with .dash-you-line beneath it. */
+.dash-you-name-row { display: flex; align-items: center; gap: 0.45rem; min-width: 0; margin-left: calc(-0.45rem - 1px); }
 /* border/padding/line-height match .dash-you-name-input's exactly (both border-box, site-wide
    reset) even though this one's border is transparent — otherwise the input's real border+padding
    gave it a few px more box height than the plain text (an explicit line-height matters too: an
@@ -8009,3 +8019,15 @@ body.game-fullscreen .game-view:not(.puzzle):not(.solo):not(.duo):not(.multi) .g
 .admin-debug-log-row { white-space: pre-wrap; word-break: break-all; color: var(--muted); }
 .admin-debug-log-in { color: var(--text); }
 .admin-debug-log-out { color: #93c5fd; }
+
+/* ── Settings: one layer of boxes, not two ─────────────────────────────────── */
+/* The page used to wrap each group (Gameplay / Audio / Controls) in a .section-card AND box every
+   row inside it (.setting-row / .keybind-row) — boxes in boxes. The outer card is dropped here: the
+   group's h2 becomes a plain heading on the page background and the rows carry the surface colour
+   instead (they used var(--bg), which is invisible without a card behind it). Scoped to Settings so
+   the shared .section-card keeps its look everywhere else. */
+#settings_view .section-card { background: none; border: 0; box-shadow: none; padding: 0; margin-bottom: 2rem; }
+#settings_view .section-card h2 { margin-bottom: 0.75rem; }
+#settings_view .setting-row, #settings_view .keybind-row { background: var(--surface); }
+#settings_view .keybind-row { padding: 0.6rem 0.85rem; border-radius: 11px; }
+.nav-burger svg { display: block; }
