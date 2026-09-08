@@ -121,8 +121,13 @@
 
 		<section id="lobby_view" class="view" style="display:none">
 			<div class="dash">
+				<!-- Three boxes: avatar tile | info card | flag tile. The two outer tiles are square, row-height,
+				     and their image fills them edge to edge (no padding) — see .dash-you-box in style.css. -->
 				<div class="dash-you">
-					<span class="dash-you-badge" id="dash_you_badge" aria-hidden="true"></span>
+					<div class="dash-you-box dash-you-box-avatar">
+						<span class="dash-you-badge" id="dash_you_badge" aria-hidden="true"></span>
+					</div>
+					<div class="dash-you-box dash-you-box-main">
 					<div class="dash-you-main">
 						<div class="dash-you-name-row">
 							<div class="dash-you-name" id="dash_you_name">Player</div>
@@ -135,13 +140,13 @@
 						<div class="dash-you-line" id="dash_you_line">—</div>
 					</div>
 					<div class="dash-you-stats" id="dash_you_stats"></div>
-					<!-- Country flag card on the row's right edge, achtung-royale style: a square that fills the
-					     card's content height (same 62px as the avatar on the left) and opens the flag picker.
-					     Filled by renderDashIdentity() with buildFlagPickerTrigger (FlagPicker.js). -->
-					<div class="dash-you-flagcard" id="dash_you_flagcard"></div>
-					<!-- Skeleton loader: covers the card (real content underneath, sized normally) until
+					<!-- Skeleton loader: covers the info card (real content underneath, sized normally) until
 					     renderDashIdentity actually populates it — see hideSkeleton() in Router.js. -->
 					<div id="dash_you_skel" class="skel-shimmer dash-skel-cover"></div>
+					</div>
+					<!-- Country flag tile, achtung-royale style: opens the flag picker. Filled by
+					     renderDashIdentity() with buildFlagPickerTrigger (FlagPicker.js). -->
+					<div class="dash-you-box dash-you-box-flag dash-you-flagcard" id="dash_you_flagcard"></div>
 				</div>
 
 				<div class="dash-main">

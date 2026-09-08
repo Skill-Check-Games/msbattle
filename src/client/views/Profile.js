@@ -1557,9 +1557,11 @@ function renderHomeRankChips() {
 			if (puzzleBadgeEl && typeof buildPuzzleLockedBadge === "function") puzzleBadgeEl.appendChild(buildPuzzleLockedBadge());
 			puzzleTierEl.textContent = "Unranked";
 			puzzleTierEl.style.color = "";
+			puzzleTierEl.classList.add("mode-card-rank-tier-placing"); // same muted colour as the ranked rows' "Placement"
 		} else if (account && typeof puzzleLadder === "function" && typeof puzzleLadderLabel === "function") {
 			if (puzzleBadgeEl && typeof buildPuzzleRankBadge === "function") puzzleBadgeEl.appendChild(buildPuzzleRankBadge(account.puzzlePoints || 0));
 			var pl = puzzleLadder(account.puzzlePoints || 0);
+			puzzleTierEl.classList.remove("mode-card-rank-tier-placing");
 			puzzleTierEl.textContent = pl.tierName;
 			puzzleTierEl.style.color = pl.tierColor;
 			if (puzzleSubEl) puzzleSubEl.textContent = pl.atMax ? "Max level" : "Lvl " + pl.level;
@@ -1691,7 +1693,7 @@ function renderDashIdentity() {
 	if (nameRow) { var stale = nameRow.querySelector(".dash-avatar"); if (stale) stale.remove(); } // drop the old inline avatar
 	if (badgeEl) {
 		badgeEl.innerHTML = "";
-		if (typeof buildAvatarChip === "function") badgeEl.appendChild(buildAvatarChip(account.avatarColor || DEFAULT_AVATAR, account.country || null, 62));
+		if (typeof buildAvatarChip === "function") badgeEl.appendChild(buildAvatarChip(account.avatarColor || DEFAULT_AVATAR, account.country || null, 84)); // fills the 86px tile (1px border each side)
 		// Click the home avatar to edit it.
 		badgeEl.classList.add("dash-avatar-edit");
 		badgeEl.title = "Edit avatar";
