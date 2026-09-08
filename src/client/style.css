@@ -7423,9 +7423,12 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
    Grid with one column: the label sits in row 1 (start-aligned), the value spans every row and is
    centred — so the cell is as wide as whichever of the two is wider and the value never shifts with
    the label's length. */
-.dash-you-cell { display: grid; grid-template-rows: auto 1fr; grid-template-columns: 1fr; padding: 0.45rem 1rem 0.4rem; border-left: 1px solid var(--border); min-width: 0; }
-.dash-you-cell span { grid-row: 1; grid-column: 1; justify-self: start; font-size: 0.62rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; }
-.dash-you-cell b { grid-row: 1 / -1; grid-column: 1; align-self: center; justify-self: center; font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; white-space: nowrap; }
+.dash-you-cell { display: grid; grid-template-rows: auto 1fr; grid-template-columns: 1fr; padding: 0.4rem 0.9rem; border-left: 1px solid var(--border); min-width: 0; } /* symmetric so the value centres exactly */
+/* Label tucked hard into the corner — 4px from the top, 6px from the left — by pulling it back through
+   the cell's own padding with negative margins. It stays IN the grid (row 1) so its width still sizes
+   the cell ("Rank change" is wider than "+41"); the value spans every row and centres in the whole cell. */
+.dash-you-cell span { grid-row: 1; grid-column: 1; justify-self: start; margin-top: calc(4px - 0.4rem); margin-left: calc(6px - 0.9rem); font-size: 0.6rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; line-height: 1; }
+.dash-you-cell b { grid-row: 1 / -1; grid-column: 1; align-self: center; justify-self: center; font-family: var(--font-display); font-size: 1.15rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; white-space: nowrap; }
 .dash-you-cell em { font-style: normal; } .dash-you-cell em.up { color: var(--success, #4ade80); } .dash-you-cell em.dn { color: #f0647a; }
 .dash-stat { display: flex; flex-direction: column; align-items: center; text-align: center; }
 .dash-stat b { font-family: var(--font-display); font-size: 1.15rem; font-weight: 700; }
