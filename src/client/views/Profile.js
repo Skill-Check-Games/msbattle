@@ -1545,6 +1545,11 @@ function renderHomeRankChips() {
 	if (puzzleTierEl) {
 		var puzzleBadgeEl = document.getElementById("puzzle_ladder_badge");
 		if (puzzleBadgeEl) puzzleBadgeEl.innerHTML = "";
+		// Two lines like the ranked rows' "Placement" + dots: tier name on top, "Lvl N" small beneath —
+		// so the three labels stay similar in length instead of one row carrying "Demolitionist · Lvl 13".
+		var puzzleSubEl = puzzleTierEl.parentNode ? puzzleTierEl.parentNode.querySelector(".mode-card-rank-sub") : null;
+		if (!puzzleSubEl && puzzleTierEl.parentNode) { puzzleSubEl = document.createElement("span"); puzzleSubEl.className = "mode-card-rank-sub"; puzzleTierEl.parentNode.appendChild(puzzleSubEl); }
+		if (puzzleSubEl) puzzleSubEl.textContent = "";
 		if (account && !(account.puzzlePoints > 0)) {
 			// Before the first rated solve: the locked badge (a dashed medal + padlock, the Puzzle
 			// Ladder's own shape) and "Unranked" — same treatment as the ranked rows' placement state,
@@ -1554,13 +1559,16 @@ function renderHomeRankChips() {
 			puzzleTierEl.style.color = "";
 		} else if (account && typeof puzzleLadder === "function" && typeof puzzleLadderLabel === "function") {
 			if (puzzleBadgeEl && typeof buildPuzzleRankBadge === "function") puzzleBadgeEl.appendChild(buildPuzzleRankBadge(account.puzzlePoints || 0));
-			puzzleTierEl.textContent = puzzleLadderLabel(account.puzzlePoints || 0);
-			puzzleTierEl.style.color = puzzleLadder(account.puzzlePoints || 0).tierColor;
+			var pl = puzzleLadder(account.puzzlePoints || 0);
+			puzzleTierEl.textContent = pl.tierName;
+			puzzleTierEl.style.color = pl.tierColor;
+			if (puzzleSubEl) puzzleSubEl.textContent = pl.atMax ? "Max level" : "Lvl " + pl.level;
 		} else {
 			puzzleTierEl.textContent = "—";
 			puzzleTierEl.style.color = "";
 		}
 	}
+	syncHomeRankWidths(); // after all three labels are set
 	var streakBestEl = document.getElementById("puzzle_streak_best");
 	var stormBestEl = document.getElementById("puzzle_storm_best");
 	if (streakBestEl) streakBestEl.textContent = account ? (account.streakBest || 0) : "—";
@@ -1632,6 +1640,20 @@ function paintYouCardEarly(account) {
 }
 // SSR_INLINE:END
 
+// The three home rows' rank blocks (badge + label) live in separate cards, so CSS alone can't give
+// them one shared width. Measure each at its natural width and set all three to the widest: the
+// badges then share one x, every label sits tight against its own badge, and the group as a whole
+// hugs the row's right edge as closely as the longest label allows. Called after the labels render
+// (renderHomeRankChips); the ≤480px grid overrides the width back to auto.
+function syncHomeRankWidths() {
+	var blocks = ["dash_stat_sprint", "dash_stat_standard", "dash_stat_puzzles"].map(function(id) { return document.getElementById(id); }).filter(Boolean);
+	if (!blocks.length) return;
+	blocks.forEach(function(b) { b.style.width = ""; });
+	var max = 0;
+	blocks.forEach(function(b) { max = Math.max(max, b.getBoundingClientRect().width); });
+	if (max > 0) blocks.forEach(function(b) { b.style.width = Math.ceil(max) + "px"; });
+}
+
 // The "you" banner: rank badge (overall = best across modes), name, overall tier/rating, and a
 // few real lifetime stats. No fabricated "this week" trend — we don't track it yet.
 function renderDashIdentity() {
@@ -1648,24 +1670,20 @@ function renderDashIdentity() {
 		return;
 	}
 	paintYouCardEarly(account); // name, tier line, stats, skeleton — see above
-	// Country flag beside the name — also the ONLY entry point for picking one (the avatar editor's
-	// flag picker was removed earlier). Set: the chip is the trigger. Unset: a small dashed "+" square.
+	// Country flag: a square flag CARD on the row's right edge (achtung-royale's lobby treatment) — the
+	// only entry point for picking one (the avatar editor's picker was removed earlier). Built from the
+	// same buildFlagPickerTrigger the picker port already had; it repaints itself on change. The small
+	// chip beside the name (#dash_you_flag) is left empty on the home card — the card IS the flag here.
 	var flagEl = document.getElementById("dash_you_flag");
-	if (flagEl) {
-		flagEl.innerHTML = "";
-		var trig = document.createElement("button");
-		trig.type = "button";
-		trig.className = "dash-you-flag-btn" + (account.country ? "" : " dash-you-flag-btn-empty");
-		trig.title = account.country ? "Change your country flag" : "Add your country flag";
-		trig.setAttribute("aria-label", trig.title);
-		if (account.country && typeof appendFlagChip === "function") appendFlagChip(trig, account.country, 18);
-		else trig.textContent = "+";
-		trig.onclick = function(e) {
-			e.preventDefault(); e.stopPropagation();
-			if (typeof openFlagPicker !== "function") return;
-			openFlagPicker(trig, account.country || null, function(code) { if (typeof setCountry === "function") setCountry(code || ""); });
-		};
-		flagEl.appendChild(trig);
+	if (flagEl) flagEl.innerHTML = "";
+	var flagCard = document.getElementById("dash_you_flagcard");
+	if (flagCard) {
+		flagCard.innerHTML = "";
+		if (typeof buildFlagPickerTrigger === "function") {
+			flagCard.appendChild(buildFlagPickerTrigger(account.country || null, function(code) {
+				if (typeof setCountry === "function") setCountry(code || "");
+			}));
+		}
 	}
 	// Dota-style identity: a tall avatar portrait on the left, name on top, rank/tier on the line beneath.
 	var badgeEl = document.getElementById("dash_you_badge");

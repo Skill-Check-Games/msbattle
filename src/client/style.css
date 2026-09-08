@@ -7328,10 +7328,9 @@ input[type="range"].sound-lab-rate-slider { grid-column: 1 / -1; grid-row: 2; wi
 	display: flex; align-items: center; gap: 1rem;
 	background: linear-gradient(110deg, var(--surface-2), var(--surface));
 	border: 1px solid var(--border); border-radius: 7px;
-	/* Left padding matches the avatar's top/bottom gap (0.75rem each side of the 62px avatar =
-	   the 86px min-height below) so the avatar sits equidistant from three edges; the right keeps
-	   the wider 1.2rem for the stats. */
-	padding: 0.75rem 1.2rem 0.75rem 0.75rem; margin-bottom: 1.1rem; /* = .dash-main's column gap, so the card sits the same distance above the rows as the daily aside sits beside them */
+	/* 0.75rem padding all round (the 62px avatar + 2 × 0.75rem = the 86px min-height below), so the avatar
+	   and the right-edge flag card each sit equidistant from three edges. */
+	padding: 0.75rem; margin-bottom: 1.1rem; /* 0.75rem all round: the avatar (left) and the flag card (right) sit the same distance from their edges; margin-bottom = .dash-main's column gap */
 	/* Reserved to match the fully-populated card's height (badge + name row + stats) — without this,
 	   a pageload that lands here before real account data arrives (e.g. straight back from an OAuth/dev
 	   sign-in redirect, which has no cookie for SSR to inline account data from) renders a shorter card
@@ -7762,9 +7761,9 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
    vertical line AND keeps each label tight against its own badge (right-aligned text left a wide gap
    for short labels).
    Wide enough for the longest puzzle label; the ≤480px grid resets it (rank sits under the title there). */
-.dash-row .mode-card-rank-tiered { width: 13rem; justify-content: flex-start; }
+.dash-row .mode-card-rank-tiered { justify-content: flex-start; } /* width set by syncHomeRankWidths() = the widest of the three */
 .dash-row .mode-card-rank-tiered .dash-row-stat-text { align-items: flex-start; text-align: left; }
-@media (max-width: 480px) { .dash-row .mode-card-rank-tiered { width: auto; justify-content: flex-start; } }
+@media (max-width: 480px) { .dash-row .mode-card-rank-tiered { width: auto !important; justify-content: flex-start; } }
 .mode-card-rank-tiered .mode-card-rank-text { display: flex; flex-direction: column; align-items: flex-end; }
 .mode-card-rank-badge { display: inline-flex; }
 .mode-card-rank-badge .rank-badge { font-size: 8.5px; }
@@ -8148,3 +8147,20 @@ body.game-fullscreen .game-view:not(.puzzle):not(.solo):not(.duo):not(.multi) .g
 /* In-game rated panel: medal ahead of the "Sapper · Lvl 3" headline (.puzzle-ladder-headline is already flex). */
 .puzzle-rank-badge-slot { display: inline-flex; flex: 0 0 auto; }
 .puzzle-rank-badge-slot .rank-badge { font-size: 7px; }
+
+/* ── Home identity card: flag card on the right edge (renderDashIdentity) ─────── */
+/* Same 62px square as the avatar on the left, so the row is bookended by two equal tiles. */
+.dash-you-flagcard { flex: 0 0 auto; display: inline-flex; margin-left: 1.2rem; }
+.dash-you-flagcard .flag-picker-trigger { width: 62px; height: 62px; border-radius: 6px; }
+.dash-you-flagcard .flag-picker-trigger-empty { font-size: 1.3rem; }
+@media (max-width: 880px) {
+	/* The card wraps here (stats drop to a full-width second line); keep the flag on the first line,
+	   right after the name block, and let the stats row come after it. */
+	.dash-you-flagcard { order: 1; margin-left: auto; }
+	.dash-you-stats { order: 2; }
+}
+
+/* Second line under a home-row rank label ("Lvl 13" under the puzzle tier) — same weight/size as the
+   placement dots row so the three rows' labels read as one shape. */
+.mode-card-rank-sub { font-size: 0.72rem; font-weight: 600; color: var(--muted); margin-top: 2px; line-height: 1.2; }
+.mode-card-rank-sub:empty { display: none; }

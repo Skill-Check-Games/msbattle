@@ -135,6 +135,10 @@
 						<div class="dash-you-line" id="dash_you_line">—</div>
 					</div>
 					<div class="dash-you-stats" id="dash_you_stats"></div>
+					<!-- Country flag card on the row's right edge, achtung-royale style: a square that fills the
+					     card's content height (same 62px as the avatar on the left) and opens the flag picker.
+					     Filled by renderDashIdentity() with buildFlagPickerTrigger (FlagPicker.js). -->
+					<div class="dash-you-flagcard" id="dash_you_flagcard"></div>
 					<!-- Skeleton loader: covers the card (real content underneath, sized normally) until
 					     renderDashIdentity actually populates it — see hideSkeleton() in Router.js. -->
 					<div id="dash_you_skel" class="skel-shimmer dash-skel-cover"></div>
