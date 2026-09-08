@@ -7342,7 +7342,7 @@ input[type="range"].sound-lab-rate-slider { grid-column: 1 / -1; grid-row: 2; wi
 .dash-you-box-flag .flag-picker-trigger { width: 100%; height: 100%; border: 0; border-radius: 0; background: none; }
 .dash-you-box-main {
 	position: relative; flex: 1 1 auto; min-width: 0;
-	display: flex; align-items: center; gap: 1rem;
+	display: flex; align-items: center; gap: 0; /* spacing between name block / tag / strip is explicit (auto + 10px margins) */
 	padding: 0.4rem 1rem; /* the 70px row */
 }
 /* min-height 70px on .dash-you (above) is reserved so a pageload that lands before account data arrives
@@ -8208,6 +8208,9 @@ body.game-fullscreen .game-view:not(.puzzle):not(.solo):not(.duo):not(.multi) .g
 .dash-you-cell-empty b { color: var(--border); font-weight: 500; }
 /* A previous day's session: values greyed, and a "Last played · Mon" tag beside the name. */
 .dash-you-stats-past .dash-you-cell b { color: var(--muted); }
-.dash-you-tag { display: inline-flex; align-items: center; padding: 0.1rem 0.5rem; border-radius: 999px; border: 1px solid var(--border); font-size: 0.6rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.dash-you-tag { margin-left: auto; margin-right: 10px; display: inline-flex; /* exactly 10px to the strip (the card has no flex gap of its own) */ align-items: center; padding: 0.1rem 0.5rem; border-radius: 999px; border: 1px solid var(--border); font-size: 0.6rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
 .dash-you-tag[hidden] { display: none; }
+/* When the tag shows, IT takes the flex free space (margin-left:auto) — the strip drops its own auto
+   margin, otherwise the two auto margins split the space and the tag floats mid-card. */
+.dash-you-tag:not([hidden]) + .dash-you-stats { margin-left: 0; }
 .dash-you-stats-past .dash-you-cell em { color: inherit; } /* the rank change greys too — it's not today's */
