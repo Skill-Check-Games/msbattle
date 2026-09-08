@@ -1277,13 +1277,13 @@ function updateDashYouCells(matches) {
 	// A streak of 0 or 1 isn't a streak, and a day with no matches isn't news — those cells stay hidden.
 	if (streakEl) {
 		streakEl.hidden = streak < 2;
-		if (streak >= 2) streakEl.innerHTML = "<b>🔥 " + streak + "</b><span>Win streak</span>";
+		if (streak >= 2) streakEl.innerHTML = "<span>Win streak</span><b>🔥 " + streak + "</b>";
 	}
 	if (todayEl) {
 		todayEl.hidden = n === 0;
 		if (n > 0) {
 			var g = "<em class=\"" + (gain > 0 ? "up" : gain < 0 ? "dn" : "") + "\">" + (gain > 0 ? "+" : "") + gain + "</em>";
-			todayEl.innerHTML = "<b>" + g + "</b><span>Today · " + n + (n === 1 ? " match" : " matches") + "</span>";
+			todayEl.innerHTML = "<span>Rank change</span><b>" + g + "</b>";
 		}
 	}
 }
@@ -1668,8 +1668,8 @@ function paintYouCardEarly(account) {
 		// the account; Win streak (≥ 2) and Today (matches since midnight) are added by updateDashYouCells
 		// once the match history arrives, since both are computed from it.
 		if (played > 0) {
-			statsEl.innerHTML = "<span class=\"dash-you-cell\"><b>" + played + "</b><span>Played</span></span>"
-				+ "<span class=\"dash-you-cell\"><b>" + wr + "</b><span>Win rate</span></span>"
+			statsEl.innerHTML = "<span class=\"dash-you-cell\"><span>Played</span><b>" + played + "</b></span>"
+				+ "<span class=\"dash-you-cell\"><span>Win rate</span><b>" + wr + "</b></span>"
 				+ "<span class=\"dash-you-cell\" id=\"dash_you_cell_streak\" hidden></span>"
 				+ "<span class=\"dash-you-cell\" id=\"dash_you_cell_today\" hidden></span>";
 			statsEl.hidden = false;
