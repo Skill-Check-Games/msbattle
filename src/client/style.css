@@ -7328,22 +7328,22 @@ input[type="range"].sound-lab-rate-slider { grid-column: 1 / -1; grid-row: 2; wi
 .dash-you {
 	display: flex; align-items: stretch; gap: 1.1rem;
 	margin-bottom: 1.1rem;
-	min-height: 54px;
+	min-height: 65px;
 }
 .dash-you-box {
 	background: linear-gradient(110deg, var(--surface-2), var(--surface));
 	border: 1px solid var(--border); border-radius: 7px;
 }
 /* The two square tiles: row-height, image edge to edge (no padding), corners clipped by the box. */
-.dash-you-box-avatar, .dash-you-box-flag { flex: 0 0 54px; width: 54px; min-height: 54px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+.dash-you-box-avatar, .dash-you-box-flag { flex: 0 0 65px; width: 65px; min-height: 65px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
 .dash-you-box-avatar .avatar-chip, .dash-you-box-avatar canvas { display: block; }
 .dash-you-box-flag .flag-picker-trigger { width: 100%; height: 100%; border: 0; border-radius: 0; background: none; }
 .dash-you-box-main {
 	position: relative; flex: 1 1 auto; min-width: 0;
 	display: flex; align-items: center; gap: 1rem;
-	padding: 0.2rem 1rem; /* the 54px row: name (1.3rem × 1.4) + tier line (0.86rem) ≈ 44px of text, so only ~5px of padding remains */
+	padding: 0.4rem 1rem; /* the 65px row: name (1.3rem × 1.2) + tier line ≈ 42px of text; the rest is padding */
 }
-/* min-height 54px on .dash-you (above) is reserved so a pageload that lands before account data arrives
+/* min-height 65px on .dash-you (above) is reserved so a pageload that lands before account data arrives
    (e.g. back from an OAuth/dev sign-in redirect, no cookie for SSR to inline from) doesn't render a
    shorter row and then grow once paintYouCardEarly() fills it, shoving the mode rows down. */
 /* Skeleton loader cover — the real card is always rendered underneath at its normal size (see
