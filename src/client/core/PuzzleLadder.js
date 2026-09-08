@@ -4,15 +4,19 @@
 //
 // 8 tiers × 20 levels, flat points per level. All tunable here — change the tiers/levels/points freely.
 (function () {
+	// "Sweeper ranks" — named from the job (finding mines by deduction), on a slate → radiant colour
+	// ramp that shares nothing with the ranked ladder's Bronze → Master metals. The old tiers
+	// (Wood/Stone/Bronze/Silver/…) collided with ranked by name AND look; see buildPuzzleRankBadge
+	// (Ranking.js) for the round medal each tier wears. Points thresholds are unchanged.
 	var PUZZLE_TIERS = [
-		{ name: "Wood",     color: "#b0814f" },
-		{ name: "Stone",    color: "#9aa1ab" },
-		{ name: "Bronze",   color: "#cd7f32" },
-		{ name: "Silver",   color: "#cbd3df" },
-		{ name: "Crystal",  color: "#56d6e6" },
-		{ name: "Elite",    color: "#8b6cff" },
-		{ name: "Champion", color: "#ffb020" },
-		{ name: "Legend",   color: "#ff5d73" }
+		{ name: "Recruit",       color: "#9aa3ad" },
+		{ name: "Scout",         color: "#8fbf6f" },
+		{ name: "Sapper",        color: "#c8a96a" },
+		{ name: "Engineer",      color: "#f0a13a" },
+		{ name: "Specialist",    color: "#e5673f" },
+		{ name: "Demolitionist", color: "#e0405f" },
+		{ name: "Bomb Squad",    color: "#d048c8" },
+		{ name: "Grandmaster",   color: "#eaf2ff" }
 	];
 	var LEVELS_PER_TIER = 20;
 	var POINTS_PER_LEVEL = 50;

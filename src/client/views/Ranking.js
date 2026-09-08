@@ -71,6 +71,79 @@ function buildRankBadge(rating) {
 // Placement badge: the same hexagon plate as a dashed outline with a padlock inside — the slot a real
 // rank badge fills once the first PROVISIONAL_GAMES matches in that mode are played (see
 // renderHomeRankChips, Profile.js). Same .rank-badge sizing so it drops into any rank-badge slot.
+// ---- Puzzle Ladder badge: a round medal with eight rim segments (tier N lights N) and a per-tier
+// emblem — recruit's medal is empty, then magnifier, shovel, claymore, sea mine (outline), dynamite,
+// sea mine (solid), radar. Drawn on a 100×100 canvas centred at (50,52). Designed 2026-09-08 with
+// Mathias (icon palette artifact); colours come from PuzzleLadder.js's tiers.
+var PUZZLE_BADGE_DARK = "var(--surface, #131a2e)";
+var puzzleBadgeParts = (function () {
+	function S(d, w, extra) { return '<path d="' + d + '" fill="none" stroke="currentColor" stroke-width="' + (w || 3.5) + '" stroke-linecap="round" stroke-linejoin="round"' + (extra || "") + '/>'; }
+	function F(d) { return '<path d="' + d + '" fill="currentColor"/>'; }
+	function C(x, y, r, fill, sw) { return '<circle cx="' + x + '" cy="' + y + '" r="' + r + '" ' + (fill ? 'fill="currentColor"' : 'fill="none" stroke="currentColor" stroke-width="' + (sw || 3.5) + '"') + '/>'; }
+	function R(x, y, w, h, rx) { return '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="' + rx + '" fill="currentColor"/>'; }
+	function D(x, y, r) { return '<circle cx="' + x + '" cy="' + y + '" r="' + r + '" fill="' + PUZZLE_BADGE_DARK + '"/>'; }
+	function spikes(r, len, sw) {
+		var out = '<g stroke="currentColor" stroke-width="' + sw + '" stroke-linecap="round">';
+		for (var i = 0; i < 8; i++) {
+			var a = i * Math.PI / 4;
+			out += '<path d="M' + (50 + Math.cos(a) * (r + 3)).toFixed(1) + ' ' + (52 + Math.sin(a) * (r + 3)).toFixed(1) + ' L' + (50 + Math.cos(a) * (r + 3 + len)).toFixed(1) + ' ' + (52 + Math.sin(a) * (r + 3 + len)).toFixed(1) + '"/>';
+		}
+		return out + '</g>';
+	}
+	function knobs(r, len, sw, kr) {
+		var out = spikes(r, len, sw);
+		for (var i = 0; i < 8; i++) { var a = i * Math.PI / 4; out += C((50 + Math.cos(a) * (r + 3 + len)).toFixed(1), (52 + Math.sin(a) * (r + 3 + len)).toFixed(1), kr, true); }
+		return out;
+	}
+	function star(r, cx, cy) {
+		var pts = [];
+		for (var i = 0; i < 10; i++) { var a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? r * 0.46 : r; pts.push((cx + Math.cos(a) * rr).toFixed(1) + "," + (cy + Math.sin(a) * rr).toFixed(1)); }
+		return '<polygon points="' + pts.join(" ") + '" fill="currentColor"/>';
+	}
+	function shrink(inner, k) { return '<g transform="translate(50 52) scale(' + k + ') translate(-50 -52)">' + inner + '</g>'; }
+	var magnifier = C(46, 47, 12) + S("M40 43 A8 8 0 0 1 46 39", 2.5) + S("M55 56 L67 68", 5);
+	var shovel = S("M50 32.4 V55.8", 4) + S("M41.9 32.4 H58.1", 4) + F("M39.2 55.8 H60.8 L59 70.2 Q50 75.6 41 70.2 Z");
+	var claymore = F("M30 45 Q50 36 70 45 V60 Q50 51 30 60 Z") + '<path d="M33 53 Q50 45.5 67 53" fill="none" stroke="' + PUZZLE_BADGE_DARK + '" stroke-width="1.6"/>' + R(46, 36, 8, 5, 1.5) + S("M38 60 L34 72", 3.5) + S("M62 60 L66 72", 3.5);
+	var seaOutline = C(50, 52, 11) + knobs(11, 3.5, 3, 2);
+	var dynamite = R(37, 44, 8, 26, 3) + R(46, 44, 8, 26, 3) + R(55, 44, 8, 26, 3) + '<rect x="35" y="54" width="30" height="5" fill="' + PUZZLE_BADGE_DARK + '"/>' + S("M52 44 Q56 36 62 34", 2.5) + star(4.5, 64, 33);
+	var seaSolid = C(50, 52, 12, true) + spikes(12, 5.5, 4) + D(45.4, 47.4, 3.1);
+	var radar = C(50, 52, 21, false, 2.5).replace('stroke-width="2.5"', 'stroke-width="2.5" opacity="0.45"') + C(50, 52, 14, false, 2.5).replace('stroke-width="2.5"', 'stroke-width="2.5" opacity="0.6"') + C(50, 52, 7, false, 2.5).replace('stroke-width="2.5"', 'stroke-width="2.5" opacity="0.8"') + F("M50 52 L50 29 A23 23 0 0 1 70 41 Z") + C(50, 52, 3, true) + C(40, 40, 2.4, true) + C(59, 63, 2.4, true);
+	var EMBLEMS = [
+		"",
+		shrink(magnifier, 0.92),
+		shovel,
+		'<g transform="translate(0 -0.5)">' + shrink(claymore, 0.92) + '</g>',
+		shrink(seaOutline, 0.92),
+		shrink(dynamite, 0.92),
+		shrink(seaSolid, 0.92),
+		radar
+	];
+	function roundel(lit) {
+		var out = '<circle cx="50" cy="52" r="40" fill="' + PUZZLE_BADGE_DARK + '" stroke="currentColor" stroke-width="3"/><g stroke="currentColor" stroke-width="6" fill="none">';
+		for (var i = 0; i < 8; i++) {
+			var a0 = -Math.PI / 2 + i * Math.PI / 4 + 0.06, a1 = -Math.PI / 2 + (i + 1) * Math.PI / 4 - 0.06;
+			out += '<path d="M' + (50 + Math.cos(a0) * 33).toFixed(1) + ' ' + (52 + Math.sin(a0) * 33).toFixed(1) + ' A33 33 0 0 1 ' + (50 + Math.cos(a1) * 33).toFixed(1) + ' ' + (52 + Math.sin(a1) * 33).toFixed(1) + '" opacity="' + (i < lit ? 1 : 0.18) + '"/>';
+		}
+		return out + '</g>';
+	}
+	return { roundel: roundel, EMBLEMS: EMBLEMS };
+})();
+// SVG markup for a tier (0-based index into PuzzleLadder's tiers). Colour comes from the element's
+// currentColor, so callers set style.color to the tier colour.
+function puzzleRankBadgeSVG(tierIndex) {
+	var t = Math.max(0, Math.min(7, tierIndex | 0));
+	return '<svg viewBox="0 0 100 100" aria-hidden="true">' + puzzleBadgeParts.roundel(t + 1) + puzzleBadgeParts.EMBLEMS[t] + '</svg>';
+}
+// The badge element, sized like buildRankBadge (font-size drives it via .rank-badge's 5em box).
+function buildPuzzleRankBadge(points) {
+	var l = (typeof puzzleLadder === "function") ? puzzleLadder(points || 0) : { tierIndex: 0, tierColor: "#9aa3ad" };
+	var badge = document.createElement("div");
+	badge.className = "rank-badge puzzle-rank-badge";
+	badge.style.color = l.tierColor;
+	badge.innerHTML = puzzleRankBadgeSVG(l.tierIndex);
+	return badge;
+}
+
 // Puzzle Ladder counterpart of buildPlacementBadge: the ladder's badge is a round medal, so before the
 // first rated solve the slot shows a dashed circle with the same padlock (see renderHomeRankChips).
 function buildPuzzleLockedBadge() {

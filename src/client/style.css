@@ -7331,7 +7331,7 @@ input[type="range"].sound-lab-rate-slider { grid-column: 1 / -1; grid-row: 2; wi
 	/* Left padding matches the avatar's top/bottom gap (0.75rem each side of the 62px avatar =
 	   the 86px min-height below) so the avatar sits equidistant from three edges; the right keeps
 	   the wider 1.2rem for the stats. */
-	padding: 0.75rem 1.2rem 0.75rem 0.75rem; margin-bottom: 0.8rem;
+	padding: 0.75rem 1.2rem 0.75rem 0.75rem; margin-bottom: 1.1rem; /* = .dash-main's column gap, so the card sits the same distance above the rows as the daily aside sits beside them */
 	/* Reserved to match the fully-populated card's height (badge + name row + stats) — without this,
 	   a pageload that lands here before real account data arrives (e.g. straight back from an OAuth/dev
 	   sign-in redirect, which has no cookie for SSR to inline account data from) renders a shorter card
@@ -7407,7 +7407,10 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
 .dash-stat b { font-family: var(--font-display); font-size: 1.15rem; font-weight: 700; }
 .dash-stat span { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 0.1rem; }
 
-.dash-main { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.95fr); gap: 1.1rem; align-items: start; }
+/* align-items: stretch (not start) so the daily-puzzle aside runs the full height of the three mode rows
+   beside it — its bottom edge lands on the third row's bottom edge; the extra height goes into the
+   board area (see .lobby-daily-board-wrap), the button stays pinned at the bottom. */
+.dash-main { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.95fr); gap: 1.1rem; align-items: stretch; }
 @media (max-width: 880px) { .dash-main { grid-template-columns: 1fr; } .dash-you { flex-wrap: wrap; } .dash-you-stats { margin-left: 0; width: 100%; justify-content: space-between; } }
 
 .dash-modes { display: flex; flex-direction: column; gap: 0.55rem; }
@@ -7446,6 +7449,9 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
 .dash-row-casual { font-family: var(--font-display); font-weight: 700; font-size: 0.8rem; color: var(--muted); letter-spacing: 0.05em; }
 
 .dash-aside { display: flex; flex-direction: column; gap: 0.8rem; }
+.dash-aside .lobby-daily-hero { flex: 1 1 auto; }
+.lobby-daily-hero .lobby-daily-board-wrap { flex: 1 1 auto; display: flex; flex-direction: column; }
+.lobby-daily-hero .lobby-daily-board { flex: 1 1 auto; }
 .dash-card { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 0.85rem 1rem; }
 .dash-card-title { font-size: 1rem; margin: 0 0 0.4rem; }
 .dash-lb-list { list-style: none; margin: 0; padding: 0; }
@@ -8114,3 +8120,13 @@ body.game-fullscreen .game-view:not(.puzzle):not(.solo):not(.duo):not(.multi) .g
 .dash-you-flag-btn:hover { border-color: var(--border); }
 .dash-you-flag-btn-empty { width: 18px; height: 18px; border: 1px dashed var(--border); font-size: 0.85rem; line-height: 1; font-weight: 600; }
 .dash-you-flag-btn-empty:hover { border-color: var(--muted); color: var(--text); }
+
+/* ── Puzzle Ladder medal (buildPuzzleRankBadge, Ranking.js) ────────────────── */
+.puzzle-rank-badge svg { width: 100%; height: 100%; display: block; }
+/* Picker modal / result panel: medal beside the tier name, bar below (puzzleLadderHTML). */
+.pl-head { display: flex; align-items: center; gap: 0.45rem; }
+.pl-badge { display: inline-flex; width: 30px; height: 30px; flex: 0 0 auto; }
+.pl-badge svg { width: 100%; height: 100%; display: block; }
+/* In-game rated panel: medal ahead of the "Sapper · Lvl 3" headline (.puzzle-ladder-headline is already flex). */
+.puzzle-rank-badge-slot { display: inline-flex; flex: 0 0 auto; }
+.puzzle-rank-badge-slot .rank-badge { font-size: 7px; }

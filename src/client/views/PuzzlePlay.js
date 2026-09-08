@@ -379,6 +379,8 @@ function renderPuzzleRank(rating) {
 	if (typeof puzzleLadder !== "function") return;
 	var pts = (typeof account !== "undefined" && account && typeof account.puzzlePoints === "number") ? account.puzzlePoints : 0;
 	var l = puzzleLadder(pts);
+	var badgeEl = document.getElementById("puzzle_rank_badge");
+	if (badgeEl && typeof buildPuzzleRankBadge === "function") { badgeEl.innerHTML = ""; badgeEl.appendChild(buildPuzzleRankBadge(pts)); }
 	tierEl.textContent = l.atMax ? (l.tierName + " · Max") : (l.tierName + " · Lvl " + l.level);
 	tierEl.style.color = l.tierColor;
 	if (fillEl) { fillEl.style.width = l.levelPct + "%"; fillEl.style.background = l.tierColor; }

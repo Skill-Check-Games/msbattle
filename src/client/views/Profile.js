@@ -1041,8 +1041,9 @@ function setCountry(code) {
 function puzzleLadderHTML(points) {
 	if (typeof puzzleLadder !== "function") return "";
 	var l = puzzleLadder(points || 0);
-	return '<span class="pl-tier" style="color:' + l.tierColor + '">' + l.tierName + '</span>' +
-		'<span class="pl-level">' + (l.atMax ? "Max level" : "Lvl " + l.level + " · " + l.pointsIntoLevel + "/" + l.pointsPerLevel) + '</span>' +
+	var badge = (typeof puzzleRankBadgeSVG === "function") ? '<span class="pl-badge" style="color:' + l.tierColor + '">' + puzzleRankBadgeSVG(l.tierIndex) + '</span>' : "";
+	return '<span class="pl-head">' + badge + '<span class="pl-tier" style="color:' + l.tierColor + '">' + l.tierName + '</span>' +
+		'<span class="pl-level">' + (l.atMax ? "Max level" : "Lvl " + l.level + " · " + l.pointsIntoLevel + "/" + l.pointsPerLevel) + '</span></span>' +
 		'<span class="pl-bar"><span class="pl-bar-fill" style="width:' + l.levelPct + '%;background:' + l.tierColor + '"></span></span>';
 }
 
@@ -1077,17 +1078,18 @@ function profileLadderCard(label, rating) {
 }
 
 // Puzzle Ladder's standing, same card as the ranked ladders above ("puzzles shown like ranked") —
-// a tier-coloured dot standing in for the hexagon rank badge (the Puzzle Ladder's Wood..Legend tiers
-// are a different system from the Bronze..Master ranked ones buildRankBadge draws, so it isn't
-// reusable here), mode name, tier name, and level in the number slot instead of a rating.
+// the round Sweeper-rank medal (buildPuzzleRankBadge) where the ranked cards show the hexagon, the
+// locked medal + "Unranked" before the first rated solve, mode name, tier name, and level in the
+// number slot instead of a rating.
 function profilePuzzleLadderCard(points) {
 	var c = document.createElement("div");
 	c.className = "profile-ladder";
-	var l = (typeof puzzleLadder === "function") ? puzzleLadder(points || 0) : null;
-	var dot = document.createElement("div");
-	dot.className = "profile-ladder-badge profile-puzzle-dot";
-	dot.style.background = l ? l.tierColor : "var(--muted)";
-	c.appendChild(dot);
+	var started = points > 0;
+	var l = (started && typeof puzzleLadder === "function") ? puzzleLadder(points || 0) : null;
+	var badge = null;
+	if (started && typeof buildPuzzleRankBadge === "function") badge = buildPuzzleRankBadge(points);
+	else if (typeof buildPuzzleLockedBadge === "function") badge = buildPuzzleLockedBadge();
+	if (badge) { badge.classList.add("profile-ladder-badge"); c.appendChild(badge); }
 	var info = document.createElement("div");
 	info.className = "profile-ladder-info";
 	var nm = document.createElement("div"); nm.className = "profile-ladder-mode"; nm.textContent = "Puzzle Ladder"; info.appendChild(nm);
@@ -1551,6 +1553,7 @@ function renderHomeRankChips() {
 			puzzleTierEl.textContent = "Unranked";
 			puzzleTierEl.style.color = "";
 		} else if (account && typeof puzzleLadder === "function" && typeof puzzleLadderLabel === "function") {
+			if (puzzleBadgeEl && typeof buildPuzzleRankBadge === "function") puzzleBadgeEl.appendChild(buildPuzzleRankBadge(account.puzzlePoints || 0));
 			puzzleTierEl.textContent = puzzleLadderLabel(account.puzzlePoints || 0);
 			puzzleTierEl.style.color = puzzleLadder(account.puzzlePoints || 0).tierColor;
 		} else {

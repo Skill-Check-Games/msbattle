@@ -1399,7 +1399,9 @@ transparently — the `<script src>` paths carry the subfolder, e.g. `/core/Main
   on a rated *solve*, scaled by difficulty: `puzzlePointsFor(puzzleRating − playerRating)` → 15 regular /
   20 hard / 25 extra-hard, halved for a hinted solve, 0 on a miss; `db.addPuzzlePoints`). Points drive a
   **tier + level** via `core/PuzzleLadder.js` (`puzzleLadder(points)` / `puzzleLadderLabel`): 8 tiers
-  (Wood→Stone→Bronze→Silver→Crystal→Elite→Champion→Legend) × 20 levels × 50 pts/level — **all tunable in that
+  (Recruit→Scout→Sapper→Engineer→Specialist→Demolitionist→Bomb Squad→Grandmaster, the "Sweeper ranks" — each
+  drawn as a round medal with rim segments + a per-tier emblem by `buildPuzzleRankBadge` in Ranking.js, deliberately
+  nothing like the ranked hexagon; before the first rated solve the slot shows `buildPuzzleLockedBadge` + "Unranked") × 20 levels × 50 pts/level — **all tunable in that
   file**. The two-way **`puzzle_rating` is unchanged** and now *only* sets which puzzles you're served —
   it's **hidden from the UI** (picker header, in-game panel, profile); the Ladder is the rank and never
   drops. **New players start at puzzle_rating 0** (seeded in user creation; pool has plenty of sub-400
