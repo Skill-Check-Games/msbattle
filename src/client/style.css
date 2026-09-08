@@ -7372,7 +7372,7 @@ input[type="range"].sound-lab-rate-slider { grid-column: 1 / -1; grid-row: 2; wi
 .dash-you-main { min-width: 0; display: flex; align-items: center; gap: 0.6rem; }
 /* Pulled left by exactly .dash-you-name's own border+padding (kept so the rename field can swap
    in without a shift) so the name TEXT lines up with .dash-you-line beneath it. */
-.dash-you-name-row { display: flex; align-items: center; gap: 0.45rem; min-width: 0; margin-left: calc(-0.45rem - 1px); }
+.dash-you-name-row { display: flex; align-items: center; gap: 0; min-width: 0; margin-left: calc(-0.45rem - 1px); } /* gap 0: the name's own 0.45rem right padding (kept for the rename field) is all the space the pen needs */
 /* border/padding/line-height match .dash-you-name-input's exactly (both border-box, site-wide
    reset) even though this one's border is transparent — otherwise the input's real border+padding
    gave it a few px more box height than the plain text (an explicit line-height matters too: an
@@ -7404,6 +7404,7 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
 .dash-edit-name {
 	flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
 	width: 1.7rem; height: 1.7rem; padding: 0; border-radius: 5px;
+	margin-left: -0.35rem; /* pull the glyph in against the name (the 1.7rem hit box stays) — ~9px text→pen */
 	background: none; border: 1px solid transparent; color: var(--muted); cursor: pointer;
 	transition: color var(--motion-micro) var(--ease-out), background var(--motion-micro) var(--ease-out);
 }
