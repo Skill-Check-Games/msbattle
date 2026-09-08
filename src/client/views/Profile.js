@@ -1694,11 +1694,11 @@ function renderDashIdentity() {
 	if (badgeEl) {
 		badgeEl.innerHTML = "";
 		if (typeof buildAvatarChip === "function") {
-			// A plain SQUARE canvas (corner 0, no rim) filling the box's 63px content area — the box's own CSS
+			// A plain SQUARE canvas (corner 0, no rim) filling the box's 68px content area — the box's own CSS
 			// border, 7px radius and overflow:hidden give it exactly the corners every other box has, instead
 			// of the canvas imitating them. The chip's country tooltip is dropped here: the flag tile beside
 			// it covers that, and this tile's tooltip is "Edit avatar" (set on the holder below).
-			var homeChip = buildAvatarChip(account.avatarColor || DEFAULT_AVATAR, account.country || null, 63, 0);
+			var homeChip = buildAvatarChip(account.avatarColor || DEFAULT_AVATAR, account.country || null, 68, 0);
 			homeChip.removeAttribute("title");
 			badgeEl.appendChild(homeChip);
 		}
