@@ -347,7 +347,22 @@ function applyConnected(data) {
 	}
 }
 
+// Design preview: /?preview=ranks fakes a placed, ranked account CLIENT-SIDE (nothing is written or
+// sent) so the home rows can be reviewed with real badges next to a plain tab — Gold I Sprint,
+// Diamond I Standard, Engineer · Lvl 3 Puzzles, placement cleared. Localhost or admins only; the
+// param is dropped as soon as you navigate, so it never leaks into normal play.
+function applyPreviewRanks(acc) {
+	if (!acc || typeof URLSearchParams !== "function") return;
+	if (new URLSearchParams(location.search).get("preview") !== "ranks") return;
+	if (location.hostname !== "localhost" && location.hostname !== "127.0.0.1" && !acc.isAdmin) return;
+	acc.ratingSprint = 1250; acc.ratingStandard = 2450;
+	acc.playedSprint = 12; acc.playedStandard = 9; acc.played = 21; acc.wins = 13;
+	acc.puzzlePoints = 3120;
+	acc.guest = false;
+}
+
 function applyAuthenticated(data) {
+	applyPreviewRanks(data);
 	account = data;
 	myName = data.name;
 	// A freshly-minted guest session ships its token back so it survives reloads.

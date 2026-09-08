@@ -8165,3 +8165,9 @@ body.game-fullscreen .game-view:not(.puzzle):not(.solo):not(.duo):not(.multi) .g
    placement dots row so the three rows' labels read as one shape. */
 .mode-card-rank-sub { font-size: 0.72rem; font-weight: 600; color: var(--muted); margin-top: 2px; line-height: 1.2; }
 .mode-card-rank-sub:empty { display: none; }
+
+/* Home avatar tile: the canvas draws the border + corners itself (see renderDashIdentity), so the box
+   carries none — otherwise the two rims and two corner curves showed as a double frame. The hover
+   pencil sits inside the tile's corner instead of hanging off it (the tile clips overflow). */
+.dash-you-box-avatar { border: 0; background: none; }
+.dash-you-box-avatar .dash-avatar-edit::after { right: 4px; bottom: 4px; }

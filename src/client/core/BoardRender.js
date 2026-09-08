@@ -667,8 +667,12 @@ var AVATAR_IMAGE_CACHE = {};
 // cornerPx (optional): the tile's corner radius in px. Defaults to 28% of the size (the free-standing
 // chip look); a caller that puts the avatar edge-to-edge inside a bordered box passes that box's inner
 // radius so the two sets of corners coincide (home identity tile: 7px box − 1px border = 6).
-function buildAvatarCanvas(color, px, country, cornerPx) {
+// rimStyle (optional): the 1px rim colour around the tile — defaults to a faint white; a caller that
+// makes the canvas BE the box (no CSS border of its own) passes the site's border colour so the rim
+// reads as the box's border, single, not doubled.
+function buildAvatarCanvas(color, px, country, cornerPx, rimStyle) {
 	var corner = (cornerPx != null) ? cornerPx : px * 0.28;
+	var rim = rimStyle || "rgba(255,255,255,0.10)";
 	px = px || 28;
 	var dpr = window.devicePixelRatio || 1;
 	var c = document.createElement("canvas");
@@ -682,7 +686,7 @@ function buildAvatarCanvas(color, px, country, cornerPx) {
 		ctx.clearRect(0, 0, px, px);
 		roundRectPath(ctx, 0.5, 0.5, px - 1, px - 1, corner);
 		ctx.fillStyle = "#1a2240"; ctx.fill();
-		ctx.strokeStyle = "rgba(255,255,255,0.10)"; ctx.lineWidth = 1; ctx.stroke();
+		ctx.strokeStyle = rim; ctx.lineWidth = 1; ctx.stroke();
 	}
 
 	// Anonymous avatar ("anon") — a generic head-and-shoulders silhouette (the default for guests).
@@ -819,11 +823,11 @@ function buildAvatarCanvas(color, px, country, cornerPx) {
 
 // A reusable identity element: the flag avatar (country flag inside it, or coloured pennant). Used on the
 // profile, leaderboard, home card, match panels, and replays.
-function buildAvatarChip(color, country, px, cornerPx) {
+function buildAvatarChip(color, country, px, cornerPx, rimStyle) {
 	var wrap = document.createElement("span");
 	wrap.className = "avatar-chip";
 	wrap.title = (country && typeof countryName === "function") ? countryName(country) : "";
-	wrap.appendChild(buildAvatarCanvas(color, px || 28, country, cornerPx));
+	wrap.appendChild(buildAvatarCanvas(color, px || 28, country, cornerPx, rimStyle));
 	return wrap;
 }
 
