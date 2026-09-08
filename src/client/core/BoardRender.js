@@ -823,6 +823,29 @@ function buildAvatarChip(color, country, px) {
 	return wrap;
 }
 
+
+// Square country flag shown beside a player's NAME (home card, leaderboard, profile, in-game identity,
+// scoreboard) — the achtung-royale treatment. Separate from the avatar on purpose: the pennant avatar
+// only carries the flag when the player picked a flag COLOUR, so anyone using an image avatar had no
+// visible country anywhere. Returns null with no country, so callers can appendChild unconditionally
+// via appendFlagChip.
+function buildFlagChip(country, px) {
+	if (!country || typeof countryFlagSrcSquare !== "function") return null;
+	var img = document.createElement("img");
+	img.className = "flag-chip";
+	img.src = countryFlagSrcSquare(country);
+	img.alt = "";
+	img.title = (typeof countryName === "function") ? (countryName(country) || "") : "";
+	img.width = px || 16; img.height = px || 16;
+	img.style.width = (px || 16) + "px"; img.style.height = (px || 16) + "px";
+	return img;
+}
+function appendFlagChip(parent, country, px) {
+	var f = buildFlagChip(country, px);
+	if (parent && f) parent.appendChild(f);
+	return f;
+}
+
 // Structure charge gauge: a thin bar across the bottom of the cell, filling 0..1 in the owner
 // colour. At full charge it's bright/solid (ready to fire); while charging it's dim.
 function drawStructureCharge(ctx, w, h, frac, color) {

@@ -306,6 +306,7 @@ function renderProfile() {
 	var nameLine = document.createElement("div");
 	nameLine.className = "profile-summary-name";
 	nameLine.textContent = myName || (account.name || "You");
+	if (typeof appendFlagChip === "function") appendFlagChip(nameLine, account.country || null, 20);
 	text.appendChild(nameLine);
 	if (account.createdAt) {
 		var since = document.createElement("div");
@@ -420,6 +421,7 @@ function renderPublicProfileData(profile) {
 	var nameLine = document.createElement("div");
 	nameLine.className = "profile-summary-name";
 	nameLine.textContent = profile.name || "Player";
+	if (typeof appendFlagChip === "function") appendFlagChip(nameLine, profile.country || null, 20);
 	text.appendChild(nameLine);
 	if (profile.createdAt) {
 		var since = document.createElement("div");
@@ -1603,6 +1605,8 @@ function renderDashIdentity() {
 		return;
 	}
 	paintYouCardEarly(account); // name, tier line, stats, skeleton — see above
+	var flagEl = document.getElementById("dash_you_flag");
+	if (flagEl) { flagEl.innerHTML = ""; if (typeof appendFlagChip === "function") appendFlagChip(flagEl, account.country || null, 18); }
 	// Dota-style identity: a tall avatar portrait on the left, name on top, rank/tier on the line beneath.
 	var badgeEl = document.getElementById("dash_you_badge");
 	var nameRow = nameEl.parentNode;

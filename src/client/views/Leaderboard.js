@@ -73,6 +73,7 @@ function renderLeaderboard(players) {
 			var name = document.createElement("span");
 			name.className = "lb-name";
 			name.textContent = p.name;
+			if (typeof appendFlagChip === "function") appendFlagChip(name, p.country || null, 16);
 			idCol.appendChild(name);
 			var tier = document.createElement("span");
 			tier.className = "lb-tier";

@@ -178,6 +178,7 @@ function setHudName(el, g) {
 		}
 		var t = document.createElement("span"); t.className = "hud-name-text";
 		el.appendChild(t); el._textNode = t;
+		if (typeof appendFlagChip === "function") appendFlagChip(el, g.country || null, 14); // key above includes country, so this rebuilds with it
 	}
 	el._textNode.textContent = playerLabel(g.playerName, g.progress);
 }
@@ -236,6 +237,7 @@ function fillDuelId(el, p) {
 	var nm = document.createElement("div");
 	nm.className = "duel-id-name";
 	nm.textContent = p.name || "Anonymous";
+	if (typeof appendFlagChip === "function") appendFlagChip(nm, p.country || null, 16);
 	info.appendChild(nm);
 	if (typeof p.rating === "number" && typeof tierFor === "function") {
 		var t = tierFor(p.rating, p.provisional);

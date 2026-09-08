@@ -426,6 +426,7 @@ function renderScoreboard() {
 		var name = document.createElement("span");
 		name.className = "score-name";
 		name.textContent = p.name + (p.isOwner ? " ★" : "");
+		if (typeof appendFlagChip === "function") appendFlagChip(name, p.country || null, 14);
 		if (p.isBot && !state.ranked) {
 			var tag = document.createElement("span");
 			tag.className = "score-bot-tag";
@@ -522,6 +523,7 @@ function renderSearchScoreboard() {
 		var name = document.createElement("span");
 		name.className = "score-name";
 		name.textContent = p ? p.name : "Searching…";
+		if (p && typeof appendFlagChip === "function") appendFlagChip(name, p.country || null, 14);
 		if (!p) name.classList.add("score-name-waiting");
 		li.appendChild(name);
 

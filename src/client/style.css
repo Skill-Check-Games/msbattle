@@ -8086,3 +8086,10 @@ body.game-fullscreen .game-view:not(.puzzle):not(.solo):not(.duo):not(.multi) .g
 	.ranked-picker-icon { display: none; }
 	.ranked-picker-rating-tier { white-space: nowrap; }
 }
+
+/* ── Country flag chip beside names (buildFlagChip, BoardRender.js) ─────────── */
+/* Inline so it rides along inside any name element (including ones with text-overflow: ellipsis)
+   without changing that element's display. Sized by the caller (width/height attrs). */
+.flag-chip { display: inline-block; vertical-align: -0.18em; margin-left: 0.4rem; border-radius: 3px; object-fit: cover; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18); flex: 0 0 auto; }
+.dash-you-flag { display: inline-flex; align-items: center; }
+.dash-you-flag .flag-chip { margin-left: 0; }
