@@ -7369,7 +7369,7 @@ input[type="range"].sound-lab-rate-slider { grid-column: 1 / -1; grid-row: 2; wi
 .dash-you-badge .rank-badge { font-size: 9px; }
 /* Name row and tier line side by side (name, pen, then "Diamond I" / "Unranked" / the guest sign-in link) —
    one line, vertically centred in the 65px card, instead of the tier as a second line under the name. */
-.dash-you-main { min-width: 0; display: flex; align-items: center; gap: 0.6rem; }
+.dash-you-main { min-width: 0; display: flex; align-items: center; gap: 1.1rem; } /* name row → sign-in button */
 /* Pulled left by exactly .dash-you-name's own border+padding (kept so the rename field can swap
    in without a shift) so the name TEXT lines up with .dash-you-line beneath it. */
 .dash-you-name-row { display: flex; align-items: center; gap: 0; min-width: 0; margin-left: calc(-0.45rem - 1px); } /* gap 0: the name's own 0.45rem right padding (kept for the rename field) is all the space the pen needs */
