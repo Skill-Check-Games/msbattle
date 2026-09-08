@@ -1251,9 +1251,30 @@ function relTime(ms) {
 }
 
 // Server reply: cache + render the graph (only if there's rating data) and the games list.
+// Fill the home card's win-streak and today cells from the match list: the streak is the run of wins at
+// the head of the (newest-first) list; "today" is the count and net rating change of matches played
+// since local midnight. Called whenever fresh history lands (renderMatchHistory).
+function updateDashYouCells(matches) {
+	var streakEl = document.getElementById("dash_you_cell_streak");
+	var todayEl = document.getElementById("dash_you_cell_today");
+	if (!streakEl && !todayEl) return;
+	matches = matches || [];
+	var streak = 0;
+	for (var i = 0; i < matches.length; i++) { if (matches[i].won) streak++; else break; }
+	var midnight = new Date(); midnight.setHours(0, 0, 0, 0);
+	var n = 0, gain = 0;
+	matches.forEach(function(m) { if (m.created_at >= midnight.getTime()) { n++; gain += (m.rating_after || 0) - (m.rating_before || 0); } });
+	if (streakEl) streakEl.innerHTML = "<b>" + (streak > 1 ? "🔥 " + streak : streak) + "</b><span>Win streak</span>";
+	if (todayEl) {
+		var g = n ? "<em class=\"" + (gain > 0 ? "up" : gain < 0 ? "dn" : "") + "\">" + (gain > 0 ? "+" : "") + gain + "</em>" : "—";
+		todayEl.innerHTML = "<b>" + g + "</b><span>" + (n ? n + (n === 1 ? " match" : " matches") : "Today") + "</span>";
+	}
+}
+
 function renderMatchHistory(data) {
 	matchHistory = data || { matches: [], ratings: [] };
 	profileStats = (data && data.stats) || {};
+	updateDashYouCells(matchHistory.matches);
 	var ratingsCard = document.getElementById("rating_history_card");
 	var gamesCard = document.getElementById("recent_games_card");
 	var hasRatings = matchHistory.ratings && matchHistory.ratings.length > 0;
@@ -1611,13 +1632,10 @@ function paintYouCardEarly(account) {
 		// is how to keep it. The link does exactly what the topbar Sign in button does (a delegated
 		// click handler in Auth.js calls doSignIn) — plain markup here since this block is SSR-inlined
 		// and must stay dependency-free. Signed-in players keep the tier line.
-		// Still in placement in BOTH modes → no tier to show yet (the rows below show the dots).
-		var need = account.placementGames || 5;
-		var unranked = typeof account.playedSprint === "number" && typeof account.playedStandard === "number"
-			&& account.playedSprint < need && account.playedStandard < need;
-		if (account.guest) lineEl.innerHTML = "<a href=\"#\" id=\"dash_you_signin\" class=\"dash-you-signin\">Sign in to keep your progress</a>";
-		else if (unranked) lineEl.innerHTML = "<span class=\"dash-you-unranked\">Unranked</span>";
-		else lineEl.innerHTML = "<b style=\"color:" + t.color + "\">" + t.name + "</b>";
+		// Signed in: nothing beside the name — the rank lives on the mode rows below (showing it here too was
+		// the duplication this card started out with). Guests get the sign-in button instead.
+		if (account.guest) lineEl.innerHTML = "<a href=\"#\" id=\"dash_you_signin\" class=\"dash-you-signin\">Sign in to save your stats</a>";
+		else lineEl.innerHTML = "";
 	}
 	// Topbar's compact mobile-landscape copy of the same name/tier — see #topbar_you in index.html.
 	var topbarNameEl = document.getElementById("topbar_you_name");
@@ -1628,10 +1646,13 @@ function paintYouCardEarly(account) {
 	if (statsEl) {
 		var played = account.played || 0, wins = account.wins || 0;
 		var wr = played ? Math.round(wins / played * 100) + "%" : "—";
-		// Daily streak already shows (with its fire emoji) under the daily-puzzle card below — no
-		// need to repeat it here.
-		statsEl.innerHTML = "<span class=\"dash-stat\"><b>" + played + "</b><span>Played</span></span>"
-			+ "<span class=\"dash-stat\"><b>" + wr + "</b><span>Win rate</span></span>";
+		// Stat cells split by full-height hairlines (see .dash-you-cells). Played + win rate come from
+		// the account itself; the win-streak and today cells are placeholders until the match history
+		// arrives (updateDashYouCells, called from renderMatchHistory), since both are computed from it.
+		statsEl.innerHTML = "<span class=\"dash-you-cell\"><b>" + played + "</b><span>Played</span></span>"
+			+ "<span class=\"dash-you-cell\"><b>" + wr + "</b><span>Win rate</span></span>"
+			+ "<span class=\"dash-you-cell\" id=\"dash_you_cell_streak\"><b>—</b><span>Win streak</span></span>"
+			+ "<span class=\"dash-you-cell\" id=\"dash_you_cell_today\"><b>—</b><span>Today</span></span>";
 	}
 	var badgeEl = document.getElementById("dash_you_badge");
 	if (badgeEl && !badgeEl.firstChild) {

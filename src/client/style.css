@@ -7410,10 +7410,18 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
 .dash-edit-name:hover { color: var(--text); background: rgba(255, 255, 255, 0.07); }
 .dash-edit-name svg { width: 0.95rem; height: 0.95rem; fill: currentColor; display: block; }
 .dash-you-line { color: var(--muted); font-size: 0.86rem; margin: 0; line-height: 1.2; white-space: nowrap; }
-/* Guest's line is a call to action, not a label. Hover: colour only (site rule — no lift/underline noise). */
-.dash-you-signin { color: var(--accent); font-weight: 600; text-decoration: none; }
-.dash-you-signin:hover { color: var(--accent-hover, #818cf8); }
-.dash-you-stats { margin-left: auto; display: flex; gap: 1.5rem; }
+/* Guest's line is a slim filled button right of the name — the one action that matters for them.
+   Hover: colour only (site rule — no lift/pop). */
+.dash-you-signin { display: inline-flex; align-items: center; padding: 0.3rem 0.8rem; border-radius: 6px; background: var(--accent); color: #fff; font-weight: 600; font-size: 0.82rem; text-decoration: none; white-space: nowrap; transition: background var(--motion-micro) var(--ease-out); }
+.dash-you-signin:hover { background: var(--accent-hover, #818cf8); color: #fff; }
+/* Stat cells: label + number, left-aligned, split by hairlines that run the FULL card height — the
+   strip cancels the card's own vertical padding and right padding (negative margins) so the dividers
+   touch the top and bottom borders with no gap, and the last cell ends flush at the card's edge. */
+.dash-you-stats { margin-left: auto; display: flex; align-self: stretch; margin-top: -0.4rem; margin-bottom: -0.4rem; margin-right: -1rem; }
+.dash-you-cell { display: flex; flex-direction: column; justify-content: center; align-items: flex-start; padding: 0 1rem; border-left: 1px solid var(--border); min-width: 0; }
+.dash-you-cell b { font-family: var(--font-display); font-size: 1.05rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; white-space: nowrap; }
+.dash-you-cell span { font-size: 0.66rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 3px; white-space: nowrap; }
+.dash-you-cell em { font-style: normal; } .dash-you-cell em.up { color: var(--success, #4ade80); } .dash-you-cell em.dn { color: #f0647a; }
 .dash-stat { display: flex; flex-direction: column; align-items: center; text-align: center; }
 .dash-stat b { font-family: var(--font-display); font-size: 1.15rem; font-weight: 700; }
 .dash-stat span { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 0.1rem; }
@@ -7422,7 +7430,15 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
    beside it — its bottom edge lands on the third row's bottom edge; the extra height goes into the
    board area (see .lobby-daily-board-wrap), the button stays pinned at the bottom. */
 .dash-main { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.95fr); gap: 1.1rem; align-items: stretch; }
-@media (max-width: 880px) { .dash-main { grid-template-columns: 1fr; } .dash-you-box-main { flex-wrap: wrap; } .dash-you-stats { margin-left: 0; width: 100%; justify-content: space-between; } }
+@media (max-width: 880px) {
+	.dash-main { grid-template-columns: 1fr; }
+	.dash-you-box-main { flex-wrap: wrap; }
+	/* Cells drop to their own full-width line under the name, divided from it by a hairline; the first
+	   cell loses its left divider since the card edge is right there. */
+	.dash-you-stats { margin: 0 -1rem -0.4rem; width: calc(100% + 2rem); align-self: auto; border-top: 1px solid var(--border); }
+	.dash-you-cell { flex: 1 1 0; padding: 0.4rem 0.8rem; }
+	.dash-you-cell:first-child { border-left: 0; }
+}
 
 .dash-modes { display: flex; flex-direction: column; gap: 0.55rem; }
 .dash-row {
@@ -8174,3 +8190,6 @@ body.game-fullscreen .game-view:not(.puzzle):not(.solo):not(.duo):not(.multi) .g
    pencil sits inside the tile's corner instead of hanging off it (the tile clips overflow). */
 /* (box keeps its own border + radius — the canvas inside is a plain square, clipped by the box) */
 .dash-you-box-avatar .dash-avatar-edit::after { right: 4px; bottom: 4px; }
+/* Home tiles: clip the image ITSELF to the box's inner radius (7px box − 1px border) rather than trusting the
+   box's overflow:hidden — the square canvas was poking past the rounded border at the corners. */
+.dash-you-box-avatar canvas, .dash-you-box-flag img { border-radius: 6px; }
