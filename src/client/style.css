@@ -8194,3 +8194,5 @@ body.game-fullscreen .game-view:not(.puzzle):not(.solo):not(.duo):not(.multi) .g
 /* Home tiles: clip the image ITSELF to the box's inner radius (7px box − 1px border) rather than trusting the
    box's overflow:hidden — the square canvas was poking past the rounded border at the corners. */
 .dash-you-box-avatar canvas, .dash-you-box-flag img { border-radius: 6px; }
+/* The strip and its cells are display:flex, which beats the UA's [hidden] rule — restate it. */
+.dash-you-stats[hidden], .dash-you-cell[hidden] { display: none; }

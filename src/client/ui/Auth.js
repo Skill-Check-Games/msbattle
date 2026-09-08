@@ -359,6 +359,7 @@ function applyPreviewRanks(acc) {
 	acc.playedSprint = 12; acc.playedStandard = 9; acc.played = 21; acc.wins = 13;
 	acc.puzzlePoints = 3120;
 	acc.guest = false;
+	acc.previewRanks = true; // updateDashYouCells (Profile.js) fakes a match history off this
 }
 
 function applyAuthenticated(data) {

@@ -1259,15 +1259,32 @@ function updateDashYouCells(matches) {
 	var todayEl = document.getElementById("dash_you_cell_today");
 	if (!streakEl && !todayEl) return;
 	matches = matches || [];
+	// /?preview=ranks (Auth.js): a fake history so every cell is populated for design review.
+	if (typeof account !== "undefined" && account && account.previewRanks) {
+		var t = Date.now();
+		matches = [
+			{ won: 1, rating_before: 1232, rating_after: 1250, created_at: t - 2 * 3600e3 },
+			{ won: 1, rating_before: 1217, rating_after: 1232, created_at: t - 3 * 3600e3 },
+			{ won: 1, rating_before: 1209, rating_after: 1217, created_at: t - 4 * 3600e3 },
+			{ won: 0, rating_before: 1221, rating_after: 1209, created_at: t - 26 * 3600e3 }
+		];
+	}
 	var streak = 0;
 	for (var i = 0; i < matches.length; i++) { if (matches[i].won) streak++; else break; }
 	var midnight = new Date(); midnight.setHours(0, 0, 0, 0);
 	var n = 0, gain = 0;
 	matches.forEach(function(m) { if (m.created_at >= midnight.getTime()) { n++; gain += (m.rating_after || 0) - (m.rating_before || 0); } });
-	if (streakEl) streakEl.innerHTML = "<b>" + (streak > 1 ? "🔥 " + streak : streak) + "</b><span>Win streak</span>";
+	// A streak of 0 or 1 isn't a streak, and a day with no matches isn't news — those cells stay hidden.
+	if (streakEl) {
+		streakEl.hidden = streak < 2;
+		if (streak >= 2) streakEl.innerHTML = "<b>🔥 " + streak + "</b><span>Win streak</span>";
+	}
 	if (todayEl) {
-		var g = n ? "<em class=\"" + (gain > 0 ? "up" : gain < 0 ? "dn" : "") + "\">" + (gain > 0 ? "+" : "") + gain + "</em>" : "—";
-		todayEl.innerHTML = "<b>" + g + "</b><span>" + (n ? n + (n === 1 ? " match" : " matches") : "Today") + "</span>";
+		todayEl.hidden = n === 0;
+		if (n > 0) {
+			var g = "<em class=\"" + (gain > 0 ? "up" : gain < 0 ? "dn" : "") + "\">" + (gain > 0 ? "+" : "") + gain + "</em>";
+			todayEl.innerHTML = "<b>" + g + "</b><span>Today · " + n + (n === 1 ? " match" : " matches") + "</span>";
+		}
 	}
 }
 
@@ -1646,13 +1663,20 @@ function paintYouCardEarly(account) {
 	if (statsEl) {
 		var played = account.played || 0, wins = account.wins || 0;
 		var wr = played ? Math.round(wins / played * 100) + "%" : "—";
-		// Stat cells split by full-height hairlines (see .dash-you-cells). Played + win rate come from
-		// the account itself; the win-streak and today cells are placeholders until the match history
-		// arrives (updateDashYouCells, called from renderMatchHistory), since both are computed from it.
-		statsEl.innerHTML = "<span class=\"dash-you-cell\"><b>" + played + "</b><span>Played</span></span>"
-			+ "<span class=\"dash-you-cell\"><b>" + wr + "</b><span>Win rate</span></span>"
-			+ "<span class=\"dash-you-cell\" id=\"dash_you_cell_streak\"><b>—</b><span>Win streak</span></span>"
-			+ "<span class=\"dash-you-cell\" id=\"dash_you_cell_today\"><b>—</b><span>Today</span></span>";
+		// Stat cells split by full-height hairlines (see .dash-you-cells). Only cells with something to
+		// say are shown: nothing at all until the first match (played 0), then Played + Win rate from
+		// the account; Win streak (≥ 2) and Today (matches since midnight) are added by updateDashYouCells
+		// once the match history arrives, since both are computed from it.
+		if (played > 0) {
+			statsEl.innerHTML = "<span class=\"dash-you-cell\"><b>" + played + "</b><span>Played</span></span>"
+				+ "<span class=\"dash-you-cell\"><b>" + wr + "</b><span>Win rate</span></span>"
+				+ "<span class=\"dash-you-cell\" id=\"dash_you_cell_streak\" hidden></span>"
+				+ "<span class=\"dash-you-cell\" id=\"dash_you_cell_today\" hidden></span>";
+			statsEl.hidden = false;
+		} else {
+			statsEl.innerHTML = "";
+			statsEl.hidden = true;
+		}
 	}
 	var badgeEl = document.getElementById("dash_you_badge");
 	if (badgeEl && !badgeEl.firstChild) {
