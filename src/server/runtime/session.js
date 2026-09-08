@@ -28,6 +28,7 @@ function buildAccountPayload(user) {
 	var today = db.todayUtc();
 	var dailyAttempt = db.getDailyAttempt(user.id, today);
 	var avatarColor = user.avatar_color || (user.is_guest ? "anon" : null);
+	var playedStyles = db.playedByStyle(user.id, user.played || 0);
 	return {
 		name: db.displayNameOf(user),
 		ratingSprint: user.rating_sprint, ratingStandard: user.rating_standard,
@@ -36,6 +37,10 @@ function buildAccountPayload(user) {
 		country: user.country || null,
 		wins: user.wins,
 		played: user.played,
+		// Per-style counts + the placement threshold, so the client can show "Placement · N/5" per mode
+		// (see renderHomeRankChips, Profile.js) — `played` above is lifetime across both styles.
+		playedSprint: playedStyles.sprint, playedStandard: playedStyles.standard,
+		placementGames: PROVISIONAL_GAMES,
 		createdAt: user.created_at,
 		provisional: user.played < PROVISIONAL_GAMES,
 		puzzleRating: user.puzzle_rating,

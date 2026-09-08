@@ -1487,22 +1487,48 @@ function profileStat(label, value) {
 function renderHomeRankChips() {
 	// Home page shows only the tier name, never the exact rating number (same "no precise number"
 	// treatment the in-game duel identity panels already use).
-	function applyTo(tierEl, rating, badgeId) {
+	// playedStyle: ranked matches played in THIS mode (payload playedSprint/playedStandard). Below the
+	// placement threshold the row shows a locked, dashed badge + "Placement" + one dot per match instead
+	// of the tier — every account starts at rating 0, which the ladder maps to Bronze I, so without this
+	// a player who has never played wears a rank they didn't earn. A payload without the per-mode
+	// counts (undefined) falls through to the normal tier.
+	function applyTo(tierEl, rating, badgeId, playedStyle) {
 		var badgeEl = badgeId ? document.getElementById(badgeId) : null;
+		var need = (account && account.placementGames) || 5;
+		var placing = !!account && typeof playedStyle === "number" && playedStyle < need;
 		if (badgeEl) {
 			badgeEl.innerHTML = "";
-			if (account && typeof rating === "number") badgeEl.appendChild(buildRankBadge(rating));
+			if (account && typeof rating === "number") {
+				badgeEl.appendChild(placing && typeof buildPlacementBadge === "function" ? buildPlacementBadge() : buildRankBadge(rating));
+			}
 		}
 		if (!tierEl) return;
-		if (!account) { tierEl.textContent = "—"; tierEl.style.color = ""; return; }
+		var textEl = tierEl.parentNode;
+		var dots = textEl ? textEl.querySelector(".mode-card-placement-dots") : null;
+		if (!account) { tierEl.textContent = "—"; tierEl.style.color = ""; if (dots) dots.remove(); return; }
+		if (placing) {
+			tierEl.textContent = "Placement";
+			tierEl.style.color = "";
+			tierEl.classList.add("mode-card-rank-tier-placing");
+			if (!dots && textEl) { dots = document.createElement("span"); dots.className = "mode-card-placement-dots"; textEl.appendChild(dots); }
+			if (dots) {
+				var h = "";
+				for (var i = 0; i < need; i++) h += '<i class="' + (i < playedStyle ? "on" : "") + '"></i>';
+				dots.innerHTML = h;
+				dots.title = playedStyle + " of " + need + " placement matches played";
+			}
+			return;
+		}
+		tierEl.classList.remove("mode-card-rank-tier-placing");
+		if (dots) dots.remove();
 		var t = tierFor(rating, account.provisional);
 		tierEl.textContent = t.name;
 		tierEl.style.color = t.color;
 	}
 	var sprint = account ? account.ratingSprint : null;
 	var standard = account ? account.ratingStandard : null;
-	applyTo(rankTierSprint, sprint, "rank_badge_sprint");
-	applyTo(rankTierStandard, standard, "rank_badge_standard");
+	applyTo(rankTierSprint, sprint, "rank_badge_sprint", account ? account.playedSprint : null);
+	applyTo(rankTierStandard, standard, "rank_badge_standard", account ? account.playedStandard : null);
 	// No skeleton on the mode rows' rank/rating corner — it's simply absent until account is
 	// confirmed (guest or signed in), then fades in (see .stat-fade-in in style.css / revealStat()
 	// in Router.js). They currently all resolve together (one account payload), but are kept as
@@ -1515,7 +1541,12 @@ function renderHomeRankChips() {
 	// Sprint/Standard) instead of the hidden puzzle rating or a solved count.
 	var puzzleTierEl = document.getElementById("puzzle_ladder_tier");
 	if (puzzleTierEl) {
-		if (account && typeof puzzleLadder === "function" && typeof puzzleLadderLabel === "function") {
+		if (account && !(account.puzzlePoints > 0)) {
+			// Puzzles has no placement: points only go up from 0, so before the first rated solve the
+			// ladder simply hasn't started — not "unranked", and not the first tier's name either.
+			puzzleTierEl.textContent = "Not started";
+			puzzleTierEl.style.color = "";
+		} else if (account && typeof puzzleLadder === "function" && typeof puzzleLadderLabel === "function") {
 			puzzleTierEl.textContent = puzzleLadderLabel(account.puzzlePoints || 0);
 			puzzleTierEl.style.color = puzzleLadder(account.puzzlePoints || 0).tierColor;
 		} else {
@@ -1563,7 +1594,12 @@ function paintYouCardEarly(account) {
 		// is how to keep it. The link does exactly what the topbar Sign in button does (a delegated
 		// click handler in Auth.js calls doSignIn) — plain markup here since this block is SSR-inlined
 		// and must stay dependency-free. Signed-in players keep the tier line.
+		// Still in placement in BOTH modes → no tier to show yet (the rows below show the dots).
+		var need = account.placementGames || 5;
+		var unranked = typeof account.playedSprint === "number" && typeof account.playedStandard === "number"
+			&& account.playedSprint < need && account.playedStandard < need;
 		if (account.guest) lineEl.innerHTML = "<a href=\"#\" id=\"dash_you_signin\" class=\"dash-you-signin\">Sign in to keep your progress</a>";
+		else if (unranked) lineEl.innerHTML = "<span class=\"dash-you-unranked\">Unranked</span>";
 		else lineEl.innerHTML = "<b style=\"color:" + t.color + "\">" + t.name + "</b>";
 	}
 	// Topbar's compact mobile-landscape copy of the same name/tier — see #topbar_you in index.html.
@@ -1605,8 +1641,25 @@ function renderDashIdentity() {
 		return;
 	}
 	paintYouCardEarly(account); // name, tier line, stats, skeleton — see above
+	// Country flag beside the name — also the ONLY entry point for picking one (the avatar editor's
+	// flag picker was removed earlier). Set: the chip is the trigger. Unset: a small dashed "+" square.
 	var flagEl = document.getElementById("dash_you_flag");
-	if (flagEl) { flagEl.innerHTML = ""; if (typeof appendFlagChip === "function") appendFlagChip(flagEl, account.country || null, 18); }
+	if (flagEl) {
+		flagEl.innerHTML = "";
+		var trig = document.createElement("button");
+		trig.type = "button";
+		trig.className = "dash-you-flag-btn" + (account.country ? "" : " dash-you-flag-btn-empty");
+		trig.title = account.country ? "Change your country flag" : "Add your country flag";
+		trig.setAttribute("aria-label", trig.title);
+		if (account.country && typeof appendFlagChip === "function") appendFlagChip(trig, account.country, 18);
+		else trig.textContent = "+";
+		trig.onclick = function(e) {
+			e.preventDefault(); e.stopPropagation();
+			if (typeof openFlagPicker !== "function") return;
+			openFlagPicker(trig, account.country || null, function(code) { if (typeof setCountry === "function") setCountry(code || ""); });
+		};
+		flagEl.appendChild(trig);
+	}
 	// Dota-style identity: a tall avatar portrait on the left, name on top, rank/tier on the line beneath.
 	var badgeEl = document.getElementById("dash_you_badge");
 	var nameRow = nameEl.parentNode;

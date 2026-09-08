@@ -845,6 +845,21 @@ function recordClear(userId, noFlag, noReveal) {
 }
 // Recent matches across all styles (newest first) — the "recent games" list. `replay_id` is non-null
 // when a stored replay exists for that match (drives the inline "Watch" link).
+// Ranked matches played per style, for the home page's placement state (the first PROVISIONAL_GAMES
+// matches in a mode show "Placement · N/5" instead of an unearned tier). Counted from match_history,
+// which only accrues going forward — an account with lifetime `played` > 0 but NO history rows predates
+// the table, so both styles are reported as that lifetime count rather than 0 (it would otherwise
+// demote a long-time player to "unranked" the day this shipped).
+function playedByStyle(userId, lifetimePlayed) {
+	var out = { sprint: 0, standard: 0 }, total = 0;
+	db.prepare("SELECT style, COUNT(*) AS c FROM match_history WHERE user_id = ? GROUP BY style").all(userId).forEach(function(r) {
+		if (out.hasOwnProperty(r.style)) out[r.style] = r.c;
+		total += r.c;
+	});
+	if (total === 0 && lifetimePlayed > 0) { out.sprint = lifetimePlayed; out.standard = lifetimePlayed; }
+	return out;
+}
+
 function getMatchHistory(userId, limit) {
 	return db.prepare(
 		"SELECT style, rating_before, rating_after, placement, players, won, opponent, created_at, replay_id " +
@@ -1655,6 +1670,7 @@ module.exports = {
 	markMatchPersisted: markMatchPersisted,
 	recordClear: recordClear,
 	getMatchHistory: getMatchHistory,
+	playedByStyle: playedByStyle,
 	getRatingHistory: getRatingHistory,
 	saveReplay: saveReplay,
 	listReplaysForUser: listReplaysForUser,
