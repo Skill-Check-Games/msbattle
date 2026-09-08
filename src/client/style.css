@@ -7426,7 +7426,7 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
 /* Layout "J" (stat-cell studies): the label centred 4px from the top; the value centred in the space
    UNDER it, so its gap to the label equals its gap to the bottom edge. The label is in the grid, so its
    width still sizes the cell ("Rank change" is wider than "+41"). */
-.dash-you-cell { display: grid; grid-template-rows: auto 1fr; grid-template-columns: 1fr; padding: 4px 0.9rem 4px; border-left: 1px solid var(--border); min-width: 0; }
+.dash-you-cell { display: grid; grid-template-rows: auto 1fr; grid-template-columns: 1fr; padding: 4px 0.9rem 0; border-left: 1px solid var(--border); min-width: 0; } /* no bottom padding: the value centres between the label and the cell's bottom edge */
 .dash-you-cell span { grid-row: 1; grid-column: 1; justify-self: center; font-size: 0.6rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; line-height: 1; }
 .dash-you-cell b { grid-row: 2; grid-column: 1; align-self: center; justify-self: center; font-family: var(--font-display); font-size: 1.15rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; white-space: nowrap; }
 .dash-you-cell em { font-style: normal; } .dash-you-cell em.up { color: var(--success, #4ade80); } .dash-you-cell em.dn { color: #f0647a; }
