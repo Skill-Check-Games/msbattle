@@ -1261,8 +1261,8 @@ function dashYouEmptyCells() {
 
 // The home card's stat strip, built from the match list (newest first). Three states:
 //  • matches today → today's session: played today, win rate, current win streak, net rating change;
-//  • none today but some before → the LAST DAY PLAYED's numbers, greyed, with a "Last played · Mon"
-//    tag beside the name — swapped for today's the moment the first match of the day lands;
+//  • none today but some before → the LAST DAY PLAYED's numbers, greyed (no tag — the grey is the
+//    only cue) — swapped for today's the moment the first match of the day lands;
 //  • never played → em dashes.
 // The win streak is the run of wins at the head of the list (it may span days). Called whenever fresh
 // history lands (renderMatchHistory).
@@ -1283,8 +1283,6 @@ function updateDashYouCells(matches) {
 		];
 	}
 	statsEl.dataset.today = "1";
-	var tagEl = document.getElementById("dash_you_tag");
-	if (tagEl) { tagEl.textContent = ""; tagEl.hidden = true; }
 	if (!matches.length) { statsEl.innerHTML = dashYouEmptyCells(); statsEl.classList.remove("dash-you-stats-past"); statsEl.hidden = false; return; }
 	// Which day's session to show: today if it has matches, else the day of the newest match.
 	var dayStart = function(ts) { var d = new Date(ts); d.setHours(0, 0, 0, 0); return d.getTime(); };
@@ -1301,14 +1299,8 @@ function updateDashYouCells(matches) {
 		+ cell("Win rate", Math.round(wins / n * 100) + "%")
 		+ (streak >= 2 ? cell("Win streak", "🔥 " + streak) : "") // 0 or 1 isn't a streak
 		+ cell("Rank change", g);
-	statsEl.classList.toggle("dash-you-stats-past", !isToday);
+	statsEl.classList.toggle("dash-you-stats-past", !isToday); // greyed: a previous day's session, no tag
 	statsEl.hidden = false;
-	if (!isToday && tagEl) {
-		var d = new Date(day), diffDays = Math.round((today - day) / 86400e3);
-		var when = diffDays === 1 ? "yesterday" : diffDays < 7 ? d.toLocaleDateString(undefined, { weekday: "short" }) : d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
-		tagEl.textContent = "Last played · " + when;
-		tagEl.hidden = false;
-	}
 }
 
 function renderMatchHistory(data) {
@@ -1686,8 +1678,7 @@ function paintYouCardEarly(account) {
 	if (statsEl) {
 		// The stat strip is a DAY's session — played, win rate, current win streak, rank change — computed
 		// from the match history once it arrives (updateDashYouCells, from renderMatchHistory): today's
-		// matches if there are any, else the last day played (greyed, "Last played · Mon" tag by the
-		// name), else em dashes. Until the history lands it shows the dashes so the row keeps its shape.
+		// matches if there are any, else the last day played (greyed), else em dashes. Until the history lands it shows the dashes so the row keeps its shape.
 		if (!statsEl.dataset.today) { statsEl.innerHTML = dashYouEmptyCells(); statsEl.hidden = false; }
 	}
 	var badgeEl = document.getElementById("dash_you_badge");

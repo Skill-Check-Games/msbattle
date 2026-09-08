@@ -8206,11 +8206,6 @@ body.game-fullscreen .game-view:not(.puzzle):not(.solo):not(.duo):not(.multi) .g
 
 /* Empty-day cells: the em dash in the border colour, light weight, so it reads as "not yet" rather than a value. */
 .dash-you-cell-empty b { color: var(--border); font-weight: 500; }
-/* A previous day's session: values greyed, and a "Last played · Mon" tag beside the name. */
+/* A previous day's session: values greyed (rank change included). */
 .dash-you-stats-past .dash-you-cell b { color: var(--muted); }
-.dash-you-tag { margin-left: auto; margin-right: 10px; display: inline-flex; /* exactly 10px to the strip (the card has no flex gap of its own) */ align-items: center; padding: 0.1rem 0.5rem; border-radius: 999px; border: 1px solid var(--border); font-size: 0.6rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
-.dash-you-tag[hidden] { display: none; }
-/* When the tag shows, IT takes the flex free space (margin-left:auto) — the strip drops its own auto
-   margin, otherwise the two auto margins split the space and the tag floats mid-card. */
-.dash-you-tag:not([hidden]) + .dash-you-stats { margin-left: 0; }
-.dash-you-stats-past .dash-you-cell em { color: inherit; } /* the rank change greys too — it's not today's */
+.dash-you-stats-past .dash-you-cell em { color: inherit; }
