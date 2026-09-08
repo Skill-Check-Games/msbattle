@@ -7758,9 +7758,12 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
 .mode-card-rank-tiered { flex-direction: row; align-items: center; gap: 0.6rem; min-width: 0; }
 /* Home rows: the three rank blocks are sized by their text ("Placement" vs "Bronze III" vs
    "Demolitionist · Lvl 20"), so the badges drifted left/right between rows. A fixed block width with
-   the badge pinned at its left edge and the text right-aligned keeps every badge on one vertical line.
+   the badge pinned at its left edge and the text LEFT-aligned right after it keeps every badge on one
+   vertical line AND keeps each label tight against its own badge (right-aligned text left a wide gap
+   for short labels).
    Wide enough for the longest puzzle label; the ≤480px grid resets it (rank sits under the title there). */
-.dash-row .mode-card-rank-tiered { width: 13rem; justify-content: space-between; }
+.dash-row .mode-card-rank-tiered { width: 13rem; justify-content: flex-start; }
+.dash-row .mode-card-rank-tiered .dash-row-stat-text { align-items: flex-start; text-align: left; }
 @media (max-width: 480px) { .dash-row .mode-card-rank-tiered { width: auto; justify-content: flex-start; } }
 .mode-card-rank-tiered .mode-card-rank-text { display: flex; flex-direction: column; align-items: flex-end; }
 .mode-card-rank-badge { display: inline-flex; }
