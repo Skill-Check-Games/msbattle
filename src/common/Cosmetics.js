@@ -124,7 +124,7 @@
 		REVEAL_EFFECT_LIST: ["ripple", "spark", "shatter", "crt", "dust"],
 		DEFAULT_REVEAL_EFFECT: "ripple",
 		REVEAL_EFFECTS: {
-			ripple: { label: "Ripple", blurb: "A soft wave outward as the cascade opens — the default." },
+			ripple: { label: "Ripple", blurb: "A soft wave outward as the cascade opens. The default." },
 			spark: { label: "Spark Trail", blurb: "A quick flash at each cell as the cascade races outward." },
 			shatter: { label: "Shatter", blurb: "Covered tiles crack into shards and fly apart." },
 			crt: { label: "CRT Flicker", blurb: "A brief flicker and scanline sweep, like an old display waking up." },

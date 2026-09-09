@@ -8343,3 +8343,20 @@ body.game-fullscreen .game-view:not(.puzzle):not(.solo):not(.duo):not(.multi) .g
 	.lab-grid .shop-tile-body { padding-top: 0.45rem; padding-bottom: 0.55rem; }
 	.lab-left { padding: 0.7rem; }
 }
+/* Cosmetic tiles: no dark preview box behind the artwork (it read as a box in a box at every size).
+   The preview just sits on the tile. Applies to the lab and the shop page alike. */
+.shop-tile-preview { background: none; padding: 0; border-radius: 0; min-height: 0; margin: 0.85rem 0.85rem 0; }
+.lab-fx-preview { background: none; }
+/* Narrow phones: the lab's picker is a single-column list of rows (artwork left, name + blurb
+   right) instead of two cramped cards side by side. Badges move to the row's right edge. */
+@media (max-width: 360px) {
+	.lab-grid { grid-template-columns: 1fr; gap: var(--gap-tight, 0.55rem); }
+	.lab-grid .shop-tile { flex-direction: row; align-items: center; gap: 0.75rem; padding: 0.5rem 0.65rem; }
+	.lab-grid .shop-tile-preview { flex: 0 0 auto; width: 60px; height: 60px; margin: 0; }
+	.lab-grid .shop-tile-preview canvas, .lab-grid .shop-tile-preview img { width: auto !important; height: auto !important; max-width: 60px; max-height: 60px; }
+	.lab-grid .shop-tile-body { flex: 1 1 auto; min-width: 0; padding: 0 2rem 0 0; text-align: left; gap: 0.15rem; }
+	.lab-grid .skin-blurb { display: block; font-size: 0.76rem; line-height: 1.3; }
+	.lab-grid .shop-tile.locked .shop-tile-body { padding-right: 2.6rem; }
+	.lab-tile-check { top: 50%; right: 0.65rem; transform: translateY(-50%); }
+	.lab-tile-lock { top: 50%; left: auto; right: 0.6rem; transform: translateY(-50%); width: 2rem; height: 2rem; font-size: 0.95rem; }
+}

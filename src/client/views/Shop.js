@@ -114,6 +114,9 @@ function renderShop() {
 	// Only while the page is actually showing: mounting the lab takes over the shared board engine, so
 	// an owned_items event landing mid-game must not build it into a hidden view.
 	if (view.style.display === "none") return;
+	// Unmount BEFORE wiping the view: the lab reparents the game's #board_focus_ring/#board_press_highlight
+	// into its board frame, and innerHTML = "" would destroy them for the rest of the session.
+	if (typeof unmountCustomizeLab === "function") unmountCustomizeLab();
 	view.innerHTML = "";
 
 	var titleRow = document.createElement("div"); titleRow.className = "shop-title-row";

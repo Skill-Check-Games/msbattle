@@ -763,7 +763,7 @@ function exitLabDemoInput() {
 	labDemoActive = false;
 	resetBoardAnimations();
 	function restoreNode(el, parent, next) {
-		if (!parent) return;
+		if (!el || !parent) return;
 		if (next && next.parentNode === parent) parent.insertBefore(el, next);
 		else parent.appendChild(el);
 	}
