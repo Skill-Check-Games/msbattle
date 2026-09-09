@@ -1,0 +1,32 @@
+@use "../../styles/variables" as *;
+
+.page { animation: fade 180ms ease; }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+.header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+.mode { color: var(--muted); font-weight: 600; }
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 1.25rem; align-items: start; @include below($bp-lg) { grid-template-columns: 1fr; } }
+.left { min-width: 0; }
+.boardCard {
+	display: inline-block; max-width: 100%;
+	background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 1.25rem; box-shadow: var(--shadow);
+	@include below($bp-md) { padding: 0.5rem; display: block; }
+}
+.board { vertical-align: top; }
+.startOverlay {
+	position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+	background: rgba(11, 16, 32, 0.55); border-radius: 4px;
+}
+.startBtn { font-size: 1.4rem; font-weight: 700; padding: 0.85rem 2.8rem; border-radius: 999px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45); }
+.side { display: flex; flex-direction: column; gap: 1rem; position: sticky; top: 1rem; @include below($bp-lg) { position: static; } }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 1.1rem 1.2rem; box-shadow: var(--shadow); }
+.sideTitle { margin: 0 0 0.85rem; font-size: 0.8rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.45rem; margin-bottom: 0.85rem; }
+.stat { background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border); border-radius: 5px; padding: 0.55rem 0.7rem; display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+.statLabel { font-size: 0.65rem; letter-spacing: 0.14em; color: var(--muted); text-transform: uppercase; font-weight: 700; }
+.statValue { font-family: var(--font-display); font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
+.pickerLabel { display: block; font-size: 0.65rem; letter-spacing: 0.14em; color: var(--muted); text-transform: uppercase; font-weight: 700; margin-bottom: 0.3rem; }
+.picker { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; margin-bottom: 0.6rem; .btn { padding: 0.4rem 0.4rem; font-size: 0.85rem; } }
+.active { border-color: var(--accent); color: var(--accent-hover); background: rgba(99, 102, 241, 0.12); }
+.restart { width: 100%; }
+.bestLine { margin-top: 0.35rem; font-size: 0.95rem; font-weight: 700; color: var(--muted); text-align: center; }
+.bestNew { color: var(--energy-gold); }

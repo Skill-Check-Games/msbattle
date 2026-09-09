@@ -1,0 +1,17 @@
+// Centred on the viewport (not the board) with a big spread shadow dimming everything behind it.
+.panel {
+	position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 120;
+	width: min(94vw, 560px); max-height: 90vh; overflow-y: auto;
+	display: flex; flex-direction: column; gap: 0.55rem;
+	padding: 1.6rem 1.8rem; border-radius: 10px;
+	background: var(--surface); border: 1px solid var(--border);
+	box-shadow: 0 0 0 100vmax rgba(5, 8, 18, 0.6), 0 24px 64px -16px rgba(0, 0, 0, 0.7);
+	animation: panel-pop var(--motion-standard) var(--ease) both;
+}
+@keyframes panel-pop { from { opacity: 0; transform: translate(-50%, -50%) scale(0.96); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+.win { border-color: rgba(34, 197, 94, 0.45); }
+.lose { border-color: rgba(239, 68, 68, 0.45); }
+.header { text-align: center; font-size: 1.2rem; font-weight: 700; }
+.detail { text-align: center; font-weight: 800; font-size: 1.5rem; color: var(--accent-hover); margin: 0.5rem 0; letter-spacing: 0.02em; font-family: var(--font-display); font-variant-numeric: tabular-nums; }
+.foot { text-align: center; color: var(--muted); font-size: 0.8rem; }
+.actions { display: flex; gap: 0.7rem; justify-content: center; margin-top: 1rem; flex-wrap: wrap; }

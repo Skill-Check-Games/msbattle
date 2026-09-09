@@ -226,7 +226,7 @@ export function drawUnknown(ctx: CanvasRenderingContext2D, w: number, h: number,
 	}
 	roundRectPath(ctx, 0, 0, w, h, rad); ctx.strokeStyle = COLOR_UNKNOWN_EDGE; ctx.lineWidth = 1; ctx.stroke();
 }
-function drawKnownBase(ctx: CanvasRenderingContext2D, w: number, h: number, rad: number) {
+export function drawKnownBase(ctx: CanvasRenderingContext2D, w: number, h: number, rad: number) {
 	roundRectPath(ctx, 0, 0, w, h, rad); ctx.fillStyle = COLOR_KNOWN_BG; ctx.fill();
 	ctx.strokeStyle = COLOR_KNOWN_EDGE; ctx.lineWidth = 1; ctx.stroke();
 }
