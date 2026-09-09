@@ -8209,3 +8209,5 @@ body.game-fullscreen .game-view:not(.puzzle):not(.solo):not(.duo):not(.multi) .g
 /* A previous day's session: values greyed (rank change included). */
 .dash-you-stats-past .dash-you-cell b { color: var(--muted); }
 .dash-you-stats-past .dash-you-cell em { color: inherit; }
+/* First-paint placeholder in a stat cell (before the match history lands): a small shimmer bar. */
+.dash-you-cell-skel { display: block; width: 22px; height: 8px; border-radius: 4px; }

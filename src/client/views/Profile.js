@@ -1251,11 +1251,13 @@ function relTime(ms) {
 }
 
 // Server reply: cache + render the graph (only if there's rating data) and the games list.
-// The four cells with an em dash where the value goes — never played (guest or a fresh account), or
-// the history hasn't arrived yet.
-function dashYouEmptyCells() {
+// The four cells with an em dash where the value goes — never played (guest or a fresh account).
+// loading=true (the first paint, before the match history has arrived) draws a shimmer bar in place
+// of each value instead, so the strip reads as "loading" rather than as real "nothing today" data
+// that then gets replaced half a second later.
+function dashYouEmptyCells(loading) {
 	return ["Played today", "Win rate", "Win streak", "Rank change"].map(function(l) {
-		return "<span class=\"dash-you-cell dash-you-cell-empty\"><span>" + l + "</span><b>—</b></span>";
+		return "<span class=\"dash-you-cell dash-you-cell-empty\"><span>" + l + "</span><b>" + (loading ? "<i class=\"skel-shimmer dash-you-cell-skel\"></i>" : "—") + "</b></span>";
 	}).join("");
 }
 
@@ -1653,7 +1655,24 @@ function renderHomeRankChips() {
 // updates both the early paint and the normal one. Deliberately does NOT touch the avatar (that's
 // canvas-drawn — see buildAvatarChip — real drawing logic, not worth duplicating here); it leaves a
 // plain shimmering circle sized to match, left for renderDashIdentity() to replace for real.
+// Design preview: /?preview=ranks fakes a placed, ranked account CLIENT-SIDE (nothing is written or
+// sent) — Gold I Sprint, Diamond I Standard, Engineer · Lvl 3 Puzzles, placement cleared; ?preview=past
+// is the same account whose fake session was two days ago (see updateDashYouCells). Localhost or
+// admins only; the param is dropped as soon as you navigate. Lives in this SSR_INLINE block because
+// the server-inlined early paint must apply it too, otherwise a reload flashes the real guest state.
+function applyPreviewRanks(acc) {
+	if (!acc || typeof URLSearchParams !== "function") return;
+	var mode = new URLSearchParams(location.search).get("preview");
+	if (mode !== "ranks" && mode !== "past") return;
+	if (location.hostname !== "localhost" && location.hostname !== "127.0.0.1" && !acc.isAdmin) return;
+	acc.ratingSprint = 1250; acc.ratingStandard = 2450;
+	acc.playedSprint = 12; acc.playedStandard = 9; acc.played = 21; acc.wins = 13;
+	acc.puzzlePoints = 3120;
+	acc.guest = false;
+	acc.previewRanks = mode;
+}
 function paintYouCardEarly(account) {
+	applyPreviewRanks(account);
 	var overall = overallRating(account);
 	var t = tierFor(overall, account.provisional);
 	var nameEl = document.getElementById("dash_you_name");
@@ -1679,7 +1698,7 @@ function paintYouCardEarly(account) {
 		// The stat strip is a DAY's session — played, win rate, current win streak, rank change — computed
 		// from the match history once it arrives (updateDashYouCells, from renderMatchHistory): today's
 		// matches if there are any, else the last day played (greyed), else em dashes. Until the history lands it shows the dashes so the row keeps its shape.
-		if (!statsEl.dataset.today) { statsEl.innerHTML = dashYouEmptyCells(); statsEl.hidden = false; }
+		if (!statsEl.dataset.today) { statsEl.innerHTML = dashYouEmptyCells(true); statsEl.hidden = false; }
 	}
 	var badgeEl = document.getElementById("dash_you_badge");
 	if (badgeEl && !badgeEl.firstChild) {

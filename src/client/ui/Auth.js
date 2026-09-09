@@ -347,24 +347,10 @@ function applyConnected(data) {
 	}
 }
 
-// Design preview: /?preview=ranks fakes a placed, ranked account CLIENT-SIDE (nothing is written or
-// sent) so the home rows can be reviewed with real badges next to a plain tab — Gold I Sprint,
-// Diamond I Standard, Engineer · Lvl 3 Puzzles, placement cleared. Localhost or admins only; the
-// param is dropped as soon as you navigate, so it never leaks into normal play.
-function applyPreviewRanks(acc) {
-	if (!acc || typeof URLSearchParams !== "function") return;
-	var mode = new URLSearchParams(location.search).get("preview");
-	if (mode !== "ranks" && mode !== "past") return; // "past": same account, but the fake matches were two days ago
-	if (location.hostname !== "localhost" && location.hostname !== "127.0.0.1" && !acc.isAdmin) return;
-	acc.ratingSprint = 1250; acc.ratingStandard = 2450;
-	acc.playedSprint = 12; acc.playedStandard = 9; acc.played = 21; acc.wins = 13;
-	acc.puzzlePoints = 3120;
-	acc.guest = false;
-	acc.previewRanks = mode; // "ranks" | "past" — updateDashYouCells (Profile.js) fakes a match history off this
-}
-
+// applyPreviewRanks lives in Profile.js's SSR_INLINE block (it has to run in the server-inlined early
+// paint too, or a preview reload flashes the real guest's "Sign in" button before the socket applies it).
 function applyAuthenticated(data) {
-	applyPreviewRanks(data);
+	if (typeof applyPreviewRanks === "function") applyPreviewRanks(data);
 	// A fresh guest has no flag: guess one from the browser (guessCountry, Countries.js — UI-language
 	// region, else time zone) and store it on the guest row, so the flag tile is filled from the first
 	// paint. Guests only, and only while unset — a flag they picked (or cleared) is never overwritten.
