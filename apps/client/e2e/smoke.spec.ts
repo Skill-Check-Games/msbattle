@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 // Every route loads without a page error, at desktop and at a narrow phone width, with a screenshot
 // per route for eyeballing. Add a route here when it lands.
-const ROUTES = ["/", "/solo", "/learn", "/leaderboard", "/profile", "/shop", "/settings", "/privacy", "/terms"];
+const ROUTES = ["/", "/solo", "/learn", "/custom", "/replay", "/leaderboard", "/profile", "/shop", "/settings", "/privacy", "/terms"];
 
 for (const route of ROUTES) {
 	test(`loads ${route}`, async ({ page }) => {

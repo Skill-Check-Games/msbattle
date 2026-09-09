@@ -9,7 +9,7 @@ import styles from "./RoomLobby.module.scss";
 const cap = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
 export const formatRoundOption = (s: number) => s >= 60 ? (s / 60) + " min" : s + " s";
 export const formatPenaltyOption = (s: number) => s === 0 ? "None" : s + " s";
-export const formatBoardSize = (size: string) => ({ small: "Small (10×13)", medium: "Medium (15×20)", large: "Large (16×30)" } as Record<string, string>)[size] || size;
+export const formatBoardSize = (size: string) => ({ small: "Small (10×13)", medium: "Medium (16×20)", large: "Large (16×30)" } as Record<string, string>)[size] || size;
 export const formatMineDensity = (d: number) => Math.round((d || 0.1) * 100) + "% mines";
 const formatSeriesFormat = (n: number, target: number | null) => target ? "First to " + target : "Best of " + n;
 

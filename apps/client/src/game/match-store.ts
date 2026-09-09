@@ -25,8 +25,12 @@ export interface Standing { id: string; name: string; rank?: number; score?: num
 export interface RankedSearch { mode: string; size: number; members: RoomPlayer[]; }
 export interface SeriesResult { winnerId: string | null; winnerName: string | null; ranked: boolean; mode: string | null; standings: Standing[]; scores: Array<{ id: string; name: string; score: number }>; }
 
+export interface RoomSummary { id: number; ownerName: string; playerCount: number; humanCount: number; maxPlayers: number; phase: string; gameMode: string; gameCount: number; gamesPlayed: number; roundSeconds: number; deathPenalty: number; boardSize?: string; mineDensity?: number; players?: string[]; }
+export interface CreateRoomOptions { players: number; boardSize: string; mineDensity: number; roundSeconds: number; deathPenalty: number; gameCount: number; modifier: string | null; }
+
 export interface MatchState {
 	inRoom: boolean;
+	rooms: RoomSummary[] | null;   // the custom-room lobby list (room_list broadcasts)
 	room: RoomState | null;
 	search: RankedSearch | null;
 	mode: string | null;               // the ranked mode this match was found through
@@ -45,7 +49,7 @@ export interface MatchState {
 const rankedModeSize = (mode: string) => /_six$/.test(mode) ? 7 : 2;
 
 class MatchStore {
-	state: MatchState = { inRoom: false, room: null, search: null, mode: null, roundLive: false, roundResultShown: false, roundDeadline: null, gameProgress: "", frames: null, seriesResult: null, roundResult: null, frozenUntil: 0, waitingCleared: false, message: null };
+	state: MatchState = { inRoom: false, rooms: null, room: null, search: null, mode: null, roundLive: false, roundResultShown: false, roundDeadline: null, gameProgress: "", frames: null, seriesResult: null, roundResult: null, frozenUntil: 0, waitingCleared: false, message: null };
 	session: BoardSession;
 	myId: string | null = null;
 	private listeners = new Set<() => void>();
@@ -102,6 +106,7 @@ class MatchStore {
 		});
 		socket.on("ranked_rejected", (d) => this.flash((d && d.reason) || "Couldn't start ranked search."));
 		socket.on("join_failed", (d) => this.flash((d && d.reason) || "Couldn't join lobby"));
+		socket.on("room_list", (d) => this.set({ rooms: (d && d.rooms) || [] }));
 		socket.on("room_state", (room: RoomState) => {
 			const prev = this.state.room;
 			if (!prev || prev.rows !== room.rows || prev.cols !== room.cols) this.session.rows = room.rows, this.session.cols = room.cols;
@@ -191,6 +196,9 @@ class MatchStore {
 		this.session.setIdle(true);
 		getSocket().emit("find_ranked", { mode });
 	}
+	requestRoomList() { getSocket().emit("list_rooms"); }
+	createRoom(opts: CreateRoomOptions) { getSocket().emit("create_room", opts); }
+	joinRoom(roomId: number) { getSocket().emit("join_room", { roomId }); }
 	cancelSearch() { getSocket().emit("cancel_ranked"); this.set({ search: null, mode: null }); this.teardown(); }
 	leaveRoom() { getSocket().emit("leave_room"); this.teardown(); }
 	playAnother() { const mode = this.state.mode || "sprint_duo"; getSocket().emit("leave_room"); this.findRanked(mode); }

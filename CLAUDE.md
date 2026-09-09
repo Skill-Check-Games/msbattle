@@ -78,7 +78,7 @@ Other docs: `ARCHITECTURE_PLAN.md` (target architecture; read before any service
 ## Game rules and data
 
 - Boards are always no-guess solvable; one shared layout per round with the centre pre-revealed.
-  Board size is a per-room preset (small 10×13 / medium 15×20 / large 16×30); mines are a density
+  Board size is a per-room preset (small 10×13 / medium 16×20 / large 16×30); mines are a density
   fraction of cells. Dimensions flow in via `createGame`/`createTemplate`; the client gets `rows`/`cols`.
 - Ranked: fixed ruleset (best of 5, 5 min rounds, Standard 6 min, 5 s mine penalty, medium board,
   10% mines Sprint / 20% Standard), pairwise Elo. Ratings are **per style** (`rating_sprint`,

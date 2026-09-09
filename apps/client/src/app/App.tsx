@@ -14,13 +14,13 @@ import ProfilePage from "../pages/profile/ProfilePage";
 import ShopPage from "../pages/shop/ShopPage";
 import LearnPage from "../pages/learn/LearnPage";
 import ReplayPage from "../pages/replay/ReplayPage";
+import CustomPage from "../pages/custom/CustomPage";
 import { Toasts, useAchievementUnlocks } from "./Toasts";
 import Placeholder from "../pages/Placeholder";
 import styles from "./App.module.scss";
 
 // Routes not ported yet render a placeholder so links work and the smoke test can visit them.
 const PENDING: Array<[string, string]> = [
-	["/custom", "Custom rooms"],
 	["/admin", "Admin"]
 ];
 
@@ -44,6 +44,7 @@ export default function App() {
 					<Route path="/shop" element={<ShopPage />} />
 					<Route path="/learn" element={<LearnPage />} />
 					<Route path="/replay" element={<ReplayPage />} />
+					<Route path="/custom" element={<CustomPage />} />
 					<Route path="/settings" element={<SettingsPage />} />
 					<Route path="/privacy" element={<PrivacyPage />} />
 					<Route path="/terms" element={<TermsPage />} />
