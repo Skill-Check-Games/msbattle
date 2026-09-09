@@ -4069,32 +4069,6 @@ body[data-board-skin="monochrome"] .board-press-highlight {
 .shop-fake-toggle { display: flex; align-items: center; gap: 0.55rem; }
 .shop-fake-toggle-label { font-size: 0.85rem; font-weight: 600; color: var(--muted); }
 
-/* Category tabs — one per ShopCatalog "kind". Underline-on-active, same idiom as .lb-tab/
-   #profile_tabs elsewhere in this file, but text-styled (uppercase, letter-spaced) rather than a
-   filled pill, since these sit directly under the page subtitle rather than atop a data table. */
-.shop-tabs {
-	display: flex; gap: 1.6rem; margin-top: 1.2rem;
-	border-bottom: 1px solid var(--border);
-	overflow-x: auto;
-}
-.shop-tab {
-	appearance: none; background: none; border: none; cursor: pointer; font: inherit;
-	padding: 0.55rem 0.05rem 0.7rem;
-	font-weight: 700; font-size: 0.8rem; letter-spacing: 0.04em; text-transform: uppercase;
-	color: var(--muted); white-space: nowrap;
-	border-bottom: 2px solid transparent;
-	transition: color 0.15s, border-color 0.15s;
-}
-.shop-tab:hover { color: var(--text); }
-.shop-tab.active { color: var(--accent-hover); border-bottom-color: var(--accent-hover); }
-
-.shop-category-card { margin-top: 1.1rem; }
-.shop-category-head { display: flex; gap: 0.75rem; align-items: stretch; margin-bottom: 1.1rem; }
-.shop-category-bar { width: 4px; border-radius: 999px; background: var(--accent); flex: 0 0 auto; }
-.shop-category-title {
-	margin: 0; font-weight: 800; font-size: 1rem; letter-spacing: 0.02em; text-transform: uppercase;
-}
-.shop-category-tagline { margin: 0.25rem 0 0; font-size: 0.85rem; color: var(--muted); }
 
 .shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; }
 .shop-tile {
@@ -8315,25 +8289,6 @@ body.game-fullscreen .game-view:not(.puzzle):not(.solo):not(.duo):not(.multi) .g
 .lab-buy-btn { width: 100%; max-width: 260px; margin-top: 0.5rem; }
 .lab-buy-btn[hidden] { display: none; }
 
-/* Shop on phones (same breakpoint as the in-game mobile layout). The category card stops being a
-   box (page > card > tile was three nested frames on a 390px screen), its heading goes (the active
-   tab already names the category), and the tiles go two-up on the home page's tight gap. */
-@media (max-width: 700px) {
-	.shop-tabs { gap: 1.1rem; margin-top: 1rem; }
-	.shop-category-card { background: none; border: 0; border-radius: 0; padding: 0; margin-top: 0.9rem; }
-	.shop-category-head { display: none; }
-	.shop-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap-tight, 0.55rem); }
-	.shop-tile-head { padding: 0.6rem 0.65rem 0; }
-	.shop-tile-name { font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-	.shop-tile-preview { min-height: 64px; margin: 0.5rem 0.65rem 0; padding: 0.5rem; }
-	.shop-tile-body { padding: 0.55rem 0.65rem 0.65rem; gap: 0.4rem; }
-	.shop-tile-btn.btn, .shop-tile-owned { font-size: 0.78rem; padding: 0.4rem 0.4rem; }
-}
-/* Narrow phones (330 to 360px): the three tab labels only fit their row a size down. */
-@media (max-width: 360px) {
-	.shop-tabs { gap: 0.8rem; }
-	.shop-tab { font-size: 0.74rem; letter-spacing: 0.02em; }
-}
 
 /* Customize lab stacked on a phone (max-width 860px, same breakpoint as its grid collapse above):
    picker (tabs + list) first, preview board second (plain DOM order, so the earlier order: overrides
@@ -8356,4 +8311,22 @@ body.game-fullscreen .game-view:not(.puzzle):not(.solo):not(.duo):not(.multi) .g
    restore the natural heights and let .lab-body do the scrolling. */
 @media (max-width: 860px) {
 	.lab-left, .lab-right { min-height: auto; }
+}
+
+/* ── Customize lab hosts ───────────────────────────────────────────────────────────────────── */
+/* The lab (Profile.js mountCustomizeLab) renders into a .lab-host. In the modal the host is a flex
+   child of the fixed-height dialog and must pass the dialog's remaining height down to .lab-body. */
+.lab-host { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+/* On the Shop page there is no fixed-height dialog: the page scrolls, the picker is fully expanded
+   (no inner scroller), and on desktop the preview column sticks while the list scrolls past it. */
+#shop_view .lab-host { display: block; }
+#shop_view .lab-body { margin-top: 1.1rem; }
+#shop_view #lab_right_panel { overflow: visible; flex: 0 0 auto; }
+#shop_view .lab-left, #shop_view .lab-right { min-height: auto; }
+@media (min-width: 861px) {
+	#shop_view .lab-left { position: sticky; top: 1rem; align-self: start; max-height: calc(100dvh - 2rem); }
+}
+@media (max-width: 700px) {
+	.shop-title-row { margin-bottom: 0.2rem; }
+	.shop-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap-tight, 0.55rem); }
 }

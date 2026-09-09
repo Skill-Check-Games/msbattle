@@ -1054,9 +1054,40 @@ function renderLabIdentity() {
 function closeCustomizeLab() {
 	var modal = document.getElementById("avatar_modal");
 	if (modal) modal.setAttribute("hidden", "");
+	unmountCustomizeLab();
+}
+
+// ---- The lab as a component ----
+// The whole customize UI (tabs + picker + identity/preview board) is built by mountCustomizeLab
+// into any host element. Two hosts use it: the home-page modal (openAvatarEditor) and the Shop page
+// (renderShop, Shop.js), so buying and customizing are the same screen. The lab uses fixed element
+// ids and possesses the shared board engine, so only one mount exists at a time: unmountCustomizeLab
+// (called from closeCustomizeLab, which hideAllViews runs on every navigation) empties every host.
+var LAB_BODY_HTML =
+	'<div class="lab-body">' +
+		'<div class="lab-right">' +
+			'<div class="lab-tabs" id="lab_tabs"></div>' +
+			'<div id="lab_right_panel"></div>' +
+		'</div>' +
+		'<div id="lab_left_panel"></div>' +
+	'</div>';
+function mountCustomizeLab(host) {
+	if (!host || !account) return;
+	unmountCustomizeLab();
+	host.innerHTML = LAB_BODY_HTML;
+	renderLabTabs();
+	var leftPanel = document.getElementById("lab_left_panel");
+	leftPanel.appendChild(buildLabLeftPanel());
+	renderLabIdentity();
+	enterLabDemoInput(document.getElementById("lab_board_frame"));
+	renderLabRightPanel();
+}
+function unmountCustomizeLab() {
 	labRevertPreviews();
 	stopLabReplayTimers();
 	exitLabDemoInput();
+	var hosts = document.querySelectorAll(".lab-host");
+	for (var i = 0; i < hosts.length; i++) hosts[i].innerHTML = "";
 }
 
 // Customize Lab modal — opened by clicking the home/profile avatar.
@@ -1076,13 +1107,7 @@ function openAvatarEditor() {
 '</div>' +
 					'<button class="cr-close" type="button" data-avatar-close aria-label="Close">×</button>' +
 				'</div>' +
-				'<div class="lab-body">' +
-					'<div class="lab-right">' +
-						'<div class="lab-tabs" id="lab_tabs"></div>' +
-						'<div id="lab_right_panel"></div>' +
-					'</div>' +
-					'<div id="lab_left_panel"></div>' +
-				'</div>' +
+				'<div class="lab-host" id="lab_modal_host"></div>' +
 				'<div class="cr-dialog-foot"><button class="btn btn-primary" type="button" data-avatar-close>Done</button></div>' +
 			'</div>';
 		document.body.appendChild(modal);
@@ -1090,14 +1115,7 @@ function openAvatarEditor() {
 		document.addEventListener("keydown", function(e) { if (e.key === "Escape" && !modal.hasAttribute("hidden")) closeCustomizeLab(); });
 	}
 
-	renderLabTabs();
-	var leftPanel = document.getElementById("lab_left_panel");
-	leftPanel.innerHTML = "";
-	leftPanel.appendChild(buildLabLeftPanel());
-	renderLabIdentity();
-	enterLabDemoInput(document.getElementById("lab_board_frame"));
-	renderLabRightPanel();
-
+	mountCustomizeLab(document.getElementById("lab_modal_host"));
 	modal.removeAttribute("hidden");
 }
 

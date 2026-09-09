@@ -21,20 +21,10 @@ function shopHeaders() {
 // it can't itself grant anything to a non-admin poking at it.
 var fakeShopMode = false;
 
-// Tabbed categories (one ShopCatalog "kind" each) — the tagline is pure flavor text, shown once
-// under the category header, same spot the top-level page subtitle used to carry its one static
-// line before there was more than one section to caption individually.
-var SHOP_CATEGORIES = [
-	{ kind: "avatar", label: "Avatars", tagline: "Doesn't change your hitbox. There is no hitbox." },
-	{ kind: "skin", label: "Board Skins", tagline: "Reskins the tiles. The mines don't move, promise." },
-	{ kind: "revealEffect", label: "Reveal Effects", tagline: "How your own cascade looks as it opens. Only you ever see it." }
-];
-// Which tab is showing — persists across re-renders (buy/owned-state changes, the post-purchase
-// redirect back) the same way fakeShopMode does, so switching tabs doesn't get silently undone by
-// something else in the page re-rendering itself.
-var shopActiveKind = null;
+// The Shop page IS the customize lab (mountCustomizeLab, Profile.js) hosted as a page: same tabs,
+// same tiles (owned ones apply, locked ones preview + show a price), same live preview board.
 
-// One glyph per reveal effect, standing in for a static preview image (see buildShopTile) — an
+// One glyph per reveal effect, standing in for a static preview image (the lab tiles, Profile.js). An
 // animation has no single frame worth screenshotting the way a skin's board preview does. "ripple"
 // isn't a ShopCatalog item (it's the free default, never shown in the Shop grid itself) but the
 // picker in the Appearance modal (Profile.js) lists it alongside the purchasable ones, so it needs
@@ -118,58 +108,12 @@ function buyShopItem(item, btn) {
 	});
 }
 
-function buildShopTile(item) {
-	var tile = document.createElement("div");
-	// tier ("common"/"rare"/"epic", ShopCatalog.js) drives the card's border colour/glow — a purely
-	// cosmetic shop-display concept, unrelated to ownership or gameplay.
-	tile.className = "shop-tile" + (item.tier ? " shop-tile-" + item.tier : "");
-
-	var head = document.createElement("div"); head.className = "shop-tile-head";
-	var name = document.createElement("div"); name.className = "shop-tile-name"; name.textContent = item.label;
-	head.appendChild(name);
-	tile.appendChild(head);
-
-	var preview = document.createElement("div"); preview.className = "shop-tile-preview";
-	if (item.kind === "avatar" && typeof buildAvatarCanvas === "function") preview.appendChild(buildAvatarCanvas(item.id, 64));
-	else if (item.kind === "skin" && typeof buildSkinPreview === "function") preview.appendChild(buildSkinPreview(item.id));
-	else if (item.kind === "revealEffect") {
-		// No static preview image makes sense for an animation — a simple per-effect emoji glyph
-		// instead of a canvas swatch. Try the real thing live in the Appearance modal/a game.
-		var glyph = document.createElement("span");
-		glyph.className = "shop-tile-fx-glyph";
-		glyph.textContent = REVEAL_EFFECT_GLYPHS[item.id] || "✨";
-		preview.appendChild(glyph);
-	}
-	tile.appendChild(preview);
-
-	var body = document.createElement("div"); body.className = "shop-tile-body";
-	var owned = shopItemUnlocked(item.kind, item.id);
-	if (owned) {
-		var badge = document.createElement("span"); badge.className = "shop-tile-owned"; badge.textContent = "✓ Owned";
-		body.appendChild(badge);
-	} else if (!account || account.guest) {
-		var signInBtn = document.createElement("button");
-		signInBtn.type = "button"; signInBtn.className = "btn btn-ghost shop-tile-btn";
-		signInBtn.textContent = "Sign in to buy";
-		signInBtn.addEventListener("click", function() { if (typeof doSignIn === "function") doSignIn(); });
-		body.appendChild(signInBtn);
-	} else {
-		var buyBtn = document.createElement("button");
-		buyBtn.type = "button"; buyBtn.className = "btn btn-primary shop-tile-btn";
-		// Deliberately identical whether fakeShopMode is on or not — the shop should look exactly the
-		// same either way, only what happens on click differs (see buyShopItem). Just the price, no
-		// "Buy" prefix — it's already the only thing a buy button on an unowned item could mean.
-		buyBtn.textContent = shopPriceLabel(item.id);
-		buyBtn.addEventListener("click", function() { buyShopItem(item, buyBtn); });
-		body.appendChild(buyBtn);
-	}
-	tile.appendChild(body);
-	return tile;
-}
-
 function renderShop() {
 	var view = document.getElementById("shop_view");
 	if (!view || typeof ShopCatalog === "undefined") return;
+	// Only while the page is actually showing: mounting the lab takes over the shared board engine, so
+	// an owned_items event landing mid-game must not build it into a hidden view.
+	if (view.style.display === "none") return;
 	view.innerHTML = "";
 
 	var titleRow = document.createElement("div"); titleRow.className = "shop-title-row";
@@ -180,7 +124,7 @@ function renderShop() {
 	// real admin) without a real charge — the server independently re-checks is_admin on every
 	// /api/shop/fake-grant call (isSocketAdmin's own DEV_AUTH bypass covers the local case), so this
 	// toggle is just the client-side switch, not itself a trust boundary. Deliberately doesn't change
-	// the shop's appearance beyond itself (see buildShopTile) — flipping it should be invisible to
+	// the shop's appearance beyond itself. Flipping it should be invisible to
 	// anyone glancing at the page, only observable in what actually happens on a Buy click.
 	if (shopFakeShopAllowed()) {
 		var fakeRow = document.createElement("div"); fakeRow.className = "shop-fake-toggle";
@@ -205,50 +149,9 @@ function renderShop() {
 	var status = document.createElement("div"); status.id = "shop_status"; status.style.display = "none";
 	view.appendChild(status);
 
-	// Only categories that actually have items get a tab — a future category with nothing in
-	// ShopCatalog.ITEMS yet simply doesn't show up rather than rendering an empty tab.
-	var categories = SHOP_CATEGORIES.filter(function(cat) {
-		return ShopCatalog.ITEMS.some(function(i) { return i.kind === cat.kind; });
-	});
-	if (!categories.length) return;
-	if (!shopActiveKind || !categories.some(function(c) { return c.kind === shopActiveKind; })) {
-		shopActiveKind = categories[0].kind;
-	}
-
-	var tabs = document.createElement("div"); tabs.className = "shop-tabs";
-	categories.forEach(function(cat) {
-		var tab = document.createElement("button");
-		tab.type = "button";
-		tab.className = "shop-tab" + (cat.kind === shopActiveKind ? " active" : "");
-		tab.textContent = cat.label;
-		tab.addEventListener("click", function() {
-			if (shopActiveKind === cat.kind) return;
-			shopActiveKind = cat.kind;
-			renderShop();
-		});
-		tabs.appendChild(tab);
-	});
-	view.appendChild(tabs);
-
-	var activeCat = categories.filter(function(c) { return c.kind === shopActiveKind; })[0];
-	var card = document.createElement("div"); card.className = "section-card shop-category-card";
-	var head = document.createElement("div"); head.className = "shop-category-head";
-	var bar = document.createElement("span"); bar.className = "shop-category-bar"; bar.setAttribute("aria-hidden", "true");
-	head.appendChild(bar);
-	var headText = document.createElement("div");
-	var h = document.createElement("h2"); h.className = "shop-category-title"; h.textContent = activeCat.label;
-	headText.appendChild(h);
-	var tagline = document.createElement("p"); tagline.className = "shop-category-tagline"; tagline.textContent = activeCat.tagline;
-	headText.appendChild(tagline);
-	head.appendChild(headText);
-	card.appendChild(head);
-
-	var grid = document.createElement("div"); grid.className = "shop-grid";
-	ShopCatalog.ITEMS.filter(function(i) { return i.kind === shopActiveKind; }).forEach(function(item) {
-		grid.appendChild(buildShopTile(item));
-	});
-	card.appendChild(grid);
-	view.appendChild(card);
+	var host = document.createElement("div"); host.className = "lab-host shop-lab-host";
+	view.appendChild(host);
+	if (typeof mountCustomizeLab === "function") mountCustomizeLab(host);
 
 	handleShopReturn();
 }
