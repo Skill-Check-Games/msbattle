@@ -33,6 +33,9 @@ export default function PlayPage() {
 	useEffect(() => { if (!s.frozenUntil) return; const h = setInterval(() => tick(n => n + 1), 100); return () => clearInterval(h); }, [s.frozenUntil]);
 
 	const duo = match.isDuo(), multi = match.isMulti(), battle = match.battleActive() && (duo || multi);
+	// Live rounds hide the site navbar (all widths), like production; the lobby and search keep it.
+	const live = !!s.room && s.room.phase !== "planning";
+	useEffect(() => { document.body.classList.toggle("game-live", live); return () => { document.body.classList.remove("game-live"); }; }, [live]);
 	const room = s.room;
 	const planningLobby = !!room && room.phase === "planning" && !battle && !room.ranked && (room.gameMode || "race") === "race";
 	const rows = session.rows, cols = session.cols;

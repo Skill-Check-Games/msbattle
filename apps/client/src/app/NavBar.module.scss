@@ -5,7 +5,7 @@
 	display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 1rem;
 	min-height: 82px; padding: 0 2rem;
 	background: rgba(11, 16, 32, 0.6); border-bottom: 1px solid var(--border);
-	@include below($bp-lg) { grid-template-columns: 1fr auto; height: 56px; padding: 0 0.9rem; }
+	@include below($bp-lg) { grid-template-columns: 1fr auto; min-height: 72px; padding: 0 1rem; }
 }
 .brand {
 	display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none;

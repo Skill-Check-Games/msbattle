@@ -32,6 +32,7 @@ canvas { display: block; }
 
 // In-game on phones: the navbar and footer give the board their space back.
 body.in-game #root > div > footer { display: none; }
+body.game-live #root > div > header { display: none; }
 @media (max-width: 700px), (orientation: landscape) and (max-height: 500px) {
 	body.in-game #root > div > header { display: none; }
 }
