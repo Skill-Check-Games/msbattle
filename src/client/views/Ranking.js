@@ -119,10 +119,12 @@ var puzzleBadgeParts = (function () {
 		radar
 	];
 	function roundel(lit) {
-		var out = '<circle cx="50" cy="52" r="40" fill="' + PUZZLE_BADGE_DARK + '" stroke="currentColor" stroke-width="3"/><g stroke="currentColor" stroke-width="6" fill="none">';
+		// No solid outer ring (dropped on request — cleaner): the eight segments alone frame the emblem,
+		// sitting at r=36 to use the space the ring used to take.
+		var out = '<circle cx="50" cy="52" r="40" fill="' + PUZZLE_BADGE_DARK + '"/><g stroke="currentColor" stroke-width="6" fill="none">';
 		for (var i = 0; i < 8; i++) {
 			var a0 = -Math.PI / 2 + i * Math.PI / 4 + 0.06, a1 = -Math.PI / 2 + (i + 1) * Math.PI / 4 - 0.06;
-			out += '<path d="M' + (50 + Math.cos(a0) * 33).toFixed(1) + ' ' + (52 + Math.sin(a0) * 33).toFixed(1) + ' A33 33 0 0 1 ' + (50 + Math.cos(a1) * 33).toFixed(1) + ' ' + (52 + Math.sin(a1) * 33).toFixed(1) + '" opacity="' + (i < lit ? 1 : 0.18) + '"/>';
+			out += '<path d="M' + (50 + Math.cos(a0) * 36).toFixed(1) + ' ' + (52 + Math.sin(a0) * 36).toFixed(1) + ' A36 36 0 0 1 ' + (50 + Math.cos(a1) * 36).toFixed(1) + ' ' + (52 + Math.sin(a1) * 36).toFixed(1) + '" opacity="' + (i < lit ? 1 : 0.18) + '"/>';
 		}
 		return out + '</g>';
 	}
