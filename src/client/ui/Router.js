@@ -569,6 +569,34 @@ function navigate(to) {
 	applyRouteFromHash();
 }
 
+// Phones held upright: the topbar hides as you scroll down and slides back as soon as you scroll up
+// a little (the way the browser's own toolbar does) via html.nav-away — style.css moves the bar.
+// Ported from achtung-royale's NavBar: thresholds so a single jittery scroll event (Android fires
+// some when its toolbar collapses) never flips it, and near the top of the page the bar is simply
+// always there. Never hides while the burger menu is open.
+function wireSmartScrollNav() {
+	if (typeof matchMedia !== "function") return;
+	var phone = matchMedia("(max-width: 900px), (pointer: coarse)");
+	var portrait = matchMedia("(orientation: portrait)");
+	var root = document.documentElement;
+	var bar = document.querySelector(".topbar");
+	var lastY = window.scrollY, run = 0, away = false;
+	function set(h) { if (h === away) return; away = h; root.classList.toggle("nav-away", h); }
+	function onScroll() {
+		if (!phone.matches || !portrait.matches || (bar && bar.classList.contains("nav-open"))) { set(false); return; }
+		var y = window.scrollY, dy = y - lastY;
+		lastY = y;
+		if (y < 50) { run = 0; set(false); return; }
+		if ((dy > 0) !== (run > 0)) run = 0;
+		run += dy;
+		if (run > 10) set(true);
+		else if (run < -10) set(false);
+	}
+	window.addEventListener("scroll", onScroll, { passive: true });
+	if (portrait.addEventListener) portrait.addEventListener("change", onScroll);
+}
+wireSmartScrollNav();
+
 // Mobile burger menu. The nav collapses into a dropdown toggled by #nav_burger; it closes on
 // navigation (via navigate() above), on a tap outside, and on Escape.
 function closeNavMenu() {

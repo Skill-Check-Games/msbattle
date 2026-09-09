@@ -7440,12 +7440,34 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
 .dash-main { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.95fr); gap: 1.1rem; align-items: stretch; }
 @media (max-width: 880px) {
 	.dash-main { grid-template-columns: 1fr; }
-	.dash-you-box-main { flex-wrap: wrap; }
-	/* Cells drop to their own full-width line under the name, divided from it by a hairline; the first
-	   cell loses its left divider since the card edge is right there. */
-	.dash-you-stats { margin: 0 -1rem -0.4rem; width: calc(100% + 2rem); align-self: auto; border-top: 1px solid var(--border); }
-	.dash-you-cell { flex: 1 1 0; padding: 0.4rem 0.8rem; }
+	/* Phones: the info card is only ~160px wide between the two 75px tiles, so its contents are
+	   re-flowed as rows of the identity block instead. display: contents dissolves the info card
+	   AND its name block, promoting the name row, the guest sign-in line and the stat strip to direct
+	   flex children of .dash-you, which wraps:
+	     avatar tile | name row (a box of its own) | flag tile
+	     sign-in button (guests only), full width
+	     stat strip, full width, four cells across
+	   The skeleton cover (absolute inside the dissolved card) is dropped here — the SSR paint lands fast. */
+	.dash-you { flex-wrap: wrap; }
+	.dash-you-box-main, .dash-you-main { display: contents; }
+	#dash_you_skel { display: none; }
+	.dash-you-name-row {
+		flex: 1 1 0; min-width: 0; min-height: 75px; margin-left: 0; padding: 0 0.9rem;
+		background: linear-gradient(110deg, var(--surface-2), var(--surface)); border: 1px solid var(--border); border-radius: 7px;
+	}
+	.dash-you-box-flag { order: 1; }
+	.dash-you-line { order: 2; width: 100%; display: flex; }
+	.dash-you-line:empty { display: none; }
+	.dash-you-line .dash-you-signin { width: 100%; justify-content: center; padding: 0.55rem 0.8rem; }
+	.dash-you-stats {
+		order: 3; width: 100%; margin: 0; align-self: auto;
+		background: linear-gradient(110deg, var(--surface-2), var(--surface)); border: 1px solid var(--border); border-radius: 7px;
+		min-height: 58px;
+	}
+	.dash-you-cell { flex: 1 1 0; padding: 4px 0.3rem 0; }
 	.dash-you-cell:first-child { border-left: 0; }
+	.dash-you-cell span { font-size: 0.55rem; letter-spacing: 0.04em; }
+	.dash-you-cell b { font-size: 1.05rem; }
 }
 
 .dash-modes { display: flex; flex-direction: column; gap: 0.55rem; }
@@ -8214,3 +8236,21 @@ body.game-fullscreen .game-view:not(.puzzle):not(.solo):not(.duo):not(.multi) .g
 .dash-you-stats-past .dash-you-cell em { color: inherit; }
 /* First-paint placeholder in a stat cell (before the match history lands): a small shimmer bar. */
 .dash-you-cell-skel { display: block; width: 22px; height: 8px; border-radius: 4px; }
+
+/* ── Phones: footer on one row, Discord first — the achtung-royale treatment ─────────── */
+@media (max-width: 700px) {
+	.site-footer { flex-direction: row; justify-content: center; gap: 0.9rem; padding: 0.5rem 0.9rem; padding-left: max(0.9rem, env(safe-area-inset-left)); padding-right: max(0.9rem, env(safe-area-inset-right)); }
+	.site-footer-social { padding-top: 0; }
+	.site-footer-social-link svg { width: 22px; height: 22px; }
+	.site-footer-legal { flex-wrap: nowrap; gap: 0.6rem; font-size: 0.72rem; white-space: nowrap; }
+}
+
+/* ── Phones held upright: the topbar tucks away on scroll down and slides back on a small scroll up
+   (Router.js wireSmartScrollNav sets html.nav-away), the way the browser's own toolbar does — ported
+   from achtung-royale. Sticky so it can return mid-page. Off in landscape and on desktop. ── */
+@media (orientation: portrait) {
+	@media (max-width: 900px), (pointer: coarse) {
+		.topbar { position: sticky; top: 0; transition: transform 0.2s ease; }
+		html.nav-away .topbar { transform: translateY(-100%); }
+	}
+}
