@@ -50,6 +50,7 @@
 		return l.tierName + " · " + (l.atMax ? "Max" : "Lvl " + l.level);
 	}
 
+	window.PUZZLE_TIER_NAMES = PUZZLE_TIERS.map(function(t) { return t.name; }); // for width probing (renderHomeRankChips)
 	window.puzzleLadder = puzzleLadder;
 	window.puzzleLadderLabel = puzzleLadderLabel;
 })();

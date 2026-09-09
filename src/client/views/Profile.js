@@ -1714,12 +1714,23 @@ function paintYouCardEarly(account) {
 // badges then share one x, every label sits tight against its own badge, and the group as a whole
 // hugs the row's right edge as closely as the longest label allows. Called after the labels render
 // (renderHomeRankChips); the ≤480px grid overrides the width back to auto.
+// Sized to the widest label that can EVER appear — not the widest currently on screen — so the badge
+// column and the labels sit at exactly the same x whether the rows read "Placement"/"Unranked" or
+// "Gold I"/"Diamond I"/"Engineer" (they shifted between the two states before). The candidates are
+// probed through the first block's real label element, so font/weight/gap are measured, not guessed.
 function syncHomeRankWidths() {
 	var blocks = ["dash_stat_sprint", "dash_stat_standard", "dash_stat_puzzles"].map(function(id) { return document.getElementById(id); }).filter(Boolean);
 	if (!blocks.length) return;
+	var probe = blocks[0].querySelector(".mode-card-rank-tier");
+	if (!probe) return;
+	var candidates = ["Placement", "Unranked", "Master"];
+	if (typeof TIER_BANDS !== "undefined") TIER_BANDS.forEach(function(t) { candidates.push(t.name + " III"); });
+	if (typeof PUZZLE_TIER_NAMES !== "undefined") candidates = candidates.concat(PUZZLE_TIER_NAMES);
+	var saved = probe.textContent;
 	blocks.forEach(function(b) { b.style.width = ""; });
 	var max = 0;
-	blocks.forEach(function(b) { max = Math.max(max, b.getBoundingClientRect().width); });
+	candidates.forEach(function(c) { probe.textContent = c; max = Math.max(max, blocks[0].getBoundingClientRect().width); });
+	probe.textContent = saved;
 	if (max > 0) blocks.forEach(function(b) { b.style.width = Math.ceil(max) + "px"; });
 }
 
