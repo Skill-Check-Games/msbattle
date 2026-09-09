@@ -12,6 +12,15 @@ archive; grep it for a subsystem when you need the backstory).
 
 ## Commands
 
+- `npm run dev:client` — Vite dev server for the React client on :5173, proxying socket.io, `/api`, `/auth`
+  and the asset folders to the Node server on :1337 (so run `npm run dev` too). This is the day-to-day
+  loop for client work: edit under `apps/client/src`, the browser hot-reloads.
+- `npm run dev:react` — the Node server serving the built React client (`REACT_CLIENT=1`; run
+  `npm run build` first). Same origin as the socket, so this is where sign-in and the prod path are checked.
+- `npm run typecheck` / `npm run test:e2e` — the client's `tsc --noEmit` and Playwright smoke test (every
+  route loads without a page error, screenshots under `apps/client/e2e/screenshots`). Run both, plus
+  `npm run build`, before calling client work done.
+
 - `npm run dev` — start locally with dev login (`DEV_AUTH=1`) on port 1337. Auto-loads `.env`.
 - `npm run stop` / `npm run restart` — stop, or stop + start. **Always use these npm scripts**
   for the server lifecycle, never ad-hoc `node`/`kill`/`lsof`.

@@ -1,0 +1,11 @@
+// Design tokens. The CSS custom properties are the source of truth at runtime (they are what the
+// legacy stylesheet used, kept verbatim so both clients look identical during the rewrite); the SCSS
+// values below exist for places that need a number at compile time (breakpoints, mixins).
+$bp-sm: 480px;   // narrow phones (target floor is 330px)
+$bp-md: 700px;   // the in-game mobile layout breakpoint
+$bp-lg: 880px;   // home page portrait re-flow
+$bp-xl: 1024px;
+
+@mixin below($bp) { @media (max-width: $bp) { @content; } }
+@mixin above($bp) { @media (min-width: $bp + 1px) { @content; } }
+@mixin landscape-phone { @media (orientation: landscape) and (max-height: 500px) and (min-width: 701px) { @content; } }

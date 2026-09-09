@@ -1,0 +1,30 @@
+@use "./variables" as *;
+
+*, *::before, *::after { box-sizing: border-box; }
+html { color-scheme: dark; }
+body {
+	margin: 0;
+	background: var(--bg);
+	color: var(--text);
+	font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+	font-size: 15px;
+	line-height: 1.45;
+	-webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, h4 { font-family: var(--font-display); margin: 0; }
+a { color: inherit; }
+button { font: inherit; color: inherit; cursor: pointer; }
+canvas { display: block; }
+[hidden] { display: none !important; }
+
+// Buttons: shared base. Hover is border/opacity/background only, never a lift or scale.
+.btn {
+	display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+	padding: 0.55rem 1rem; border-radius: 6px; border: 1px solid var(--border);
+	background: var(--surface-2); font-weight: 600; text-decoration: none;
+	transition: border-color var(--motion-micro), background var(--motion-micro), opacity var(--motion-micro);
+	&:hover { border-color: var(--muted); }
+	&:disabled { opacity: 0.5; cursor: default; }
+}
+.btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; &:hover { background: var(--accent-hover); border-color: var(--accent-hover); } }
+.btn-ghost { background: transparent; }

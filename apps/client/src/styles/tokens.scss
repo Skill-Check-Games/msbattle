@@ -1,0 +1,30 @@
+:root {
+	// Home page spacing rule: exactly TWO gaps between cards at every screen size.
+	--gap-tight: 0.55rem;
+	--gap-group: 1.1rem;
+	--bg: #0b1020;
+	--surface: #131a2e;
+	--surface-2: #1a2240;
+	--border: #283057;
+	--text: #e6e9f5;
+	--muted: #8b93b8;
+	--accent: #6366f1;
+	--accent-hover: #818cf8;
+	--danger: #ef4444;
+	--success: #22c55e;
+	--shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px rgba(0, 0, 0, 0.35);
+	--font-display: "Space Grotesk", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+	--ease: cubic-bezier(0.34, 1.2, 0.44, 1);
+	--ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+	--motion-micro: 120ms;
+	--motion-standard: 220ms;
+	--motion-emphatic: 400ms;
+	--mode-sprint: #fbbf24;
+	--mode-standard: #a78bfa;
+	--mode-custom: #6366f1;
+	--energy-win: #4ade80;
+	--energy-gold: #fcd34d;
+	--energy-streak: #fb923c;
+	--tile-hi: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+	--tile-shadow: 0 2px 0 rgba(0, 0, 0, 0.35), 0 8px 22px -10px rgba(0, 0, 0, 0.7);
+}

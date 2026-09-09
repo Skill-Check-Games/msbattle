@@ -14,3 +14,8 @@ apps/legacy-client/bundle.js
 
 .claude/worktrees/
 .claude-worktrees/
+
+# React client build output and Playwright output
+apps/client/dist/
+apps/client/e2e/screenshots/
+apps/client/test-results/

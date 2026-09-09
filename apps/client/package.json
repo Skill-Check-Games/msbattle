@@ -1,0 +1,30 @@
+{
+	"name": "client",
+	"version": "1.0.0",
+	"private": true,
+	"type": "module",
+	"description": "msbattle web client: Vite + React 18 + TypeScript, SCSS modules, react-router. Talks to apps/server over socket.io and /api.",
+	"scripts": {
+		"dev": "vite",
+		"build": "vite build",
+		"preview": "vite preview --port 4173 --host",
+		"typecheck": "tsc --noEmit",
+		"test:e2e": "playwright test"
+	},
+	"dependencies": {
+		"core": "*",
+		"react": "^18.3.1",
+		"react-dom": "^18.3.1",
+		"react-router-dom": "^7.1.1",
+		"socket.io-client": "^4.8.1"
+	},
+	"devDependencies": {
+		"@playwright/test": "^1.61.1",
+		"@types/react": "^18.3.12",
+		"@types/react-dom": "^18.3.1",
+		"@vitejs/plugin-react": "^4.3.4",
+		"sass": "^1.80.0",
+		"typescript": "^5.6.3",
+		"vite": "^5.4.11"
+	}
+}

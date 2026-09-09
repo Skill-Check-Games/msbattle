@@ -1,0 +1,7 @@
+.dash { display: flex; flex-direction: column; gap: var(--gap-group); }
+.identity {
+	padding: 1rem 1.2rem; border-radius: 7px;
+	background: var(--surface); border: 1px solid var(--border);
+}
+.name { font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; }
+.sub { color: var(--muted); font-size: 0.85rem; }

@@ -225,6 +225,28 @@ function applyRouteReveal(html, pathname) {
 // slightly from the framing overhead — so only compress text.
 var COMPRESSIBLE = { "text/javascript": true, "text/css": true, "image/svg+xml": true, "text/html": true, "application/manifest+json": true };
 
+// React client (apps/client, built by `vite build` into apps/client/dist). With REACT_CLIENT=1 every
+// page route except /admin* serves dist/index.html (the old client keeps the admin pages until they are
+// ported) and /assets/* serves the hashed bundle files. Everything else (flags, avatars, sounds, the
+// legacy client's own files) still resolves through STATIC_ROOTS.
+var REACT_DIST_DIR = path.join(require("../paths").REPO_ROOT, "apps", "client", "dist");
+var REACT_CLIENT = process.env.REACT_CLIENT === "1";
+function resolveReact(pathname) {
+	if (!REACT_CLIENT) return null;
+	var indexFile = path.join(REACT_DIST_DIR, "index.html");
+	if (pathname.indexOf("/assets/") === 0) {
+		var full = path.join(REACT_DIST_DIR, pathname);
+		if (full.indexOf(REACT_DIST_DIR) !== 0) return null;
+		try { if (fs.statSync(full).isFile()) return full; } catch (e) {}
+		return null;
+	}
+	if (pathname.indexOf("/admin") === 0) return null;
+	var last = pathname.split("/").pop();
+	if (pathname !== "/" && last.indexOf(".") !== -1) return null;
+	try { if (fs.statSync(indexFile).isFile()) return indexFile; } catch (e) {}
+	return null;
+}
+
 function resolveStatic(pathname) {
 	if (pathname === "/") pathname = "/index.html";
 	for (var i = 0; i < STATIC_ROOTS.length; i++) {
@@ -310,7 +332,8 @@ function serveServiceWorker(res, req) {
 
 function serve(res, pathname, req) {
 	if (pathname === "/sw.js") { serveServiceWorker(res, req); return; }
-	var filePath = resolveStatic(pathname);
+	var reactFile = resolveReact(pathname);
+	var filePath = reactFile || resolveStatic(pathname);
 	if (!filePath) {
 		var last = pathname.split("/").pop();
 		if (last.indexOf(".") === -1) filePath = resolveStatic("/index.html");
@@ -322,13 +345,16 @@ function serve(res, pathname, req) {
 	// cache; everything else has no cache-busting in its URL, so keep the lifetime short rather
 	// than long-lived/immutable. Dev disables it entirely (see DEV above).
 	headers["Cache-Control"] = (contentType === "text/html" || DEV) ? "no-cache" : "public, max-age=3600";
+	// Vite's asset filenames carry a content hash, so they can be cached forever.
+	if (reactFile && contentType !== "text/html") headers["Cache-Control"] = "public, max-age=31536000, immutable";
 
 	var encoding = COMPRESSIBLE[contentType] ? pickEncoding(req) : null;
 
 	// index.html is the one file that needs a text transform (the production bundle swap, the route
 	// reveal, and the hydration data injection, all above), so it can't stream straight from disk
 	// like everything else — read it fully (a few dozen KB, cheap) and go through serveBuffer instead.
-	if (path.basename(filePath) === "index.html") {
+	// (The React index.html is a finished document with hashed asset URLs: none of those transforms apply.)
+	if (path.basename(filePath) === "index.html" && !reactFile) {
 		fs.readFile(filePath, "utf8", function(err, html) {
 			if (err) { res.writeHead(500); res.end("Error while loading " + filePath); return; }
 			html = applyHydration(applyRouteReveal(applyAssetVersioning(applyBundleSwap(html)), pathname), req);

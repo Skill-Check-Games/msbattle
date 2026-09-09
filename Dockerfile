@@ -8,8 +8,9 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 COPY . .
-# Workspaces: one install at the root links packages/core into node_modules for apps/server.
-RUN npm ci --omit=dev
+# Workspaces: one install at the root links packages/core into node_modules for apps/server. Dev
+# dependencies are needed here because the client build (vite) is one.
+RUN npm ci
 
 # Concatenates + minifies the client scripts into bundle.js (see scripts/build-client.js /
 # staticServer.js). esbuild is a real (non-dev) dependency specifically so this works with the
