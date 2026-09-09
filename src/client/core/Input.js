@@ -229,6 +229,7 @@ function performAction(r, c, asFlag) {
 	}
 	if (mode === "solo") updateSoloHud();
 	else if (mode === "puzzle") updatePuzzleHud();
+	else if (mode === "demo" && typeof labOnAfterAction === "function") labOnAfterAction(); // customize lab: "board changed" state on its Reset button
 	// Board content is already fully handled above: revealAt/placeFlag each trigger exactly the
 	// repaint their own change needs (cellAnims + the RAF loop for anything animated; a targeted
 	// renderPlayerBoard([key]) call, inline, for the two cases with no animation to hang a repaint

@@ -675,6 +675,7 @@ function enterLabDemoInput(frame) {
 	boardDecoder = labBoardDecoder;
 	myState = labRestingState();
 	prevPlayerState = cloneState(myState);
+	labOnAfterAction(); // Reset button starts inert — nothing to reset yet
 	focusedR = LAB_DEMO_OPEN_AT[0]; focusedC = LAB_DEMO_OPEN_AT[1]; focusVisible = false;
 	playerCanvas = labCanvas;
 
@@ -718,6 +719,19 @@ function resetLabDemoBoard() {
 	myState = labRestingState();
 	prevPlayerState = cloneState(myState);
 	redrawOwnBoardWithFocus();
+	labOnAfterAction();
+}
+
+// Reset button state: highlighted (accent) whenever the preview board differs from its opening
+// state, plain when there's nothing to reset. Called after every lab action (Input.js, mode "demo")
+// and after a reset.
+function labOnAfterAction() {
+	var btn = document.getElementById("lab_reset_btn");
+	if (!btn || !labDemoActive) return;
+	var rest = labRestingState(), dirty = false;
+	for (var r = 0; r < rest.length && !dirty; r++) for (var c = 0; c < rest[r].length; c++) { if (myState[r][c] !== rest[r][c]) { dirty = true; break; } }
+	btn.classList.toggle("is-dirty", dirty);
+	btn.disabled = !dirty;
 }
 
 // Covered, non-mine cells touching the current board state — the natural next "ring" to
@@ -936,7 +950,10 @@ function buildLabLeftPanel() {
 	var resetBtn = document.createElement("button");
 	resetBtn.type = "button"; resetBtn.className = "btn btn-ghost lab-reset-btn";
 	resetBtn.textContent = "↻ Reset board";
-	resetBtn.addEventListener("click", function() { demonstrateLabEffect(); });
+	resetBtn.id = "lab_reset_btn";
+	// Just reset — it used to call demonstrateLabEffect(), which reset and then immediately revealed six
+	// more cells again, so the board never came back to its opening state.
+	resetBtn.addEventListener("click", function() { resetLabDemoBoard(); });
 	wrap.appendChild(resetBtn);
 
 	// NOT renderLabIdentity()/enterLabDemoInput() here — `identity`/`frame` aren't attached to the
