@@ -695,6 +695,7 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 .btn-ghost.lab-reset-btn { width: 100%; max-width: 260px; border-color: var(--border); }
 /* Nothing to reset: quiet and inert. Board changed: accent border + text so it reads as "you can go back". */
 .btn-ghost.lab-reset-btn:disabled { opacity: 0.45; cursor: default; }
+.btn-ghost.lab-reset-btn:disabled:hover { background: transparent; color: var(--muted); border-color: var(--border); } /* no hover while inert */
 .btn-ghost.lab-reset-btn.is-dirty { border-color: var(--accent); color: var(--accent-hover); background: rgba(99, 102, 241, 0.12); }
 .btn-ghost.lab-reset-btn.is-dirty:hover { background: rgba(99, 102, 241, 0.2); }
 

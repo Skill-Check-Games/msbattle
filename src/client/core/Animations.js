@@ -1033,7 +1033,15 @@ function startAnimLoop() {
 		if (opponentRevealTargets && paintOpponentRevealFrame()) alive = true; // ripple the opponents' opening reveal
 		renderPlayerBoard(animKeys);
 		if (alive) { animRAF = requestAnimationFrame(step); }
-		else { animRAF = null; }
+		else {
+			animRAF = null;
+			// One FULL repaint when the batch settles. The per-cell repaints above only clear each animated
+			// cell's own rect, but reveal effects paint beyond it while animating (the ripple lid scales
+			// up 18%, spilling into the gutters between cells) — residue that stayed until something else
+			// repainted the whole board. In a live match the server's draw_board frames did that within
+			// a moment, masking it; in the customize lab (and solo) nothing did, and the halos stayed.
+			renderPlayerBoard();
+		}
 	};
 	animRAF = requestAnimationFrame(step);
 }
