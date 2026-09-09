@@ -1,6 +1,6 @@
 // Home dashboard: identity row (avatar tile, name + stat strip, flag tile), the three mode rows
 // (Sprint, Standard, Puzzles) with live board previews and rank chips, and the daily puzzle hero.
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import RankedPicker, { RankedStyle } from "./RankedPicker";
 import PuzzlesPicker from "./PuzzlesPicker";
 import Modal from "../../app/Modal";
@@ -12,6 +12,7 @@ import { RankBadge, PlacementBadge, PuzzleRankBadge, PuzzleLockedBadge } from ".
 import { tierFor } from "../../shared/ranking";
 import { puzzleLadder } from "../../shared/puzzle-ladder";
 import { countryFlagSrcSquare, countryName } from "../../shared/countries";
+import FlagPicker from "../../shared/FlagPicker";
 import { useCosmetics } from "../../shared/cosmetics";
 import { getSocket, onSocket } from "../../online/socket";
 import PreviewBoard, { BoardSpec } from "../../game/PreviewBoard";
@@ -60,6 +61,10 @@ export default function HomePage({ openPuzzles = false }: { openPuzzles?: boolea
 function IdentityRow({ account, matches }: { account: Account | null; matches: ReturnType<typeof useMatchHistory> }) {
 	const { signIn, update } = useAuth();
 	const [lab, setLab] = useState(false);
+	const [flagOpen, setFlagOpen] = useState(false);
+	const flagBtn = useRef<HTMLButtonElement>(null);
+	const closeFlag = useCallback(() => setFlagOpen(false), []);
+	const pickCountry = (code: string | null) => { getSocket().emit("set_country", { country: code || "" }); update({ country: code }); };
 	const stats = matches ? sessionStats(matches) : null;
 	const flagSrc = countryFlagSrcSquare(account?.country);
 	return (
@@ -86,9 +91,10 @@ function IdentityRow({ account, matches }: { account: Account | null; matches: R
 					))}
 				</div>
 			</div>
-			<div className={`${styles.youBox} ${styles.youFlag}`} title={account?.country ? countryName(account.country) : "Pick a flag"}>
+			<button ref={flagBtn} type="button" className={`${styles.youBox} ${styles.youFlag}`} title={account?.country ? countryName(account.country) : "Pick a flag"} onClick={() => setFlagOpen(o => !o)}>
 				{flagSrc ? <img src={flagSrc} alt="" /> : <span className={styles.flagEmpty}>+</span>}
-			</div>
+			</button>
+			{flagOpen && <FlagPicker anchor={flagBtn.current} current={account?.country || null} onSelect={pickCountry} onClose={closeFlag} />}
 		</div>
 	);
 }
