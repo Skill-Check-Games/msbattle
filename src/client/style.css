@@ -7330,22 +7330,24 @@ input[type="range"].sound-lab-rate-slider { grid-column: 1 / -1; grid-row: 2; wi
 .dash-you {
 	display: flex; align-items: stretch; gap: 0.55rem;
 	margin-bottom: 1.1rem;
-	min-height: 70px;
+	min-height: 75px;
 }
 .dash-you-box {
 	background: linear-gradient(110deg, var(--surface-2), var(--surface));
 	border: 1px solid var(--border); border-radius: 7px;
 }
 /* The two square tiles: row-height, image edge to edge (no padding), corners clipped by the box. */
-.dash-you-box-avatar, .dash-you-box-flag { flex: 0 0 70px; width: 70px; min-height: 70px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
+/* Try (2026-09-09): flag tile on the far LEFT, avatar next to it — done with flex order so the markup stays. */
+.dash-you-box-flag { order: -1; }
+.dash-you-box-avatar, .dash-you-box-flag { flex: 0 0 75px; width: 75px; min-height: 75px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
 .dash-you-box-avatar .avatar-chip, .dash-you-box-avatar canvas { display: block; }
 .dash-you-box-flag .flag-picker-trigger { width: 100%; height: 100%; border: 0; border-radius: 0; background: none; }
 .dash-you-box-main {
 	position: relative; flex: 1 1 auto; min-width: 0;
 	display: flex; align-items: center; gap: 0; /* spacing between name block / tag / strip is explicit (auto + 10px margins) */
-	padding: 0.4rem 1rem; /* the 70px row */
+	padding: 0.4rem 1rem; /* the 75px row */
 }
-/* min-height 70px on .dash-you (above) is reserved so a pageload that lands before account data arrives
+/* min-height 75px on .dash-you (above) is reserved so a pageload that lands before account data arrives
    (e.g. back from an OAuth/dev sign-in redirect, no cookie for SSR to inline from) doesn't render a
    shorter row and then grow once paintYouCardEarly() fills it, shoving the mode rows down. */
 /* Skeleton loader cover — the real card is always rendered underneath at its normal size (see
@@ -7404,7 +7406,7 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
 .dash-edit-name {
 	flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
 	width: 1.7rem; height: 1.7rem; padding: 0; border-radius: 5px;
-	margin-left: -0.25rem; /* the glyph sits ~10px from the name text (the 1.7rem hit box stays) */
+	margin-left: 0; /* the glyph sits ~14px from the name text (the 1.7rem hit box stays) */
 	background: none; border: 1px solid transparent; color: var(--muted); cursor: pointer;
 	transition: color var(--motion-micro) var(--ease-out), background var(--motion-micro) var(--ease-out);
 }
@@ -8157,7 +8159,10 @@ body.game-fullscreen .game-view:not(.puzzle):not(.solo):not(.duo):not(.multi) .g
 .rank-badge-placement { color: var(--muted); }
 .rank-badge-placement svg { width: 100%; height: 100%; display: block; }
 .mode-card-rank-tier-placing { color: var(--muted); }
-.mode-card-placement-dots { display: inline-flex; gap: 3px; margin-top: 3px; }
+/* The dots hang BELOW the label without adding to the block's height (negative bottom margin = their own
+   height), so "Placement" sits at the same y as a one-line label ("Unranked", "Gold I") and every row's
+   main label is centred on its badge. Same trick for the puzzle row's "Lvl N" line below. */
+.mode-card-placement-dots { display: inline-flex; gap: 3px; margin-top: 3px; margin-bottom: -10px; }
 .mode-card-placement-dots i { width: 7px; height: 7px; border-radius: 50%; background: #2b3459; }
 .mode-card-placement-dots i.on { background: var(--accent); }
 .dash-you-unranked { color: var(--muted); font-weight: 600; }
@@ -8190,7 +8195,7 @@ body.game-fullscreen .game-view:not(.puzzle):not(.solo):not(.duo):not(.multi) .g
 
 /* Second line under a home-row rank label ("Lvl 13" under the puzzle tier) — same weight/size as the
    placement dots row so the three rows' labels read as one shape. */
-.mode-card-rank-sub { font-size: 0.72rem; font-weight: 600; color: var(--muted); margin-top: 2px; line-height: 1.2; }
+.mode-card-rank-sub { font-size: 0.72rem; font-weight: 600; color: var(--muted); margin-top: 2px; line-height: 1.2; margin-bottom: calc(-0.72rem * 1.2 - 2px); }
 .mode-card-rank-sub:empty { display: none; }
 
 /* Home avatar tile: the canvas draws the border + corners itself (see renderDashIdentity), so the box
