@@ -8158,6 +8158,13 @@ body.game-fullscreen .game-view:not(.puzzle):not(.solo):not(.duo):not(.multi) .g
 	.dash-row-info { grid-column: 2; align-self: end; }
 	.dash-row-stat { grid-column: 2; align-self: start; justify-content: flex-start; min-width: 0; min-height: 0; }
 	.dash-row-stat-text, .mode-card-rank-tiered .mode-card-rank-text { align-items: flex-start; text-align: left; }
+	/* The rank sits under the title here, so it's a secondary line: smaller badge (35px, not 45) and text. */
+	.dash-row .mode-card-rank-tiered { gap: 0.45rem; }
+	.dash-row .mode-card-rank-badge .rank-badge { font-size: 7px; }
+	.dash-row-stat .mode-card-rank-tier { font-size: 0.8rem; }
+	.mode-card-placement-dots i { width: 6px; height: 6px; }
+	.mode-card-placement-dots { margin-bottom: -9px; }
+	.mode-card-rank-sub { font-size: 0.66rem; margin-bottom: calc(-0.66rem * 1.2 - 2px); }
 }
 /* The daily hero's board is a non-interactive preview (pointer-events: none) — the "Keyboard: arrows
    to move…" caption buildLearnPuzzle adds under every board was leaking into it, same as the mode
