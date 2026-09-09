@@ -524,7 +524,7 @@ button.site-nav-link { background: none; border: 0; font-family: inherit; cursor
 
 /* --- Avatars (recoloured game flag) + country flags --- */
 .avatar-chip { display: inline-flex; align-items: center; gap: 0.35rem; flex: 0 0 auto; line-height: 0; }
-.avatar-canvas { display: block; border-radius: 28%; }
+.avatar-canvas { display: block; border-radius: clamp(3px, 9%, 7px); } /* matches the canvas's own drawn corners (buildAvatarCanvas) */
 .country-flag { display: block; width: auto; border-radius: 2px; box-shadow: 0 0 0 1px rgba(0,0,0,0.35); }
 .profile-avatar { margin-right: 0.15rem; }
 .lb-avatar, .dash-avatar, .hud-avatar { vertical-align: middle; }
@@ -4494,10 +4494,12 @@ body.touch .find-next-arrow { display: inline-flex; }
 .duel-id-name { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.01em; color: var(--text); white-space: nowrap; }
 /* Rank-badge + tier name, pill-bordered in the tier's own colour (set inline — see fillDuelId).
    Exact rating stays hidden in-game same as everywhere else; this is tier only. */
+/* Badge + tier name, plain — the pill border/background it used to have pulled focus (dropped on
+   request, in-game and in the customize lab alike). */
 .duel-id-tier-pill {
 	display: inline-flex; align-items: center; gap: 0.4rem;
-	padding: 0.15rem 0.6rem 0.15rem 0.3rem; border-radius: 999px;
-	border: 1px solid var(--border); background: rgba(255, 255, 255, 0.04);
+	padding: 0.15rem 0; border-radius: 0;
+	border: 0; background: none;
 }
 .game-view.duo #duel_id_opp .duel-id-tier-pill { flex-direction: row-reverse; padding: 0.15rem 0.3rem 0.15rem 0.6rem; }
 .duel-id-tier-badge.rank-badge { flex: 0 0 auto; font-size: 5px; }

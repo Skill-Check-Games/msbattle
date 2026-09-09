@@ -246,7 +246,6 @@ function fillDuelId(el, p) {
 		// everywhere else.
 		var pill = document.createElement("div");
 		pill.className = "duel-id-tier-pill";
-		pill.style.borderColor = t.color;
 		if (typeof buildRankBadge === "function") {
 			var badge = buildRankBadge(p.rating);
 			badge.classList.add("duel-id-tier-badge");

@@ -68,6 +68,9 @@
 				numbers: { 1: "#38bdf8", 2: "#34d399", 3: "#fb7185", 4: "#a78bfa", 5: "#facc15", 6: "#22d3ee", 7: "#f0abfc", 8: "#f8fafc" },
 				knownBg: "#0b1626", knownEdge: "#050b14",
 				unknownTop: "#dbeafe", unknownBottom: "#7dd3fc", unknownEdge: "#0284c7",
+				// (2026-09-09) The raised-top highlight is off for Frost: on a tile this light, any stroke there
+				// read as a stray horizontal line rather than a gloss. Overrides the sky-700 value below.
+				noTopHilite: true,
 				// Was a translucent white (rgba(255,255,255,0.45)) — reported as hard to see: unlike
 				// every other skin, Frost's own unknownTop is ALREADY nearly white, so a white highlight
 				// stroke on top of it had almost no contrast to begin with. A first pass switched to

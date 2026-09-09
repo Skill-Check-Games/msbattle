@@ -129,6 +129,13 @@ function labPreviewLocked(kind, id, item) {
 	updateLabBuyButton();
 	if (kind === "revealEffect") demonstrateLabEffect();
 }
+// Drop the locked preview of one kind (the player picked something real of that kind instead).
+function labClearPreview(kind) {
+	var key = kind === "avatar" ? "avatar" : kind === "skin" ? "skin" : "effect";
+	labPreview[key] = null;
+	if (labPreview.last && labPreview.last.kind === kind) labPreview.last = null;
+	updateLabBuyButton();
+}
 function updateLabBuyButton() {
 	var btn = document.getElementById("lab_buy_btn");
 	if (!btn) return;
@@ -253,6 +260,7 @@ function buildCosmeticCardGrid(opts) {
 
 		tile.addEventListener("click", function() {
 			if (!unlocked) { labPreviewLocked(opts.kind, id, item); return; } // try it on the preview; Buy sits under the board
+			labClearPreview(opts.kind); // a real pick ends any locked preview of this kind, or it would keep shadowing the choice
 			opts.onSelect(id);
 		});
 		grid.appendChild(tile);
@@ -863,7 +871,7 @@ function buildLabSkinPanel() {
 	var title = document.createElement("h3"); title.className = "lab-right-title"; title.textContent = "Choose Board Skin";
 	wrap.appendChild(title);
 	var sub = document.createElement("p"); sub.className = "lab-right-sub";
-	sub.textContent = "How your board looks, to you and to opponents. Click the preview board to try one.";
+	sub.textContent = "How your board looks, to you and to opponents.";
 	wrap.appendChild(sub);
 	wrap.appendChild(buildCosmeticCardGrid({
 		list: BOARD_SKIN_LIST, kind: "skin", activeId: labPreview.skin || localBoardSkin,
@@ -923,6 +931,7 @@ function buildRevealEffectCard(id) {
 
 	tile.addEventListener("click", function() {
 		if (!unlocked) { labPreviewLocked("revealEffect", id, item); return; } // try it on the preview; Buy sits under the board
+		labClearPreview("revealEffect");
 		if (id === localRevealEffect) { demoPlay(); return; } // already selected: just replay it
 		setRevealEffect(id);
 		renderLabRightPanel();

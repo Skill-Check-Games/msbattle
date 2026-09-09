@@ -696,6 +696,10 @@ function redrawOwnBoardWithFocus() {
 // every frame.
 function canPartialRepaint() {
 	if (boardGoAnim || boardIdleActive) return false;
+	// Phosphor skins (Tactical, Neon) glow each digit with a shadowBlur that bleeds well past the cell's
+	// own rect — repainting only some cells clears the bleed on those and leaves it on the rest, which
+	// read as random cells "lighting up" around a click. Those skins take the full repaint every frame.
+	if (typeof NUMBER_GLOW !== "undefined" && NUMBER_GLOW) return false;
 	if (countdownGlyphs.length || Object.keys(countdownCells).length) return false;
 	if (typeof puzzleHintClues !== "undefined" && (puzzleHintClues.length || puzzleHintCovered.length)) return false;
 	return true;

@@ -14,7 +14,7 @@
 // keyed off `body[data-board-skin]`.
 var COLOR_MINE, NUMBER_COLORS, COLOR_KNOWN_BG, COLOR_KNOWN_EDGE,
 	COLOR_UNKNOWN_TOP, COLOR_UNKNOWN_BOTTOM, COLOR_UNKNOWN_EDGE, COLOR_UNKNOWN_HILITE,
-	COLOR_FLAG_CLOTH, COLOR_FLAG_POLE, NUMBER_FONT, NUMBER_GLOW;
+	COLOR_FLAG_CLOTH, COLOR_FLAG_POLE, NUMBER_FONT, NUMBER_GLOW, SKIN_NO_TOP_HILITE;
 
 // Cosmetic catalogue (skins + avatars) now lives in common/Cosmetics.js, shared with
 // the server (loaded before this file — see index.html's BUNDLE block).
@@ -65,7 +65,7 @@ function setPaletteVars(id) {
 	COLOR_UNKNOWN_TOP = s.unknownTop; COLOR_UNKNOWN_BOTTOM = s.unknownBottom; COLOR_UNKNOWN_EDGE = s.unknownEdge;
 	COLOR_UNKNOWN_HILITE = s.unknownHilite;
 	COLOR_FLAG_CLOTH = s.flagCloth; COLOR_FLAG_POLE = s.flagPole;
-	NUMBER_FONT = s.font; NUMBER_GLOW = s.glow;
+	NUMBER_FONT = s.font; NUMBER_GLOW = s.glow; SKIN_NO_TOP_HILITE = !!s.noTopHilite;
 }
 
 // Set the LOCAL user's skin: drives their own board, the CSS frame (body[data-board-skin]),
@@ -371,13 +371,15 @@ function drawUnknown(ctx, w, h, rad) {
 	roundRectPath(ctx, 0, 0, w, h, rad);
 	ctx.fillStyle = g;
 	ctx.fill();
-	// raised top highlight
-	ctx.strokeStyle = COLOR_UNKNOWN_HILITE;
-	ctx.lineWidth = Math.max(1, h * 0.06);
-	ctx.beginPath();
-	ctx.moveTo(rad, ctx.lineWidth / 2);
-	ctx.lineTo(w - rad, ctx.lineWidth / 2);
-	ctx.stroke();
+	// raised top highlight (skins can opt out — Frost does)
+	if (!SKIN_NO_TOP_HILITE) {
+		ctx.strokeStyle = COLOR_UNKNOWN_HILITE;
+		ctx.lineWidth = Math.max(1, h * 0.06);
+		ctx.beginPath();
+		ctx.moveTo(rad, ctx.lineWidth / 2);
+		ctx.lineTo(w - rad, ctx.lineWidth / 2);
+		ctx.stroke();
+	}
 	// darker bottom edge
 	roundRectPath(ctx, 0, 0, w, h, rad);
 	ctx.strokeStyle = COLOR_UNKNOWN_EDGE;
@@ -552,7 +554,7 @@ function drawNumber(ctx, n, w, h, t) {
 	ctx.save();
 	ctx.globalAlpha = clamp01(t);
 	var scale = 0.7 + 0.3 * easeOutBack(clamp01(t));
-	ctx.translate(w / 2, h / 2 + 1);
+	ctx.translate(w / 2, h / 2);
 	ctx.scale(scale, scale);
 	var col = NUMBER_COLORS[n] || "#e2e8f0";
 	ctx.fillStyle = col;
@@ -560,8 +562,12 @@ function drawNumber(ctx, n, w, h, t) {
 	if (NUMBER_GLOW) { ctx.shadowColor = col; ctx.shadowBlur = Math.max(2, h * 0.4); }
 	ctx.font = "bold " + Math.floor(0.72 * h) + "px " + NUMBER_FONT;
 	ctx.textAlign = "center";
-	ctx.textBaseline = "middle";
-	ctx.fillText(String(n), 0, 0);
+	// Centre on the glyph's measured ink box rather than the font's "middle" line — the latter depends
+	// on each font's metrics (the phosphor skins' monospace digits sat off-centre with it).
+	ctx.textBaseline = "alphabetic";
+	var s = String(n), m = ctx.measureText(s);
+	var dy = (typeof m.actualBoundingBoxAscent === "number") ? (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2 : 0.36 * h;
+	ctx.fillText(s, 0, dy);
 	ctx.restore();
 }
 
@@ -671,7 +677,9 @@ var AVATAR_IMAGE_CACHE = {};
 // makes the canvas BE the box (no CSS border of its own) passes the site's border colour so the rim
 // reads as the box's border, single, not doubled.
 function buildAvatarCanvas(color, px, country, cornerPx, rimStyle) {
-	var corner = (cornerPx != null) ? cornerPx : px * 0.28;
+	// Default corners: gently rounded like the home tile (about 9% of the size, clamped 3–7px), not the
+	// old 28% pill-ish tile — same look everywhere an avatar appears.
+	var corner = (cornerPx != null) ? cornerPx : Math.min(7, Math.max(3, px * 0.09));
 	var rim = rimStyle || "rgba(255,255,255,0.10)";
 	px = px || 28;
 	var dpr = window.devicePixelRatio || 1;
