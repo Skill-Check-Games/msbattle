@@ -166,3 +166,6 @@
 	.cell > b { font-size: 1rem; }
 	.signin { padding: 0.25rem 0.6rem; font-size: 0.76rem; }
 }
+
+.labDialog { width: min(1200px, 96vw); }
+.labFoot { display: flex; justify-content: flex-end; margin-top: 1rem; }

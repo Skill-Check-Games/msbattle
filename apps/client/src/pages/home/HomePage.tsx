@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import RankedPicker, { RankedStyle } from "./RankedPicker";
 import PuzzlesPicker from "./PuzzlesPicker";
+import Modal from "../../app/Modal";
+import CustomizeLab from "../shop/CustomizeLab";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../shared/auth";
 import { AvatarChip } from "../../shared/Avatar";
@@ -57,12 +59,13 @@ export default function HomePage({ openPuzzles = false }: { openPuzzles?: boolea
 // ---- identity row ----
 function IdentityRow({ account, matches }: { account: Account | null; matches: ReturnType<typeof useMatchHistory> }) {
 	const { signIn, update } = useAuth();
-	const navigate = useNavigate();
+	const [lab, setLab] = useState(false);
 	const stats = matches ? sessionStats(matches) : null;
 	const flagSrc = countryFlagSrcSquare(account?.country);
 	return (
 		<div className={styles.you}>
-			<button type="button" className={`${styles.youBox} ${styles.youAvatar}`} title="Edit avatar" onClick={() => navigate("/shop")}>
+			<Modal open={lab} onClose={() => setLab(false)} width={1200} title="Customize" labelledBy="lab_title" className={styles.labDialog}>{lab && <CustomizeLab host="modal" />}<div className={styles.labFoot}><button className="btn btn-primary" type="button" onClick={() => setLab(false)}>Done</button></div></Modal>
+			<button type="button" className={`${styles.youBox} ${styles.youAvatar}`} title="Edit avatar" onClick={() => setLab(true)}>
 				{account ? <AvatarChip avatar={account.avatarColor} country={account.country} px={73} corner={0} title="" /> : <span className={`skel-shimmer ${styles.avatarSkel}`} />}
 			</button>
 			<div className={`${styles.youBox} ${styles.youMain}`}>

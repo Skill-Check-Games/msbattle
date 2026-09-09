@@ -11,6 +11,7 @@ import LeaderboardPage from "../pages/leaderboard/LeaderboardPage";
 import SettingsPage from "../pages/settings/SettingsPage";
 import { PrivacyPage, TermsPage } from "../pages/legal/LegalPages";
 import ProfilePage from "../pages/profile/ProfilePage";
+import ShopPage from "../pages/shop/ShopPage";
 import { Toasts, useAchievementUnlocks } from "./Toasts";
 import Placeholder from "../pages/Placeholder";
 import styles from "./App.module.scss";
@@ -18,7 +19,7 @@ import styles from "./App.module.scss";
 // Routes not ported yet render a placeholder so links work and the smoke test can visit them.
 const PENDING: Array<[string, string]> = [
 	["/learn", "Learn"], ["/custom", "Custom rooms"],
-	["/shop", "Shop"], ["/replay", "Replay"], ["/admin", "Admin"]
+	["/replay", "Replay"], ["/admin", "Admin"]
 ];
 
 export default function App() {
@@ -38,6 +39,7 @@ export default function App() {
 					<Route path="/puzzles/daily" element={<PuzzlePage mode="daily" />} />
 					<Route path="/leaderboard" element={<LeaderboardPage />} />
 					<Route path="/profile" element={<ProfilePage />} />
+					<Route path="/shop" element={<ShopPage />} />
 					<Route path="/settings" element={<SettingsPage />} />
 					<Route path="/privacy" element={<PrivacyPage />} />
 					<Route path="/terms" element={<TermsPage />} />
