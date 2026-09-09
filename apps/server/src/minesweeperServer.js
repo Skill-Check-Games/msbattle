@@ -1,0 +1,1359 @@
+// Load a local .env if present (no-op in production, where env vars are set directly). Must run
+// BEFORE any require() below — several modules (oauth.js, shopApi.js) read process.env for their
+// config constants at module-load time, so loading .env any later would leave them seeing an
+// incomplete environment regardless of what's actually in the file.
+try { process.loadEnvFile(require("path").join(__dirname, "..", "..", "..", ".env")); } catch (e) { try { process.loadEnvFile(); } catch (e2) { /* no .env file, fine */ } }
+
+var http = require("http")
+  , path = require("path")
+  , crypto = require("node:crypto")
+  , gameCreator = require("core/src/engine/GameCreator")
+  , noGuess = require("core/src/engine/NoGuessGenerator")
+  , puzzleGen = require("core/src/engine/PuzzleGenerator")
+  , roomCreator = require("core/src/engine/RoomCreator")
+  , botPlayer = require("core/src/engine/BotPlayer")
+  , db = require("./db")
+  , BoardLogic = require("core/src/common/BoardLogic")
+  , MoveHash = require("core/src/common/MoveHash")
+  , cspSolver = require("core/src/engine/CSPSolver")
+  , oauth = require("./runtime/oauth")
+  , puzzleApi = require("./runtime/puzzleApi")
+  , shopApi = require("./runtime/shopApi")
+  , staticServer = require("./runtime/staticServer")
+  , appState = require("./runtime/appState")
+  , ranked = require("./runtime/ranked")
+  , elo = require("./runtime/elo")
+  , botMgr = require("./runtime/bots")
+  , puzzleMode = require("./runtime/puzzlePlay")
+  , botDemo = require("./runtime/botDemo")
+  , marathonGen = require("./runtime/marathonGen")
+  , standings = require("./runtime/standings")
+  , roomState = require("./runtime/roomState")
+  , session = require("./runtime/session")
+  , replay = require("./runtime/replay")
+  , results = require("./runtime/results")
+  , lifecycle = require("./runtime/lifecycle")
+  , gameService = require("./runtime/gameService")
+  , role = require("./runtime/role")
+  , internalApi = require("./runtime/internalApi")
+  , matchToken = require("./runtime/matchToken")
+  , gameUtil = require("./runtime/gameUtil");
+
+var obfuscateBoard = gameUtil.obfuscateBoard, gameForBroadcast = gameUtil.gameForBroadcast, isBot = gameUtil.isBot,
+    humanCount = gameUtil.humanCount, botCount = gameUtil.botCount, getRoomBotNames = gameUtil.getRoomBotNames, updateDraw = gameUtil.updateDraw;
+
+
+var COUNT_DOWN_TIME = 3; // digits shown to the client ("3, 2, 1") — NOT the server's actual wait time, see below
+// How long the server actually waits before flipping a round live (game.playing = true, real
+// draw_board data starts flowing, bots start ticking) — decoupled from COUNT_DOWN_TIME because the
+// client's pre-round sequence (the "go" board sweep, then a pause, then the 3/2/1 digits, each
+// digit's own fade-in/hold/fade-out/gap) is fully tunable from /admin/countdown
+// (COUNTDOWN_STYLE/BOARD_GO_STYLE in Animations.js) and no longer takes a fixed 3 seconds. Sized to
+// comfortably cover their current defaults (go sweep 700+300=1000ms, then 3 digits at 1100ms each
+// =3300ms, total 4300ms) with room to spare — if that default sequence is ever tuned to run longer
+// than this, the round will go live while the client is still mid-animation again, same symptom as
+// the bug this constant fixes.
+var ROUND_START_DELAY_MS = 5000;
+var BETWEEN_GAMES_DELAY = 3000;
+var SERIES_END_DELAY = 6000;
+var PROVISIONAL_GAMES = 5;
+// How long a mid-round disconnect's seat + live game state is held for the same account to reconnect
+// into (see the monolith disconnect handler below, and its counterpart in session.js's `authenticate`
+// handler, which is what actually reclaims it) before falling through to today's original behavior:
+// evict +, for ranked, an early-leave Elo penalty. Long enough to cover a phone screen-lock, a brief
+// wifi/cellular handoff, or the tab being backgrounded — short enough that a truly-gone player doesn't
+// sit as an unkillable zombie seat; the round itself isn't blocked on them either way (the round-end
+// timer/other-players-finished logic treats a pending-reconnect player exactly like an ordinary
+// AFK-but-still-connected one — nothing new to wait on there).
+var RECONNECT_GRACE_MS = 30000;
+
+var PORT = process.env.PORT || 1337;
+// OAuth provider login + config lives in oauth.js; the server delegates /auth/*
+// routes to it and reads oauth.DEV_AUTH / oauth.providerFlags() where needed.
+
+// Last-resort safety net: keep the process alive on an unexpected error instead of crashing
+// and dropping every connected player. Socket handlers are already wrapped per-event (see the
+// connection handler); this catches the rest — chiefly errors thrown from timer callbacks (bot
+// ticks, round/ranked timers). Log loudly so the real bug gets fixed.
+process.on("uncaughtException", function(err) {
+	console.error("uncaughtException (kept alive):", err);
+});
+process.on("unhandledRejection", function(reason) {
+	console.error("unhandledRejection (kept alive):", reason);
+});
+
+var app = http.createServer(handler);
+// A game server accepts cross-origin socket connections (the browser is on main's origin but connects
+// directly to the game server for the match); the join token — not CORS — is what gates access. main/both
+// are same-origin, so no CORS needed there.
+var io = require("socket.io")(app, role.ROLE === "game" ? { cors: { origin: true, methods: ["GET", "POST"] } } : {});
+appState.io = io; // share the socket.io server with the handler modules
+
+// The HTTP handler is a pure router: provider auth, then the /api admin surface,
+// then static client assets (each module early-returns if it owns the path).
+function handler (req, res) {
+	var url = new URL(req.url, oauth.OAUTH_BASE);
+	// Internal main↔game API (split roles only) — secret-guarded, never part of the monolith surface.
+	if (role.isSplit() && internalApi.handleInternalRoute(req, res, url)) return;
+	if (oauth.handleAuthRoute(req, res, url)) return;
+	if (shopApi.handleShopRoute(req, res, url)) return;
+	if (puzzleApi.handleApiRoute(req, res, url)) return;
+	staticServer.serve(res, url.pathname, req);
+}
+
+
+// Puzzles live in SQLite (see db.js). The Lab GETs them via /api/puzzles;
+// POST /api/puzzles kicks off a background generation job that inserts new
+// puzzles into the DB in setImmediate chunks. The job runs against the
+// canonical-key UNIQUE constraint so duplicates are silently dropped at
+// the DB layer.
+
+
+
+var games = appState.games;
+var roomMapping = appState.roomMapping;
+var rooms = appState.rooms;
+var nextRoomId = 1;
+var sockets = appState.sockets;
+var names = appState.names;
+var skins = appState.skins; // playerID -> board skin id
+var avatars = appState.avatars; // playerID -> avatar cloth colour
+var countries = appState.countries; // playerID -> ISO country code
+var accounts = appState.accounts; // socketId -> { userId, token } for signed-in players
+var nextGameTimers = appState.nextGameTimers;
+var roundTimers = appState.roundTimers;
+var roundDeadlines = appState.roundDeadlines;
+var roundStarts = appState.roundStarts; // roomId -> ms timestamp when the current round's play began
+var bots = appState.bots; // botId -> true
+// Ranked filler bots are drawn from a pre-benchmarked pool (scripts/generate-bot-pool.js).
+// Load it once at boot; if it's absent pickBotFromPool returns null and addBotToRoom
+// degrades to a casual-preset bot, so a seat is always fillable.
+var BOT_POOL_PATH = process.env.BOT_POOL_PATH || path.join(require("./paths").REPO_ROOT, "bots-pool.json");
+console.log("Loaded " + botPlayer.loadPool(BOT_POOL_PATH) + " ranked bots from pool (" + BOT_POOL_PATH + ")");
+var botDifficulty = appState.botDifficulty; // botId -> "easy" | "medium" | "hard" (casual rooms)
+var botSpeedMs = appState.botSpeedMs; // botId -> flat per-move pace (ms)
+var botDifficultyMs = appState.botDifficultyMs; // botId -> ms of thinking per unit of move difficulty
+var botDistanceMult = appState.botDistanceMult; // botId -> multiplier on the mouse-travel term
+var botMaxDifficulty = appState.botMaxDifficulty; // botId -> hardest move (CSP difficulty) the bot can deduce
+var botRating = appState.botRating; // botId -> Elo used for ranked rating math
+var botMistake = appState.botMistake; // botId -> blunder rate (re-applied to the game each round)
+var botChord = appState.botChord; // botId -> chord rate (re-applied to the game each round)
+var botTickHandles = appState.botTickHandles; // botId -> setTimeout handle
+var botLastClick = appState.botLastClick; // botId -> {r, c} of the bot's most recent click in the current round
+var nextBotId = 1;
+var MAX_BOTS_PER_ROOM = 15;
+
+// Ranked matchmaking — four modes split across two playstyles.
+//   sprint_*   → cascade-y races, 10% mines, fewer forced deductions.
+//   standard_* → dense boards (20%), favouring deduction over click speed.
+var RANKED_RULES = { gameCount: 1, roundSeconds: 300, deathPenalty: 5 };
+var RANKED_BOT_RATING = 1000;
+
+// The Elo math lives in elo.js; give it the rating constants (shared predicates come from gameUtil).
+elo.init({ RANKED_BOT_RATING: RANKED_BOT_RATING, PROVISIONAL_GAMES: PROVISIONAL_GAMES });
+standings.init({ RANKED_BOT_RATING: RANKED_BOT_RATING, PROVISIONAL_GAMES: PROVISIONAL_GAMES });
+roomState.init({ io: io, MAX_BOTS_PER_ROOM: MAX_BOTS_PER_ROOM, RANKED_BOT_RATING: RANKED_BOT_RATING, PROVISIONAL_GAMES: PROVISIONAL_GAMES });
+session.init({ PROVISIONAL_GAMES: PROVISIONAL_GAMES });
+
+// Racing-bot orchestration lives in botMgr.js; give it the game-loop services it needs.
+botMgr.init({
+	createPlayerGame: createPlayerGame,
+	newBotId: function() { return nextBotId++; },
+	RANKED_BOT_RATING: RANKED_BOT_RATING, MAX_BOTS_PER_ROOM: MAX_BOTS_PER_ROOM
+});
+
+// Single-player puzzle play lives in puzzlePlay.js; it's self-contained (obfuscateBoard via gameUtil).
+botDemo.init({ isSocketAdmin: isSocketAdmin, RANKED_RULES: RANKED_RULES });
+marathonGen.init({ isSocketAdmin: isSocketAdmin });
+
+// Wire the ranked module with the core services it needs (breaks the circular require).
+// Placed after the consts above so they're assigned; the injected fns are hoisted declarations.
+ranked.init({
+	io: io,
+	RANKED_RULES: RANKED_RULES,
+	MAX_BOTS_PER_ROOM: MAX_BOTS_PER_ROOM,
+	PROVISIONAL_GAMES: PROVISIONAL_GAMES,
+	newRoomId: function() { return nextRoomId++; },
+	readUserRating: elo.readUserRating,
+	createPlayerGame: createPlayerGame,
+	addBotToRoom: botMgr.addBotToRoom,
+	broadcastRoomState: roomState.broadcastRoomState,
+	startSeries: gameService.allocate // matchmaking starts a match through the game-service boundary (P1-1)
+});
+// Wire the game-service boundary: allocate runs a match (startSeries), reportResult persists the outcome,
+// and the construction deps let it rebuild a match from a spec (P1-3/P1-5).
+gameService.init({
+	startMatch: startSeries,
+	onResult: results.persistResult,
+	createRoom: roomCreator.createRoom,
+	createPlayerGame: createPlayerGame,
+	addBotToRoom: botMgr.addBotToRoom
+});
+
+// Game-server role (P1-5): build + run matches handed over the internal API, and report outcomes back
+// to main instead of persisting locally. (ROLE=both/main keep the in-process persistResult handler.)
+if (role.ROLE === "game") {
+	// Game server: build + run matches handed over the internal API, and report outcomes back to main
+	// (gameAllocate / reportResultToMain are defined below — hoisted function declarations).
+	internalApi.setAllocateHandler(gameAllocate);
+	gameService.setResultHandler(reportResultToMain);
+}
+// Per-mode queue state: humans searching, pre-generated bots, and the trickle timer.
+var rankedQueues = appState.rankedQueues;
+var pendingBotsLists = appState.pendingBotsLists;
+var rankedFillTimers = appState.rankedFillTimers;
+var rankedQueueMode = appState.rankedQueueMode; // playerID -> mode key
+
+
+
+function clearRoundTimer(roomId) {
+	if (roundTimers[roomId]) {
+		clearTimeout(roundTimers[roomId]);
+		delete roundTimers[roomId];
+	}
+	delete roundDeadlines[roomId];
+}
+
+
+
+
+
+
+function deleteRoomIfEmpty(room) {
+	if (room.players.length === 0) {
+		if (nextGameTimers[room.id]) {
+			clearTimeout(nextGameTimers[room.id]);
+			delete nextGameTimers[room.id];
+		}
+		clearRoundTimer(room.id);
+		delete roundStarts[room.id];
+		delete rooms[room.id];
+		return true;
+	}
+	return false;
+}
+
+function countActivePlayers(room) {
+	var n = 0;
+	for (var i = 0; i < room.players.length; i++) {
+		var g = games[room.players[i]];
+		if (g && !g.finished) n++;
+	}
+	return n;
+}
+
+function countFinishedPlayers(room) {
+	var n = 0;
+	for (var i = 0; i < room.players.length; i++) {
+		var g = games[room.players[i]];
+		if (g && g.finished) n++;
+	}
+	return n;
+}
+
+function getGamesWithPlayerOnTop(playerID, players) {
+	var g = [];
+	g.push(games[playerID]);
+	for (var i = 0; i < players.length; i++) {
+		if (players[i] != playerID) {
+			g.push(games[players[i]]);
+		}
+	}
+	return g;
+}
+
+
+
+function endIndividualGame(room, reason) {
+	if (room.phase !== "playing") return;
+	clearRoundTimer(room.id);
+	botMgr.clearRoomBotTicks(room);
+	for (var i = 0; i < room.players.length; i++) {
+		if (games[room.players[i]]) games[room.players[i]].playing = false;
+	}
+	var roundStandings = standings.buildStandings(room);
+	// Accumulate each player's per-round progress so the series-end Elo can apply a
+	// margin-of-victory bonus (a dominant clear pays more than a photo-finish).
+	room.progressSum = room.progressSum || {};
+	room.progressRounds = (room.progressRounds || 0) + 1;
+	for (var ps = 0; ps < roundStandings.length; ps++) {
+		var pe = roundStandings[ps];
+		room.progressSum[pe.id] = (room.progressSum[pe.id] || 0) + (pe.progress || 0);
+	}
+	// Round winner = unique top-ranked player, if any.
+	var winnerID = null;
+	if (roundStandings.length > 0 && roundStandings[0].rank === 1) {
+		var tiedAtTop = 0;
+		for (var k = 0; k < roundStandings.length; k++) if (roundStandings[k].rank === 1) tiedAtTop++;
+		if (tiedAtTop === 1) winnerID = roundStandings[0].id;
+	}
+	room.recordRoundResult(roundStandings, winnerID);
+
+	// Ranked Elo is computed once at series end — see endSeries — so the rating
+	// shown to the player only moves when the whole match finishes.
+	var gameResultPayload = {
+		winnerId: winnerID,
+		winnerName: winnerID ? names[winnerID] : null,
+		gameNumber: room.gamesPlayed,
+		gameCount: room.gameCount,
+		scoreTarget: room.scoreTarget || null,
+		reason: reason || "cleared",
+		standings: roundStandings
+	};
+	io.to("room:" + room.id).emit("game_result", gameResultPayload);
+	// One-shot broadcast — stash a per-user backup too, in case whoever's socket is disconnected/
+	// reconnecting right now misses the live emit above (gameUtil.js's own comment has the full story).
+	gameUtil.stashRoomEventForOfflineDelivery(room, "game_result", gameResultPayload);
+	roomState.broadcastRoomState(room);
+
+	var seriesOver;
+	if (room.scoreTarget) {
+		seriesOver = Object.keys(room.scores).some(function(pid) { return (room.scores[pid] || 0) >= room.scoreTarget; });
+	} else {
+		seriesOver = room.gamesPlayed >= room.gameCount;
+	}
+	if (seriesOver) {
+		endSeries(room);
+	} else {
+		nextGameTimers[room.id] = setTimeout(function() {
+			delete nextGameTimers[room.id];
+			if (rooms[room.id] && room.phase === "playing" && room.players.length > 1) {
+				startGame(room);
+			} else if (rooms[room.id] && room.players.length <= 1) {
+				endSeries(room);
+			}
+		}, BETWEEN_GAMES_DELAY);
+	}
+}
+
+function handleRoundTimeUp(room) {
+	delete roundTimers[room.id];
+	console.log("[round] handleRoundTimeUp room=" + room.id + " phase=" + room.phase);
+	// Diagnostic: at a timeout, dump each board's revealed/total so we can tell whether a board that
+	// "looked cleared" to the player was actually cleared on the server (revealed===total but no win =
+	// win-detection bug) or still short (final clicks not reaching/applying = transport/desync).
+	for (var i = 0; i < room.players.length; i++) {
+		var pid = room.players[i], g = games[pid];
+		if (g) console.log("[round] timeout-state pid=" + pid + " isBot=" + isBot(pid) + " revealed=" + g.revealedSafeCount() + "/" + g.totalSafeSquares + " finished=" + g.finished + " frozenUntil=" + (g.frozenUntil > Date.now()));
+	}
+	if (room.phase !== "playing") return;
+	endIndividualGame(room, "timeout");
+}
+
+function reduceRoundDeadline(room, targetSeconds) {
+	var newDeadline = Date.now() + targetSeconds * 1000;
+	if (roundDeadlines[room.id] && roundDeadlines[room.id] <= newDeadline) {
+		console.log("[round] reduceRoundDeadline noop room=" + room.id + " (already <= " + targetSeconds + "s)");
+		return;
+	}
+	console.log("[round] reduceRoundDeadline room=" + room.id + " → " + targetSeconds + "s");
+	roundDeadlines[room.id] = newDeadline;
+	if (roundTimers[room.id]) clearTimeout(roundTimers[room.id]);
+	roundTimers[room.id] = setTimeout(function() {
+		handleRoundTimeUp(room);
+	}, targetSeconds * 1000);
+	// Tell clients the round will end sooner so the displayed timer drops too (not just the server's).
+	roomState.broadcastRoomState(room);
+}
+
+
+async function endSeries(room) {
+	if (nextGameTimers[room.id]) {
+		clearTimeout(nextGameTimers[room.id]);
+		delete nextGameTimers[room.id];
+	}
+	room.seriesWinner = standings.computeSeriesWinner(room);
+	room.phase = "planning";
+	// Apply Elo once at series end based on cumulative scoring. Mutates the
+	// standings entries with ratingDelta / rating / provisional so the client can
+	// show the bump on the series_ended panel.
+	var seriesStandings = standings.buildSeriesStandings(room);
+	// Single persistence seam: ranked racing Elo + the captured replay (no-op unless this was a
+	// ranked match being recorded). See runtime/results.js.
+	// Awaited (not fire-and-forget): in-process (monolith/main) this resolves on the next microtask
+	// tick since persistResult already mutated seriesStandings in place synchronously — reportResult
+	// returns {applied, standings}, not an array, so the merge below is a no-op there. In the split
+	// game role, reportResult is reportResultToMain (a real network round-trip to main, where the
+	// actual Elo math runs) and resolves with an array of {id, ratingDelta, rating, provisional} —
+	// without awaiting it here, series_ended would go out carrying the stale pre-match rating as both
+	// "before" and "after" (the bug this fixes), since the game server never otherwise learns what
+	// main computed.
+	var reported = await gameService.reportResult(results.buildResultReport(room, seriesStandings));
+	if (Array.isArray(reported)) {
+		var byId = {};
+		reported.forEach(function(r) { byId[r.id] = r; });
+		seriesStandings.forEach(function(s) {
+			var r = byId[s.id];
+			if (r && typeof r.ratingDelta === "number") {
+				s.ratingDelta = r.ratingDelta;
+				s.rating = r.rating;
+				s.provisional = r.provisional;
+			}
+		});
+	}
+	if (!rooms[room.id]) return; // the room was torn down while we were awaiting main's report
+	var seriesEndedPayload = {
+		winnerId: room.seriesWinner,
+		winnerName: room.seriesWinner ? names[room.seriesWinner] : null,
+		ranked: !!room.ranked,
+		mode: room.rankedMode || null,
+		standings: seriesStandings,
+		scores: seriesStandings.map(function(s) {
+			return { id: s.id, name: s.name, score: s.score };
+		})
+	};
+	io.to("room:" + room.id).emit("series_ended", seriesEndedPayload);
+	// One-shot broadcast — stash a per-user backup too. Real gap this covers: room.phase already
+	// left "playing" (set above, before the await) by the time this actually fires, so a socket
+	// that reconnects during that async gap wouldn't even qualify for the mid-round seat-migration
+	// path (session.js) — this is the ONLY thing that gets them their result. See gameUtil.js.
+	gameUtil.stashRoomEventForOfflineDelivery(room, "series_ended", seriesEndedPayload);
+	roomState.broadcastRoomState(room);
+	roomState.broadcastRoomList();
+
+	// Ranked rooms are single-match: don't auto-reset bots or scores. The client
+	// shows "Play another" (re-queues) and "Back to menu" (leaves the room).
+	if (room.ranked) return;
+
+	setTimeout(function() {
+		if (!rooms[room.id]) return;
+		room.resetScores();
+		room.resetReady();
+		botMgr.readyAllBots(room);
+		roomState.broadcastRoomState(room);
+	}, SERIES_END_DELAY);
+}
+
+function gameWin(playerID) {
+	var room = roomMapping[playerID];
+	if (!room || room.phase !== "playing") return;
+	var game = games[playerID];
+	if (!game || !game.playing || game.finished) return;
+
+	game.finished = true;
+	game.finishedAt = Date.now();
+	game.playing = false;
+
+	// First finish in this round? Pull the remaining time down so the round closes soon after the
+	// winner — the multiplayer battle (3-7 players) gets a snappy 2s sprint; other modes keep the
+	// longer 10s tail. n<=7 (not 6) to match the 7-player mode (isMultiRacing, MobileLayout.js) — this
+	// cap used to lag one player behind that bump, so a real 7-player match fell through to the 10s
+	// tail instead of the intended snappy one.
+	// NB 2s, not 1s: every OTHER still-playing player's game.playing flips false the instant this
+	// deadline fires (endIndividualGame, below) — and the move-sync heal (move_sync/resync_moves
+	// handlers) refuses to run once game.playing is false, so a trailing player's dropped final click
+	// only gets a real chance to heal (via the 1s — now 300ms, see Main.js — heartbeat) if the round
+	// stays open a bit longer than that heartbeat's own period. 1s cut it too close on a real mobile
+	// connection (RTT + jitter + server round-trip) and shipped as a live bug: a full board clear that
+	// stayed frozen at a stale server-side percentage (and would have shortchanged that player's Elo
+	// too, since standings read the same authoritative safeCount). 2s + the faster heartbeat below
+	// restores a real margin while still being 5x snappier than the original 10s baseline.
+	var finishedNow = countFinishedPlayers(room);
+	console.log("[round] gameWin pid=" + playerID + " isBot=" + isBot(playerID) + " finished=" + finishedNow + " active=" + countActivePlayers(room) + " players=" + room.players.length);
+	if (finishedNow === 1) {
+		var n = room.players.length;
+		var multiRace = (room.gameMode || "race") === "race" && n >= 3 && n <= 7;
+		reduceRoundDeadline(room, multiRace ? 2 : 10);
+	}
+
+	if (isBot(playerID)) {
+		botMgr.clearBotTick(playerID);
+	}
+
+	updateDraw(room);
+	roomState.broadcastRoomState(room);
+
+	// As soon as only one (or zero) players are still active, end the round.
+	// The 20s timer reduction above still applies as a safety for the case where
+	// the last active player(s) don't finish in time.
+	if (countActivePlayers(room) <= 1) {
+		endIndividualGame(room, "cleared");
+	}
+}
+
+function gameMineHit(playerID) {
+	var room = roomMapping[playerID];
+	if (!room || room.phase !== "playing") return;
+	var game = games[playerID];
+	if (!game) return;
+	var penaltyMs = room.deathPenalty * 1000;
+	game.frozenUntil = Date.now() + penaltyMs;
+	if (sockets[playerID]) {
+		sockets[playerID].emit("mine_hit", { frozenUntil: game.frozenUntil, penaltySeconds: room.deathPenalty });
+	}
+}
+
+function startGame(room) {
+	clearRoundTimer(room.id);
+	var mines = Math.round(room.mineDensity * room.rows * room.cols);
+	var centerR = Math.floor(room.rows / 2);
+	var centerC = Math.floor(room.cols / 2);
+	var template = noGuess.createNoGuessTemplate(centerR, centerC, mines, undefined, room.rows, room.cols);
+	// Open a new replay round (mine layout snapshot) for ranked matches before wiring move capture.
+	replay.startRound(room, template, centerR, centerC);
+	for (var i = 0; i < room.players.length; i++) {
+		var pid = room.players[i];
+		// Recreate each game at the room's dimensions so a mid-lobby size change applies.
+		games[pid] = createPlayerGame(pid, room.rows, room.cols);
+		if (isBot(pid)) {
+			botMgr.applyBotConfigToGame(pid);
+			// The board's per-cell difficulty map (computed once at generation) drives
+			// each bot's pacing and its max-difficulty skill gate.
+			games[pid].botDifficultyByCell = template.difficultyByCell || null;
+		}
+		games[pid].init(template);
+		// Custom-lobby gameplay modifiers (mutually exclusive). Only-flags also auto-chords on flag.
+		games[pid].noFlags = room.modifier === "noFlags";
+		games[pid].onlyFlags = room.modifier === "onlyFlags";
+		games[pid].autoChordOnFlag = room.modifier === "onlyFlags";
+		replay.attach(room, games[pid], pid);
+	}
+	// Players share one shared no-guess map this round — obfuscate it once and
+	// hand the same blob to every client so reveals can be resolved locally.
+	var obf = obfuscateBoard(template.board, room.rows, room.cols);
+	// Captured ONCE, outside startPayload, so every player gets the literal same absolute
+	// timestamp (a per-call Date.now() inside startPayload would drift by however long the
+	// per-player emit loop below takes to run — normally microseconds, but this way it's exactly
+	// zero by construction). Paired with clock sync (see time_sync above) so each client converts
+	// it to a local delay against ITS OWN clock rather than trusting startDelayMs against whenever
+	// its own copy of this event happened to arrive over the network.
+	var startAt = Date.now() + ROUND_START_DELAY_MS;
+	var startPayload = {
+		time: COUNT_DOWN_TIME,
+		// The actual server-side delay (ms) before this round goes live -- decoupled from
+		// time/COUNT_DOWN_TIME (see its definition above), since the client's own pre-round
+		// animation sequence is independently tunable. Anything that needs to know when input
+		// will really be accepted (rather than just how many digits to show) should read this,
+		// not derive a guess from `time`.
+		startDelayMs: ROUND_START_DELAY_MS,
+		// Absolute server wall-clock time this round goes live — see the comment on `startAt`
+		// above the client should prefer this (converted via its synced clock offset) over
+		// startDelayMs whenever it has one, so every player's countdown lands on GO together
+		// regardless of when their own copy of this event happened to arrive.
+		startAt: startAt,
+		gameNumber: room.gamesPlayed + 1,
+		gameCount: room.gameCount,
+		roundSeconds: room.roundSeconds,
+		deathPenalty: room.deathPenalty,
+		modifier: room.modifier || null,
+		rows: room.rows,
+		cols: room.cols,
+		boardData: obf.data,
+		boardMask: obf.mask
+	};
+	for (var i = 0; i < room.players.length; i++) {
+		var pid = room.players[i];
+		if (sockets[pid]) sockets[pid].emit("start_game", startPayload);
+	}
+	setTimeout(function() {
+		if (!rooms[room.id] || room.phase !== "playing") {
+			console.log("[round] round-start callback bailed room=" + room.id + " exists=" + !!rooms[room.id] + " phase=" + (room.phase));
+			return;
+		}
+		roundStarts[room.id] = Date.now();
+		for (var i = 0; i < room.players.length; i++) {
+			var pid = room.players[i];
+			if (games[pid]) games[pid].playing = true;
+		}
+		console.log("[round] round started room=" + room.id + " players=" + room.players.length + " roundSeconds=" + room.roundSeconds);
+		if (room.roundSeconds > 0) {
+			roundDeadlines[room.id] = Date.now() + room.roundSeconds * 1000;
+			roundTimers[room.id] = setTimeout(function() {
+				handleRoundTimeUp(room);
+			}, room.roundSeconds * 1000);
+		}
+		roomState.broadcastRoomState(room);
+		updateDraw(room);
+		botMgr.startBotTicksForRoom(room);
+	}, ROUND_START_DELAY_MS);
+}
+
+function startSeries(room) {
+	room.startSeries();
+	// Capture the self-contained MatchConfig at match start (P0-2): rules + roster + rating-before.
+	// In the split this is what main hands the game server; today it's stashed for the result report.
+	room.matchConfig = results.buildMatchConfig(room);
+	replay.startMatch(room);
+	roomState.broadcastRoomState(room);
+	roomState.broadcastRoomList();
+	startGame(room);
+}
+
+
+
+function createPlayerGame(playerID, gameRows, gameCols) {
+	var game = gameCreator.createGame(0, gameRows, gameCols);
+	game.playerName = names[playerID] || "Anonymous";
+	game.skin = skins[playerID] || null; // null → opponents render this board in the default skin (bots, too)
+	game.avatar = avatars[playerID] || null; // avatar cloth colour, broadcast so panels show each player's flag
+	game.country = countries[playerID] || null;
+	game.win = function() { gameWin(playerID); };
+	game.mineHit = function() { gameMineHit(playerID); };
+	return game;
+}
+
+function addPlayerToRoom(socket, room) {
+	var playerID = socket.id;
+	games[playerID] = createPlayerGame(playerID, room.rows, room.cols);
+	roomMapping[playerID] = room;
+	room.addPlayer(playerID);
+
+	socket.leave("lobby");
+	socket.join("room:" + room.id);
+	socket.emit("joined_room", { roomId: room.id });
+	roomState.broadcastRoomState(room);
+	roomState.broadcastRoomList();
+}
+
+// Apply a ranked-Elo loss to a player who's bailing on a live match — treat them as having
+// come dead-last in a synthetic current-series standings. Returns the eloInfo (delta /
+// newRating / provisional) so the caller can echo it back to the leaver, or null if the room
+// isn't ranked or the player isn't persisted.
+function applyEarlyLeavePenalty(playerID, room) {
+	if (!room.ranked) return null;
+	if (isBot(playerID)) return null;
+	if (!accounts[playerID]) return null;
+	// 1v1 / 6-player ranked: build a series standings snapshot with the leaver
+	// pinned at the worst rank, then apply Elo for the leaver only. The other
+	// players' Elo is still computed normally at endSeries.
+	var seriesStandings = standings.buildSeriesStandings(room);
+	var lastRank = seriesStandings.length + 1;
+	var parts = [buildPlayerParts(playerID, lastRank, room.rankedStyle)];
+	for (var i = 0; i < seriesStandings.length; i++) {
+		parts.push(buildPlayerParts(seriesStandings[i].id, seriesStandings[i].rank, room.rankedStyle));
+	}
+	return elo.applyEloForPlayer(playerID, parts, room.rankedStyle);
+}
+
+function buildPlayerParts(pid, rank, style) {
+	var bot = isBot(pid);
+	var acc = accounts[pid];
+	var u = !bot && acc ? db.getUserById(acc.userId) : null;
+	return {
+		id: pid,
+		rank: rank,
+		rating: bot ? (botRating[pid] || RANKED_BOT_RATING) : (u ? elo.readUserRating(u, style) : RANKED_BOT_RATING),
+		bot: bot,
+		userId: u ? u.id : null,
+		played: u ? u.played : 0
+	};
+}
+
+function removePlayerFromRoom(playerID) {
+	var room = roomMapping[playerID];
+	if (!room) return null;
+	var wasPlaying = room.phase === "playing";
+	// Ranked penalty: apply Elo BEFORE deletePlayer so the standings snapshot
+	// inside applyEarlyLeavePenalty still includes the leaver.
+	var leaveEloInfo = wasPlaying ? applyEarlyLeavePenalty(playerID, room) : null;
+	room.deletePlayer(playerID);
+	delete roomMapping[playerID];
+	delete games[playerID];
+	if (sockets[playerID]) {
+		sockets[playerID].leave("room:" + room.id);
+	}
+
+	// If no humans remain, evict all bots so the room can be cleaned up.
+	if (humanCount(room) === 0) {
+		while (botCount(room) > 0) {
+			botMgr.removeOneBotFromRoom(room);
+		}
+	}
+
+	if (deleteRoomIfEmpty(room)) {
+		roomState.broadcastRoomList();
+		return;
+	}
+
+	// Prefer a human as the new owner if the previous owner left.
+	if (room.players.indexOf(room.owner) === -1) {
+		var newOwner = null;
+		for (var i = 0; i < room.players.length; i++) {
+			if (!isBot(room.players[i])) { newOwner = room.players[i]; break; }
+		}
+		if (newOwner) room.owner = newOwner;
+		else room.reassignOwnerIfNeeded();
+	}
+
+	if (wasPlaying) {
+		// Down to a single player mid-round — end the round so the series can advance.
+		if (room.players.length === 1) {
+			endIndividualGame(room, "cleared");
+		} else {
+			updateDraw(room);
+			// Only one (or zero) players still actively playing — end the round.
+			if (countActivePlayers(room) <= 1) {
+				endIndividualGame(room, "cleared");
+			}
+		}
+	} else {
+		roomState.broadcastRoomState(room);
+	}
+	roomState.broadcastRoomList();
+	return leaveEloInfo;
+}
+
+// Admin bot-play demos: one standalone (room-less) bot game per socket, streamed move
+// by move at the bot's real cadence. Keyed by socket id.
+
+function isSocketAdmin(playerID) {
+	if (oauth.DEV_AUTH) return true;
+	var acc = accounts[playerID];
+	if (!acc) return false;
+	var u = db.getUserById(acc.userId);
+	return !!(u && u.is_admin);
+}
+
+
+
+// Contain handler errors: a thrown exception in ANY socket event handler is logged and dropped instead
+// of propagating to uncaughtException and taking the whole server down. Applied before any handler is
+// registered so it covers them all (both roles).
+function installSocketErrorWrapper(socket) {
+	var rawOn = socket.on.bind(socket);
+	socket.on = function(event, handler) {
+		return rawOn(event, function() {
+			try { return handler.apply(this, arguments); }
+			catch (e) { console.error("socket '" + event + "' handler error:", e); }
+		});
+	};
+}
+
+// The in-game reveal/flag handlers — identical in the monolith and on a game server, so shared.
+function registerGameplayHandlers(socket, playerID) {
+	// Compares the client's self-reported (seq, hash) — attached to every left_click/right_click and
+	// to the periodic move_sync heartbeat (see Main.js) — against this game's own authoritative
+	// MoveHash chain (GameCreator.js), AFTER whatever move (if any) was just applied. Used for the
+	// heartbeat and resync_moves' own final check, where there's no pending move to hold back —
+	// see hasSeqGap below for the check that runs BEFORE applying a live left_click/right_click.
+	// data.seq === game.seq with a differing hash would mean the two sides computed genuinely
+	// different results from the same inputs — a logic bug, not packet loss, so a replay can't fix
+	// it; only logged. data.seq < game.seq (the client is behind us, e.g. a fresh reconnect with no
+	// local move history) needs nothing from here — draw_board already carries our authoritative
+	// state for it to adopt.
+	function checkMoveSync(game, data) {
+		if (!data || typeof data.seq !== "number" || typeof data.hash !== "number") return;
+		if (data.seq === game.seq) {
+			if (data.hash !== game.hash) {
+				console.warn("[round] move hash mismatch at matching seq pid=" + playerID + " seq=" + game.seq + " server=" + game.hash + " client=" + data.hash);
+			}
+			return;
+		}
+		if (data.seq > game.seq) socket.emit("move_resync_needed", { fromSeq: game.seq });
+	}
+	// True if applying this move would mean the client is more than one move ahead of us — i.e. at
+	// least one EARLIER move never reached us (packet loss, or a handler exception that silently
+	// swallowed it — see the try/catch every socket handler is wrapped in). Applying THIS move's
+	// (r, c) directly on top of our own, gap-missing board could compute something entirely
+	// different from what the client computed (which was built on top of the moves we're missing),
+	// which would corrupt our seq/hash chain rather than just leave it one move behind — so instead
+	// of applying it, request the whole gap and let it come back through resync_moves, which
+	// replays everything after our seq — INCLUDING this exact move — in its correct order.
+	function hasSeqGap(game, data) {
+		if (!data || typeof data.seq !== "number") return false;
+		if (data.seq <= game.seq + 1) return false;
+		socket.emit("move_resync_needed", { fromSeq: game.seq });
+		return true;
+	}
+
+	socket.on("right_click", function (data) {
+		if (puzzleMode.handleRightClick(playerID, data)) return; // single-player puzzle in progress
+		var room = roomMapping[playerID];
+		if (!room || room.phase !== "playing") return;
+		var game = games[playerID];
+		if (!game || !game.playing || Date.now() < game.frozenUntil) return;
+		if (hasSeqGap(game, data)) return;
+		game.handleRightClick(data.r, data.c);
+		updateDraw(room);
+		checkMoveSync(game, data);
+	});
+	socket.on("left_click", function(data) {
+		if (puzzleMode.handleLeftClick(playerID, data)) return; // single-player puzzle in progress
+		var room = roomMapping[playerID];
+		if (!room || room.phase !== "playing") return;
+		var game = games[playerID];
+		if (!game || !game.playing || Date.now() < game.frozenUntil) return;
+		if (hasSeqGap(game, data)) return;
+		game.handleLeftClick(data.r, data.c);
+		updateDraw(room);
+		checkMoveSync(game, data);
+	});
+	// Periodic heartbeat (no move attached — just the client's current seq/hash). Lets us notice a
+	// dropped packet even when the player isn't currently clicking anything, e.g. their very last
+	// click of the round was the one that got lost — the next click's piggybacked seq/hash would
+	// have caught it, but there might never BE a next click once the board's fully cleared.
+	socket.on("move_sync", function(data) {
+		var room = roomMapping[playerID];
+		if (!room || room.phase !== "playing") return;
+		var game = games[playerID];
+		if (!game || !game.playing) return;
+		checkMoveSync(game, data);
+	});
+	// Reconciliation: the client replays, in order, every move after the seq we told it we're
+	// missing from (move_resync_needed above), pulled from its own local move log. Applied through
+	// the exact same handleLeftClick/handleRightClick every real click goes through — not a separate
+	// "trust the client" path — so each replayed move still runs the real reveal/chord/flag logic
+	// and naturally re-derives our own seq/hash as it goes. checkMoveSync at the end confirms we're
+	// actually caught up (or, if the batch was itself incomplete, asks again from wherever we still
+	// are — self-correcting rather than needing to get it right in one shot).
+	socket.on("resync_moves", function(data) {
+		var room = roomMapping[playerID];
+		if (!room || room.phase !== "playing") return;
+		var game = games[playerID];
+		if (!game || !game.playing) return;
+		var moves = (data && data.moves) || [];
+		if (!Array.isArray(moves) || moves.length > 4000) return;
+		for (var i = 0; i < moves.length; i++) {
+			var m = moves[i];
+			if (!m || typeof m.r !== "number" || typeof m.c !== "number") continue;
+			if (m.flag) game.handleRightClick(m.r, m.c);
+			else game.handleLeftClick(m.r, m.c);
+		}
+		if (moves.length) {
+			console.log("[round] resync_moves pid=" + playerID + " replayed=" + moves.length + " seq now=" + game.seq);
+			updateDraw(room);
+		}
+		checkMoveSync(game, data);
+	});
+
+	// Admin debugging tool: dump this admin's OWN current game's authoritative server state (the
+	// real mine board + revealed/flagged grid + the move-hash chain) so it can be compared
+	// side-by-side against the client's own local state in the in-game debug view (DebugView.js) —
+	// built to finally root-cause the intermittent "client thinks the board is done but the server
+	// never confirms it" reports. No new information exposure in sending the raw board here: the
+	// client already fully decodes its own board's true mine layout locally regardless (see
+	// BoardDecoder.js's own comment), this just also ships the SERVER's copy of the revealed/
+	// flagged state + move counters for comparison.
+	// Registered HERE (shared by both the game-role and main/both branches — see the two call sites
+	// of registerGameplayHandlers above) rather than down with the rest of the lobby-only handlers:
+	// a real ranked match's gameplay socket, in the Phase 1 split, connects to a "game"-role server
+	// and RETURNS before ever reaching that lobby code — a copy registered only there is completely
+	// unreachable for exactly the live-match case this tool exists to debug (reproduced as "always
+	// shows No Data" once split-served, even though it worked fine against a single "both"-role
+	// dev server). `isSocketAdmin` still works here: attachGameClient (above) seeds
+	// `accounts[playerID] = {userId}` for a game-role socket too, which is all it needs to look the
+	// admin flag up fresh from `db`.
+	socket.on("admin_debug_snapshot", function() {
+		if (!isSocketAdmin(playerID)) return;
+		var g = games[playerID];
+		if (!g) { socket.emit("admin_debug_snapshot_result", { ok: false, reason: "not_in_game" }); return; }
+		var room = roomMapping[playerID];
+		socket.emit("admin_debug_snapshot_result", {
+			ok: true,
+			roomPhase: room ? room.phase : null,
+			rows: g.rows, cols: g.cols,
+			board: g.board, state: g.state,
+			playing: g.playing, finished: g.finished, finishedAt: g.finishedAt,
+			seq: g.seq, hash: g.hash,
+			safeCount: g.revealedSafeCount ? g.revealedSafeCount() : null,
+			totalSafe: g.totalSafeSquares || null,
+			serverNow: Date.now()
+		});
+	});
+}
+
+// ---- Game-server role (P1-5/P1-6) ----
+// Matches are handed over /internal/allocate. Bots are seated immediately; human seats are RESERVED and
+// filled as their clients connect with a join token. The series starts once every expected human is
+// present (bot-only → starts at once). On end, the result is posted back to main.
+var ATTACH_TIMEOUT_MS = 30000;
+var gamePending = {}; // matchId -> { room, expected:Set(playerKey), attached:{playerKey:pid}, roster:{playerKey:entry}, started, timer }
+
+function gameAllocate(spec) {
+	var room = gameService.buildMatchFromConfig(Object.assign({}, spec, { humans: [] })); // bots only; humans attach later
+	var roster = {}, expected = [];
+	(spec.humanRoster || []).forEach(function(e) { roster[e.playerKey] = e; expected.push(e.playerKey); });
+	var entry = gamePending[spec.matchId] = { room: room, expected: new Set(expected), attached: {}, roster: roster, started: false, timer: null };
+	if (expected.length) entry.timer = setTimeout(function() { if (!entry.started) abortPendingMatch(spec.matchId); }, ATTACH_TIMEOUT_MS);
+	maybeStartPendingMatch(spec.matchId);
+	return { matchId: spec.matchId };
+}
+
+// Bind a connecting game-socket to its reserved seat via the join token. Returns false (caller drops the
+// socket) if the token is bad, the match is unknown, or the seat is taken.
+function attachGameClient(socket, playerID) {
+	var token = socket.handshake && socket.handshake.auth && socket.handshake.auth.token;
+	var payload = matchToken.verifyMatchToken(token);
+	if (!payload) return false;
+	var entry = gamePending[payload.matchId];
+	if (!entry) return false;
+	var seat = entry.roster[payload.playerKey];
+	if (!seat || entry.attached[payload.playerKey]) return false;
+	// Bind identity + account to this game-socket, create its game, seat it in the room.
+	names[playerID] = seat.name || "Anonymous";
+	if (seat.avatar) avatars[playerID] = seat.avatar;
+	if (seat.country) countries[playerID] = seat.country;
+	if (seat.skin) skins[playerID] = seat.skin;
+	if (seat.userId != null) accounts[playerID] = { userId: seat.userId };
+	games[playerID] = createPlayerGame(playerID, entry.room.rows, entry.room.cols);
+	roomMapping[playerID] = entry.room;
+	entry.room.addPlayer(playerID);
+	entry.room.playerReady(playerID);
+	entry.attached[payload.playerKey] = playerID;
+	// Remember which seat (userId / rating-before) this game-socket holds, so the result report can carry
+	// it back to main for Elo-from-report (main has no account for this socket id).
+	if (!entry.room.seatByPid) entry.room.seatByPid = {};
+	entry.room.seatByPid[playerID] = seat;
+	socket.join("room:" + entry.room.id);
+	socket.emit("connected", { id: playerID, oauth: oauth.providerFlags() });
+	socket.emit("joined_room", { roomId: entry.room.id, ranked: !!entry.room.ranked, mode: entry.room.rankedMode || null });
+	maybeStartPendingMatch(payload.matchId);
+	return true;
+}
+
+function maybeStartPendingMatch(matchId) {
+	var entry = gamePending[matchId];
+	if (!entry || entry.started) return;
+	if (Object.keys(entry.attached).length < entry.expected.size) return; // wait for all humans
+	entry.started = true;
+	if (entry.timer) { clearTimeout(entry.timer); entry.timer = null; }
+	delete gamePending[matchId]; // no longer pending — it's live now
+	startSeries(entry.room);
+}
+
+function abortPendingMatch(matchId) {
+	var entry = gamePending[matchId];
+	if (!entry) return;
+	delete gamePending[matchId];
+	var room = entry.room;
+	if (room && rooms[room.id]) {
+		(room.players || []).slice().forEach(function(pid) { delete roomMapping[pid]; delete games[pid]; });
+		delete rooms[room.id];
+	}
+}
+
+// Game → main: post the finished match's result (wire-safe; the live room/config aren't serializable).
+// Each human standing is enriched with its userId + rating-before so main can apply Elo from the report.
+// Awaited by endSeries — main's response carries back each standing's computed ratingDelta/rating/
+// provisional (see internalApi.js's /internal/report handler), which endSeries merges into the
+// standings it's about to emit in series_ended. Without this the game server's own series_ended would
+// always show the pre-match rating as both "before" and "after", since the actual Elo computation only
+// happens on main. Returns null (not a rejection) on any failure — endSeries falls back to emitting the
+// un-enriched standings rather than the match result getting stuck.
+async function reportResultToMain(report) {
+	if (!role.MAIN_URL) return null;
+	var seatByPid = (report.room && report.room.seatByPid) || {};
+	var standings = (report.standings || []).map(function(s) {
+		var seat = seatByPid[s.id];
+		return seat ? Object.assign({}, s, { userId: seat.userId, ratingBefore: seat.rating, played: seat.played }) : s;
+	});
+	var wire = {
+		matchId: report.matchId, ranked: report.ranked, mode: report.mode, style: report.style,
+		standings: standings,
+		winnerId: standings[0] ? standings[0].id : null,
+		// JSON has no binary type — base64-encode the gzipped replay blob for the hop; persistPayload
+		// on the main side accepts either a Buffer (in-process) or this base64 form.
+		replayPayload: report.replayPayload ? {
+			meta: report.replayPayload.meta,
+			blob: report.replayPayload.blob.toString("base64"),
+			participants: report.replayPayload.participants,
+			createdAt: report.replayPayload.createdAt
+		} : null
+	};
+	try {
+		var res = await fetch(role.MAIN_URL + "/internal/report", {
+			method: "POST",
+			headers: { "content-type": "application/json", "x-internal-secret": role.INTERNAL_SECRET },
+			body: JSON.stringify(wire)
+		});
+		var data = await res.json();
+		return (data && data.standings) || null;
+	} catch (e) {
+		console.error("report to main failed", e);
+		return null;
+	}
+}
+
+io.on("connection", function (socket) {
+	var playerID = socket.id;
+	installSocketErrorWrapper(socket);
+	sockets[playerID] = socket;
+
+	// Clock sync (P1-6 aware): a round-start "GO" needs to land on every client's screen at the
+	// same instant, but each client only knows the round's own wall-clock deadline (startAt) —
+	// its local Date.now() can be off from this server's by however much its system clock drifts.
+	// A cheap NTP-style echo lets the client estimate that offset (see syncClockOffset in
+	// Main.js) and convert startAt into an accurate local delay. Registered unconditionally, ahead
+	// of the game/lobby role branch below, since a split-mode match socket needs this against the
+	// GAME server's clock (the one that actually owns startAt), not just the lobby's.
+	socket.on("time_sync", function(data) {
+		socket.emit("time_sync_ack", { t: data && data.t, serverTime: Date.now() });
+	});
+
+	// Game-server role: this socket is a match player. Bind it to its seat via the join token, register
+	// only the in-game handlers, and skip all the lobby/auth machinery (that lives on main).
+	if (role.ROLE === "game") {
+		// TEMP [conn] diagnostics: a rejected attach with a VALID token but no pending entry is a mid-match
+		// reconnect (the pending entry is deleted once the match starts) — that strands the client's moves
+		// and is the leading suspect for "cleared the board but it said Defeat". Remove once confirmed.
+		var _tok = socket.handshake && socket.handshake.auth && socket.handshake.auth.token;
+		var _p = matchToken.verifyMatchToken(_tok);
+		if (!attachGameClient(socket, playerID)) {
+			console.log("[conn] game attach REJECTED pid=" + playerID + " validToken=" + (!!_p) + " matchId=" + (_p && _p.matchId) + " pendingExists=" + (!!(_p && gamePending[_p.matchId])) + " (valid token + no pending = mid-match reconnect)");
+			delete sockets[playerID]; socket.disconnect(true); return;
+		}
+		console.log("[conn] game attach OK pid=" + playerID + " matchId=" + (_p && _p.matchId) + " playerKey=" + (_p && _p.playerKey));
+		registerGameplayHandlers(socket, playerID);
+		socket.on("leave_room", function() { if (roomMapping[playerID]) removePlayerFromRoom(playerID); });
+		socket.on("disconnect", function(reason) {
+			console.log("[conn] game disconnect pid=" + playerID + " reason=" + reason + " inRoom=" + (!!roomMapping[playerID]));
+			if (roomMapping[playerID]) removePlayerFromRoom(playerID);
+			delete sockets[playerID]; delete names[playerID]; delete skins[playerID];
+			delete avatars[playerID]; delete countries[playerID]; delete accounts[playerID];
+		});
+		return;
+	}
+
+	socket.join("lobby");
+	socket.emit("connected", { id: playerID, oauth: oauth.providerFlags() });
+
+	session.registerSocketHandlers(socket, playerID);
+
+
+	socket.on("list_rooms", function() {
+		socket.emit("room_list", { rooms: roomState.getRoomList() });
+	});
+
+	socket.on("find_ranked", function(data) {
+		if (!accounts[playerID]) { socket.emit("ranked_rejected", { reason: "Sign in to play ranked." }); return; }
+		if (roomMapping[playerID]) return;
+		var mode = (data && data.mode) || "sprint_duo";
+		if (!ranked.isValidMode(mode)) { socket.emit("ranked_rejected", { reason: "Unknown ranked mode." }); return; }
+		ranked.enqueue(playerID, mode);
+	});
+
+	socket.on("cancel_ranked", function() {
+		ranked.dequeue(playerID);
+	});
+
+	// Admin testing tool: set your own rating outright so you can preview ranks / ranked UI at any tier.
+	// Gated to admins (DEV_AUTH or is_admin). Updates the DB + the live accounts cache and echoes back.
+	socket.on("admin_set_rating", function(data) {
+		if (!isSocketAdmin(playerID)) return;
+		var acc = accounts[playerID];
+		if (!acc) return;
+		var rating = Math.round((data && data.rating) || 0);
+		rating = Math.max(0, Math.min(6000, rating));
+		var fieldByStyle = { sprint: "ratingSprint", standard: "ratingStandard" };
+		var styles = (data && fieldByStyle[data.style]) ? [data.style] : ["sprint", "standard"];
+		styles.forEach(function(st) {
+			db.setRating(acc.userId, rating, st);
+			acc[fieldByStyle[st]] = rating;
+		});
+		socket.emit("admin_rating_set", {
+			ratingSprint: acc.ratingSprint, ratingStandard: acc.ratingStandard
+		});
+	});
+
+	socket.on("get_leaderboard", function(data) {
+		var mode = (data && typeof data.mode === "string") ? data.mode : "overall";
+		socket.emit("leaderboard", { players: db.topPlayers(20, mode), provisionalGames: PROVISIONAL_GAMES, mode: mode });
+	});
+
+
+	// Solo-mode primitive: generate a fresh no-guess board on demand and ship
+	// the obfuscated blob back to this socket. No room, no opponents, no Elo
+	// — the client owns the play loop. Underpins Free play, drills, and the
+	// eventual daily speedrun.
+	socket.on("request_solo_board", function(data) {
+		var size = (data && data.size) || "medium";
+		var dims = roomCreator.BOARD_SIZES[size];
+		if (!dims) return;
+		var density = (data && typeof data.density === "number") ? data.density : 0.10;
+		if (density < 0.04) density = 0.04;
+		if (density > 0.30) density = 0.30;
+		var rows = dims.rows, cols = dims.cols;
+		var mines = Math.round(density * rows * cols);
+		var centerR = Math.floor(rows / 2);
+		var centerC = Math.floor(cols / 2);
+		var template = noGuess.createNoGuessTemplate(centerR, centerC, mines, undefined, rows, cols);
+		if (!template) { socket.emit("solo_rejected", { reason: "Couldn't generate a no-guess board, try again." }); return; }
+		var obf = obfuscateBoard(template.board, rows, cols);
+		socket.emit("solo_board", {
+			size: size,
+			density: density,
+			rows: rows,
+			cols: cols,
+			mines: mines,
+			totalSafe: rows * cols - mines,
+			knownCells: template.knownCells,  // pre-revealed cascade origin
+			boardData: obf.data,
+			boardMask: obf.mask
+		});
+	});
+
+
+	socket.on("create_room", function(data) {
+		if (!names[playerID]) return;
+		if (roomMapping[playerID]) return;
+		var id = nextRoomId++;
+		// Custom rooms are casual races configured up front in the create-room modal. Player count and
+		// each ruleset option are applied through the room's own validated setters, which silently
+		// ignore anything out of range — so a malformed payload just falls back to the defaults.
+		var players = data && parseInt(data.players, 10);
+		var maxPlayers = (players >= 2 && players <= 6) ? players : undefined;
+		var room = roomCreator.createRoom(id, playerID, maxPlayers);
+		if (data) {
+			if (data.boardSize) room.setBoardSize(data.boardSize);
+			if (data.mineDensity != null) room.setMineDensity(parseFloat(data.mineDensity));
+			if (data.roundSeconds != null) room.setRoundSeconds(parseInt(data.roundSeconds, 10));
+			if (data.deathPenalty != null) room.setDeathPenalty(parseInt(data.deathPenalty, 10));
+			if (data.gameCount != null) room.setGameCount(parseInt(data.gameCount, 10));
+			if (data.modifier != null) room.setModifier(data.modifier || null);
+		}
+		rooms[id] = room;
+		addPlayerToRoom(socket, room);
+	});
+
+	socket.on("join_room", function(data) {
+		if (!names[playerID]) return;
+		if (roomMapping[playerID]) return;
+		var room = rooms[data && data.roomId];
+		if (!room) {
+			socket.emit("join_failed", { reason: "Lobby no longer exists" });
+			return;
+		}
+		if (room.isFull()) {
+			socket.emit("join_failed", { reason: "Lobby is full" });
+			return;
+		}
+		if (room.phase !== "planning") {
+			socket.emit("join_failed", { reason: "Series in progress" });
+			return;
+		}
+		addPlayerToRoom(socket, room);
+	});
+
+	socket.on("leave_room", function() {
+		if (!roomMapping[playerID]) return;
+		var socketRef = sockets[playerID];
+		var leaveEloInfo = removePlayerFromRoom(playerID);
+		if (socketRef) {
+			socketRef.join("lobby");
+			socketRef.emit("left_room", leaveEloInfo ? {
+				ratingDelta: leaveEloInfo.delta,
+				rating: leaveEloInfo.newRating,
+				provisional: leaveEloInfo.provisional
+			} : null);
+			socketRef.emit("room_list", { rooms: roomState.getRoomList() });
+		}
+	});
+
+	socket.on("set_game_count", function(data) {
+		var room = roomMapping[playerID];
+		if (!room) return;
+		if (room.owner !== playerID) return;
+		var count = data && parseInt(data.count, 10);
+		if (room.setGameCount(count)) {
+			roomState.broadcastRoomState(room);
+			roomState.broadcastRoomList();
+		}
+	});
+
+	socket.on("set_round_seconds", function(data) {
+		var room = roomMapping[playerID];
+		if (!room) return;
+		if (room.owner !== playerID) return;
+		var seconds = data && parseInt(data.seconds, 10);
+		if (room.setRoundSeconds(seconds)) {
+			roomState.broadcastRoomState(room);
+			roomState.broadcastRoomList();
+		}
+	});
+
+	socket.on("set_death_penalty", function(data) {
+		var room = roomMapping[playerID];
+		if (!room) return;
+		if (room.owner !== playerID) return;
+		var seconds = data && parseInt(data.seconds, 10);
+		if (room.setDeathPenalty(seconds)) {
+			roomState.broadcastRoomState(room);
+			roomState.broadcastRoomList();
+		}
+	});
+
+	socket.on("set_mine_density", function(data) {
+		var room = roomMapping[playerID];
+		if (!room) return;
+		if (room.owner !== playerID) return;
+		var density = data && parseFloat(data.density);
+		if (room.setMineDensity(density)) {
+			roomState.broadcastRoomState(room);
+			roomState.broadcastRoomList();
+		}
+	});
+
+	socket.on("set_board_size", function(data) {
+		var room = roomMapping[playerID];
+		if (!room) return;
+		if (room.owner !== playerID) return;
+		if (room.setBoardSize(data && data.size)) {
+			roomState.broadcastRoomState(room);
+			roomState.broadcastRoomList();
+		}
+	});
+
+	socket.on("set_bot_difficulty", function(data) {
+		var room = roomMapping[playerID];
+		if (!room) return;
+		if (room.owner !== playerID) return;
+		if (room.phase !== "planning") return;
+		var botId = data && data.botId;
+		var difficulty = data && data.difficulty;
+		if (!isBot(botId) || roomMapping[botId] !== room) return;
+		if (botPlayer.DIFFICULTIES.indexOf(difficulty) === -1) return;
+		// Remember it as the room's default so the next bot added matches the last difficulty chosen.
+		room.lastBotDifficulty = difficulty;
+		botDifficulty[botId] = difficulty;
+		var cfg = botPlayer.configForDifficulty(difficulty);
+		botSpeedMs[botId] = cfg.speedMs;
+		botDifficultyMs[botId] = cfg.difficultyMs;
+		botDistanceMult[botId] = cfg.distanceMult;
+		botMaxDifficulty[botId] = cfg.maxDifficulty;
+		botMistake[botId] = cfg.mistakeRate;
+		botChord[botId] = cfg.chordRate;
+		botMgr.applyBotConfigToGame(botId);
+		roomState.broadcastRoomState(room);
+	});
+
+	socket.on("add_bot", function() {
+		var room = roomMapping[playerID];
+		if (!room) return;
+		if (room.owner !== playerID) return;
+		if (!botMgr.addBotToRoom(room)) return;
+		roomState.broadcastRoomState(room);
+		roomState.broadcastRoomList();
+		// If the owner had already readied before adding the bot, start now.
+		if (room.players.length > 1 && room.allReady() && humanCount(room) > 0) {
+			gameService.allocate(room); // start the match through the game-service boundary (P1-1)
+		}
+	});
+
+	socket.on("remove_bot", function() {
+		var room = roomMapping[playerID];
+		if (!room) return;
+		if (room.owner !== playerID) return;
+		if (room.phase !== "planning") return;
+		if (!botMgr.removeOneBotFromRoom(room)) return;
+		roomState.broadcastRoomState(room);
+		roomState.broadcastRoomList();
+	});
+
+	socket.on("player_ready", function() {
+		var room = roomMapping[playerID];
+		if (!room) return;
+		if (room.phase !== "planning") return;
+		room.playerReady(playerID);
+		roomState.broadcastRoomState(room);
+		if (room.players.length > 1 && room.allReady()) {
+			gameService.allocate(room); // start the match through the game-service boundary (P1-1)
+		}
+	});
+
+	registerGameplayHandlers(socket, playerID); // left_click / right_click (shared with the game role)
+
+	// Single-player puzzle (rated / streak / storm / daily) socket handlers.
+	puzzleMode.registerSocketHandlers(socket, playerID);
+	botDemo.registerSocketHandlers(socket, playerID);
+	marathonGen.registerSocketHandlers(socket, playerID);
+
+	socket.on("disconnect", function() {
+		ranked.dequeue(playerID);
+		// Mid-puzzle disconnect is fine — current_puzzle_id stays set in the
+		// DB so the same puzzle is served on reconnect. We just drop the
+		// in-memory game state. Active runs end (no resume — runs are
+		// session-only by design); score is recorded if it's a new best.
+		puzzleMode.cleanup(socket, playerID);
+		botDemo.stopBotDemo(playerID);
+
+		var room = roomMapping[playerID];
+		var acc = accounts[playerID];
+		// A real, signed-in-or-guest account (acc.userId is a stable DB row id, unlike this socket's own
+		// ephemeral playerID) mid-round: hold the seat + live game state open for RECONNECT_GRACE_MS
+		// instead of evicting immediately. Every reconnect already re-authenticates with the same stored
+		// session token (Auth.js's applyConnected, unconditionally, on every fresh "connected") — if that
+		// lands within the window, the authenticate handler below claims this pendingDisconnects entry
+		// and migrates the whole seat over to the new socket id (migrateReconnectedPlayer). The client
+		// never tore anything down on its end either (there's no disconnect handler there at all — see
+		// its own comment) — it just keeps optimistically predicting the player's own clicks the whole
+		// time, same as any ordinary move, and once the server recognizes the reconnected socket the
+		// existing move-sync heartbeat/resync_moves machinery (already built for a dropped-packet mid-
+		// round, Main.js) catches the server up on everything that happened while it was gone, for free.
+		if (room && room.phase === "playing" && acc && acc.userId != null) {
+			delete sockets[playerID]; // the transport is dead; updateDraw already guards on sockets[pid]
+			var userId = acc.userId;
+			var timer = setTimeout(function() {
+				delete appState.pendingDisconnects[userId];
+				evictAbandonedPlayer(playerID);
+			}, RECONNECT_GRACE_MS);
+			appState.pendingDisconnects[userId] = { playerID: playerID, timer: timer };
+			return;
+		}
+		evictAbandonedPlayer(playerID);
+	});
+});
+
+// The disconnect cleanup every abandoned connection eventually gets — either immediately (not mid-round,
+// so nothing to hold open) or after RECONNECT_GRACE_MS with no reconnect (see above). Unchanged from what
+// used to run unconditionally in the disconnect handler itself, including the ranked early-leave Elo
+// penalty (inside removePlayerFromRoom) for whoever genuinely never came back.
+function evictAbandonedPlayer(playerID) {
+	if (roomMapping[playerID]) removePlayerFromRoom(playerID);
+	delete sockets[playerID];
+	delete names[playerID];
+	delete skins[playerID];
+	delete avatars[playerID];
+	delete countries[playerID];
+	delete accounts[playerID]; // session stays valid in the DB for reconnect
+	delete games[playerID];
+	roomState.broadcastRoomList();
+}
+
+
+// One-shot: re-classify puzzles inserted before the overlap pass existed
+// so their pass counts and tier reflect the new solver. Rows are batched
+// so a large pool doesn't block the event loop at startup.
+function backfillOverlapClassification() {
+	var rows = db.legacyPuzzleRows();
+	if (!rows.length) return;
+	console.log("reclassifying " + rows.length + " puzzles for the overlap pass");
+	var idx = 0;
+	function step() {
+		var end = Math.min(rows.length, idx + 50);
+		for (; idx < end; idx++) {
+			var row = rows[idx];
+			var mines = JSON.parse(row.mines);
+			var revealed = JSON.parse(row.revealed);
+			var board = puzzleGen.buildBoard(row.rows, row.cols, mines);
+			var analysis = puzzleGen.analyzeWithTracking(board, revealed, mines.length);
+			db.applyPuzzleClassification(row.id, analysis);
+		}
+		if (idx < rows.length) setImmediate(step);
+		else console.log("overlap reclassification complete");
+	}
+	setImmediate(step);
+}
+
+// Reap abandoned guest accounts (no games, no puzzles, older than the TTL) on startup and daily, so
+// drive-by visitors don't grow the users table without bound. Tune via GUEST_TTL_DAYS (default 7).
+var GUEST_TTL_DAYS = parseFloat(process.env.GUEST_TTL_DAYS || "7");
+function reapGuests() {
+	try {
+		var removed = db.pruneStaleGuests(GUEST_TTL_DAYS * 24 * 60 * 60 * 1000);
+		if (removed) console.log("[guests] pruned " + removed + " stale guest(s) older than " + GUEST_TTL_DAYS + "d");
+	} catch (e) { console.error("[guests] prune failed", e); }
+}
+
+// Listen on all interfaces incl. IPv6 (host omitted → Node binds `::` dual-stack). This is required for
+// the split: fly's private `.internal` networking is IPv6, so a game server reporting to
+// erik-minesweeper.internal:PORT must reach an IPv6 listener (binding "0.0.0.0" is IPv4-only and the
+// public proxy still works, but app-to-app 6PN connections get ECONNREFUSED).
+app.listen(PORT, function() {
+	console.log("listening on " + PORT);
+	backfillOverlapClassification();
+	puzzleApi.ensurePoolTopUp();
+	reapGuests();
+	setInterval(reapGuests, 24 * 60 * 60 * 1000);
+	// Drain on SIGTERM (deploy / `npm run stop`): finish active matches, then exit. See runtime/lifecycle.js.
+	lifecycle.installShutdownHandler();
+});

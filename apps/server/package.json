@@ -1,0 +1,26 @@
+{
+	"name": "server",
+	"version": "1.0.0",
+	"private": true,
+	"description": "msbattle Node + socket.io server (lobby, matchmaking, puzzles, shop) and the legacy client's static host",
+	"main": "src/minesweeperServer.js",
+	"scripts": {
+		"start": "node src/minesweeperServer.js",
+		"dev": "DEV_AUTH=1 node src/minesweeperServer.js",
+		"build:legacy": "node scripts/build-client.js",
+		"test": "node --test"
+	},
+	"dependencies": {
+		"core": "*",
+		"esbuild": "^0.28.1",
+		"socket.io": "^4.7.5",
+		"stripe": "^22.5.0"
+	},
+	"devDependencies": {
+		"playwright": "^1.61.1",
+		"socket.io-client": "^4.8.3"
+	},
+	"engines": {
+		"node": ">=22"
+	}
+}

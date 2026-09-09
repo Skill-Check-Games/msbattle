@@ -1,0 +1,7 @@
+{
+	"name": "core",
+	"version": "1.0.0",
+	"private": true,
+	"description": "msbattle game core: board generation, the no-guess CSP solver, bots, puzzles, and the modules shared with the client (BoardLogic, Cosmetics, ShopCatalog). Pure logic, no http/socket/db. Imported by deep path: core/src/engine/<File>, core/src/common/<File>.",
+	"main": "src/engine/index.js"
+}

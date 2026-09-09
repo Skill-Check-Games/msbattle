@@ -17,33 +17,40 @@ archive; grep it for a subsystem when you need the backstory).
   for the server lifecycle, never ad-hoc `node`/`kill`/`lsof`.
 - `npm start` — plain start (what the Docker/prod image runs).
 - `npm test` — integration tests (`node --test test/*.test.js`) that boot the real server on an
-  isolated port + throwaway DB and check `/api/*`; `test/helpers.js` is the harness.
+  isolated port + throwaway DB and check `/api/*`; `apps/server/test/helpers.js` is the harness.
 
-After any change under `src/server/**`, `npm run restart`. Client assets are served from disk,
-so a browser reload picks up `src/client/**` and `src/common/**` with no restart. Verify UI in a
+After any change under `apps/server/src/**`, `npm run restart`. Client assets are served from disk,
+so a browser reload picks up `apps/legacy-client/**` and `packages/core/src/common/**` with no restart. Verify UI in a
 browser at http://localhost:1337 (dev login: `/auth/dev?name=Dev`). Pure logic (board gen,
 solver, bots, Elo) can be checked with short `node -e` scripts.
 
 ## Layout
 
-- `src/server/minesweeperServer.js` — HTTP + socket.io entry. Pure router: `/auth/*` → `runtime/oauth.js`,
+npm workspaces (same shape as achtung-royale): `packages/core` is the game core shared by server and
+client, `apps/server` the Node backend, `apps/client` the React client (Vite), `apps/legacy-client` the
+old plain-JS client (served until the React one covers everything, then deleted). Root scripts run the
+server from the repo root so `.env`, `ranked.db` and the data JSONs stay there. `core` is imported by deep
+path: `require("core/src/engine/GameCreator")`, `require("core/src/common/BoardLogic")`.
+
+
+- `apps/server/src/minesweeperServer.js` — HTTP + socket.io entry. Pure router: `/auth/*` → `runtime/oauth.js`,
   `/api/*` → `runtime/puzzleApi.js` + `runtime/shopApi.js`, everything else → `runtime/staticServer.js`
   (SPA fallback for extensionless paths). Every socket handler is wrapped in try/catch and
   `uncaughtException`/`unhandledRejection` are caught, so a thrown handler logs instead of crashing.
-- `src/server/engine/` — pure game logic, no http/socket/db imports (guarded by `test/boundary.test.js`):
+- `packages/core/src/engine/` — pure game logic, no http/socket/db imports (guarded by `apps/server/test/boundary.test.js`):
   `GameCreator`, `NoGuessGenerator`, `RoomCreator`, `BotPlayer`, `CSPSolver` (the one solver: rates
   boards and serves next moves), `PuzzleGenerator`, `InsideOutGenerator`, `RingSeedGenerator`,
   `StartPatterns`, `Patterns`, `BotBench`. Barrel: `engine/index.js`.
-- `src/server/runtime/` — shared state + socket-handler modules: `appState` (all live mutable state,
+- `apps/server/src/runtime/` — shared state + socket-handler modules: `appState` (all live mutable state,
   a singleton), `ranked` (queues + `formRankedMatch`), `elo`, `bots`, `puzzlePlay`, `botDemo`,
   `standings`, `roomState`, `session` (auth attach + account payloads + most `set_*` handlers),
   `gameUtil`, `replay`, `results`/`lifecycle`/`matchToken`/`role`/`internalApi`/`gameService`
   (the Phase 1 main/game split, opt-in via `ROLE`). Modules get core services injected via
   `x.init(deps)`.
-- `src/server/db.js` — SQLite: users, sessions, ratings, match history, replays, puzzles, shop purchases.
-- `src/common/` — loaded by both runtimes (`<script>` tag + `require`): `BoardLogic` (cascade/chord,
+- `apps/server/src/db.js` — SQLite: users, sessions, ratings, match history, replays, puzzles, shop purchases.
+- `packages/core/src/common/` — loaded by both runtimes (`<script>` tag + `require`): `BoardLogic` (cascade/chord,
   cell-state sentinels), `Cosmetics` (board skins, avatars, reveal effects), `ShopCatalog`.
-- `src/client/` — `index.html` (all markup; every module is a plain `<script>` global, loaded in
+- `apps/legacy-client/` — `index.html` (all markup; every module is a plain `<script>` global, loaded in
   dependency order, `core/Main.js` last), `style.css` (all styles, large), and:
   - `core/` — live-game runtime: `Main` (socket handlers + shared game globals), `Input`,
     `BoardRender` (canvas paint, palettes, avatars), `Animations`, `BoardDecoder`, `Countries`, `PuzzleLadder`.
@@ -53,7 +60,7 @@ solver, bots, Elo) can be checked with short `node -e` scripts.
     lab), `Leaderboard`, `Learn`, `Solo`, `PuzzlePlay`, `Ranking` (tier badges), `MatchPanels`, `Replay`, `Shop`.
   - `admin/` — admin pages (`AdminList`, `BotsAdmin`, `PatternsView`, `StartPatternsView`,
     `StartingPositionsView`, `CombinedPuzzlesView`, `PuzzleLab`, `Puzzles`, `DesignView`).
-- `scripts/` — offline generators (bot pool, patterns, corner positions, scouts).
+- `apps/server/scripts/` — offline generators (bot pool, patterns, corner positions, scouts).
 - `design-refs/` — the mockup screenshots layouts were built against.
 
 Other docs: `ARCHITECTURE_PLAN.md` (target architecture; read before any service-split work),
@@ -70,9 +77,9 @@ Other docs: `ARCHITECTURE_PLAN.md` (target architecture; read before any service
   modes. Placement swings are large (`kFactor`) and margin of victory adds a bonus (`elo.js`).
 - Puzzles: two-way `puzzle_rating` only picks which puzzles you get and is hidden from the UI; the
   visible rank is the monotonic Puzzle Ladder (`puzzle_points`, `core/PuzzleLadder.js`).
-- Filler bots come from the pre-benchmarked `bots-pool.json`. Re-run `node scripts/generate-bot-pool.js`
+- Filler bots come from the pre-benchmarked `bots-pool.json`. Re-run `node apps/server/scripts/generate-bot-pool.js`
   whenever bot AI, the CSP solver/complexity costs, or the boards change; a pure ladder relabel only
-  needs `node scripts/rerank-bot-pool.js`.
+  needs `node apps/server/scripts/rerank-bot-pool.js`.
 - Hidden information: in-game shows only rank tiers, never exact ratings; whether an opponent is a bot
   is never exposed (not even in replays). Client-side helpers must not leak the decoded mine layout
   (the client decodes the full board for optimistic reveals).

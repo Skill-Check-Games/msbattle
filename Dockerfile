@@ -7,10 +7,9 @@ RUN apk add --no-cache libc6-compat
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm install --omit=dev
-
 COPY . .
+# Workspaces: one install at the root links packages/core into node_modules for apps/server.
+RUN npm ci --omit=dev
 
 # Concatenates + minifies the client scripts into bundle.js (see scripts/build-client.js /
 # staticServer.js). esbuild is a real (non-dev) dependency specifically so this works with the
@@ -21,4 +20,4 @@ RUN npm run build
 ENV PORT=8080
 EXPOSE 8080
 
-CMD ["node", "src/server/minesweeperServer.js"]
+CMD ["node", "apps/server/src/minesweeperServer.js"]

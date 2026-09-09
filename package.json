@@ -1,26 +1,23 @@
 {
-  "name": "msbattle",
-  "version": "1.0.0",
-  "description": "Awesome minesweeper multiplayer",
-  "main": "src/server/minesweeperServer.js",
-  "scripts": {
-    "start": "node src/server/minesweeperServer.js",
-    "dev": "DEV_AUTH=1 node src/server/minesweeperServer.js",
-    "stop": "pkill -f 'node src/server/minesweeperServer.js' || true",
-    "restart": "npm run stop; sleep 1; npm run dev",
-    "build": "node scripts/build-client.js",
-    "test": "node --test"
-  },
-  "engines": {
-    "node": ">=22"
-  },
-  "dependencies": {
-    "esbuild": "^0.28.1",
-    "socket.io": "^4.7.5",
-    "stripe": "^22.5.0"
-  },
-  "devDependencies": {
-    "playwright": "^1.61.1",
-    "socket.io-client": "^4.8.3"
-  }
+	"name": "msbattle",
+	"version": "1.0.0",
+	"private": true,
+	"description": "Awesome minesweeper multiplayer",
+	"workspaces": [
+		"packages/*",
+		"apps/*"
+	],
+	"packageManager": "npm@10",
+	"scripts": {
+		"start": "node apps/server/src/minesweeperServer.js",
+		"dev": "DEV_AUTH=1 node apps/server/src/minesweeperServer.js",
+		"stop": "pkill -f 'node apps/server/src/minesweeperServer.js' || true",
+		"restart": "npm run stop; sleep 1; npm run dev",
+		"build": "npm run build:legacy --workspace apps/server",
+		"test": "node --test \"apps/server/test/*.test.js\"",
+		"test:core": "node --test \"apps/server/test/{boundary,cspsolver,movehash,shopcatalog}.test.js\""
+	},
+	"engines": {
+		"node": ">=22"
+	}
 }
