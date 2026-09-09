@@ -7337,8 +7337,6 @@ input[type="range"].sound-lab-rate-slider { grid-column: 1 / -1; grid-row: 2; wi
 	border: 1px solid var(--border); border-radius: 7px;
 }
 /* The two square tiles: row-height, image edge to edge (no padding), corners clipped by the box. */
-/* Try (2026-09-09): flag tile on the far LEFT, avatar next to it — done with flex order so the markup stays. */
-.dash-you-box-flag { order: -1; }
 .dash-you-box-avatar, .dash-you-box-flag { flex: 0 0 75px; width: 75px; min-height: 75px; overflow: hidden; display: flex; align-items: center; justify-content: center; }
 .dash-you-box-avatar .avatar-chip, .dash-you-box-avatar canvas { display: block; }
 .dash-you-box-flag .flag-picker-trigger { width: 100%; height: 100%; border: 0; border-radius: 0; background: none; }
