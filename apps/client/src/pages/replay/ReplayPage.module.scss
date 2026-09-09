@@ -1,0 +1,23 @@
+.back { display: inline-block; color: var(--accent-hover); text-decoration: none; font-weight: 600; margin-bottom: 0.75rem; &:hover { text-decoration: underline; } }
+.status { color: var(--muted); padding: 2rem 0; }
+.topbar { display: flex; align-items: baseline; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; .back { margin: 0; } }
+.title { font-weight: 700; font-size: 1.25rem; }
+.when { color: var(--muted); font-size: 0.82rem; margin-left: auto; }
+.rounds { display: flex; gap: 0.4rem; margin-bottom: 1rem; flex-wrap: wrap; }
+.roundTab { background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); padding: 0.35rem 0.8rem; border-radius: 5px; font-weight: 600; font-size: 0.85rem; &:hover { color: var(--text); } }
+.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.board { display: flex; flex-direction: column; gap: 0.4rem; align-items: center; }
+.stage { display: flex; justify-content: center; margin-bottom: 1rem; }
+.stageBoard .label { font-size: 1rem; }
+.strip { display: flex; gap: 0.9rem; flex-wrap: wrap; justify-content: center; margin-bottom: 1.25rem; }
+.thumb { cursor: pointer; padding: 0.4rem; border-radius: 6px; border: 1px solid transparent; opacity: 0.72; transition: opacity 0.12s, border-color 0.12s, background 0.12s; .label { font-size: 0.78rem; } &:hover { opacity: 1; border-color: var(--border); background: rgba(255, 255, 255, 0.03); } }
+.focused { opacity: 1; border-color: var(--accent); background: rgba(99, 102, 241, 0.1); cursor: default; }
+.label { display: flex; align-items: center; gap: 0.4rem; font-weight: 600; font-size: 0.9rem; }
+.canvas { border-radius: 5px; max-width: 100%; }
+.controls { display: flex; align-items: center; gap: 0.9rem; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 1rem; }
+.play { background: var(--accent); border: 0; color: #fff; font-weight: 700; padding: 0.45rem 1rem; border-radius: 5px; min-width: 6.5rem; &:hover { background: var(--accent-hover); } }
+.slider { flex: 1; min-width: 180px; accent-color: var(--accent); cursor: pointer; }
+.time { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 0.85rem; min-width: 5.5rem; text-align: center; }
+.speeds { display: flex; gap: 0.3rem; }
+.speed { background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); padding: 0.3rem 0.55rem; border-radius: 5px; font-weight: 600; font-size: 0.8rem; }
+.speed.active { background: var(--accent); border-color: var(--accent); color: #fff; }
