@@ -6328,14 +6328,23 @@ body.duel-force-rotate .game-view.multi .game-side { display: flex !important; }
    inline style.display = "none" (hideAllViews), never the `hidden` ATTRIBUTE, so a `:not([hidden])`
    selector is never false and every view would otherwise match. .dash-you — what this replaces —
    only exists on the home view; nothing to fold into on any other page. */
+/* (2026-09-09) The fold-into-the-topbar treatment above is retired on request: the identity row stays on
+   the home screen in landscape too, just compact — 54px tiles and name box, the stat cells inline on the
+   same row (landscape has the width), smaller type. #topbar_you keeps its default display: none. */
 @media (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
-	body.home-view .dash-you { display: none; }
-	body.home-view .topbar-you {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		min-width: 0;
-	}
+	body.home-view .dash-you { min-height: 54px; margin-bottom: 0.7rem; }
+	body.home-view .dash-you-box-avatar, body.home-view .dash-you-box-flag { flex: 0 0 54px; width: 54px; min-height: 54px; height: 54px; }
+	body.home-view .dash-you-box-avatar canvas, body.home-view .dash-you-box-flag img { width: 52px !important; height: 52px !important; }
+	body.home-view .dash-you-box-main { padding: 0.2rem 0.8rem; }
+	body.home-view .dash-you-name { font-size: 1.1rem; }
+	body.home-view .dash-you-stats { margin-top: -0.2rem; margin-bottom: -0.2rem; margin-right: -0.8rem; }
+	body.home-view .dash-you-cell { padding: 3px 0.6rem 0; }
+	body.home-view .dash-you-cell span { font-size: 0.55rem; }
+	body.home-view .dash-you-cell b { font-size: 1rem; }
+	body.home-view .dash-you-signin { padding: 0.25rem 0.6rem; font-size: 0.76rem; }
+	/* A guest's strip is just four dashes, and name + sign-in button + four cells don't fit a 667px
+	   landscape phone — so while the strip has nothing to say it's dropped here. */
+	body.home-view .dash-you-stats:has(.dash-you-cell-empty) { display: none; }
 }
 .topbar-you { display: none; }
 .topbar-you-avatar { flex: 0 0 auto; display: inline-flex; }
@@ -7440,7 +7449,10 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
 .dash-main { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.95fr); gap: 1.1rem; align-items: stretch; }
 @media (max-width: 880px) {
 	.dash-main { grid-template-columns: 1fr; }
-	/* Phones: the info card is only ~160px wide between the two 75px tiles, so its contents are
+}
+@media (max-width: 880px) and (orientation: portrait) {
+	/* Phones (portrait — landscape keeps the single-row layout, it has the width): the info card is only
+	   ~160px wide between the two 75px tiles, so its contents are
 	   re-flowed as rows of the identity block instead. display: contents dissolves the info card
 	   AND its name block, promoting the name row, the guest sign-in line and the stat strip to direct
 	   flex children of .dash-you, which wraps:
