@@ -598,9 +598,10 @@ function buildRevealDemoBoard(opts) {
 // top-left 3×3 block kept mine-free so `openAt` gives a decent-sized natural opening to start from,
 // leaving most of the board covered for the player to click into on their own.
 var LAB_DEMO_ROWS = 8, LAB_DEMO_COLS = 11;
+// (2026-09-09) The three mines nearest the bottom-right corner were dropped so a click down there cascades
+// open a big area — the point of the preview is watching lots of tiles reveal at once.
 var LAB_DEMO_MINES = [
-	[0, 5], [1, 7], [1, 9], [2, 3], [2, 8], [2, 10], [3, 0], [3, 5], [3, 10],
-	[4, 2], [4, 7], [5, 4], [5, 9], [6, 1], [6, 6], [7, 3], [7, 8]
+	[0,5], [1,7], [1,9], [2,3], [2,8], [2,10], [3,0], [3,5], [4,2], [4,7], [5,4], [6,1], [6,6], [7,3]
 ];
 var LAB_DEMO_OPEN_AT = [1, 1];
 var LAB_DEMO_CELL_PX = 38;

@@ -4098,6 +4098,7 @@ body[data-board-skin="monochrome"] .board-press-highlight {
 
 .shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; }
 .shop-tile {
+	color: var(--text); /* the customize lab's tiles are <button>s — without this they take the UA's black button text, and every name was invisible */
 	position: relative; /* positioning context for .lab-tile-check/.lab-tile-lock's corner badge */
 	display: flex; flex-direction: column;
 	border-radius: 7px; overflow: hidden;
