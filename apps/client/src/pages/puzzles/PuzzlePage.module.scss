@@ -1,0 +1,47 @@
+@use "../../styles/variables" as *;
+
+.page { animation: fade 180ms ease; }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+.header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+.title { color: var(--muted); font-weight: 600; }
+.empty { color: var(--muted); }
+.grid { display: flex; gap: 1.25rem; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+.boardCol { display: flex; flex-direction: column; align-items: center; gap: 0.6rem; }
+.boardWrap {
+	position: relative; display: flex; align-items: center; justify-content: center; max-width: 100%;
+	background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow);
+	transition: box-shadow 0.25s;
+}
+.flashSolved { box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.6), var(--shadow); }
+.flashFail { box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.6), var(--shadow); }
+.board { vertical-align: top; }
+.info { font-size: 0.82rem; color: var(--muted); display: inline-flex; gap: 0.4rem; align-items: center; }
+.sep { opacity: 0.6; }
+.card { width: 300px; max-width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 1.1rem 1.2rem; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 0.75rem; }
+.cardHead { display: flex; align-items: center; gap: 0.5rem; }
+.cardTitle { font-size: 0.8rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.ladderHead { display: flex; align-items: center; gap: 0.5rem; }
+.ladderTier { font-family: var(--font-display); font-weight: 800; font-size: 1.05rem; }
+.delta { font-weight: 800; animation: delta-pop 1s ease both; }
+.gain { color: var(--success); }
+@keyframes delta-pop { 0% { opacity: 0; transform: translateY(6px); } 20% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; } }
+.streakChip { margin-left: auto; font-size: 0.8rem; font-weight: 700; color: var(--energy-streak); }
+.rankBar { height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+.rankFill { height: 100%; border-radius: 4px; transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
+.rankFoot { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.hint { width: 100%; }
+.hintUsed { opacity: 0.6; }
+.actions { display: flex; gap: 0.5rem; .btn { flex: 1 1 0; } }
+.runRow { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.runStat { background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border); border-radius: 5px; padding: 0.55rem 0.7rem; display: flex; flex-direction: column; gap: 0.15rem; }
+.runLabel { font-size: 0.65rem; letter-spacing: 0.14em; color: var(--muted); text-transform: uppercase; font-weight: 700; }
+.runValue { font-family: var(--font-display); font-weight: 800; font-size: 1.3rem; font-variant-numeric: tabular-nums; }
+.runFoot { display: flex; justify-content: space-between; font-size: 0.82rem; color: var(--muted); span:last-child { font-weight: 700; color: var(--text); } }
+.bestLine { text-align: center; font-weight: 700; color: var(--muted); }
+.flash { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.2rem; border-radius: 6px; pointer-events: none; animation: flash-in 1.2s ease both; z-index: 4; }
+.flashOk { background: rgba(34, 197, 94, 0.22); color: var(--success); }
+.flashBad { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+.flashIcon { font-size: 4rem; font-weight: 800; line-height: 1; }
+.flashLabel { font-size: 1.2rem; font-weight: 700; }
+@keyframes flash-in { 0% { opacity: 0; transform: scale(0.9); } 15% { opacity: 1; transform: scale(1); } 80% { opacity: 1; } 100% { opacity: 0; } }
+@include below($bp-md) { .card { width: 100%; } }

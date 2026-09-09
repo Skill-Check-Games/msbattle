@@ -2,6 +2,7 @@
 // (Sprint, Standard, Puzzles) with live board previews and rank chips, and the daily puzzle hero.
 import { useEffect, useRef, useState } from "react";
 import RankedPicker, { RankedStyle } from "./RankedPicker";
+import PuzzlesPicker from "./PuzzlesPicker";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../shared/auth";
 import { AvatarChip } from "../../shared/Avatar";
@@ -23,15 +24,18 @@ const MODE_BOARDS: Record<string, BoardSpec> = {
 	puzzles: { rows: 6, cols: 9, mines: [[0, 3], [1, 0], [1, 2], [2, 0], [3, 5], [4, 3], [5, 2]], revealed: [[1, 1], [1, 3], [1, 4], [2, 1], [2, 2], [2, 3], [2, 4], [3, 1], [3, 2], [3, 3], [3, 4], [4, 1], [4, 2], [4, 4]], flagged: [] }
 };
 
-export default function HomePage() {
+export default function HomePage({ openPuzzles = false }: { openPuzzles?: boolean }) {
 	const { account } = useAuth();
 	const { skin } = useCosmetics();
 	const matches = useMatchHistory(account);
 	const daily = useDailyStatus(account);
 	const [picker, setPicker] = useState<RankedStyle | null>(null);
+	const [puzzles, setPuzzles] = useState(openPuzzles);
+	const navigate = useNavigate();
 	return (
 		<section className={styles.dash}>
 			<RankedPicker style={picker} onClose={() => setPicker(null)} />
+			<PuzzlesPicker open={puzzles} onClose={() => { setPuzzles(false); if (location.pathname === "/puzzles") navigate("/", { replace: true }); }} />
 			<IdentityRow account={account} matches={matches} />
 			<div className={styles.main}>
 				<div className={styles.modes}>
@@ -39,7 +43,7 @@ export default function HomePage() {
 						chip={<RankedChip account={account} rating={account?.ratingSprint} played={account?.playedSprint} />} />
 					<ModeRow onOpen={() => setPicker("standard")} title="Standard" sub="Bigger boards, more mines" spec={MODE_BOARDS.standard} skin={skin}
 						chip={<RankedChip account={account} rating={account?.ratingStandard} played={account?.playedStandard} />} />
-					<ModeRow to="/puzzles" title="Puzzles" sub="Rated deduction positions, one at a time" spec={MODE_BOARDS.puzzles} skin={skin}
+					<ModeRow onOpen={() => setPuzzles(true)} title="Puzzles" sub="Rated deduction positions, one at a time" spec={MODE_BOARDS.puzzles} skin={skin}
 						chip={<PuzzleChip account={account} />} />
 				</div>
 				<aside className={styles.aside}>
