@@ -1,0 +1,13 @@
+@use "../../styles/variables" as *;
+
+.tabs { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0 0 1rem; }
+.tab { padding: 0.45rem 0.9rem; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--muted); font-weight: 600; font-size: 0.9rem; transition: border-color var(--motion-micro), background var(--motion-micro), color var(--motion-micro); &:hover { color: var(--text); border-color: var(--muted); } }
+.tabActive, .tabActive:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 1.25rem; align-items: start; @include below(860px) { grid-template-columns: 1fr; } }
+.canvasCard { display: flex; justify-content: center; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 1rem 1.1rem; }
+.canvas { width: 100%; max-width: 600px; height: auto; aspect-ratio: 600 / 480; background: var(--bg); border-radius: 6px; }
+.controls { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 1rem 1.1rem; }
+.panelSub { margin: -0.3rem 0 0.8rem; font-size: 0.82rem; color: var(--muted); line-height: 1.5; }
+.playGo { width: 100%; margin-top: 0.3rem; margin-bottom: 1.4rem; }
+.reset { width: 100%; margin-top: 0.6rem; }

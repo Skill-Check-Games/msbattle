@@ -1,0 +1,11 @@
+@use "../../styles/variables" as *;
+
+.card { display: block; color: inherit; text-decoration: none; &:hover { border-color: var(--accent); } }
+.action { color: var(--accent); font-weight: 700; }
+.confirm { display: flex; flex-direction: column; gap: 0.6rem; font-size: 0.9rem; }
+.btn {
+	padding: 0.4rem 0.9rem; border-radius: 5px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font: inherit; font-weight: 600; cursor: pointer;
+	&:hover:not(:disabled) { border-color: var(--muted); }
+	&:disabled { opacity: 0.6; cursor: default; }
+}
+.danger { border-color: var(--danger); color: var(--danger); &:hover:not(:disabled) { background: rgba(239, 68, 68, 0.12); border-color: var(--danger); } }

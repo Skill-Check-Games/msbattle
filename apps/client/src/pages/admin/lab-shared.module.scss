@@ -1,0 +1,48 @@
+@use "../../styles/variables" as *;
+
+// Segmented picker: one active option, flat accent fill for the selection.
+.seg { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 1.1rem; }
+.seg button {
+	flex: 1 1 0; min-width: 3.2rem; padding: 0.5rem 0.4rem;
+	font-weight: 600; font-size: 0.92rem;
+	background: var(--surface); color: var(--text);
+	border: 1px solid var(--border); border-radius: 6px;
+	transition: border-color var(--motion-micro), background var(--motion-micro);
+	&:hover { border-color: var(--muted); }
+}
+.seg .segActive, .seg .segActive:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+// Label / value / full-width slider rows (the countdown lab's tuning, the sound lab's speed).
+.sliderRow { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 0.3rem 0.6rem; margin-bottom: 0.65rem; }
+.rowText { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; grid-column: 1; grid-row: 1; }
+.rowLabel { font-weight: 700; }
+.rowNote { font-size: 0.82rem; color: var(--muted); max-width: 46ch; }
+.val { grid-column: 2; grid-row: 1; justify-self: end; font-weight: 700; color: var(--accent-hover); font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+.slider { grid-column: 1 / -1; grid-row: 2; width: 100%; accent-color: var(--accent); margin: 0.35rem 0; }
+
+.colorRow { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin-bottom: 1.1rem; .val { flex: 1; text-align: right; } }
+.color { width: 44px; height: 32px; padding: 2px; border-radius: 5px; border: 1px solid var(--border); background: var(--surface-2); cursor: pointer; flex: 0 0 auto; }
+
+// On/off switch.
+.toggle {
+	position: relative; flex: 0 0 auto; width: 44px; height: 24px; border-radius: 999px; padding: 0;
+	background: var(--surface-2); border: 1px solid var(--border); transition: background var(--motion-micro), border-color var(--motion-micro);
+	&::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--muted); transition: transform var(--motion-standard) var(--ease), background var(--motion-micro); }
+}
+.on { background: var(--accent); border-color: var(--accent); &::after { transform: translateX(20px); background: #fff; } }
+
+// Sections and candidate cards.
+.section { margin-top: 1.75rem; }
+.sectionTitle { margin: 0 0 0.35rem; font-size: 1.15rem; }
+.sectionSub { margin: 0 0 1rem; color: var(--muted); font-size: 0.88rem; max-width: 76ch; line-height: 1.5; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 0.85rem; }
+.gridWide { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 0.85rem; }
+.card { display: flex; flex-direction: column; gap: 0.6rem; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 1rem 1.1rem; }
+.cardHead { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; }
+.cardName { font-weight: 700; font-size: 0.98rem; }
+.cardBadge { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent-hover); background: rgba(99, 102, 241, 0.14); border: 1px solid rgba(99, 102, 241, 0.35); border-radius: 999px; padding: 0.15rem 0.5rem; white-space: nowrap; }
+.cardDesc { margin: 0; color: var(--muted); font-size: 0.84rem; line-height: 1.5; flex: 1; }
+.actions { display: flex; gap: 0.5rem; .btn, button { flex: 1; padding: 0.5rem 0.6rem; font-size: 0.85rem; } }
+.playBtn { align-self: flex-start; }
+.playActive, .playActive:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+.panelTitle { margin: 0 0 0.7rem; font-size: 1rem; }

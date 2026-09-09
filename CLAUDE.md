@@ -2,7 +2,7 @@
 
 Real-time multiplayer Minesweeper racing: players clear their own board on a shared no-guess
 layout, fastest wins. Casual rooms + a ranked ladder with accounts and Elo, plus single-player
-puzzles. Plain Node + socket.io backend, plain-JS browser client, no build step, SQLite via
+puzzles. Plain Node + socket.io backend, React (Vite) client, SQLite via
 `node:sqlite` (Node >= 22).
 
 **Keep this file short.** It is loaded into every Claude request. Do not append fix histories,
@@ -12,40 +12,36 @@ archive; grep it for a subsystem when you need the backstory).
 
 ## Commands
 
-- `npm run dev:client` — Vite dev server for the React client on :5173, proxying socket.io, `/api`, `/auth`
-  and the asset folders to the Node server on :1337 (so run `npm run dev` too). This is the day-to-day
-  loop for client work: edit under `apps/client/src`, the browser hot-reloads.
-- `npm run dev:react` — the Node server serving the built React client (`REACT_CLIENT=1`; run
-  `npm run build` first). Same origin as the socket, so this is where sign-in and the prod path are checked.
-- `npm run typecheck` / `npm run test:e2e` — the client's `tsc --noEmit` and Playwright smoke test (every
-  route loads without a page error, screenshots under `apps/client/e2e/screenshots`). Run both, plus
-  `npm run build`, before calling client work done.
-
-- `npm run dev` — start locally with dev login (`DEV_AUTH=1`) on port 1337. Auto-loads `.env`.
-- `npm run stop` / `npm run restart` — stop, or stop + start. **Always use these npm scripts**
-  for the server lifecycle, never ad-hoc `node`/`kill`/`lsof`.
+- `npm run dev` — Node server with dev login (`DEV_AUTH=1`) on :1337, serving the last `npm run build`
+  of the React client plus socket.io, `/api`, `/auth`. Auto-loads `.env`.
+- `npm run dev:client` — Vite dev server for the React client on :5173 (HMR), proxying socket.io,
+  `/api` and `/auth` to :1337. **Day-to-day loop for client work: run both.** Edit under
+  `apps/client/src`, the browser hot-reloads. Dev login: http://localhost:5173/auth/dev.
+- `npm run stop` / `npm run restart` — stop, or stop + start the Node server. **Always use these npm
+  scripts** for the server lifecycle, never ad-hoc `node`/`kill`/`lsof`. Restart after any change under
+  `apps/server/src/**` or `packages/core/**` (the server side); the client needs no restart.
+- `npm run build` — `vite build` into `apps/client/dist` (what :1337 and prod serve).
+- `npm run typecheck` / `npm run test:e2e` — the client's `tsc --noEmit` and the Playwright smoke test
+  (every route loads without a page error at desktop and 330 px, screenshots under
+  `apps/client/e2e/screenshots`). Run both, plus `npm run build`, before calling client work done.
+- `npm test` — server integration tests (`node --test apps/server/test/*.test.js`) that boot the real
+  server on an isolated port + throwaway DB and check `/api/*`; `apps/server/test/helpers.js` is the harness.
 - `npm start` — plain start (what the Docker/prod image runs).
-- `npm test` — integration tests (`node --test test/*.test.js`) that boot the real server on an
-  isolated port + throwaway DB and check `/api/*`; `apps/server/test/helpers.js` is the harness.
 
-After any change under `apps/server/src/**`, `npm run restart`. Client assets are served from disk,
-so a browser reload picks up `apps/legacy-client/**` and `packages/core/src/common/**` with no restart. Verify UI in a
-browser at http://localhost:1337 (dev login: `/auth/dev?name=Dev`). Pure logic (board gen,
-solver, bots, Elo) can be checked with short `node -e` scripts.
+Pure logic (board gen, solver, bots, Elo) can be checked with short `node -e` scripts.
 
 ## Layout
 
 npm workspaces (same shape as achtung-royale): `packages/core` is the game core shared by server and
-client, `apps/server` the Node backend, `apps/client` the React client (Vite), `apps/legacy-client` the
-old plain-JS client (served until the React one covers everything, then deleted). Root scripts run the
-server from the repo root so `.env`, `ranked.db` and the data JSONs stay there. `core` is imported by deep
-path: `require("core/src/engine/GameCreator")`, `require("core/src/common/BoardLogic")`.
-
+client, `apps/server` the Node backend, `apps/client` the React client (Vite 5 + React 18 + loose TS,
+SCSS modules, react-router, no state library). Root scripts run the server from the repo root so `.env`,
+`ranked.db` and the data JSONs stay there. `core` is CommonJS, imported by deep path on both sides:
+`require("core/src/engine/GameCreator")`, `import BoardLogic from "core/src/common/BoardLogic.js"`.
 
 - `apps/server/src/minesweeperServer.js` — HTTP + socket.io entry. Pure router: `/auth/*` → `runtime/oauth.js`,
   `/api/*` → `runtime/puzzleApi.js` + `runtime/shopApi.js`, everything else → `runtime/staticServer.js`
-  (SPA fallback for extensionless paths). Every socket handler is wrapped in try/catch and
-  `uncaughtException`/`unhandledRejection` are caught, so a thrown handler logs instead of crashing.
+  (serves `apps/client/dist`; extensionless paths get index.html). Every socket handler is wrapped in
+  try/catch and `uncaughtException`/`unhandledRejection` are caught, so a thrown handler logs instead of crashing.
 - `packages/core/src/engine/` — pure game logic, no http/socket/db imports (guarded by `apps/server/test/boundary.test.js`):
   `GameCreator`, `NoGuessGenerator`, `RoomCreator`, `BotPlayer`, `CSPSolver` (the one solver: rates
   boards and serves next moves), `PuzzleGenerator`, `InsideOutGenerator`, `RingSeedGenerator`,
@@ -54,26 +50,32 @@ path: `require("core/src/engine/GameCreator")`, `require("core/src/common/BoardL
   a singleton), `ranked` (queues + `formRankedMatch`), `elo`, `bots`, `puzzlePlay`, `botDemo`,
   `standings`, `roomState`, `session` (auth attach + account payloads + most `set_*` handlers),
   `gameUtil`, `replay`, `results`/`lifecycle`/`matchToken`/`role`/`internalApi`/`gameService`
-  (the Phase 1 main/game split, opt-in via `ROLE`). Modules get core services injected via
-  `x.init(deps)`.
+  (the Phase 1 main/game split, opt-in via `ROLE`). Modules get core services injected via `x.init(deps)`.
 - `apps/server/src/db.js` — SQLite: users, sessions, ratings, match history, replays, puzzles, shop purchases.
-- `packages/core/src/common/` — loaded by both runtimes (`<script>` tag + `require`): `BoardLogic` (cascade/chord,
-  cell-state sentinels), `Cosmetics` (board skins, avatars, reveal effects), `ShopCatalog`.
-- `apps/legacy-client/` — `index.html` (all markup; every module is a plain `<script>` global, loaded in
-  dependency order, `core/Main.js` last), `style.css` (all styles, large), and:
-  - `core/` — live-game runtime: `Main` (socket handlers + shared game globals), `Input`,
-    `BoardRender` (canvas paint, palettes, avatars), `Animations`, `BoardDecoder`, `Countries`, `PuzzleLadder`.
-  - `ui/` — `Router` (History API, `navigate(path)`), `Auth`, `Overlay` (`showConfirm`, never
-    `window.confirm`), `Sound`, `Music`, `MobileLayout`, `Fullscreen`, `RoundTimer`, `Keybindings`, `FlagPicker`.
-  - `views/` — one page/feature each: `Lobby`, `GameRoom`, `Profile` (dashboard identity + customize
-    lab), `Leaderboard`, `Learn`, `Solo`, `PuzzlePlay`, `Ranking` (tier badges), `MatchPanels`, `Replay`, `Shop`.
-  - `admin/` — admin pages (`AdminList`, `BotsAdmin`, `PatternsView`, `StartPatternsView`,
-    `StartingPositionsView`, `CombinedPuzzlesView`, `PuzzleLab`, `Puzzles`, `DesignView`).
+- `packages/core/src/common/` — loaded by both runtimes: `BoardLogic` (cascade/chord, cell-state
+  sentinels), `Cosmetics` (board skins, avatars, reveal effects), `ShopCatalog`, `MoveHash`.
+- `apps/client/src/` — the React client:
+  - `app/` — `App` (all routes), `NavBar`, `Footer`, `Modal`, `Toasts`, `HelpModal`.
+  - `online/socket.ts` — the singleton socket (`getSocket`, `onSocket` returns an unsubscribe).
+  - `shared/` — `auth.tsx` (AuthProvider, `useAuth`), `types`, `ranking` (tiers), `puzzle-ladder`,
+    `countries`, `keybindings`, `cosmetics`, `achievements`, `Avatar`, `RankBadge`, `FlagPicker`.
+  - `game/` — the board: `board-render.ts` (canvas paint, skins, reveal effects, avatars),
+    `board-session.ts` (BoardSession: state, local prediction, animations, countdown glyphs, focus),
+    `board-input.ts`, `GameBoard.tsx`, `PreviewBoard.tsx`, `countdown.ts`, `board-decoder.ts`,
+    `use-cell-px.ts` (sizing), `match-store.ts` (MatchStore: all room/ranked socket state, `useMatch`),
+    `fullscreen.ts`.
+  - `audio/` — `sound.ts` (synth effects), `music.js` (procedural soundtrack).
+  - `pages/` — one folder per page: `home`, `play` (+ `mobile.tsx` phone layouts, `hud`, `Scoreboard`,
+    `RoomLobby`, `ResultModals`), `solo`, `puzzles`, `learn`, `custom`, `replay`, `profile`,
+    `leaderboard`, `shop` (+ `CustomizeLab`), `settings`, `legal`, `admin/*` (dev tools, admin accounts only).
+  - `styles/` — `tokens.scss` (design tokens), `base.scss`, `variables.scss` (breakpoints, `below()` mixin).
+  - `public/` — static assets served as-is: `flags/`, `flags-square/`, `avatars/`, `skins/`, logo, manifest.
 - `apps/server/scripts/` — offline generators (bot pool, patterns, corner positions, scouts).
 - `design-refs/` — the mockup screenshots layouts were built against.
 
 Other docs: `ARCHITECTURE_PLAN.md` (target architecture; read before any service-split work),
-`PHASE0_TICKETS.md` / `PHASE1_TICKETS.md`, `DEPLOY_SPLIT.md`, `DESIGN.md`, `AVATARS.md`, `TODO.md`.
+`PHASE0_TICKETS.md` / `PHASE1_TICKETS.md`, `DEPLOY_SPLIT.md`, `DESIGN.md`, `AVATARS.md`, `TODO.md`,
+`docs/PROJECT_NOTES.md` (archive of the old long CLAUDE.md; grep it for a subsystem's backstory).
 
 ## Game rules and data
 
@@ -104,11 +106,11 @@ Other docs: `ARCHITECTURE_PLAN.md` (target architecture; read before any service
 - Concentric corners: an outer frame's radius = inner radius + padding. Matte badges, no glow/shine.
 - Home page uses exactly two gap sizes (`--gap-tight`, `--gap-group`).
 - No em dashes in UI copy. No taglines.
-- `.cr-modal` dialogs toggle the `hidden` attribute; `Router.js` derives `body.modal-open` from it.
+- Modals use `app/Modal.tsx`; phone-only layout pieces live in `pages/play/mobile.tsx` and are gated
+  by media queries (`PORTRAIT_MQ`, `LANDSCAPE_PHONE_MQ`), not by duplicated markup.
 - Bump `db.CURRENT_SCORING_VERSION` when the puzzle difficulty formula changes (startup backfill re-rates).
 - Reassigning a canvas's `width`/`height` clears it: every resize must be followed by a repaint.
-- Any element that only exists for one layout (landscape duel, portrait, etc.) needs a base
-  `display: none` rule, otherwise it renders everywhere.
+- Hooks come before any early `return` in a component (react-router redirects included).
 
 ## Configuration (`.env`, gitignored)
 

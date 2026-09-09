@@ -24,7 +24,7 @@ var chromium = require("playwright").chromium;
 var Cosmetics = require("core/src/common/Cosmetics");
 
 var BASE = process.env.BASE || "http://localhost:1337";
-var OUT_DIR = path.join(__dirname, "..", "..", "legacy-client", "skins");
+var OUT_DIR = path.join(require("../src/paths").CLIENT_PUBLIC_DIR, "skins");
 var CELL_PX = 240; // logical px/cell for the exported image (3 cells -> 720 CSS px square)
 var DEVICE_SCALE = 2; // -> ~1440x1440 actual pixels, crisp at Stripe's product-image size
 

@@ -2,10 +2,10 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 // Dev: Vite serves the React app on :5173 and proxies everything the Node server owns (socket.io,
-// /api, /auth, the asset folders the legacy client still hosts) to :1337. Prod: `vite build` writes
+// /api, /auth) to :1337; static assets come from public/. Prod: `vite build` writes
 // dist/, which apps/server's staticServer serves.
 const SERVER = "http://localhost:1337";
-const proxied = ["/socket.io", "/api", "/auth", "/internal", "/flags", "/flags-square", "/avatars", "/skins", "/sounds", "/music", "/favicon.svg", "/logo.svg"];
+const proxied = ["/socket.io", "/api", "/auth", "/internal"];
 
 export default defineConfig({
 	plugins: [react()],

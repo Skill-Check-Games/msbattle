@@ -11,11 +11,10 @@
 	"scripts": {
 		"start": "node apps/server/src/minesweeperServer.js",
 		"dev": "DEV_AUTH=1 node apps/server/src/minesweeperServer.js",
-		"dev:react": "DEV_AUTH=1 REACT_CLIENT=1 node apps/server/src/minesweeperServer.js",
 		"dev:client": "npm run dev --workspace apps/client",
 		"stop": "pkill -f 'node apps/server/src/minesweeperServer.js' || true",
 		"restart": "npm run stop; sleep 1; npm run dev",
-		"build": "npm run build:legacy --workspace apps/server && npm run build --workspace apps/client",
+		"build": "npm run build --workspace apps/client",
 		"typecheck": "npm run typecheck --workspace apps/client",
 		"test": "node --test \"apps/server/test/*.test.js\"",
 		"test:e2e": "npm run test:e2e --workspace apps/client"

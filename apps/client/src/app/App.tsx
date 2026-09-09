@@ -15,14 +15,22 @@ import ShopPage from "../pages/shop/ShopPage";
 import LearnPage from "../pages/learn/LearnPage";
 import ReplayPage from "../pages/replay/ReplayPage";
 import CustomPage from "../pages/custom/CustomPage";
+import AdminHome from "../pages/admin/AdminHome";
+import PuzzlesAdmin from "../pages/admin/PuzzlesAdmin";
+import CombinedPuzzlesAdmin from "../pages/admin/CombinedPuzzlesAdmin";
+import PuzzleLab from "../pages/admin/PuzzleLab";
+import StartingPositionsAdmin from "../pages/admin/StartingPositionsAdmin";
+import PatternsAdmin from "../pages/admin/PatternsAdmin";
+import StartPatternsAdmin from "../pages/admin/StartPatternsAdmin";
+import BotsAdmin from "../pages/admin/BotsAdmin";
+import MarathonBoardsAdmin from "../pages/admin/MarathonBoardsAdmin";
+import DebugAdmin from "../pages/admin/DebugAdmin";
+import DesignAdmin from "../pages/admin/DesignAdmin";
+import CountdownLab from "../pages/admin/CountdownLab";
+import SoundLab from "../pages/admin/SoundLab";
 import { Toasts, useAchievementUnlocks } from "./Toasts";
 import Placeholder from "../pages/Placeholder";
 import styles from "./App.module.scss";
-
-// Routes not ported yet render a placeholder so links work and the smoke test can visit them.
-const PENDING: Array<[string, string]> = [
-	["/admin", "Admin"]
-];
 
 export default function App() {
 	useAchievementUnlocks();
@@ -45,10 +53,22 @@ export default function App() {
 					<Route path="/learn" element={<LearnPage />} />
 					<Route path="/replay" element={<ReplayPage />} />
 					<Route path="/custom" element={<CustomPage />} />
+					<Route path="/admin" element={<AdminHome />} />
+					<Route path="/admin/lab" element={<PuzzleLab />} />
+					<Route path="/admin/puzzles" element={<PuzzlesAdmin />} />
+					<Route path="/admin/combined-puzzles" element={<CombinedPuzzlesAdmin />} />
+					<Route path="/admin/starting-positions" element={<StartingPositionsAdmin />} />
+					<Route path="/admin/patterns" element={<PatternsAdmin />} />
+					<Route path="/admin/start-patterns" element={<StartPatternsAdmin />} />
+					<Route path="/admin/bots" element={<BotsAdmin />} />
+					<Route path="/admin/marathon-boards" element={<MarathonBoardsAdmin />} />
+					<Route path="/admin/debug" element={<DebugAdmin />} />
+					<Route path="/admin/design" element={<DesignAdmin />} />
+					<Route path="/admin/countdown" element={<CountdownLab />} />
+					<Route path="/admin/sounds" element={<SoundLab />} />
 					<Route path="/settings" element={<SettingsPage />} />
 					<Route path="/privacy" element={<PrivacyPage />} />
 					<Route path="/terms" element={<TermsPage />} />
-					{PENDING.map(([path, title]) => <Route key={path} path={path} element={<Placeholder title={title} />} />)}
 					<Route path="*" element={<Placeholder title="Not found" />} />
 				</Routes>
 			</main>

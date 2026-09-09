@@ -39,7 +39,7 @@ export const countdownTickMs = () => Math.max(50, COUNTDOWN_STYLE.fadeInMs + COU
 export const BOARD_GO_STYLE = { durationMs: 700, width: 3, brightness: 0.7, color: "#bfdbfe", pauseAfterMs: 300 };
 export const boardGoTotalMs = () => Math.max(0, BOARD_GO_STYLE.durationMs) + Math.max(0, BOARD_GO_STYLE.pauseAfterMs);
 export const naturalCountdownTotalMs = () => boardGoTotalMs() + 3 * countdownTickMs();
-const BOARD_IDLE_STYLE = { speed: 3, brightness: 0.7, color: "#bfdbfe" };
+export const BOARD_IDLE_STYLE = { speed: 3, brightness: 0.7, color: "#bfdbfe" };
 
 interface RGB { r: number; g: number; b: number; }
 function hexToRgb(hex: string): RGB {

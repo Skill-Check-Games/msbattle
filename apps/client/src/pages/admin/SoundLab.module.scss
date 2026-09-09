@@ -1,0 +1,14 @@
+@use "../../styles/variables" as *;
+
+// Battle theme lab: a shared Progression picker, then Bass / Melody / Percussion layer cards.
+.battleCard { gap: 1.1rem; }
+.axis { display: flex; flex-direction: column; gap: 0.4rem; }
+.axisLabel { font-weight: 700; font-size: 0.78rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+.axisDesc { margin: 0; color: var(--muted); font-size: 0.84rem; line-height: 1.5; }
+.segTight { margin-bottom: 0; }
+.layer { display: flex; flex-direction: column; gap: 0.75rem; padding: 0.9rem 1rem; border-radius: 6px; background: var(--bg); border: 1px solid var(--border); }
+.layerHead { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+.layerTitle { font-weight: 700; font-size: 0.95rem; }
+.layerAxes { display: flex; flex-direction: column; gap: 0.9rem; }
+// Dim (not hide) a layer's pickers while it is off: the selection stays visible and editable.
+.layerOff .layerAxes { opacity: 0.55; }

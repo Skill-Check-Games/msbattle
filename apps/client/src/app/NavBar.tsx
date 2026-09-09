@@ -18,6 +18,7 @@ export default function NavBar() {
 	useEffect(() => { setOpen(false); }, [location.pathname]);
 
 	const signedIn = account && !account.guest;
+	const links = account && account.isAdmin ? [...LINKS, ["/admin", "Admin"] as [string, string]] : LINKS;
 	const identity = signedIn ? (
 		<>
 			<span className={styles.name}>{account.name}</span>
@@ -34,7 +35,7 @@ export default function NavBar() {
 				<span><b>MS</b>Battle</span>
 			</Link>
 			<nav className={styles.links}>
-				{LINKS.map(([to, label]) => (
+				{links.map(([to, label]) => (
 					<NavLink key={to} to={to} end={to === "/"} className={({ isActive }) => isActive ? `${styles.link} ${styles.active}` : styles.link}>{label}</NavLink>
 				))}
 				<button type="button" className={`${styles.link} ${styles.linkBtn}`} onClick={() => setHelp(true)}>Help</button>
@@ -45,7 +46,7 @@ export default function NavBar() {
 			</button>
 			{open && (
 				<div className={styles.panel}>
-					{LINKS.map(([to, label]) => (
+					{links.map(([to, label]) => (
 						<NavLink key={to} to={to} end={to === "/"} className={({ isActive }) => isActive ? `${styles.panelLink} ${styles.active}` : styles.panelLink}>{label}</NavLink>
 					))}
 					<button type="button" className={`${styles.panelLink} ${styles.linkBtn}`} onClick={() => { setOpen(false); setHelp(true); }}>Help</button>

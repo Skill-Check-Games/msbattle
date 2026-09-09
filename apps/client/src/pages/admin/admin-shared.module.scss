@@ -1,0 +1,28 @@
+@use "../../styles/variables" as *;
+
+.wide { max-width: none; }
+.head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.2rem; flex-wrap: wrap; }
+.crumbs { font-size: 0.78rem; color: var(--muted); margin-bottom: 0.3rem; a { color: var(--accent-hover); text-decoration: none; font-weight: 600; &:hover { text-decoration: underline; } } }
+.title { margin: 0; font-size: 1.6rem; }
+.sub { margin: 0.3rem 0 0; color: var(--muted); max-width: 70ch; }
+.actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.gate { color: var(--muted); padding: 2rem 0; }
+
+// Shared building blocks the admin pages can reuse via `adminStyles`.
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 1rem 1.1rem; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; }
+.cardTitle { margin: 0 0 0.35rem; font-size: 1.05rem; font-weight: 700; }
+.cardText { margin: 0 0 0.8rem; color: var(--muted); font-size: 0.9rem; line-height: 1.5; }
+.row { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; }
+.label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.input, .select { padding: 0.4rem 0.6rem; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font: inherit; &:focus { outline: none; border-color: var(--accent); } }
+.tableWrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; }
+.table { width: 100%; border-collapse: collapse; font-size: 0.85rem; th, td { padding: 0.5rem 0.7rem; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; } th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); background: var(--surface-2); } tr:last-child td { border-bottom: 0; } tbody tr:hover td { background: rgba(255, 255, 255, 0.03); } }
+.muted { color: var(--muted); }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; }
+.status { padding: 0.55rem 0.8rem; border-radius: 6px; border: 1px solid var(--border); background: var(--surface-2); font-size: 0.9rem; }
+.chip { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 0.12rem 0.5rem; border-radius: 4px; background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); }
+.pager { display: flex; gap: 0.3rem; align-items: center; flex-wrap: wrap; margin: 1rem 0; }
+.pagerBtn { padding: 0.35rem 0.6rem; border-radius: 5px; border: 1px solid var(--border); background: var(--surface-2); font-size: 0.82rem; font-weight: 600; &:disabled { opacity: 0.5; cursor: default; } &:hover:not(:disabled) { border-color: var(--muted); } }
+.pagerCurrent { border-color: var(--accent); color: var(--accent-hover); background: rgba(99, 102, 241, 0.14); }
+.pagerDots { color: var(--muted); padding: 0 0.2rem; }

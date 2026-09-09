@@ -1,8 +1,7 @@
 FROM node:24-alpine
 
-# esbuild (used by `npm run build` below to bundle the client) ships a glibc-linked native binary;
-# Alpine's musl libc can't run it without this compatibility shim — without it the build step fails
-# with "exit code 126" (found the binary, couldn't execute it).
+# esbuild (Vite's bundler, used by `npm run build` below) ships a glibc-linked native binary;
+# Alpine's musl libc can't run it without this compatibility shim (the build fails with "exit code 126").
 RUN apk add --no-cache libc6-compat
 
 WORKDIR /app
@@ -12,10 +11,7 @@ COPY . .
 # dependencies are needed here because the client build (vite) is one.
 RUN npm ci
 
-# Concatenates + minifies the client scripts into bundle.js (see scripts/build-client.js /
-# staticServer.js). esbuild is a real (non-dev) dependency specifically so this works with the
-# plain --omit=dev install above — playwright (devDependencies-only, used for manual/local UI
-# verification) never needs to be installed here.
+# Builds the React client into apps/client/dist (vite), which the server serves.
 RUN npm run build
 
 ENV PORT=8080

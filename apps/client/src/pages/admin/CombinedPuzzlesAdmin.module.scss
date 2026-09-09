@@ -1,0 +1,8 @@
+@use "../../styles/variables" as *;
+
+.status { color: var(--muted); font-size: 0.85rem; margin: 0 0 0.8rem; }
+.subtitle { font-size: 1.1rem; font-weight: 700; margin: 1.4rem 0 0.3rem; }
+.blurb { color: var(--muted); font-size: 0.88rem; margin: 0 0 0.8rem; max-width: 80ch; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem; }
+.unsat { margin-top: 1.4rem; }
+.unsatList { color: var(--muted); font-size: 0.88rem; margin: 0; padding-left: 1.2rem; li { margin: 0.15rem 0; } }

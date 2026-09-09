@@ -1,0 +1,26 @@
+@use "../../styles/variables" as *;
+
+.browse { margin: 0 0 0.8rem; font-size: 0.9rem; a { color: var(--accent-hover); text-decoration: none; font-weight: 600; &:hover { text-decoration: underline; } } }
+.actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.9rem; }
+.batch {
+	padding: 0.45rem 0.9rem; border-radius: 5px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
+	font-weight: 700; font-size: 0.9rem; cursor: pointer;
+	&:hover { border-color: var(--accent); }
+}
+.batchPrimary { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+.card { display: flex; flex-direction: column; gap: 0.45rem; padding: 0.7rem 0.8rem 0.6rem; overflow: hidden; }
+.cardHead { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; }
+.meta { font-size: 0.75rem; color: var(--muted); }
+.badge {
+	font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 800; padding: 0.18rem 0.5rem; border-radius: 4px;
+	background: rgba(99, 102, 241, 0.18); color: var(--accent-hover); white-space: nowrap;
+}
+// 1 trivial · 2 subset · 3 subset chain · 4 to 6 case analysis by frontier size
+.diff1 { background: rgba(74, 222, 128, 0.18); color: #4ade80; }
+.diff2 { background: rgba(34, 211, 238, 0.18); color: #22d3ee; }
+.diff3 { background: rgba(251, 191, 36, 0.18); color: #fbbf24; }
+.diff4 { background: rgba(251, 146, 60, 0.18); color: #fb923c; }
+.diff5 { background: rgba(248, 113, 113, 0.18); color: #f87171; }
+.diff6 { background: rgba(192, 132, 252, 0.22); color: #c084fc; }
+@include below(600px) { .cardHead { flex-direction: column; align-items: flex-start; } }

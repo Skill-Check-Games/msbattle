@@ -62,7 +62,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			setAccount(data);
 			announceCosmetics(data.ownedItems || []);
 		});
-		return () => { offConnected(); offAuthed(); };
+		// The admin rank-setter (Design page) echoes the new ratings; keep the account in step.
+		const offRating = onSocket("admin_rating_set", (d) => { if (d) setAccount(a => a ? { ...a, ...(typeof d.ratingSprint === "number" ? { ratingSprint: d.ratingSprint } : {}), ...(typeof d.ratingStandard === "number" ? { ratingStandard: d.ratingStandard } : {}) } : a); });
+		return () => { offConnected(); offAuthed(); offRating(); };
 	}, []);
 
 	const value: AuthState = {
