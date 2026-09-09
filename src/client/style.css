@@ -8308,3 +8308,7 @@ body.game-fullscreen .game-view:not(.puzzle):not(.solo):not(.duo):not(.multi) .g
 		html.nav-away .topbar { transform: translateY(-100%); }
 	}
 }
+
+/* Customize lab: "Buy <item>" under the preview board while a locked cosmetic is being previewed. */
+.lab-buy-btn { width: 100%; max-width: 260px; margin-top: 0.5rem; }
+.lab-buy-btn[hidden] { display: none; }

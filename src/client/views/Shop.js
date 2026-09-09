@@ -199,7 +199,7 @@ function renderShop() {
 	view.appendChild(titleRow);
 
 	var sub = document.createElement("p"); sub.className = "section-page-sub";
-	sub.textContent = "Cosmetics only — avatars and board skins never change how the game plays.";
+	sub.textContent = "Cosmetics only. Avatars and board skins never change how the game plays.";
 	view.appendChild(sub);
 
 	var status = document.createElement("div"); status.id = "shop_status"; status.style.display = "none";

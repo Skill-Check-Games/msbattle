@@ -98,7 +98,7 @@ function buildAvatarCardGrid() {
 		.concat(AVATAR_COLORS)
 		.concat(typeof AVATAR_IMAGES !== "undefined" ? Object.keys(AVATAR_IMAGES).map(function(id) { return "img:" + id; }) : []);
 	return buildCosmeticCardGrid({
-		list: allAvatarValues, kind: "avatar", activeId: current,
+		list: allAvatarValues, kind: "avatar", activeId: labPreview.avatar || current,
 		buildPreview: function(id) { return buildAvatarCanvas(id, 96); },
 		labelOf: function(id) { return avatarValueLabel(id); },
 		blurbOf: function(id) { return avatarBlurb(id); },
@@ -114,6 +114,44 @@ function buildAvatarCardGrid() {
 // doing just to see its price. Reuses Shop.js's buyShopItem (the same checkout POST + Stripe
 // redirect, or the admin-only fake-grant bypass) so the purchase logic itself isn't duplicated —
 // only a real Stripe payment actually navigates away, same as it would from the Shop page.
+// Locked (purchasable) cosmetics can be PREVIEWED in the lab before buying: clicking a locked tile
+// applies it to the preview only — the identity header / board / reveal effect — without persisting
+// or telling the server, and a "Buy <name> · $x.xx" button appears under the preview board. The
+// preview is reverted when the lab closes (labRevertPreviews).
+var labPreview = { avatar: null, skin: null, effect: null, last: null };
+function labPreviewLocked(kind, id, item) {
+	if (kind === "avatar") labPreview.avatar = id;
+	else if (kind === "skin") { labPreview.skin = id; if (typeof applyBoardSkin === "function") applyBoardSkin(id); if (labDemoActive) redrawOwnBoardWithFocus(); }
+	else if (kind === "revealEffect") { labPreview.effect = id; if (typeof applyRevealEffect === "function") applyRevealEffect(id); }
+	labPreview.last = item || null;
+	renderLabRightPanel();
+	renderLabIdentity();
+	updateLabBuyButton();
+	if (kind === "revealEffect") demonstrateLabEffect();
+}
+function updateLabBuyButton() {
+	var btn = document.getElementById("lab_buy_btn");
+	if (!btn) return;
+	var item = labPreview.last;
+	if (!item) { btn.hidden = true; return; }
+	var price = (typeof item.priceCents === "number") ? " · $" + (item.priceCents / 100).toFixed(2) : "";
+	btn.textContent = "Buy " + (item.label || item.id) + price;
+	btn.hidden = false;
+}
+// Put the real (owned) skin/effect back — the preview only ever changed the live globals, never
+// storage or the server. Mirrors applyAuthenticated's ownership fallback.
+function labRevertPreviews() {
+	if (labPreview.skin && typeof applyBoardSkin === "function") {
+		var storedSkin = null; try { storedSkin = localStorage.getItem("ms_board_skin"); } catch (e) {}
+		applyBoardSkin(storedSkin && shopItemUnlocked("skin", storedSkin) ? storedSkin : "classic");
+	}
+	if (labPreview.effect && typeof applyRevealEffect === "function") {
+		var storedFx = null; try { storedFx = localStorage.getItem("ms_reveal_effect"); } catch (e) {}
+		applyRevealEffect(storedFx && shopItemUnlocked("revealEffect", storedFx) ? storedFx : Cosmetics.DEFAULT_REVEAL_EFFECT);
+	}
+	labPreview = { avatar: null, skin: null, effect: null, last: null };
+}
+
 function openItemPurchaseModal(item) {
 	if (!item) return;
 	var modal = document.getElementById("item_purchase_modal");
@@ -214,7 +252,7 @@ function buildCosmeticCardGrid(opts) {
 		tile.appendChild(body);
 
 		tile.addEventListener("click", function() {
-			if (!unlocked) { openItemPurchaseModal(item); return; }
+			if (!unlocked) { labPreviewLocked(opts.kind, id, item); return; } // try it on the preview; Buy sits under the board
 			opts.onSelect(id);
 		});
 		grid.appendChild(tile);
@@ -812,7 +850,7 @@ function buildLabAvatarPanel() {
 	var title = document.createElement("h3"); title.className = "lab-right-title"; title.textContent = "Choose Avatar";
 	wrap.appendChild(title);
 	var sub = document.createElement("p"); sub.className = "lab-right-sub";
-	sub.textContent = "Your avatar shows up to opponents in every match.";
+	sub.textContent = "Opponents see this next to your name in every match.";
 	wrap.appendChild(sub);
 	var container = document.createElement("div"); container.id = "avatar_modal_avatars";
 	container.appendChild(buildAvatarCardGrid());
@@ -825,10 +863,10 @@ function buildLabSkinPanel() {
 	var title = document.createElement("h3"); title.className = "lab-right-title"; title.textContent = "Choose Board Skin";
 	wrap.appendChild(title);
 	var sub = document.createElement("p"); sub.className = "lab-right-sub";
-	sub.textContent = "Changes how your board looks to everyone in a match — try one on the preview board.";
+	sub.textContent = "How your board looks, to you and to opponents. Click the preview board to try one.";
 	wrap.appendChild(sub);
 	wrap.appendChild(buildCosmeticCardGrid({
-		list: BOARD_SKIN_LIST, kind: "skin", activeId: localBoardSkin,
+		list: BOARD_SKIN_LIST, kind: "skin", activeId: labPreview.skin || localBoardSkin,
 		buildPreview: function(id) { return buildSkinPreview(id, 34); },
 		labelOf: function(id) { return BOARD_SKINS[id].label; },
 		blurbOf: function(id) { return BOARD_SKINS[id].blurb; },
@@ -848,7 +886,7 @@ function buildLabSkinPanel() {
 // hover/selected-only, to keep the grid from turning into visual chaos).
 function buildRevealEffectCard(id) {
 	var unlocked = shopItemUnlocked("revealEffect", id);
-	var isActive = id === localRevealEffect;
+	var isActive = id === (labPreview.effect || localRevealEffect);
 	var item = (typeof ShopCatalog !== "undefined") ? ShopCatalog.byId(id) : null;
 	var demo = buildRevealEffectCardDemo(id);
 
@@ -884,7 +922,7 @@ function buildRevealEffectCard(id) {
 	tile.addEventListener("mouseleave", function() { demo.reset(); });
 
 	tile.addEventListener("click", function() {
-		if (!unlocked) { openItemPurchaseModal(item); return; }
+		if (!unlocked) { labPreviewLocked("revealEffect", id, item); return; } // try it on the preview; Buy sits under the board
 		if (id === localRevealEffect) { demoPlay(); return; } // already selected: just replay it
 		setRevealEffect(id);
 		renderLabRightPanel();
@@ -904,7 +942,7 @@ function buildLabRevealEffectPanel() {
 	var title = document.createElement("h3"); title.className = "lab-right-title"; title.textContent = "Choose Reveal Effect";
 	wrap.appendChild(title);
 	var sub = document.createElement("p"); sub.className = "lab-right-sub";
-	sub.textContent = "See how each effect looks in action. Click a tile on the preview board to try it out.";
+	sub.textContent = "What happens when a tile opens. Click the preview board to play it.";
 	wrap.appendChild(sub);
 	var grid = document.createElement("div"); grid.className = "shop-grid lab-grid";
 	REVEAL_EFFECT_LIST.forEach(function(id) { grid.appendChild(buildRevealEffectCard(id)); });
@@ -957,6 +995,12 @@ function buildLabLeftPanel() {
 	resetBtn.addEventListener("click", function() { resetLabDemoBoard(); });
 	wrap.appendChild(resetBtn);
 
+	// Shown only while a locked cosmetic is being previewed (updateLabBuyButton).
+	var buyBtn = document.createElement("button");
+	buyBtn.type = "button"; buyBtn.className = "btn btn-primary lab-buy-btn"; buyBtn.id = "lab_buy_btn"; buyBtn.hidden = true;
+	buyBtn.addEventListener("click", function() { if (labPreview.last) openItemPurchaseModal(labPreview.last); });
+	wrap.appendChild(buyBtn);
+
 	// NOT renderLabIdentity()/enterLabDemoInput() here — `identity`/`frame` aren't attached to the
 	// document yet (this function's caller appends the returned `wrap` afterward), and both need
 	// real layout/getElementById lookups that only work once attached. openAvatarEditor calls them
@@ -973,7 +1017,7 @@ function renderLabIdentity() {
 	var el = document.getElementById("lab_identity");
 	if (!el || !account || typeof fillDuelId !== "function") return;
 	fillDuelId(el, {
-		avatar: account.avatarColor || DEFAULT_AVATAR,
+		avatar: labPreview.avatar || account.avatarColor || DEFAULT_AVATAR,
 		country: account.country || null,
 		name: myName || account.name || "You",
 		rating: typeof overallRating === "function" ? overallRating(account) : 0
@@ -986,6 +1030,7 @@ function renderLabIdentity() {
 function closeCustomizeLab() {
 	var modal = document.getElementById("avatar_modal");
 	if (modal) modal.setAttribute("hidden", "");
+	labRevertPreviews();
 	stopLabReplayTimers();
 	exitLabDemoInput();
 }
@@ -1004,7 +1049,7 @@ function openAvatarEditor() {
 			'<div class="cr-dialog customize-lab-dialog" role="dialog" aria-modal="true" aria-labelledby="avatar_modal_title">' +
 				'<div class="cr-dialog-head">' +
 					'<div><h2 id="avatar_modal_title">Customize</h2>' +
-					'<p class="cr-dialog-sub">Make it yours. Try different styles and see them in action!</p></div>' +
+'</div>' +
 					'<button class="cr-close" type="button" data-avatar-close aria-label="Close">×</button>' +
 				'</div>' +
 				'<div class="lab-body">' +
@@ -1884,7 +1929,7 @@ function renderLobbyDailyState() {
 		if (btn) { btn.textContent = "Play today's puzzle"; btn.disabled = false; }
 	} else if (attempt.solved) {
 		hero.classList.add("daily-solved");
-		if (btn) { btn.textContent = "Solved — back tomorrow"; btn.disabled = true; }
+		if (btn) { btn.textContent = "Solved. Back tomorrow"; btn.disabled = true; }
 	} else {
 		// A miss doesn't lock the day out — retrying is a click away (same puzzle until solved).
 		hero.classList.add("daily-missed");
