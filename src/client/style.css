@@ -7448,11 +7448,15 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
 	     sign-in button (guests only), full width
 	     stat strip, full width, four cells across
 	   The skeleton cover (absolute inside the dissolved card) is dropped here — the SSR paint lands fast. */
-	.dash-you { flex-wrap: wrap; }
+	.dash-you { flex-wrap: wrap; min-height: 0; }
 	.dash-you-box-main, .dash-you-main { display: contents; }
+	/* 56px tiles here (the stats live on their own row, so the first row can be shorter); the avatar
+	   canvas is 73px and centred in the tile, so it's clipped to fit — see .dash-you-box-avatar canvas. */
+	.dash-you-box-avatar, .dash-you-box-flag { flex: 0 0 56px; width: 56px; min-height: 56px; height: 56px; }
+	.dash-you-box-avatar canvas, .dash-you-box-flag img { width: 54px !important; height: 54px !important; } /* !important: the canvas carries inline width/height from buildAvatarCanvas (its backing store stays 73px, so it just downsamples) */
 	#dash_you_skel { display: none; }
 	.dash-you-name-row {
-		flex: 1 1 0; min-width: 0; min-height: 75px; margin-left: 0; padding: 0 0.9rem;
+		flex: 1 1 0; min-width: 0; min-height: 56px; margin-left: 0; padding: 0 0.9rem;
 		background: linear-gradient(110deg, var(--surface-2), var(--surface)); border: 1px solid var(--border); border-radius: 7px;
 	}
 	.dash-you-box-flag { order: 1; }
