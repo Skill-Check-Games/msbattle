@@ -6,6 +6,8 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { getSocket, onSocket } from "../online/socket";
 import type { Account, ProviderFlags } from "./types";
+import { announceCosmetics } from "./cosmetics";
+import { guessCountry } from "./countries";
 
 const TOKEN_KEY = "ms_session";
 
@@ -55,7 +57,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		});
 		const offAuthed = onSocket("authenticated", (data: Account) => {
 			if (data.token) writeToken(data.token);
+			// A fresh guest has no flag: guess one from the browser and store it, guests only and only while unset.
+			if (data.guest && !data.country) { const g = guessCountry(); if (g) { data.country = g; socket.emit("set_country", { country: g }); } }
 			setAccount(data);
+			announceCosmetics(data.ownedItems || []);
 		});
 		return () => { offConnected(); offAuthed(); };
 	}, []);

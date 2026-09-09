@@ -1,3 +1,4 @@
 // Import manifest. Order matters: tokens first, then the base element styles.
 @use "./tokens";
 @use "./base";
+@use "./badges";

@@ -1,7 +1,167 @@
-.dash { display: flex; flex-direction: column; gap: var(--gap-group); }
-.identity {
-	padding: 1rem 1.2rem; border-radius: 7px;
-	background: var(--surface); border: 1px solid var(--border);
+@use "../../styles/variables" as *;
+
+// Two gap sizes on this page: --gap-tight between connected cards, --gap-group between groups.
+.dash { max-width: 1180px; margin: 0 auto; padding: 0.3rem 0; }
+
+// ---- identity row: avatar tile | info card | flag tile ----
+.you { display: flex; align-items: stretch; gap: var(--gap-tight); margin-bottom: var(--gap-group); min-height: 75px; }
+.youBox { background: linear-gradient(110deg, var(--surface-2), var(--surface)); border: 1px solid var(--border); border-radius: 7px; }
+.youAvatar, .youFlag { flex: 0 0 75px; width: 75px; min-height: 75px; overflow: hidden; display: flex; align-items: center; justify-content: center; padding: 0; }
+.youAvatar { cursor: pointer; transition: border-color var(--motion-micro); &:hover { border-color: var(--muted); } canvas { border-radius: 6px; } }
+.youFlag img { width: 73px; height: 73px; border-radius: 6px; object-fit: cover; display: block; }
+.flagEmpty { font-size: 1.4rem; color: var(--muted); }
+.avatarSkel { display: block; width: 62px; height: 62px; border-radius: 50%; }
+.youMain { position: relative; flex: 1 1 auto; min-width: 0; display: flex; align-items: center; padding: 0.4rem 1rem; }
+.youText { min-width: 0; display: flex; flex-direction: column; gap: 0.15rem; }
+.nameRow { display: flex; align-items: center; min-width: 0; margin-left: calc(-0.45rem - 1px); }
+.name {
+	font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; letter-spacing: -0.01em;
+	min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+	border: 1px solid transparent; padding: 0.05rem 0.45rem; line-height: 1.2;
 }
-.name { font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; }
-.sub { color: var(--muted); font-size: 0.85rem; }
+.nameInput {
+	font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; letter-spacing: -0.01em; line-height: 1.2;
+	color: var(--text); background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); border-radius: 5px;
+	padding: 0.05rem 0.45rem; max-width: 13rem; min-width: 0; outline: none;
+	&:focus { border-color: var(--accent); }
+}
+.editName {
+	flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+	width: 1.7rem; height: 1.7rem; padding: 0; border-radius: 5px;
+	background: none; border: 1px solid transparent; color: var(--muted);
+	&:hover { color: var(--text); background: rgba(255, 255, 255, 0.07); }
+	svg { width: 0.95rem; height: 0.95rem; fill: currentColor; display: block; }
+}
+.signin {
+	display: inline-flex; align-items: center; align-self: flex-start; padding: 0.3rem 0.8rem; border-radius: 6px;
+	background: var(--accent); color: #fff; font-weight: 600; font-size: 0.82rem; text-decoration: none;
+	&:hover { background: var(--accent-hover); }
+}
+// Stat strip: dividers touch the card's top and bottom (negative margins cancel the card padding).
+.stats { margin-left: auto; display: flex; align-self: stretch; margin-top: -0.4rem; margin-bottom: -0.4rem; margin-right: -1rem; }
+.cell { display: grid; grid-template-rows: auto 1fr; grid-template-columns: 1fr; padding: 4px 0.9rem 0; border-left: 1px solid var(--border); min-width: 0; }
+.cell > span { grid-row: 1; grid-column: 1; justify-self: center; font-size: 0.6rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; line-height: 1; }
+.cell > b { grid-row: 2; grid-column: 1; align-self: center; justify-self: center; font-family: var(--font-display); font-size: 1.15rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+.cell em { font-style: normal; }
+.up { color: var(--success); }
+.dn { color: #f0647a; }
+.cellEmpty > b { color: var(--border); font-weight: 500; }
+.cellSkel { display: block; width: 22px; height: 8px; border-radius: 4px; }
+.statsPast .cell > b { color: var(--muted); }
+.statsPast .cell em { color: inherit; }
+
+// ---- mode rows + aside ----
+.main { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.95fr); gap: var(--gap-group); align-items: stretch; }
+.modes { display: flex; flex-direction: column; gap: var(--gap-tight); }
+.row {
+	display: flex; align-items: center; gap: 0.9rem;
+	background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+	padding: 0.75rem 0.9rem 0.75rem 0.75rem; text-decoration: none; color: var(--text);
+	transition: border-color 0.15s ease;
+	&:hover { border-color: var(--accent); }
+}
+.rowBoard { flex: 0 0 auto; display: flex; align-items: center; width: 144px; min-height: 98px; }
+// Frame radius = canvas radius (4) + frame padding (3): concentric corners.
+.previewFrame { display: block; line-height: 0; padding: 3px; border-radius: 7px; background: var(--bg); }
+.previewCanvas { display: block; height: 92px !important; width: auto !important; max-width: 144px; border-radius: 4px; }
+.rowInfo { min-width: 0; flex: 1 1 auto; }
+.rowTitle { margin: 0; font-size: 1.1rem; font-weight: 700; }
+.rowSub { margin: 0.1rem 0 0; font-size: 0.78rem; color: var(--muted); }
+// Fixed width so the three badges line up on one vertical line; wide enough for the longest puzzle tier.
+.rowStat { flex: 0 0 auto; display: flex; align-items: center; gap: 0.6rem; width: 9.6rem; min-height: 1.4rem; }
+.statText { display: flex; flex-direction: column; align-items: flex-start; text-align: left; }
+.tier { font-weight: 700; }
+.tierPlacing { color: var(--muted); }
+.tierSub { font-size: 0.72rem; font-weight: 600; color: var(--muted); margin-top: 2px; line-height: 1.2; margin-bottom: calc(-0.72rem * 1.2 - 2px); }
+.dots { display: inline-flex; gap: 3px; margin-top: 3px; margin-bottom: -10px; }
+.dots i { width: 7px; height: 7px; border-radius: 50%; background: #2b3459; }
+.dots i.on { background: var(--accent); }
+.aside { display: flex; flex-direction: column; gap: var(--gap-group); }
+
+// ---- daily hero ----
+.daily {
+	flex: 1 1 auto; position: relative;
+	background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+	border: 1px solid var(--border); border-radius: 7px; padding: 0.8rem 1rem 0.9rem;
+	display: flex; flex-direction: column; gap: 0.45rem;
+}
+.dailyHead { display: flex; align-items: baseline; justify-content: space-between; }
+.dailyTag { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; color: #fbbf24; text-transform: uppercase; }
+.dailyDate { font-size: 0.78rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.dailyBody { position: relative; flex: 1 1 auto; display: flex; flex-direction: column; gap: 0.45rem; }
+.dailyBoardWrap { position: relative; flex: 1 1 auto; display: flex; flex-direction: column; }
+.dailyBoard { flex: 1 1 auto; background: rgba(11, 16, 32, 0.4); border-radius: 5px; padding: 0.4rem; min-height: 132px; display: flex; align-items: center; justify-content: center; }
+.dailyPreview { width: 100%; max-width: 132px; pointer-events: none; }
+.dailyCanvas { display: block; width: 100% !important; max-width: 100%; height: auto !important; border-radius: 4px; }
+.dailyEmpty { color: var(--muted); font-size: 0.9rem; }
+.dailySkel { display: block; width: 120px; height: 100px; border-radius: 5px; }
+.dailyMeta { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin-top: 0.2rem; }
+.dailyCell { display: flex; flex-direction: column; gap: 0.1rem; padding: 0.35rem 0.6rem; background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px; }
+.dailyLabel { font-size: 0.66rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.dailyValue { font-weight: 700; font-size: 0.95rem; }
+.dailyAction { width: 100%; }
+.dailyBadge {
+	position: absolute; top: 0.6rem; right: 0.6rem; min-width: 2.4rem; height: 2.4rem; border-radius: 999px;
+	display: none; align-items: center; justify-content: center; font-weight: 700; font-size: 1.4rem; line-height: 1;
+	color: white; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35); z-index: 2; padding: 0 0.5rem;
+}
+.dailySolved { border-color: rgba(34, 197, 94, 0.45); }
+.dailyMissed { border-color: rgba(239, 68, 68, 0.45); }
+.dailySolved .dailyBadge { display: inline-flex; background: var(--success); &::after { content: "✓"; } }
+.dailyMissed .dailyBadge { display: inline-flex; background: var(--danger); &::after { content: "✕"; } }
+.dailySolved .dailyCell:last-child { background: rgba(34, 197, 94, 0.10); border-color: rgba(34, 197, 94, 0.45); .dailyValue { color: var(--success); } }
+.dailyMissed .dailyCell:last-child { background: rgba(239, 68, 68, 0.08); border-color: rgba(239, 68, 68, 0.35); .dailyValue { color: var(--danger); } }
+.dailySolved .dailyPreview, .dailyMissed .dailyPreview { opacity: 0.55; }
+
+// ---- responsive ----
+@include below($bp-lg) {
+	.main { grid-template-columns: 1fr; }
+}
+@media (max-width: 880px) and (orientation: portrait) {
+	// The info card dissolves: name box between the two tiles, stat strip full width below.
+	.you { flex-wrap: wrap; min-height: 0; }
+	.youMain { display: contents; }
+	.youAvatar, .youFlag { flex: 0 0 56px; width: 56px; min-height: 56px; height: 56px; }
+	.youAvatar canvas, .youFlag img { width: 54px !important; height: 54px !important; }
+	.youText {
+		flex: 1 1 0; min-width: 0; min-height: 56px; justify-content: center; padding: 0 0.9rem;
+		background: linear-gradient(110deg, var(--surface-2), var(--surface)); border: 1px solid var(--border); border-radius: 7px;
+	}
+	.nameRow { margin-left: 0; }
+	.youFlag { order: 1; }
+	.signin { order: 2; width: 100%; justify-content: center; padding: 0.55rem 0.8rem; align-self: auto; }
+	.stats {
+		order: 3; width: 100%; margin: 0; align-self: auto; min-height: 58px;
+		background: linear-gradient(110deg, var(--surface-2), var(--surface)); border: 1px solid var(--border); border-radius: 7px;
+	}
+	.cell { flex: 1 1 0; padding: 4px 0.3rem 0; }
+	.cell:first-child { border-left: 0; }
+	.cell > span { font-size: 0.55rem; letter-spacing: 0.04em; }
+	.cell > b { font-size: 1.05rem; }
+}
+@include below($bp-sm) {
+	// Two-column grid: a smaller preview spanning both rows, title then rank stacked on the right.
+	.row { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto auto; column-gap: 0.75rem; row-gap: 0.25rem; padding: 0.5rem 0.7rem; }
+	.rowBoard { grid-row: 1 / 3; width: auto; min-height: 0; }
+	.previewCanvas { height: 74px !important; max-width: 120px; }
+	.rowInfo { grid-column: 2; align-self: end; }
+	.rowStat { grid-column: 2; align-self: start; width: auto; min-height: 0; gap: 0.45rem; }
+	.rowStat :global(.rank-badge) { font-size: 7px; }
+	.tier { font-size: 0.8rem; }
+	.dots i { width: 6px; height: 6px; }
+	.dots { margin-bottom: -9px; }
+	.tierSub { font-size: 0.66rem; margin-bottom: calc(-0.66rem * 1.2 - 2px); }
+}
+@media (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
+	.dash { --gap-group: 0.8rem; padding-top: 0; }
+	.you { min-height: 54px; }
+	.youAvatar, .youFlag { flex: 0 0 54px; width: 54px; min-height: 54px; height: 54px; }
+	.youAvatar canvas, .youFlag img { width: 52px !important; height: 52px !important; }
+	.youMain { padding: 0.2rem 0.8rem; }
+	.name { font-size: 1.1rem; }
+	.stats { margin-top: -0.2rem; margin-bottom: -0.2rem; margin-right: -0.8rem; }
+	.cell { padding: 3px 0.6rem 0; }
+	.cell > span { font-size: 0.55rem; }
+	.cell > b { font-size: 1rem; }
+	.signin { padding: 0.25rem 0.6rem; font-size: 0.76rem; }
+}

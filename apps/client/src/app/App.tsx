@@ -9,7 +9,7 @@ import styles from "./App.module.scss";
 
 // Routes not ported yet render a placeholder so links work and the smoke test can visit them.
 const PENDING: Array<[string, string]> = [
-	["/learn", "Learn"], ["/custom", "Custom rooms"], ["/solo", "Solo"],
+	["/learn", "Learn"], ["/custom", "Custom rooms"], ["/solo", "Solo"], ["/ranked/sprint", "Sprint"], ["/ranked/standard", "Standard"], ["/puzzles", "Puzzles"],
 	["/puzzles/play", "Puzzle Ladder"], ["/puzzles/streak", "Streak"], ["/puzzles/storm", "Time Trial"], ["/puzzles/daily", "Daily puzzle"],
 	["/leaderboard", "Leaderboard"], ["/profile", "Profile"], ["/settings", "Settings"], ["/shop", "Shop"],
 	["/replay", "Replay"], ["/privacy", "Privacy Policy"], ["/terms", "Terms of Service"], ["/admin", "Admin"]
