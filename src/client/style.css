@@ -8158,7 +8158,7 @@ body.game-fullscreen .game-view:not(.puzzle):not(.solo):not(.duo):not(.multi) .g
 #settings_view .section-card h2 { margin-bottom: 0.75rem; }
 #settings_view .setting-row, #settings_view .keybind-row { background: var(--surface); }
 #settings_view .keybind-row { padding: 0.6rem 0.85rem; border-radius: 6px; }
-.nav-burger svg { display: block; }
+.nav-burger svg { display: block; width: 28px; height: 28px; } /* was 22px — read as tiny in the 44px button */
 
 /* ── Corner radius scale (2026-09-08) ──────────────────────────────────────────
    Box radii were halved site-wide on request ("cleaner with just slightly rounded corners"): the old
