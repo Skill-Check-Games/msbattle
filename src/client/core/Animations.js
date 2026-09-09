@@ -789,10 +789,21 @@ function renderPlayerBoard(dirtyAnimKeys) {
 			}
 		});
 		if (dirtyAnimKeys && canPartialRepaint()) {
-			var dirty = [];
+			// Each animated cell AND its eight neighbours: reveal effects paint beyond the cell's own rect
+			// while animating (the ripple lid scales up 18%, into the gutters and over the neighbours'
+			// edges), and a partial repaint that only redrew the animated cell left that overshoot on the
+			// neighbours frame after frame — a halo that grew around every clicked cell during the
+			// animation (the settle-time full repaint below only fixed what was left AFTER it). Still at
+			// most 9 cells per animated cell, so the whole point of the partial repaint holds.
+			var dirty = [], seen = {};
 			for (var i = 0; i < dirtyAnimKeys.length; i++) {
 				var parts = dirtyAnimKeys[i].split(",");
-				dirty.push([parseInt(parts[0], 10), parseInt(parts[1], 10)]);
+				var dr = parseInt(parts[0], 10), dc = parseInt(parts[1], 10);
+				for (var nr = dr - 1; nr <= dr + 1; nr++) for (var nc = dc - 1; nc <= dc + 1; nc++) {
+					if (nr < 0 || nc < 0 || nr >= rows || nc >= cols) continue;
+					var k = nr + "," + nc;
+					if (!seen[k]) { seen[k] = true; dirty.push([nr, nc]); }
+				}
 			}
 			// The pressed/focus highlights are separate DOM elements now (updatePressHighlightOverlay/
 			// updateFocusHighlightOverlay below), not painted into the canvas, so — unlike before —
