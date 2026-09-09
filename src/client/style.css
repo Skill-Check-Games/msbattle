@@ -1,4 +1,9 @@
 :root {
+	/* Home page spacing rule: exactly TWO gaps between cards at every screen size —
+	   --gap-tight between cards that are "connected" (the three mode rows, the identity row's three boxes),
+	   --gap-group between card groups (identity row → mode rows, mode rows ↔ daily card). */
+	--gap-tight: 0.55rem;
+	--gap-group: 1.1rem;
 	--bg: #0b1020;
 	--surface: #131a2e;
 	--surface-2: #1a2240;
@@ -6332,10 +6337,10 @@ body.duel-force-rotate .game-view.multi .game-side { display: flex !important; }
    the home screen in landscape too, just compact — 54px tiles and name box, the stat cells inline on the
    same row (landscape has the width), smaller type. #topbar_you keeps its default display: none. */
 @media (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
-	body.home-view .dash-you { min-height: 54px; margin-bottom: 0.7rem; }
+	body.home-view .dash-you { min-height: 54px; margin-bottom: var(--gap-group); }
 	/* main's padding-top = the row's margin-bottom, so the gap from the topbar to the row equals the gap
 	   from the row to the cards below. */
-	body.home-view main { padding-top: 0.7rem; }
+	body.home-view main { padding-top: var(--gap-group); }
 	body.home-view .dash-you-box-avatar, body.home-view .dash-you-box-flag { flex: 0 0 54px; width: 54px; min-height: 54px; height: 54px; }
 	body.home-view .dash-you-box-avatar canvas, body.home-view .dash-you-box-flag img { width: 52px !important; height: 52px !important; }
 	body.home-view .dash-you-box-main { padding: 0.2rem 0.8rem; }
@@ -7340,8 +7345,8 @@ input[type="range"].sound-lab-rate-slider { grid-column: 1 / -1; grid-row: 2; wi
    mode rows use (.dash-modes, 0.55rem). The wrapper itself is unstyled; each .dash-you-box carries the
    card look. */
 .dash-you {
-	display: flex; align-items: stretch; gap: 0.55rem;
-	margin-bottom: 1.1rem;
+	display: flex; align-items: stretch; gap: var(--gap-tight);
+	margin-bottom: var(--gap-group);
 	min-height: 75px;
 }
 .dash-you-box {
@@ -7449,7 +7454,7 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
 /* align-items: stretch (not start) so the daily-puzzle aside runs the full height of the three mode rows
    beside it — its bottom edge lands on the third row's bottom edge; the extra height goes into the
    board area (see .lobby-daily-board-wrap), the button stays pinned at the bottom. */
-.dash-main { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.95fr); gap: 1.1rem; align-items: stretch; }
+.dash-main { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.95fr); gap: var(--gap-group); align-items: stretch; }
 @media (max-width: 880px) {
 	.dash-main { grid-template-columns: 1fr; }
 }
@@ -7489,7 +7494,7 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
 	.dash-you-cell b { font-size: 1.05rem; }
 }
 
-.dash-modes { display: flex; flex-direction: column; gap: 0.55rem; }
+.dash-modes { display: flex; flex-direction: column; gap: var(--gap-tight); }
 .dash-row {
 	display: flex; align-items: center; gap: 0.9rem;
 	background: var(--surface); border: 1px solid var(--border);
@@ -7524,7 +7529,7 @@ input[type="text"].dash-you-name-input:focus { border-color: var(--accent); }
 .stat-fade-in.stat-in { opacity: 1; }
 .dash-row-casual { font-family: var(--font-display); font-weight: 700; font-size: 0.8rem; color: var(--muted); letter-spacing: 0.05em; }
 
-.dash-aside { display: flex; flex-direction: column; gap: 0.8rem; }
+.dash-aside { display: flex; flex-direction: column; gap: var(--gap-group); }
 .dash-aside .lobby-daily-hero { flex: 1 1 auto; }
 .lobby-daily-hero .lobby-daily-body { flex: 1 1 auto; }
 .lobby-daily-hero .lobby-daily-board-wrap { flex: 1 1 auto; display: flex; flex-direction: column; }
