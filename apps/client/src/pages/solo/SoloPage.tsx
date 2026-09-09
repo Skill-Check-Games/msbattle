@@ -13,6 +13,8 @@ import { useCellPx } from "../../game/use-cell-px";
 import { sound } from "../../audio/sound";
 import GameBoard from "../../game/GameBoard";
 import { ResultPanel, ResultHeader, ResultDetail, ResultFoot, ResultActions } from "../../game/ResultPanel";
+import { autoEnterGameFullscreen } from "../../game/fullscreen";
+import { useInGameBody } from "../play/mobile";
 import styles from "./SoloPage.module.scss";
 
 type Size = "small" | "medium" | "large";
@@ -30,6 +32,7 @@ export function formatSoloTime(ms: number | null | undefined): string {
 const soloKey = (size: string, density: number) => size + "_" + Math.round(density * 100);
 
 export default function SoloPage() {
+	useInGameBody();
 	const navigate = useNavigate();
 	const { account, update } = useAuth();
 	const [size, setSize] = useState<Size>(() => (localStorage.getItem("ms_solo_size") as Size) || "medium");
@@ -136,7 +139,7 @@ export default function SoloPage() {
 					<div className={styles.boardCard}>
 						<GameBoard session={session} cellPx={cellPx} className={styles.board}>
 							{solo && !solo.started && !solo.counting && (
-								<div className={styles.startOverlay}><button className={`btn btn-primary ${styles.startBtn}`} onClick={begin}>Start</button></div>
+								<div className={styles.startOverlay}><button className={`btn btn-primary ${styles.startBtn}`} onClick={() => { autoEnterGameFullscreen(); begin(); }}>Start</button></div>
 							)}
 						</GameBoard>
 					</div>

@@ -4,6 +4,7 @@ import Modal from "../../app/Modal";
 import { useAuth } from "../../shared/auth";
 import { tierFor } from "../../shared/ranking";
 import { match } from "../../game/match-store";
+import { autoEnterGameFullscreen, enterDuelMobileFullscreen } from "../../game/fullscreen";
 import styles from "./RankedPicker.module.scss";
 
 const META = {
@@ -19,7 +20,7 @@ export default function RankedPicker({ style, onClose }: { style: RankedStyle | 
 	const meta = META[style];
 	const rating = account ? (style === "sprint" ? account.ratingSprint : account.ratingStandard) : null;
 	const tier = rating != null ? tierFor(rating, account?.provisional) : null;
-	const pick = (mode: string) => { onClose(); match.findRanked(mode); navigate("/play"); };
+	const pick = (mode: string) => { onClose(); autoEnterGameFullscreen(); if (mode.endsWith("_duo")) enterDuelMobileFullscreen(); match.findRanked(mode); navigate("/play"); };
 	return (
 		<Modal open onClose={onClose} width={620} labelledBy="ranked_modal_title" className={styles.dialog}>
 			<div className={styles.head}>

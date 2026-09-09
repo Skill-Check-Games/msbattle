@@ -107,8 +107,10 @@ function Cell({ label, value, empty }: { label: string; value: React.ReactNode; 
 function NameRow({ account, onRenamed }: { account: Account | null; onRenamed: (name: string) => void }) {
 	const [editing, setEditing] = useState(false);
 	const [draft, setDraft] = useState("");
+	const [error, setError] = useState<string | null>(null);
 	const inputRef = useRef<HTMLInputElement>(null);
-	useEffect(() => onSocket("name_accepted", (d) => { if (d && d.name) onRenamed(d.name); }), [onRenamed]);
+	useEffect(() => onSocket("name_accepted", (d) => { if (d && d.name) { onRenamed(d.name); setError(null); } }), [onRenamed]);
+	useEffect(() => onSocket("name_rejected", (d) => { setError((d && d.reason) || "That name can't be used."); const h = setTimeout(() => setError(null), 4000); return () => clearTimeout(h); }), []);
 	useEffect(() => { if (editing) inputRef.current?.select(); }, [editing]);
 	const commit = () => {
 		setEditing(false);
@@ -129,6 +131,7 @@ function NameRow({ account, onRenamed }: { account: Account | null; onRenamed: (
 					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" /></svg>
 				</button>
 			)}
+			{error && <span className={styles.nameError} role="alert">{error}</span>}
 		</div>
 	);
 }

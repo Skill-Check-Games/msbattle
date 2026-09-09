@@ -11,6 +11,7 @@
 .spinner { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--border); border-top-color: var(--accent); animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .message { margin: 0 0 1rem; color: var(--danger); }
+.fsBtn { padding: 0.35rem 0.6rem; font-size: 1.1rem; line-height: 1; }
 
 // Timer badge (1v1): a cyan-to-red gradient border via the padding-box/border-box trick.
 .timerBadge {
@@ -85,7 +86,7 @@
 .portrait {
 	.header { margin-bottom: 0.6rem; gap: 0.5rem; }
 	.timerBadge { padding: 0.25rem 0.6rem; }
-	.timerBadge, .timerMode { display: none; }
+	.timerBadge, .timerMode, .fsBtn { display: none; }
 	.duelGrid { display: block; }
 	.center, .arenaOpp, .side, .tools { display: none; }
 	.arena { padding: 0.6rem; box-shadow: none; }

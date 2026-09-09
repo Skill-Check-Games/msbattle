@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { BoardSession } from "../../game/board-session";
 import { UNKNOWN, KNOWN } from "../../game/board-render";
 import type { GameFrame, RoomPlayer } from "../../game/match-store";
+import { music } from "../../audio/music";
+import { exitGameFullscreen, phoneSizedDevice } from "../../game/fullscreen";
 import styles from "./PlayPage.module.scss";
 
 export const PORTRAIT_MQ = "(max-width: 700px)";
@@ -15,9 +17,14 @@ export function useMediaQuery(q: string): boolean {
 	return m;
 }
 
-// body.in-game while a game screen is mounted: global CSS hides the navbar/footer on phones.
+// body.in-game while a game screen is mounted: global CSS hides the navbar/footer on phones. The
+// soundtrack runs only on game screens, and leaving drops fullscreen (phones keep it: re-entering
+// needs a gesture, and the next match wants it back).
 export function useInGameBody() {
-	useEffect(() => { document.body.classList.add("in-game"); return () => { document.body.classList.remove("in-game"); }; }, []);
+	useEffect(() => {
+		document.body.classList.add("in-game"); music.resume();
+		return () => { document.body.classList.remove("in-game"); music.pause(); if (!phoneSizedDevice()) exitGameFullscreen(); };
+	}, []);
 }
 
 export function MobileStrip({ me, opp, myFrame, oppFrame, timerText, timerCls }: { me: RoomPlayer | null; opp: RoomPlayer | null; myFrame: GameFrame | null; oppFrame: GameFrame | null; timerText: string; timerCls: string }) {

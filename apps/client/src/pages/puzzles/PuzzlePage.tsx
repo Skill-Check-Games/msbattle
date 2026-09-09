@@ -16,6 +16,7 @@ import { puzzleLadder } from "../../shared/puzzle-ladder";
 import { ResultPanel, ResultHeader, ResultDetail, ResultFoot, ResultActions } from "../../game/ResultPanel";
 import { formatDailyDate } from "../home/home-data";
 import BoardLogic from "core/src/common/BoardLogic.js";
+import { useInGameBody } from "../play/mobile";
 import styles from "./PuzzlePage.module.scss";
 
 export type PuzzleMode = "rated" | "streak" | "storm" | "daily";
@@ -31,6 +32,7 @@ const PUZZLE_BOX_PX = 480, PUZZLE_CELL_MAX = 75, PUZZLE_BOX_PX_MOBILE = 320, PUZ
 const difficultyLabel = (tier: number) => tier <= 2 ? "Easy" : tier <= 4 ? "Medium" : "Hard";
 
 export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
+	useInGameBody();
 	const navigate = useNavigate();
 	const { account, update } = useAuth();
 	const puzzleRef = useRef<Puzzle | null>(null);

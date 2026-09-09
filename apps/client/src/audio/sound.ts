@@ -1,5 +1,6 @@
 // Synthesised sound effects (WebAudio, no assets). Muted state and volume persist in localStorage.
 // The adaptive music layer can plug in through setMusicSource so effects follow the current chord.
+import { music } from "./music";
 interface ToneOpts { type?: OscillatorType; freq: number; toFreq?: number; dur: number; gain?: number; delay?: number; }
 interface NoiseOpts { dur?: number; cutoff?: number; gain?: number; delay?: number; }
 export interface MusicSource { currentChord(): { scale: number[]; bassRoot: number } | null; intensity(): number; isMuted(): boolean; }
@@ -75,7 +76,8 @@ export const sound = {
 	rankUp() { arp([659, 880, 1047, 1319, 1568], 0.10, 0.38, 0.14); },
 	rankDown() { tone({ type: "sine", freq: 440, toFreq: 233, dur: 0.42, gain: 0.12 }); },
 	matchFound() { arp([587, 880], 0.09, 0.22, 0.13); },
-	pulse() { /* music intensity pulses are wired by the music layer */ },
+	// Player actions drive the soundtrack's intensity (music.pulse); the session hook calls this per action.
+	pulse() { music.pulse(); },
 	unlock() { if (ensure() && ctx!.state === "suspended") ctx!.resume(); },
 	setMuted(m: boolean) { muted = m; try { localStorage.setItem("ms_muted", m ? "1" : "0"); } catch { /* storage blocked */ } },
 	isMuted() { return muted; },
@@ -88,5 +90,6 @@ export const sound = {
 };
 
 // Browsers only start audio after a user gesture: the first click or key unlocks the context.
-document.addEventListener("click", () => sound.unlock(), { once: true });
+document.addEventListener("click", () => { sound.unlock(); music.unlock(); }, { once: true });
 document.addEventListener("keydown", () => sound.unlock(), { once: true });
+sound.setMusicSource(music);

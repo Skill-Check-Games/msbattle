@@ -7,7 +7,7 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { match, useMatch, MODE_LABELS, STYLE_LABELS, GameFrame, RoomPlayer } from "../../game/match-store";
 import GameBoard from "../../game/GameBoard";
 import { useCellPx } from "../../game/use-cell-px";
-import { DuelIdentity, ProgressBar, PlaceStamp, useRoundTimer } from "./hud";
+import { DuelIdentity, ProgressBar, PlaceStamp, useRoundTimer, FullscreenButton } from "./hud";
 import OpponentBoard from "./OpponentBoard";
 import Scoreboard from "./Scoreboard";
 import RoomLobby from "./RoomLobby";
@@ -113,6 +113,7 @@ export default function PlayPage() {
 					{!duo && s.mode && !s.search && <span className={styles.rankedTag}>RANKED</span>}
 					{!duo && <span className={styles.progressText}>{s.gameProgress}</span>}
 					{!duo && timer.text && <span className={`${styles.roundTimer} ${timer.cls}`}>⏱ {timer.text}</span>}
+					<FullscreenButton className={styles.fsBtn} />
 				</div>
 			</div>
 			{s.message && <p className={styles.message}>{s.message}</p>}

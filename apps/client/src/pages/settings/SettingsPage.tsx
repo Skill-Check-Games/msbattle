@@ -5,13 +5,13 @@ import { sound } from "../../audio/sound";
 import { keybindings, KEY_ACTIONS, KeyAction } from "../../shared/keybindings";
 import styles from "./SettingsPage.module.scss";
 
-const AUTO_FS_KEY = "ms_auto_fullscreen";
-export function autoFullscreenEnabled(): boolean { try { return localStorage.getItem(AUTO_FS_KEY) === "1"; } catch { return false; } }
-export function setAutoFullscreenEnabled(on: boolean) { try { localStorage.setItem(AUTO_FS_KEY, on ? "1" : "0"); } catch { /* storage blocked */ } }
+import { autoFullscreenEnabled, setAutoFullscreenEnabled } from "../../game/fullscreen";
+import { music } from "../../audio/music";
 
 export default function SettingsPage() {
 	const [autoFs, setAutoFs] = useState(autoFullscreenEnabled());
 	const [effects, setEffects] = useState(Math.round(sound.getVolume() * 100));
+	const [musicVol, setMusicVol] = useState(music.isMuted() ? 0 : Math.round(music.getVolume() * 100));
 	return (
 		<section>
 			<h1 className={styles.title}>Settings</h1>
@@ -24,6 +24,10 @@ export default function SettingsPage() {
 			</div>
 			<div className={styles.card}>
 				<h2 className={styles.cardTitle}>Audio</h2>
+				<div className={styles.row}>
+					<div className={styles.rowText}><span className={styles.rowLabel}>Music</span><span className={styles.rowNote}>The in-game soundtrack. Plays only on game screens.</span></div>
+					<input type="range" className={styles.slider} min={0} max={100} step={1} value={musicVol} aria-label="Music volume" onChange={(e) => { const v = Number(e.target.value); setMusicVol(v); music.unlock(); if (v > 0) music.setVolume(v / 100); music.setMuted(v === 0); }} />
+				</div>
 				<div className={styles.row}>
 					<div className={styles.rowText}><span className={styles.rowLabel}>Effects</span></div>
 					<input type="range" className={styles.slider} min={0} max={100} step={1} value={effects} aria-label="Effects volume" onChange={(e) => { const v = Number(e.target.value); setEffects(v); sound.unlock(); sound.setVolume(v / 100); sound.setMuted(v === 0); }} />

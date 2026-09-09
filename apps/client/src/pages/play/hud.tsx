@@ -5,6 +5,7 @@ import { AvatarChip, FlagChip } from "../../shared/Avatar";
 import { RankBadge } from "../../shared/RankBadge";
 import { tierFor, ordinal } from "../../shared/ranking";
 import type { RoomPlayer, GameFrame } from "../../game/match-store";
+import { enterGameFullscreen, exitGameFullscreen, fullscreenSupported, isInFullscreen } from "../../game/fullscreen";
 import styles from "./hud.module.scss";
 
 export function DuelIdentity({ player, side, vertical }: { player: RoomPlayer | null; side: "you" | "opp"; vertical?: boolean }) {
@@ -47,4 +48,16 @@ export function formatRoundTime(s: number): string { const m = Math.floor(s / 60
 export function PlaceStamp({ place }: { place: number | null | undefined }) {
 	if (!place) return null;
 	return <div className={`${styles.place} ${place === 1 ? styles.place1 : place === 2 ? styles.place2 : place === 3 ? styles.place3 : ""}`}>{ordinal(place)}</div>;
+}
+
+// Header fullscreen toggle (desktop): the click is the gesture the Fullscreen API needs.
+export function FullscreenButton({ className }: { className?: string }) {
+	const [on, setOn] = useState(isInFullscreen());
+	useEffect(() => { const sync = () => setOn(isInFullscreen()); document.addEventListener("fullscreenchange", sync); return () => document.removeEventListener("fullscreenchange", sync); }, []);
+	if (!fullscreenSupported()) return null;
+	return (
+		<button type="button" className={`btn btn-ghost ${className || ""}`} title={on ? "Exit fullscreen" : "Fullscreen"} aria-label={on ? "Exit fullscreen" : "Fullscreen"} onClick={() => on ? exitGameFullscreen() : enterGameFullscreen(true, false)}>
+			{on ? "⤡" : "⤢"}
+		</button>
+	);
 }
