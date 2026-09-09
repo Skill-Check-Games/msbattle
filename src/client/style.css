@@ -8334,3 +8334,26 @@ body.game-fullscreen .game-view:not(.puzzle):not(.solo):not(.duo):not(.multi) .g
 	.shop-tabs { gap: 0.8rem; }
 	.shop-tab { font-size: 0.74rem; letter-spacing: 0.02em; }
 }
+
+/* Customize lab stacked on a phone (max-width 860px, same breakpoint as its grid collapse above):
+   picker (tabs + list) first, preview board second (plain DOM order, so the earlier order: overrides
+   are undone here), and ONE scroll region — .lab-body. The picker panel's own scroller
+   (#lab_right_panel, overflow-y: auto with flex: 1 1 auto) is what collapsed it to a 13px strip
+   inside an auto-height grid row; an ID selector is needed to out-rank its base rule. */
+@media (max-width: 860px) {
+	.lab-left { order: 0; }
+	.lab-right { order: 0; }
+	.lab-right #lab_right_panel { overflow: visible; flex: 0 0 auto; margin: 0; padding: 0; }
+	.lab-left { overflow: visible; padding: 0.9rem; }
+	.lab-body { gap: var(--gap-group, 1.1rem); }
+	.cr-dialog.customize-lab-dialog { width: 100%; height: auto; max-height: calc(100dvh - 1.5rem); padding: 1.1rem 1rem 1rem; }
+	.cr-modal:has(.customize-lab-dialog) { padding: 0.75rem; }
+	.reveal-demo-canvas { height: auto !important; } /* the builder's inline height would otherwise keep the full height while width shrinks */
+}
+/* Stacked lab: both columns declare min-height: 0 for the side-by-side layout (so they can scroll
+   inside a fixed-height dialog). In a stacked grid that makes each row's base size zero and only the
+   dialog's leftover height gets shared out (measured: 108px for a 984px picker). Content minimums
+   restore the natural heights and let .lab-body do the scrolling. */
+@media (max-width: 860px) {
+	.lab-left, .lab-right { min-height: auto; }
+}

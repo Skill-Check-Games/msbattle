@@ -128,6 +128,8 @@ function labPreviewLocked(kind, id, item) {
 	renderLabIdentity();
 	updateLabBuyButton();
 	if (kind === "revealEffect") demonstrateLabEffect();
+	// Stacked (phone) layout: the preview and its Buy button sit below the picker, so bring them on screen.
+	if (window.innerWidth <= 860) { var lp = document.querySelector(".lab-left"); if (lp && lp.scrollIntoView) lp.scrollIntoView({ behavior: "smooth", block: "start" }); }
 }
 // Drop the locked preview of one kind (the player picked something real of that kind instead).
 function labClearPreview(kind) {
@@ -643,7 +645,18 @@ function buildRevealDemoBoard(opts) {
 // identically every time the Lab opens: an ~19% mine density (close to Standard's 20%), with the
 // top-left 3×3 block kept mine-free so `openAt` gives a decent-sized natural opening to start from,
 // leaving most of the board covered for the player to click into on their own.
-var LAB_DEMO_ROWS = 8, LAB_DEMO_COLS = 11;
+var LAB_DEMO_ROWS = 8, LAB_DEMO_COLS = 11; // LAB_DEMO_COLS is recomputed per open (labDemoCols): 8 on phones
+var LAB_DEMO_COLS_DESKTOP = 11, LAB_DEMO_COLS_PHONE = 8;
+// Phones (the lab's stacked layout, see style.css's 860px block) get a narrower board so the cells stay
+// a tappable size instead of 11 columns squeezed into ~250px. Mines past the last column just drop out.
+function labDemoCols() { return window.innerWidth <= 860 ? LAB_DEMO_COLS_PHONE : LAB_DEMO_COLS_DESKTOP; }
+// Cell size that fits the board frame's width at the chosen column count, capped at the desktop size.
+function labDemoCellPx(frame) {
+	if (window.innerWidth > 860) return LAB_DEMO_CELL_PX; // desktop keeps its fixed size
+	var avail = frame ? frame.clientWidth : 0;
+	if (!avail) return LAB_DEMO_CELL_PX;
+	return Math.max(24, Math.min(LAB_DEMO_CELL_PX, Math.floor(avail / LAB_DEMO_COLS)));
+}
 // (2026-09-09) The three mines nearest the bottom-right corner were dropped so a click down there cascades
 // open a big area — the point of the preview is watching lots of tiles reveal at once.
 var LAB_DEMO_MINES = [
@@ -669,6 +682,7 @@ var LAB_DEMO_CELL_PX = 38;
 // boardCell() just calls whichever function boardDecoder currently is, so this is the entire
 // "decoding" side of pointing the real engine at the Lab's fixed layout.
 function labBoardDecoder(r, c) {
+	if (c >= LAB_DEMO_COLS) return 0;
 	if (LAB_DEMO_MINES.some(function(m) { return m[0] === r && m[1] === c; })) return MINE;
 	var n = 0;
 	BoardLogic.forEachNeighbour(r, c, LAB_DEMO_ROWS, LAB_DEMO_COLS, function(nr, nc) {
@@ -706,7 +720,8 @@ var labCanvas = null;     // the Lab's own dedicated board canvas — NOT #game0
 function enterLabDemoInput(frame) {
 	var ring = document.getElementById("board_focus_ring");
 	var press = document.getElementById("board_press_highlight");
-	labCanvas = buildCellCanvas(LAB_DEMO_COLS, LAB_DEMO_ROWS, LAB_DEMO_CELL_PX, "reveal-demo-canvas");
+	LAB_DEMO_COLS = labDemoCols();
+	labCanvas = buildCellCanvas(LAB_DEMO_COLS, LAB_DEMO_ROWS, labDemoCellPx(frame), "reveal-demo-canvas");
 	if (typeof wireBoardCanvasInput === "function") wireBoardCanvasInput(labCanvas);
 
 	labInputSave = {
