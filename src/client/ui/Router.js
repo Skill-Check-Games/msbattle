@@ -603,7 +603,7 @@ function closeNavMenu() {
 	var bar = document.querySelector(".topbar");
 	var burger = document.getElementById("nav_burger");
 	if (bar) bar.classList.remove("nav-open");
-	if (burger) { burger.setAttribute("aria-expanded", "false"); burger.textContent = "☰"; }
+	if (burger) burger.setAttribute("aria-expanded", "false"); // the icon swap is CSS (.topbar.nav-open) — never write into the button
 }
 function wireNavBurger() {
 	var bar = document.querySelector(".topbar");
@@ -614,7 +614,6 @@ function wireNavBurger() {
 		e.stopPropagation();
 		var open = bar.classList.toggle("nav-open");
 		burger.setAttribute("aria-expanded", open ? "true" : "false");
-		burger.textContent = open ? "✕" : "☰";
 	});
 	// The Help item isn't an <a>, so navigate() won't fire for it — close on any nav tap.
 	nav.addEventListener("click", function() { closeNavMenu(); });
