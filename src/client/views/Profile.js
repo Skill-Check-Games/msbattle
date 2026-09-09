@@ -1656,7 +1656,8 @@ function renderHomeRankChips() {
 // canvas-drawn — see buildAvatarChip — real drawing logic, not worth duplicating here); it leaves a
 // plain shimmering circle sized to match, left for renderDashIdentity() to replace for real.
 // Design preview: /?preview=ranks fakes a placed, ranked account CLIENT-SIDE (nothing is written or
-// sent) — Gold I Sprint, Diamond I Standard, Engineer · Lvl 3 Puzzles, placement cleared; ?preview=past
+// sent) — the WIDEST labels on purpose (Platinum III Sprint, Diamond III Standard, Demolitionist · Lvl 13
+// Puzzles) so the rank column is reviewed at its longest; placement cleared. ?preview=past
 // is the same account whose fake session was two days ago (see updateDashYouCells). Localhost or
 // admins only; the param is dropped as soon as you navigate. Lives in this SSR_INLINE block because
 // the server-inlined early paint must apply it too, otherwise a reload flashes the real guest state.
@@ -1665,9 +1666,9 @@ function applyPreviewRanks(acc) {
 	var mode = new URLSearchParams(location.search).get("preview");
 	if (mode !== "ranks" && mode !== "past") return;
 	if (location.hostname !== "localhost" && location.hostname !== "127.0.0.1" && !acc.isAdmin) return;
-	acc.ratingSprint = 1250; acc.ratingStandard = 2450;
+	acc.ratingSprint = 2310; acc.ratingStandard = 2860; // Platinum III / Diamond III
 	acc.playedSprint = 12; acc.playedStandard = 9; acc.played = 21; acc.wins = 13;
-	acc.puzzlePoints = 3120;
+	acc.puzzlePoints = 5620; // Demolitionist · Lvl 13
 	acc.guest = false;
 	acc.previewRanks = mode;
 }
