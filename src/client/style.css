@@ -6337,10 +6337,13 @@ body.duel-force-rotate .game-view.multi .game-side { display: flex !important; }
    the home screen in landscape too, just compact — 54px tiles and name box, the stat cells inline on the
    same row (landscape has the width), smaller type. #topbar_you keeps its default display: none. */
 @media (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
+	/* Landscape has little height: a smaller group gap (still just the two sizes). */
+	body.home-view { --gap-group: 0.8rem; }
 	body.home-view .dash-you { min-height: 54px; margin-bottom: var(--gap-group); }
 	/* main's padding-top = the row's margin-bottom, so the gap from the topbar to the row equals the gap
-	   from the row to the cards below. */
+	   from the row to the cards below — .dash's own 0.3rem top padding would add to it, so it's zeroed. */
 	body.home-view main { padding-top: var(--gap-group); }
+	body.home-view .dash { padding-top: 0; }
 	body.home-view .dash-you-box-avatar, body.home-view .dash-you-box-flag { flex: 0 0 54px; width: 54px; min-height: 54px; height: 54px; }
 	body.home-view .dash-you-box-avatar canvas, body.home-view .dash-you-box-flag img { width: 52px !important; height: 52px !important; }
 	body.home-view .dash-you-box-main { padding: 0.2rem 0.8rem; }
