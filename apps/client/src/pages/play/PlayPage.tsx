@@ -35,7 +35,12 @@ export default function PlayPage() {
 	const duo = match.isDuo(), multi = match.isMulti(), battle = match.battleActive() && (duo || multi);
 	// Live rounds hide the site navbar (all widths), like production; the lobby and search keep it.
 	const live = !!s.room && s.room.phase !== "planning";
-	useEffect(() => { document.body.classList.toggle("game-live", live); return () => { document.body.classList.remove("game-live"); }; }, [live]);
+	useEffect(() => {
+		document.body.classList.toggle("game-live", live);
+		// The navbar hiding changes the space above the board: let the cell-size hooks re-measure.
+		const raf = requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
+		return () => { cancelAnimationFrame(raf); document.body.classList.remove("game-live"); };
+	}, [live]);
 	const room = s.room;
 	const planningLobby = !!room && room.phase === "planning" && !battle && !room.ranked && (room.gameMode || "race") === "race";
 	const rows = session.rows, cols = session.cols;
