@@ -1389,9 +1389,16 @@ main:has(.game-view.multi) { max-width: none; }
 	animation: cr-pop var(--motion-standard) var(--ease) both;
 }
 @keyframes cr-pop { from { opacity: 0; transform: translateY(10px) scale(0.98); } to { opacity: 1; transform: none; } }
-.cr-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.cr-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-right: 2.6rem; /* clears the corner close button */ }
+/* Dialog footer: actions bottom-right (the customize lab's Done). */
+.cr-dialog-foot { flex: 0 0 auto; display: flex; justify-content: flex-end; gap: 0.6rem; margin-top: 1rem; }
+/* While any .cr-modal is open (Router.js watchModalScrollLock) the page behind it doesn't scroll. */
+body.modal-open { overflow: hidden; }
 .cr-dialog-head h2 { margin: 0; font-size: 1.4rem; }
+/* Pinned to the dialog's top-right corner (the dialog is position: relative) instead of riding along in
+   the head's flex row, where it centred on the title + subtitle block and sat well inside the edge. */
 .cr-close {
+	position: absolute; top: 0.9rem; right: 0.9rem;
 	flex: 0 0 auto; width: 2rem; height: 2rem; border-radius: 5px;
 	background: none; border: 1px solid var(--border); color: var(--muted);
 	font-size: 1.3rem; line-height: 1; cursor: pointer; transition: all var(--motion-micro) var(--ease-out);

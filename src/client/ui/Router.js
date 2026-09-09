@@ -569,6 +569,18 @@ function navigate(to) {
 	applyRouteFromHash();
 }
 
+// Body scroll lock while any modal is open. Every modal in the app (.cr-modal — the pickers, Help,
+// the customize lab, the purchase dialog, create-room) shows/hides by toggling its `hidden`
+// attribute, so one observer on that attribute is enough; it also catches modals appended later
+// (the customize lab builds itself on first open). style.css: body.modal-open { overflow: hidden }.
+function watchModalScrollLock() {
+	if (typeof MutationObserver !== "function") return;
+	function sync() { document.body.classList.toggle("modal-open", !!document.querySelector(".cr-modal:not([hidden])")); }
+	new MutationObserver(sync).observe(document.body, { attributes: true, attributeFilter: ["hidden"], subtree: true, childList: true });
+	sync();
+}
+watchModalScrollLock();
+
 // Phones held upright: the topbar hides as you scroll down and slides back as soon as you scroll up
 // a little (the way the browser's own toolbar does) via html.nav-away — style.css moves the bar.
 // Ported from achtung-royale's NavBar: thresholds so a single jittery scroll event (Android fires

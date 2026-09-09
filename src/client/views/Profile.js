@@ -996,6 +996,7 @@ function openAvatarEditor() {
 					'</div>' +
 					'<div id="lab_left_panel"></div>' +
 				'</div>' +
+				'<div class="cr-dialog-foot"><button class="btn btn-primary" type="button" data-avatar-close>Done</button></div>' +
 			'</div>';
 		document.body.appendChild(modal);
 		modal.addEventListener("click", function(e) { if (e.target.closest("[data-avatar-close]")) closeCustomizeLab(); });
