@@ -6333,6 +6333,9 @@ body.duel-force-rotate .game-view.multi .game-side { display: flex !important; }
    same row (landscape has the width), smaller type. #topbar_you keeps its default display: none. */
 @media (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
 	body.home-view .dash-you { min-height: 54px; margin-bottom: 0.7rem; }
+	/* main's padding-top = the row's margin-bottom, so the gap from the topbar to the row equals the gap
+	   from the row to the cards below. */
+	body.home-view main { padding-top: 0.7rem; }
 	body.home-view .dash-you-box-avatar, body.home-view .dash-you-box-flag { flex: 0 0 54px; width: 54px; min-height: 54px; height: 54px; }
 	body.home-view .dash-you-box-avatar canvas, body.home-view .dash-you-box-flag img { width: 52px !important; height: 52px !important; }
 	body.home-view .dash-you-box-main { padding: 0.2rem 0.8rem; }
