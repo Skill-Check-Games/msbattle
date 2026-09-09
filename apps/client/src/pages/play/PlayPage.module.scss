@@ -1,0 +1,70 @@
+@use "../../styles/variables" as *;
+
+.view { --duel-you: #3b82f6; --duel-opp: #fb7185; position: relative; animation: fade 180ms ease; }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+.header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+.headerRight { display: flex; align-items: center; gap: 0.8rem; min-height: 1.5em; }
+.rankedTag { font-size: 0.7rem; font-weight: 800; letter-spacing: 0.12em; color: var(--accent-hover); border: 1px solid var(--accent); border-radius: 4px; padding: 0.15rem 0.45rem; }
+.progressText { color: var(--muted); font-weight: 600; }
+.roundTimer { font-family: var(--font-display); font-weight: 700; font-size: 1.2rem; min-width: 5ch; min-height: 1.5em; font-variant-numeric: tabular-nums; }
+.searchStatus { display: inline-flex; align-items: center; gap: 0.5rem; color: var(--muted); font-weight: 600; }
+.spinner { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--border); border-top-color: var(--accent); animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.message { margin: 0 0 1rem; color: var(--danger); }
+
+// Timer badge (1v1): a cyan-to-red gradient border via the padding-box/border-box trick.
+.timerBadge {
+	display: flex; flex-direction: column; align-items: center; padding: 0.4rem 1rem; border-radius: 8px; border: 1px solid transparent;
+	background: linear-gradient(var(--surface), var(--surface)) padding-box, linear-gradient(90deg, var(--duel-you), var(--duel-opp)) border-box;
+}
+.duelTimer { font-family: var(--font-display); font-size: 1.3rem; font-weight: 800; line-height: 1; min-width: 5ch; min-height: 1em; text-align: center; font-variant-numeric: tabular-nums; }
+.timerMode { font-size: 0.66rem; letter-spacing: 0.12em; color: var(--muted); font-weight: 700; min-width: 140px; text-align: center; min-height: 1em; }
+
+// ---- 1v1 duel: two arenas across a VS column ----
+.duelGrid { display: grid; grid-template-columns: minmax(0, 1fr) 150px minmax(0, 1fr); gap: 1rem; align-items: start; @include below($bp-lg) { grid-template-columns: 1fr; } }
+.arena {
+	display: flex; flex-direction: column; gap: 0.7rem; padding: 0.9rem 1rem; border-radius: 10px; min-width: 0;
+	background: var(--surface); border: 1px solid var(--side); box-shadow: 0 0 0 1px color-mix(in srgb, var(--side) 35%, transparent), 0 0 28px -8px var(--side);
+}
+.arenaYou { --side: var(--duel-you); }
+.arenaOpp { --side: var(--duel-opp); align-items: flex-end; }
+.searching { opacity: 0.75; }
+.boardWrap { position: relative; width: 100%; display: flex; justify-content: center; }
+.arenaOpp .boardWrap { justify-content: center; }
+.oppCanvas { display: block; max-width: 100%; height: auto !important; width: auto !important; border-radius: 4px; }
+.center { display: flex; flex-direction: column; align-items: center; gap: 1rem; padding-top: 4rem; @include below($bp-lg) { padding-top: 0; flex-direction: row; justify-content: center; } }
+.vs {
+	width: 48px; height: 48px; transform: rotate(45deg); border-radius: 8px; display: flex; align-items: center; justify-content: center;
+	background: var(--surface-2); border: 1px solid var(--border);
+	&::before { content: "VS"; transform: rotate(-45deg); font-family: var(--font-display); font-weight: 800; font-size: 0.9rem; }
+}
+.goalPill { font-size: 0.72rem; font-weight: 600; color: var(--muted); padding: 0.35rem 0.7rem; border-radius: 999px; border: 1px solid var(--border); white-space: nowrap; }
+.meter { width: 100%; display: flex; flex-direction: column; gap: 0.5rem; align-items: stretch; }
+.meterTrack { position: relative; width: 100%; height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--duel-you), rgba(255, 255, 255, 0.15), var(--duel-opp)); }
+.meterMarker { position: absolute; top: 50%; left: 50%; width: 12px; height: 12px; transform: translate(-50%, -50%) rotate(45deg); background: var(--text); border-radius: 3px; box-shadow: 0 0 10px rgba(230, 233, 245, 0.6); transition: left 0.3s ease; }
+.meterCallout { font-size: 0.85rem; font-weight: 700; color: var(--muted); text-align: center; }
+
+// ---- classic / 6-player layout ----
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 1.25rem; align-items: start; @include below($bp-lg) { grid-template-columns: 1fr; } }
+.gridMulti { grid-template-columns: minmax(0, 1fr) minmax(300px, 0.9fr); }
+.left { min-width: 0; display: flex; flex-direction: column; gap: 0.7rem; }
+.boardCard { position: relative; display: inline-block; max-width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 1.25rem; box-shadow: var(--shadow); }
+.board { vertical-align: top; }
+.tools { display: flex; gap: 0.5rem; }
+.toolActive { border-color: var(--accent); color: var(--accent-hover); background: rgba(99, 102, 241, 0.12); }
+.side { display: flex; flex-direction: column; gap: 1rem; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 1.1rem 1.2rem; box-shadow: var(--shadow); }
+.sideTitle { margin: 0 0 0.85rem; font-size: 0.8rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+.oppGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
+.oppCard { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.6rem 0.75rem; min-width: 0; }
+.oppFinished { border-color: rgba(34, 197, 94, 0.45); }
+.oppHead { display: flex; align-items: center; gap: 0.5rem; min-width: 0; margin-bottom: 0.5rem; }
+.oppName { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.3rem; }
+.oppTier { font-size: 0.72rem; font-weight: 700; }
+.oppPct { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 0.85rem; min-width: 2.6rem; text-align: right; }
+.oppBoardWrap { position: relative; display: flex; justify-content: center; }
+
+// ---- board overlays ----
+.overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 4rem; border-radius: 4px; pointer-events: none; z-index: 4; }
+.frozen { color: #fde68a; font-size: 4.5rem; background: rgba(239, 68, 68, 0.25); }
+.cleared { color: var(--success); font-size: 1.6rem; background: rgba(34, 197, 94, 0.2); padding: 1rem; text-align: center; }

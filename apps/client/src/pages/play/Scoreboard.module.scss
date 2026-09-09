@@ -1,0 +1,19 @@
+.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+.row { display: flex; align-items: center; gap: 0.5rem; padding: 0.4rem 0.6rem; border-radius: 5px; background: rgba(255, 255, 255, 0.03); font-size: 0.9rem; min-width: 0; }
+.me { background: rgba(99, 102, 241, 0.14); border: 1px solid rgba(99, 102, 241, 0.4); }
+.gap { justify-content: center; color: var(--muted); background: none; }
+.waitingRow { opacity: 0.6; }
+.rank { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 1.6rem; }
+.avatar :global(canvas) { border-radius: 5px; }
+.name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-flex; align-items: center; gap: 0.35rem; }
+.botTag { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.06em; padding: 0.05rem 0.35rem; border-radius: 3px; background: rgba(148, 163, 184, 0.18); color: var(--muted); }
+.tier { font-size: 0.78rem; font-weight: 700; }
+.progress { position: relative; width: 70px; height: 6px; border-radius: 3px; background: rgba(255, 255, 255, 0.08); overflow: hidden; flex: 0 0 auto; }
+.progressFill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); transition: width 0.3s ease; }
+.finished .progressFill { background: var(--success); }
+.pct { min-width: 2.6rem; text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
+.left { min-width: 3.4rem; text-align: right; color: var(--muted); font-size: 0.75rem; font-variant-numeric: tabular-nums; }
+.meta { font-size: 0.78rem; color: var(--muted); }
+.ready { color: var(--success); font-weight: 700; }
+.waiting { color: var(--muted); }
+.points { font-family: var(--font-display); font-weight: 800; min-width: 1.5rem; text-align: right; }

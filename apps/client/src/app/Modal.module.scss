@@ -1,0 +1,16 @@
+.modal { position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center; padding: 1.25rem; }
+.backdrop { position: absolute; inset: 0; background: rgba(5, 8, 18, 0.7); }
+.dialog {
+	position: relative; width: min(560px, 100%); max-height: calc(100dvh - 2.5rem); overflow-y: auto;
+	background: linear-gradient(180deg, var(--surface-2), var(--surface)); border: 1px solid var(--border); border-radius: 8px;
+	box-shadow: 0 24px 64px -16px rgba(0, 0, 0, 0.7); padding: 1.5rem 1.6rem 1.4rem;
+	animation: modal-pop var(--motion-standard) var(--ease) both;
+}
+@keyframes modal-pop { from { opacity: 0; transform: translateY(10px) scale(0.98); } to { opacity: 1; transform: none; } }
+.head { display: flex; align-items: center; padding-right: 2.6rem; h2 { margin: 0; font-size: 1.4rem; } }
+.close {
+	position: absolute; top: 0.9rem; right: 0.9rem; width: 2rem; height: 2rem; border-radius: 5px;
+	border: 1px solid var(--border); background: var(--surface); color: var(--muted); font-size: 1.1rem; line-height: 1; padding: 0;
+	&:hover { color: var(--text); border-color: var(--muted); }
+}
+:global(body.modal-open) { overflow: hidden; }

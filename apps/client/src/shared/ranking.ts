@@ -146,3 +146,15 @@ export function puzzleBadgeFor(points: number): { color: string; svg: string } {
 	const l = puzzleLadder(points || 0);
 	return { color: l.tierColor, svg: puzzleRankBadgeSVG(l.tierIndex) };
 }
+
+// Progress within the current sub-tier toward the next (the ranked result's bar).
+export function tierProgress(rating: number | null | undefined): { fill: number; nextName: string | null; pointsToNext: number; atMax: boolean } {
+	if (typeof rating !== "number") rating = TIER_BASE_RATING;
+	if (rating >= MASTER_THRESHOLD) return { fill: 1, nextName: null, pointsToNext: 0, atMax: true };
+	const clamped = rating < TIER_BASE_RATING ? TIER_BASE_RATING : rating;
+	const subStart = TIER_BASE_RATING + Math.floor((clamped - TIER_BASE_RATING) / SUB_TIER_WIDTH) * SUB_TIER_WIDTH;
+	const nextThreshold = subStart + SUB_TIER_WIDTH;
+	return { fill: Math.max(0, Math.min(1, (clamped - subStart) / SUB_TIER_WIDTH)), nextName: tierFor(nextThreshold).name, pointsToNext: Math.max(0, Math.round(nextThreshold - rating)), atMax: false };
+}
+export function ordinal(n: number): string { const s = ["th", "st", "nd", "rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+export function formatClearTime(ms: number): string { return (ms / 1000).toFixed(1) + "s"; }

@@ -54,7 +54,7 @@
 .main { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.95fr); gap: var(--gap-group); align-items: stretch; }
 .modes { display: flex; flex-direction: column; gap: var(--gap-tight); }
 .row {
-	display: flex; align-items: center; gap: 0.9rem;
+	display: flex; align-items: center; gap: 0.9rem; width: 100%; text-align: left; font: inherit;
 	background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
 	padding: 0.75rem 0.9rem 0.75rem 0.75rem; text-decoration: none; color: var(--text);
 	transition: border-color 0.15s ease;

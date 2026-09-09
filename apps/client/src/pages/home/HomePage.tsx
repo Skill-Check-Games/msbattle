@@ -1,6 +1,7 @@
 // Home dashboard: identity row (avatar tile, name + stat strip, flag tile), the three mode rows
 // (Sprint, Standard, Puzzles) with live board previews and rank chips, and the daily puzzle hero.
 import { useEffect, useRef, useState } from "react";
+import RankedPicker, { RankedStyle } from "./RankedPicker";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../shared/auth";
 import { AvatarChip } from "../../shared/Avatar";
@@ -27,14 +28,16 @@ export default function HomePage() {
 	const { skin } = useCosmetics();
 	const matches = useMatchHistory(account);
 	const daily = useDailyStatus(account);
+	const [picker, setPicker] = useState<RankedStyle | null>(null);
 	return (
 		<section className={styles.dash}>
+			<RankedPicker style={picker} onClose={() => setPicker(null)} />
 			<IdentityRow account={account} matches={matches} />
 			<div className={styles.main}>
 				<div className={styles.modes}>
-					<ModeRow to="/ranked/sprint" title="Sprint" sub="Quick rounds, fewer mines" spec={MODE_BOARDS.sprint} skin={skin}
+					<ModeRow onOpen={() => setPicker("sprint")} title="Sprint" sub="Quick rounds, fewer mines" spec={MODE_BOARDS.sprint} skin={skin}
 						chip={<RankedChip account={account} rating={account?.ratingSprint} played={account?.playedSprint} />} />
-					<ModeRow to="/ranked/standard" title="Standard" sub="Bigger boards, more mines" spec={MODE_BOARDS.standard} skin={skin}
+					<ModeRow onOpen={() => setPicker("standard")} title="Standard" sub="Bigger boards, more mines" spec={MODE_BOARDS.standard} skin={skin}
 						chip={<RankedChip account={account} rating={account?.ratingStandard} played={account?.playedStandard} />} />
 					<ModeRow to="/puzzles" title="Puzzles" sub="Rated deduction positions, one at a time" spec={MODE_BOARDS.puzzles} skin={skin}
 						chip={<PuzzleChip account={account} />} />
@@ -118,17 +121,19 @@ function NameRow({ account, onRenamed }: { account: Account | null; onRenamed: (
 }
 
 // ---- mode rows ----
-function ModeRow({ to, title, sub, spec, skin, chip }: { to: string; title: string; sub: string; spec: BoardSpec; skin: string; chip: React.ReactNode }) {
-	return (
-		<Link to={to} className={styles.row} aria-label={"Play " + title}>
+function ModeRow({ to, onOpen, title, sub, spec, skin, chip }: { to?: string; onOpen?: () => void; title: string; sub: string; spec: BoardSpec; skin: string; chip: React.ReactNode }) {
+	const inner = (
+		<>
 			<span className={styles.rowBoard}><span className={styles.previewFrame}><PreviewBoard spec={spec} skin={skin} className={styles.previewCanvas} /></span></span>
 			<span className={styles.rowInfo}>
 				<h4 className={styles.rowTitle}>{title}</h4>
 				<p className={styles.rowSub}>{sub}</p>
 			</span>
 			<span className={styles.rowStat}>{chip}</span>
-		</Link>
+		</>
 	);
+	if (onOpen) return <button type="button" className={styles.row} aria-label={"Play " + title} onClick={onOpen}>{inner}</button>;
+	return <Link to={to!} className={styles.row} aria-label={"Play " + title}>{inner}</Link>;
 }
 
 // Tier only, never the exact rating. Below the placement threshold: a locked badge, "Placement" and

@@ -1,0 +1,30 @@
+.id { display: flex; align-items: center; gap: 0.75rem; min-height: 52px; min-width: 0; }
+.opp.id { flex-direction: row-reverse; text-align: right; }
+.opp .idInfo { align-items: flex-end; }
+.idAvatar :global(canvas) { border-radius: 6px; }
+.idInfo { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
+.idName { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.01em; display: inline-flex; align-items: center; gap: 0.35rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.idTier { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; font-weight: 700; }
+.opp .idTier { flex-direction: row-reverse; }
+
+.barRow { display: flex; align-items: center; gap: 0.7rem; min-width: 0; }
+.opp.barRow { flex-direction: row-reverse; }
+.bar { position: relative; flex: 1 1 auto; height: 10px; border-radius: 5px; background: rgba(255, 255, 255, 0.08); overflow: visible; }
+.barFill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; background: var(--side, var(--duel-you, #3b82f6)); transition: width 0.3s ease; }
+.you .barFill { --side: var(--duel-you, #3b82f6); }
+.opp .barFill { --side: var(--duel-opp, #fb7185); }
+.barPct { position: absolute; right: 0; top: -1.35rem; font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+.opp .barPct { right: auto; left: 0; }
+.cellsLeft { font-size: 0.78rem; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+.urgent { color: var(--danger) !important; }
+.warning { color: #fbbf24 !important; }
+
+.place {
+	position: absolute; right: 0.6rem; top: 0.5rem; z-index: 3; pointer-events: none;
+	font-family: var(--font-display); font-weight: 800; font-size: clamp(1.6rem, 3vw, 2.6rem); line-height: 1;
+	color: var(--text); text-shadow: 0 2px 0 rgba(0, 0, 0, 0.5), 0 0 22px rgba(255, 255, 255, 0.35);
+}
+.place1 { color: var(--energy-gold); }
+.place2 { color: #e2e8f0; }
+.place3 { color: #f0b486; }
