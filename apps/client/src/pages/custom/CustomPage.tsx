@@ -30,8 +30,8 @@ export default function CustomPage() {
 	return (
 		<section>
 			<div className={styles.head}>
-				<div><h1 className={styles.title}>Custom rooms</h1><p className={styles.sub}>Casual races with your own rules. No rating change.</p></div>
-				<button type="button" className="btn btn-primary" onClick={() => setCreate(true)}>+ Create room</button>
+				<div><h1 className={styles.title}>Custom lobby</h1><p className={styles.sub}>Casual lobbies: pick the ruleset and play with friends or against bots. No rating change.</p></div>
+				<button type="button" className="btn btn-primary" onClick={() => setCreate(true)}>+ Create lobby</button>
 			</div>
 			{s.message && <p className={styles.error}>{s.message}</p>}
 			<h2 className={styles.listTitle}>Open lobbies</h2>

@@ -10,6 +10,7 @@ body {
 	font-size: 15px;
 	line-height: 1.45;
 	-webkit-font-smoothing: antialiased;
+	background: radial-gradient(circle at 20% 0%, #1a2547 0%, var(--bg) 55%);
 }
 h1, h2, h3, h4 { font-family: var(--font-display); margin: 0; }
 a { color: inherit; }
@@ -30,8 +31,9 @@ canvas { display: block; }
 .btn-ghost { background: transparent; }
 
 // In-game on phones: the navbar and footer give the board their space back.
+body.in-game #root > div > footer { display: none; }
 @media (max-width: 700px), (orientation: landscape) and (max-height: 500px) {
-	body.in-game #root > div > header, body.in-game #root > div > footer { display: none; }
+	body.in-game #root > div > header { display: none; }
 }
 @media (orientation: landscape) and (max-height: 500px) and (min-width: 701px) {
 	body.in-game #root > div > main { padding: 0; max-width: none; }

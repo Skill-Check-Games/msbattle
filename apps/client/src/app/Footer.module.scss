@@ -1,5 +1,7 @@
 .footer {
-	display: flex; justify-content: center; gap: 1.2rem; padding: 1.2rem;
-	border-top: 1px solid var(--border); color: var(--muted); font-size: 0.8rem;
-	a { color: inherit; text-decoration: none; &:hover { color: var(--text); } }
+	flex-shrink: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.35rem;
+	padding: 0.55rem 1rem 0.85rem; border-top: 1px solid var(--border); color: var(--muted);
 }
+.social { display: flex; align-items: center; justify-content: center; gap: 1.25rem; padding-top: 0.15rem; }
+.socialLink { display: inline-flex; color: var(--muted); opacity: 0.6; transition: opacity 0.15s, color 0.15s; &:hover { opacity: 1; color: var(--text); } svg { width: 26px; height: 26px; display: block; } }
+.legal { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0.4rem 1rem; font-size: 0.78rem; a { color: inherit; text-decoration: none; &:hover { color: var(--text); } } }

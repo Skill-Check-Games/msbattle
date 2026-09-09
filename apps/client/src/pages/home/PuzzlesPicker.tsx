@@ -21,6 +21,7 @@ export default function PuzzlesPicker({ open, onClose }: { open: boolean; onClos
 			</div>
 			<div className={`${styles.options} ${own.options}`}>
 				<button className={styles.option} type="button" onClick={() => go("/puzzles/play")}>
+					<span className={styles.optionIcon} aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 4l2.5 2.5L20 14" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg></span>
 					<span className={styles.optionTitle}>Puzzle Ladder</span>
 					<span className={styles.optionSub}>Earn points on every solve and climb the tiers.</span>
 					{account && (
@@ -31,6 +32,7 @@ export default function PuzzlesPicker({ open, onClose }: { open: boolean; onClos
 					)}
 				</button>
 				<button className={styles.option} type="button" onClick={() => go("/puzzles/storm")}>
+					<span className={styles.optionIcon} aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8" fill="none" stroke="currentColor" strokeWidth="2" /><path d="M12 8v5l3.5 2" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /><path d="M9 2h6M12 2v3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg></span>
 					<span className={styles.optionTitle}>Time Trial</span>
 					<span className={styles.optionSub}>Crack as many as you can in three minutes.</span>
 				</button>

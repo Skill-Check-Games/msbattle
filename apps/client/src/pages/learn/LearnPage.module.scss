@@ -1,6 +1,7 @@
 @use "../../styles/variables" as *;
 
-.pageTitle { margin: 0 0 1rem; font-size: 1.6rem; }
+.pageTitle { margin: 0 0 0.35rem; font-size: 1.6rem; }
+.pageSub { margin: 0 0 1.2rem; color: var(--muted); }
 .titleRow { display: flex; align-items: center; gap: 0.9rem; margin-bottom: 0.6rem; flex-wrap: wrap; .pageTitle { margin: 0; } }
 
 // Course list

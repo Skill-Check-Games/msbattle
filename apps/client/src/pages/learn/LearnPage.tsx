@@ -50,6 +50,7 @@ function CourseList({ p, onEnter }: { p: Progress; onEnter: (id: string) => void
 	return (
 		<section>
 			<h1 className={styles.pageTitle}>Learn</h1>
+			<p className={styles.pageSub}>Learn to play, step by step.</p>
 			<div className={styles.courses}>
 				{LEARN_COURSES.map(c => {
 					const prog = courseProgress(p, c.id), done = courseDone(p, c.id);

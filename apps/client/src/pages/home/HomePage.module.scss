@@ -12,7 +12,7 @@
 .flagEmpty { font-size: 1.4rem; color: var(--muted); }
 .avatarSkel { display: block; width: 62px; height: 62px; border-radius: 50%; }
 .youMain { position: relative; flex: 1 1 auto; min-width: 0; display: flex; align-items: center; padding: 0.4rem 1rem; }
-.youText { min-width: 0; display: flex; flex-direction: column; gap: 0.15rem; }
+.youText { min-width: 0; display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
 .nameRow { display: flex; align-items: center; min-width: 0; margin-left: calc(-0.45rem - 1px); }
 .name {
 	font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; letter-spacing: -0.01em;

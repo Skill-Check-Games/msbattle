@@ -17,6 +17,7 @@ import { ResultPanel, ResultHeader, ResultDetail, ResultFoot, ResultActions } fr
 import { formatDailyDate } from "../home/home-data";
 import BoardLogic from "core/src/common/BoardLogic.js";
 import { useInGameBody } from "../play/mobile";
+import { FullscreenButton } from "../play/hud";
 import styles from "./PuzzlePage.module.scss";
 
 export type PuzzleMode = "rated" | "streak" | "storm" | "daily";
@@ -136,7 +137,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 		<section className={styles.page}>
 			<div className={styles.header}>
 				<button className="btn btn-ghost" onClick={exit}>← Exit game</button>
-				<span className={styles.title}>{TITLES[mode]}</span>
+				<span className={styles.title}>{TITLES[mode]} <FullscreenButton /></span>
 			</div>
 			{!account ? <p className={styles.empty}>Sign in to play. Your score is tied to your account.</p> : !p && status ? <p className={styles.empty}>{status}</p> : (
 				<div className={styles.grid}>
