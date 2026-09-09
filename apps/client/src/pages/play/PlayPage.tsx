@@ -29,8 +29,6 @@ export default function PlayPage() {
 	const [, tick] = useState(0);
 	useEffect(() => { if (!s.frozenUntil) return; const h = setInterval(() => tick(n => n + 1), 100); return () => clearInterval(h); }, [s.frozenUntil]);
 
-	if (!s.inRoom && !s.search) return <Navigate to="/" replace />;
-
 	const duo = match.isDuo(), multi = match.isMulti(), battle = match.battleActive() && (duo || multi);
 	const room = s.room;
 	const planningLobby = !!room && room.phase === "planning" && !battle && !room.ranked && (room.gameMode || "race") === "race";
@@ -51,6 +49,9 @@ export default function PlayPage() {
 		else frames.filter(f => f && f.finished).sort((a, b) => (a.finishedAt || 0) - (b.finishedAt || 0)).forEach((f, i) => { out[f.id] = i + 1; });
 		return out;
 	}, [frames, s.roundResult]);
+
+	// After every hook: leaving a match unmounts the room state, and the redirect must not change hook order.
+	if (!s.inRoom && !s.search) return <Navigate to="/" replace />;
 
 	const exit = () => {
 		if (s.search) { match.cancelSearch(); navigate("/"); return; }
