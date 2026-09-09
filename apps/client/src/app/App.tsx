@@ -10,16 +10,19 @@ import PuzzlePage from "../pages/puzzles/PuzzlePage";
 import LeaderboardPage from "../pages/leaderboard/LeaderboardPage";
 import SettingsPage from "../pages/settings/SettingsPage";
 import { PrivacyPage, TermsPage } from "../pages/legal/LegalPages";
+import ProfilePage from "../pages/profile/ProfilePage";
+import { Toasts, useAchievementUnlocks } from "./Toasts";
 import Placeholder from "../pages/Placeholder";
 import styles from "./App.module.scss";
 
 // Routes not ported yet render a placeholder so links work and the smoke test can visit them.
 const PENDING: Array<[string, string]> = [
 	["/learn", "Learn"], ["/custom", "Custom rooms"],
-	["/profile", "Profile"], ["/shop", "Shop"], ["/replay", "Replay"], ["/admin", "Admin"]
+	["/shop", "Shop"], ["/replay", "Replay"], ["/admin", "Admin"]
 ];
 
 export default function App() {
+	useAchievementUnlocks();
 	return (
 		<div className={styles.shell}>
 			<NavBar />
@@ -34,6 +37,7 @@ export default function App() {
 					<Route path="/puzzles/storm" element={<PuzzlePage mode="storm" />} />
 					<Route path="/puzzles/daily" element={<PuzzlePage mode="daily" />} />
 					<Route path="/leaderboard" element={<LeaderboardPage />} />
+					<Route path="/profile" element={<ProfilePage />} />
 					<Route path="/settings" element={<SettingsPage />} />
 					<Route path="/privacy" element={<PrivacyPage />} />
 					<Route path="/terms" element={<TermsPage />} />
@@ -42,6 +46,7 @@ export default function App() {
 				</Routes>
 			</main>
 			<Footer />
+			<Toasts />
 		</div>
 	);
 }
