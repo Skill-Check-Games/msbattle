@@ -68,3 +68,49 @@
 .overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 4rem; border-radius: 4px; pointer-events: none; z-index: 4; }
 .frozen { color: #fde68a; font-size: 4.5rem; background: rgba(239, 68, 68, 0.25); }
 .cleared { color: var(--success); font-size: 1.6rem; background: rgba(34, 197, 94, 0.2); padding: 1rem; text-align: center; }
+
+// ---- phones: portrait ----
+.strip { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 0.6rem; align-items: center; margin-bottom: 0.7rem; padding: 0.5rem 0.65rem; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); }
+.stripSide { min-width: 0; --side: var(--duel-you); }
+.stripOpp { --side: var(--duel-opp); }
+.stripHead { display: flex; justify-content: space-between; gap: 0.4rem; font-size: 0.78rem; font-weight: 600; b { font-variant-numeric: tabular-nums; color: var(--side); } }
+.stripName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stripBar { height: 5px; margin-top: 0.3rem; border-radius: 3px; background: rgba(255, 255, 255, 0.08); overflow: hidden; span { display: block; height: 100%; background: var(--side); transition: width 0.3s ease; } }
+.stripTimer { font-family: var(--font-display); font-weight: 800; font-size: 1rem; min-width: 4.5ch; text-align: center; font-variant-numeric: tabular-nums; }
+.actionBar { display: none; }
+.navBtn, .modeBtn { border: 1px solid var(--border); background: var(--surface-2); border-radius: 6px; font-weight: 700; padding: 0.6rem 0.4rem; }
+.navBtn { flex: 0 0 44px; font-size: 1.3rem; line-height: 1; }
+.modeBtn { flex: 1 1 0; }
+.modeActive { border-color: var(--accent); color: var(--accent-hover); background: rgba(99, 102, 241, 0.14); }
+.portrait {
+	.header { margin-bottom: 0.6rem; gap: 0.5rem; }
+	.timerBadge { padding: 0.25rem 0.6rem; }
+	.timerBadge, .timerMode { display: none; }
+	.duelGrid { display: block; }
+	.center, .arenaOpp, .side, .tools { display: none; }
+	.arena { padding: 0.6rem; box-shadow: none; }
+	.boardCard { padding: 0.5rem; width: 100%; }
+	.boardWrap { justify-content: flex-start; }
+	.actionBar { display: flex; gap: 0.5rem; position: sticky; bottom: 0; z-index: 5; margin-top: 0.7rem; padding: 0.5rem 0 calc(0.5rem + env(safe-area-inset-bottom, 0px)); background: var(--bg); }
+}
+
+// ---- phones: landscape (a dedicated three-column layout, board centred and pannable) ----
+.landscape {
+	display: grid; grid-template-columns: 150px minmax(0, 1fr) 150px; grid-template-rows: minmax(0, 1fr); gap: 0.6rem;
+	height: 100dvh; padding: 0.5rem calc(0.5rem + env(safe-area-inset-right, 0px)) 0.5rem calc(0.5rem + env(safe-area-inset-left, 0px)); overflow: hidden; animation: none;
+	.lsPanel { position: relative; display: flex; flex-direction: column; align-items: center; gap: 0.6rem; padding: 2rem 0.5rem 0.6rem; border-radius: 10px; background: var(--surface); border: 1px solid var(--side); min-height: 0; overflow: hidden; }
+	.lsYou { --side: var(--duel-you); }
+	.lsOpp { --side: var(--duel-opp); }
+	.lsBack { position: absolute; top: 0.4rem; left: 0.4rem; width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface-2); font-size: 1rem; line-height: 1; padding: 0; }
+	.lsTimer { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; }
+	.timerMode { min-width: 0; }
+	// Grid rows give the board row a definite height, so the board's scroller can be capped to it.
+	.lsCenter { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 0.4rem; min-height: 0; min-width: 0; padding-top: 1rem; }
+	.lsBoardWrap { overflow: hidden; display: flex; justify-content: center; align-items: stretch; min-height: 0;
+		> :first-child { display: flex; flex-direction: column; max-width: 100%; height: 100%; }
+		> :first-child > div:first-child { flex: 1 1 auto; min-height: 0; overflow: auto; } }
+	.lsOppBoard { width: 100%; display: flex; justify-content: center; canvas { max-height: 120px; } }
+	.lsWaiting { display: flex; align-items: center; gap: 0.4rem; font-size: 0.75rem; color: var(--muted); text-align: center; }
+	.actionBar { display: flex; gap: 0.5rem; flex: 0 0 auto; }
+	.searchStatus { font-size: 0.8rem; }
+}

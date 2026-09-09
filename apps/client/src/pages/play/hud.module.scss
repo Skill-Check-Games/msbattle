@@ -28,3 +28,9 @@
 .place1 { color: var(--energy-gold); }
 .place2 { color: #e2e8f0; }
 .place3 { color: #f0b486; }
+
+// Landscape-phone side panels: avatar on top, name and tier centred beneath (both sides alike).
+.vertical.id, .vertical.opp.id { flex-direction: column; text-align: center; gap: 0.4rem; }
+.vertical .idInfo, .vertical.opp .idInfo { align-items: center; }
+.vertical.opp .idTier { flex-direction: row; }
+.vertical .idName { font-size: 1rem; max-width: 100%; }

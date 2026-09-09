@@ -15,6 +15,7 @@ import { SeriesResultModal } from "./ResultModals";
 import { AvatarChip, FlagChip } from "../../shared/Avatar";
 import { tierFor } from "../../shared/ranking";
 import { useAuth } from "../../shared/auth";
+import { useMediaQuery, useInGameBody, MobileStrip, ActionBar, PORTRAIT_MQ, LANDSCAPE_PHONE_MQ } from "./mobile";
 import styles from "./PlayPage.module.scss";
 
 export default function PlayPage() {
@@ -27,6 +28,8 @@ export default function PlayPage() {
 	const boardHostRef = useRef<HTMLDivElement>(null);
 	const timer = useRoundTimer(s.roundDeadline);
 	const [, tick] = useState(0);
+	const portrait = useMediaQuery(PORTRAIT_MQ), landscape = useMediaQuery(LANDSCAPE_PHONE_MQ);
+	useInGameBody();
 	useEffect(() => { if (!s.frozenUntil) return; const h = setInterval(() => tick(n => n + 1), 100); return () => clearInterval(h); }, [s.frozenUntil]);
 
 	const duo = match.isDuo(), multi = match.isMulti(), battle = match.battleActive() && (duo || multi);
@@ -34,7 +37,8 @@ export default function PlayPage() {
 	const planningLobby = !!room && room.phase === "planning" && !battle && !room.ranked && (room.gameMode || "race") === "race";
 	const rows = session.rows, cols = session.cols;
 	// 1v1: the board fits its own arena (padding 2 x 1rem + border); otherwise the board card (1.25rem padding).
-	const cellPx = useCellPx(boardHostRef, { rows, cols, maxCell: duo ? 100 : 54, chrome: duo ? 34 : 42 });
+	// Landscape phones: a 40px floor keeps cells tappable; the board pans inside its own scroller.
+	const cellPx = useCellPx(boardHostRef, { rows, cols, maxCell: duo ? 100 : 54, chrome: landscape ? 0 : duo ? 34 : 42, minCell: landscape ? 40 : undefined, bottomGap: landscape ? 64 : undefined });
 	const me = match.me(), opps = match.opponents();
 	const frames = s.frames || [];
 	const myFrame = frames[0] || null;
@@ -68,8 +72,39 @@ export default function PlayPage() {
 		<GameBoard session={session} cellPx={cellPx} flagMode={() => flagRef.current} className={styles.board}>{boardOverlays}</GameBoard>
 	);
 
+	const actionBar = <ActionBar flagMode={flagMode} setFlagMode={setFlagMode} session={session} />;
+
+	if (landscape && battle && !planningLobby) {
+		const opp = opps[0] || null;
+		return (
+			<section className={`${styles.view} ${styles.landscape} ${duo ? styles.duo : styles.multi}`}>
+				<div className={`${styles.lsPanel} ${styles.lsYou}`}>
+					<button className={styles.lsBack} onClick={exit} aria-label="Exit game">←</button>
+					<DuelIdentity player={me || (account ? { id: "", name: account.name, avatar: account.avatarColor, country: account.country, rating: undefined } as any : null)} side="you" vertical />
+					<div className={styles.lsTimer}><div className={`${styles.duelTimer} ${timer.cls}`}>{timer.text}</div><div className={styles.timerMode}>{modeLine}</div></div>
+					{s.search && <span className={styles.searchStatus}><span className={styles.spinner} />{s.search.members.length}/{s.search.size}</span>}
+				</div>
+				<div className={styles.lsCenter} ref={boardHostRef}>
+					<ProgressBar frame={myFrame} side="you" />
+					<div className={`${styles.boardWrap} ${styles.lsBoardWrap}`}>{board}<PlaceStamp place={me ? placeOf[me.id] : null} /></div>
+					{actionBar}
+				</div>
+				<div className={`${styles.lsPanel} ${styles.lsOpp} ${duo && !opp ? styles.searching : ""}`}>
+					{duo ? (
+						<>
+							<DuelIdentity player={opp || (s.search ? { id: "", name: "Searching…", avatar: "anon", country: null } as any : null)} side="opp" vertical />
+							{opp ? <ProgressBar frame={frameOf(opp)} side="opp" /> : <div className={styles.lsWaiting}><span className={styles.spinner} />Waiting for a challenger…</div>}
+							{opp && <div className={styles.lsOppBoard}><OpponentBoard playerId={opp.id} skin={opp.skin || "classic"} frame={frameOf(opp)} rows={rows} cols={cols} cellPx={6} className={styles.oppCanvas} covered /></div>}
+						</>
+					) : <Scoreboard room={room} search={s.search} frames={s.frames} myId={match.myId} />}
+				</div>
+				{s.seriesResult && <SeriesResultModal result={s.seriesResult} myId={match.myId} />}
+			</section>
+		);
+	}
+
 	return (
-		<section className={`${styles.view} ${duo ? styles.duo : multi ? styles.multi : ""} ${s.mode ? styles.ranked : ""}`}>
+		<section className={`${styles.view} ${duo ? styles.duo : multi ? styles.multi : ""} ${s.mode ? styles.ranked : ""} ${portrait ? styles.portrait : ""}`}>
 			<div className={styles.header}>
 				<button className="btn btn-ghost" onClick={exit}>← Exit game</button>
 				{duo && <div className={styles.timerBadge}><div className={`${styles.duelTimer} ${timer.cls}`}>{timer.text}</div><div className={styles.timerMode}>{modeLine}</div></div>}
@@ -81,6 +116,7 @@ export default function PlayPage() {
 				</div>
 			</div>
 			{s.message && <p className={styles.message}>{s.message}</p>}
+			{portrait && duo && !planningLobby && <MobileStrip me={me} opp={opps[0] || null} myFrame={myFrame} oppFrame={opps[0] ? frameOf(opps[0]) : null} timerText={timer.text} timerCls={timer.cls} />}
 
 			{planningLobby && room ? <RoomLobby room={room} myId={match.myId} /> : duo ? (
 				<div className={styles.duelGrid}>
@@ -126,6 +162,7 @@ export default function PlayPage() {
 					</aside>
 				</div>
 			)}
+			{portrait && !planningLobby && actionBar}
 			{s.seriesResult && <SeriesResultModal result={s.seriesResult} myId={match.myId} />}
 		</section>
 	);

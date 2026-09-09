@@ -7,12 +7,13 @@ import { tierFor, ordinal } from "../../shared/ranking";
 import type { RoomPlayer, GameFrame } from "../../game/match-store";
 import styles from "./hud.module.scss";
 
-export function DuelIdentity({ player, side }: { player: RoomPlayer | null; side: "you" | "opp" }) {
-	if (!player) return <div className={`${styles.id} ${styles[side]}`} />;
+export function DuelIdentity({ player, side, vertical }: { player: RoomPlayer | null; side: "you" | "opp"; vertical?: boolean }) {
+	const cls = `${styles.id} ${styles[side]} ${vertical ? styles.vertical : ""}`;
+	if (!player) return <div className={cls} />;
 	const tier = typeof player.rating === "number" ? tierFor(player.rating, player.provisional) : null;
 	return (
-		<div className={`${styles.id} ${styles[side]}`}>
-			<AvatarChip avatar={player.avatar} country={player.country} px={52} className={styles.idAvatar} />
+		<div className={cls}>
+			<AvatarChip avatar={player.avatar} country={player.country} px={vertical ? 64 : 52} className={styles.idAvatar} />
 			<div className={styles.idInfo}>
 				<div className={styles.idName}>{player.name || "Anonymous"}<FlagChip country={player.country} px={16} /></div>
 				{tier && <div className={styles.idTier}><RankBadge rating={player.rating!} size={7} /><span style={{ color: tier.color }}>{tier.name}</span></div>}
