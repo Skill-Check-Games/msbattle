@@ -8248,8 +8248,10 @@ body.game-fullscreen .game-view:not(.puzzle):not(.solo):not(.duo):not(.multi) .g
 /* First-paint placeholder in a stat cell (before the match history lands): a small shimmer bar. */
 .dash-you-cell-skel { display: block; width: 22px; height: 8px; border-radius: 4px; }
 
-/* ── Phones: footer on one row, Discord first — the achtung-royale treatment ─────────── */
-@media (max-width: 700px) {
+/* ── Phones (portrait ≤700px, and landscape phones): footer on one row, Discord first — the
+   achtung-royale treatment. The landscape leg is the same phone-landscape query the duel/puzzle
+   layouts use (a short, coarse-pointer viewport — a landscape phone is usually wider than 700px). */
+@media (max-width: 700px), ((orientation: landscape) and (max-height: 500px) and (pointer: coarse)) {
 	.site-footer { flex-direction: row; justify-content: center; gap: 0.9rem; padding: 0.5rem 0.9rem; padding-left: max(0.9rem, env(safe-area-inset-left)); padding-right: max(0.9rem, env(safe-area-inset-right)); }
 	.site-footer-social { padding-top: 0; }
 	.site-footer-social-link svg { width: 22px; height: 22px; }
