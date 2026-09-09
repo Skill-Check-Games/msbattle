@@ -108,8 +108,11 @@ var DPR = Math.min(2, window.devicePixelRatio || 1);
 var REVEAL_DUR = 230;
 var FLAG_DUR = 260;
 var MINE_DUR = 460;
-var STAGGER_MS = 13;     // per unit of distance from the reveal origin
-var STAGGER_CAP = 340;   // max ripple delay so big floods stay snappy
+// Reveal wave: cells open in rings of flood distance from the clicked tile (Animations.js
+// revealWaveDepths), one ring per WAVE_STEP_MS. A very deep flood compresses the step so the whole
+// wave still lands within WAVE_MAX_MS; nothing is cut off early, the far rings just come sooner.
+var WAVE_STEP_MS = 45;
+var WAVE_MAX_MS = 900;
 // A cell that just reverted to plain covered — an unflag, or the server correcting a locally-
 // mispredicted flag — has no animation to play, but still needs a cellAnims entry (see
 // queueRevealAnimations/placeFlag in Input.js) so the RAF loop's own snapshot-before-prune picks

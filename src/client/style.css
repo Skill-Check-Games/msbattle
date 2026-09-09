@@ -8330,3 +8330,16 @@ body.game-fullscreen .game-view:not(.puzzle):not(.solo):not(.duo):not(.multi) .g
 	.shop-title-row { margin-bottom: 0.2rem; }
 	.shop-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap-tight, 0.55rem); }
 }
+/* Customize lab on narrow phones (330 to 360px): the dialog gives up most of its padding, the
+   tabs go a size down, and the tile blurbs are dropped (three-line wraps at 130px tile width). */
+@media (max-width: 360px) {
+	.cr-modal:has(.customize-lab-dialog) { padding: 0.5rem; }
+	.cr-dialog.customize-lab-dialog { padding: 0.85rem 0.7rem 0.8rem; max-height: calc(100dvh - 1rem); }
+	.customize-lab-dialog .cr-close { top: 0.6rem; right: 0.6rem; }
+	.customize-lab-dialog .cr-dialog-head { padding-right: 2.4rem; }
+	.lab-tab { font-size: 0.78rem; padding-left: 0.2rem; padding-right: 0.2rem; }
+	.lab-right-sub { font-size: 0.8rem; margin-bottom: 0.7rem; }
+	.lab-grid .skin-blurb { display: none; }
+	.lab-grid .shop-tile-body { padding-top: 0.45rem; padding-bottom: 0.55rem; }
+	.lab-left { padding: 0.7rem; }
+}

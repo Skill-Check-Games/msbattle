@@ -524,7 +524,7 @@ function renderPublicProfileData(profile) {
 // layout (never faked), so the board reads as authentic rather than a mockup of one. Reveals are
 // driven through the exact production canvas code (BoardView + drawRevealLid via
 // view.forceRevealEffect), staggered by BFS distance the same way a live cascade is
-// (STAGGER_MS/STAGGER_CAP), so what plays here is really what plays in a real match.
+// (WAVE_STEP_MS/WAVE_MAX_MS), so what plays here is really what plays in a real match.
 // opts: rows, cols, mines [[r,c],...], openAt [r,c] (the cell whose flood becomes the board's
 // resting "opening" state), cellPx, effectId, interactive (attach click-to-reveal; default true).
 // Purely decorative — the main preview board doesn't use this at all any more (it plays real
@@ -564,7 +564,7 @@ function buildRevealDemoBoard(opts) {
 	function loop() {
 		var now = performance.now(), stillAnimating = false;
 		for (var key in anims) {
-			if (now - anims[key].start < REVEAL_DUR + STAGGER_CAP) stillAnimating = true;
+			if (now - anims[key].start < REVEAL_DUR + WAVE_MAX_MS) stillAnimating = true;
 			else delete anims[key];
 		}
 		bv.draw();
@@ -605,7 +605,7 @@ function buildRevealDemoBoard(opts) {
 			var r = p[0], c = p[1];
 			if (state[r][c] !== UNKNOWN) return;
 			state[r][c] = KNOWN;
-			anims[r + "," + c] = { start: startedAt + i * STAGGER_MS * 3 };
+			anims[r + "," + c] = { start: startedAt + i * WAVE_STEP_MS };
 		});
 		stopLoop();
 		loop();
@@ -664,6 +664,11 @@ var LAB_DEMO_MINES = [
 ];
 var LAB_DEMO_OPEN_AT = [1, 1];
 var LAB_DEMO_CELL_PX = 38;
+// The Reveal FX demo swaps in this sparse layout and floods from the middle of a fully covered
+// board, so one wave opens nearly everything (the normal layout's cascades are small pockets: fine
+// for trying a click, useless for showing off an effect). Corner mines keep a few numbers in view.
+var LAB_FX_DEMO_MINES = [[0, 0], [7, 0], [0, 7], [7, 7]];
+var labMines = LAB_DEMO_MINES; // which layout labBoardDecoder reads; the FX demo swaps it, Reset restores it
 
 // ---- Main preview board: the REAL game engine, not a replica --------------------------------
 // Input.js/Animations.js are written against one shared set of module-level globals (myState,
@@ -683,10 +688,10 @@ var LAB_DEMO_CELL_PX = 38;
 // "decoding" side of pointing the real engine at the Lab's fixed layout.
 function labBoardDecoder(r, c) {
 	if (c >= LAB_DEMO_COLS) return 0;
-	if (LAB_DEMO_MINES.some(function(m) { return m[0] === r && m[1] === c; })) return MINE;
+	if (labMines.some(function(m) { return m[0] === r && m[1] === c; })) return MINE;
 	var n = 0;
 	BoardLogic.forEachNeighbour(r, c, LAB_DEMO_ROWS, LAB_DEMO_COLS, function(nr, nc) {
-		if (LAB_DEMO_MINES.some(function(m) { return m[0] === nr && m[1] === nc; })) n++;
+		if (labMines.some(function(m) { return m[0] === nr && m[1] === nc; })) n++;
 	});
 	return n;
 }
@@ -694,6 +699,7 @@ function labBoardDecoder(r, c) {
 // cascade uses (Input.js's own localReveal calls it the same way) — computed instantly up front
 // rather than animated, since this is just the starting picture before the player clicks anything.
 function labRestingState() {
+	var savedMines = labMines; labMines = LAB_DEMO_MINES; // the resting picture is always the normal layout
 	var s = [];
 	for (var r = 0; r < LAB_DEMO_ROWS; r++) { var row = []; for (var c = 0; c < LAB_DEMO_COLS; c++) row.push(UNKNOWN); s.push(row); }
 	BoardLogic.cascadeReveal(LAB_DEMO_OPEN_AT[0], LAB_DEMO_OPEN_AT[1], LAB_DEMO_ROWS, LAB_DEMO_COLS,
@@ -701,6 +707,7 @@ function labRestingState() {
 		function(r, c) { s[r][c] = KNOWN; return labBoardDecoder(r, c) === MINE; },
 		function(r, c) { return labBoardDecoder(r, c); }
 	);
+	labMines = savedMines;
 	return s;
 }
 
@@ -778,6 +785,7 @@ function exitLabDemoInput() {
 function resetLabDemoBoard() {
 	if (!labDemoActive) return;
 	resetBoardAnimations();
+	labMines = LAB_DEMO_MINES;
 	myState = labRestingState();
 	prevPlayerState = cloneState(myState);
 	redrawOwnBoardWithFocus();
@@ -796,29 +804,20 @@ function labOnAfterAction() {
 	btn.disabled = !dirty;
 }
 
-// Covered, non-mine cells touching the current board state — the natural next "ring" to
-// demonstrate a reveal effect on. Reads the live myState/rows/cols globals, so only meaningful
-// while labDemoActive.
-function labFrontierCells(limit) {
-	var out = [];
-	for (var r = 0; r < rows && out.length < limit; r++) {
-		for (var c = 0; c < cols && out.length < limit; c++) {
-			if (myState[r][c] !== UNKNOWN || labBoardDecoder(r, c) === MINE) continue;
-			var touches = false;
-			BoardLogic.forEachNeighbour(r, c, rows, cols, function(nr, nc) { if (myState[nr][nc] === KNOWN) touches = true; });
-			if (touches) out.push([r, c]);
-		}
-	}
-	return out;
-}
-
-// Resets the board, then reveals a handful of frontier cells through the REAL performAction
-// pipeline (Input.js) — the exact same call a real click makes — so picking a new reveal effect
-// gets a genuine multi-cell demonstration instead of a hand-rolled animation.
+// Floods a fully covered board from the middle through the REAL performAction pipeline (Input.js),
+// the exact call a real click makes, so picking a reveal effect shows one big genuine wave.
 function demonstrateLabEffect() {
 	if (!labDemoActive) return;
-	resetLabDemoBoard();
-	labFrontierCells(6).forEach(function(p) { performAction(p[0], p[1], false); });
+	resetBoardAnimations();
+	labMines = LAB_FX_DEMO_MINES;
+	myState = [];
+	for (var r = 0; r < LAB_DEMO_ROWS; r++) { var row = []; for (var c = 0; c < LAB_DEMO_COLS; c++) row.push(UNKNOWN); myState.push(row); }
+	prevPlayerState = cloneState(myState);
+	redrawOwnBoardWithFocus();
+	// One real click in the middle: the flood opens nearly the whole board in a wave from that tile.
+	performAction(Math.floor(LAB_DEMO_ROWS / 2), Math.floor(LAB_DEMO_COLS / 2), false);
+	labOnAfterAction();
+	if (window.innerWidth <= 860) { var lp = document.querySelector(".lab-left"); if (lp && lp.scrollIntoView) lp.scrollIntoView({ behavior: "smooth", block: "start" }); }
 }
 
 // A tiny demo board for one reveal-effect card's own thumbnail — no mines at all, so triggering it
@@ -835,7 +834,7 @@ function buildRevealEffectCardDemo(effectId) {
 var LAB_TABS = [
 	{ id: "avatar", label: "Avatar" },
 	{ id: "skin", label: "Board" },
-	{ id: "revealEffect", label: "Reveal FX" }
+	{ id: "revealEffect", label: "Effects" }
 ];
 var labTab = "avatar";       // remembered across opens within the session
 var labReplayTimers = [];    // periodic auto-replay intervals for the active reveal-effect card

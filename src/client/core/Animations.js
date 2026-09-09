@@ -969,6 +969,30 @@ function paintOpponentRevealFrame() {
 // RAF loop this kicks off (startAnimLoop) to actually repaint — nothing here calls
 // renderPlayerBoard directly, and nothing needs to: every diff is now represented in cellAnims one
 // way or another, so the loop's own snapshot-before-prune (see its comment) always catches it.
+// Wave order for a batch of newly revealed cells: breadth-first through the revealed set from the
+// clicked tile, so the animation spreads outward the way the flood itself did, around numbers and
+// mines, instead of by straight-line distance (which fires cells behind an obstacle too early).
+// A chord's origin is the number itself (not revealed this frame), so its revealed neighbours start
+// at depth 1. Cells the flood can't reach (a separate region opened in the same frame) fall back to
+// straight-line distance.
+function revealWaveDepths(revealed, origin) {
+	var inSet = {}, depth = {}, queue = [];
+	for (var i = 0; i < revealed.length; i++) inSet[revealed[i][0] + "," + revealed[i][1]] = true;
+	var or = Math.round(origin.r), oc = Math.round(origin.c), oKey = or + "," + oc;
+	function visit(nr, nc, d) { var k = nr + "," + nc; if (inSet[k] && depth[k] === undefined) { depth[k] = d; queue.push([nr, nc]); } }
+	if (inSet[oKey]) visit(or, oc, 0);
+	else BoardLogic.forEachNeighbour(or, oc, rows, cols, function(nr, nc) { visit(nr, nc, 1); });
+	for (var qi = 0; qi < queue.length; qi++) {
+		var cur = queue[qi], d0 = depth[cur[0] + "," + cur[1]];
+		BoardLogic.forEachNeighbour(cur[0], cur[1], rows, cols, function(nr, nc) { visit(nr, nc, d0 + 1); });
+	}
+	for (var j = 0; j < revealed.length; j++) {
+		var k2 = revealed[j][0] + "," + revealed[j][1];
+		if (depth[k2] === undefined) depth[k2] = Math.round(Math.hypot(revealed[j][0] - origin.r, revealed[j][1] - origin.c));
+	}
+	return depth;
+}
+
 function queueRevealAnimations(newState) {
 	var now = performance.now();
 	var revealed = [];
@@ -1002,10 +1026,12 @@ function queueRevealAnimations(newState) {
 			for (var i = 0; i < revealed.length; i++) { sr += revealed[i][0]; sc += revealed[i][1]; }
 			origin = { r: sr / revealed.length, c: sc / revealed.length };
 		}
+		var depths = revealWaveDepths(revealed, origin), maxDepth = 0;
+		for (var di in depths) if (depths[di] > maxDepth) maxDepth = depths[di];
+		var step = maxDepth > 0 ? Math.min(WAVE_STEP_MS, WAVE_MAX_MS / maxDepth) : WAVE_STEP_MS;
 		for (var j = 0; j < revealed.length; j++) {
 			var rr = revealed[j][0], cc = revealed[j][1];
-			var d = Math.hypot(rr - origin.r, cc - origin.c);
-			var delay = Math.min(d * STAGGER_MS, STAGGER_CAP);
+			var delay = depths[rr + "," + cc] * step;
 			var isMine = boardCell(rr, cc) === MINE;
 			if (isMine) hitMine = true; else safeRevealed++;
 			cellAnims[rr + "," + cc] = { type: isMine ? "mine" : "reveal", start: now + delay };
