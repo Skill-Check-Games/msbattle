@@ -25,7 +25,7 @@ var fakeShopMode = false;
 // under the category header, same spot the top-level page subtitle used to carry its one static
 // line before there was more than one section to caption individually.
 var SHOP_CATEGORIES = [
-	{ kind: "avatar", label: "Avatars", tagline: "Doesn't change your hitbox — there is no hitbox." },
+	{ kind: "avatar", label: "Avatars", tagline: "Doesn't change your hitbox. There is no hitbox." },
 	{ kind: "skin", label: "Board Skins", tagline: "Reskins the tiles. The mines don't move, promise." },
 	{ kind: "revealEffect", label: "Reveal Effects", tagline: "How your own cascade looks as it opens. Only you ever see it." }
 ];

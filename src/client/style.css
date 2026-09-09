@@ -8314,3 +8314,23 @@ body.game-fullscreen .game-view:not(.puzzle):not(.solo):not(.duo):not(.multi) .g
 /* Customize lab: "Buy <item>" under the preview board while a locked cosmetic is being previewed. */
 .lab-buy-btn { width: 100%; max-width: 260px; margin-top: 0.5rem; }
 .lab-buy-btn[hidden] { display: none; }
+
+/* Shop on phones (same breakpoint as the in-game mobile layout). The category card stops being a
+   box (page > card > tile was three nested frames on a 390px screen), its heading goes (the active
+   tab already names the category), and the tiles go two-up on the home page's tight gap. */
+@media (max-width: 700px) {
+	.shop-tabs { gap: 1.1rem; margin-top: 1rem; }
+	.shop-category-card { background: none; border: 0; border-radius: 0; padding: 0; margin-top: 0.9rem; }
+	.shop-category-head { display: none; }
+	.shop-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap-tight, 0.55rem); }
+	.shop-tile-head { padding: 0.6rem 0.65rem 0; }
+	.shop-tile-name { font-size: 0.8rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+	.shop-tile-preview { min-height: 64px; margin: 0.5rem 0.65rem 0; padding: 0.5rem; }
+	.shop-tile-body { padding: 0.55rem 0.65rem 0.65rem; gap: 0.4rem; }
+	.shop-tile-btn.btn, .shop-tile-owned { font-size: 0.78rem; padding: 0.4rem 0.4rem; }
+}
+/* Narrow phones (330 to 360px): the three tab labels only fit their row a size down. */
+@media (max-width: 360px) {
+	.shop-tabs { gap: 0.8rem; }
+	.shop-tab { font-size: 0.74rem; letter-spacing: 0.02em; }
+}
