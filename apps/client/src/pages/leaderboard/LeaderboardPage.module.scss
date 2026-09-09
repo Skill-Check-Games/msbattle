@@ -1,0 +1,17 @@
+.title { margin: 0 0 0.25rem; font-size: 1.6rem; }
+.sub { margin: 0 0 1rem; color: var(--muted); }
+.tabs { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0 0 1rem; }
+.tab { padding: 0.4rem 0.95rem; border-radius: 999px; background: var(--surface); border: 1px solid var(--border); color: var(--muted); font-size: 0.88rem; font-weight: 600; transition: color 0.15s, background 0.15s, border-color 0.15s; &:hover { color: var(--text); } }
+.active { background: var(--accent); border-color: var(--accent); color: #fff; &:hover { color: #fff; } }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 1.25rem 1.4rem; }
+.empty { color: var(--muted); padding: 0.5rem 0; }
+.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.3rem; }
+.row { display: grid; grid-template-columns: 1.75rem auto 1fr auto; align-items: center; gap: 0.7rem; padding: 0.4rem 0.7rem; border-radius: 5px; border: 1px solid transparent; }
+.me { background: rgba(99, 102, 241, 0.12); border-color: rgba(99, 102, 241, 0.3); }
+.linked { cursor: pointer; transition: border-color 0.12s ease; &:hover, &:focus-visible { border-color: var(--accent); outline: none; } }
+.rank { color: var(--muted); font-size: 0.85rem; text-align: right; font-family: var(--font-display); font-variant-numeric: tabular-nums; }
+.avatar :global(canvas) { border-radius: 6px; }
+.id { display: flex; flex-direction: column; justify-content: center; gap: 0.05rem; min-width: 0; line-height: 1.2; }
+.name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-flex; align-items: center; gap: 0.4rem; }
+.tier { font-size: 0.78rem; font-weight: 700; }
+.rating { font-family: var(--font-display); font-weight: 800; font-size: 1.05rem; font-variant-numeric: tabular-nums; min-width: 3.5ch; text-align: right; }

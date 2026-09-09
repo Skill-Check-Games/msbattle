@@ -1,0 +1,21 @@
+.title { margin: 0 0 1rem; font-size: 1.6rem; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 1.25rem 1.4rem; & + & { margin-top: 1.25rem; } }
+.cardTitle { margin: 0 0 0.6rem; font-size: 1.05rem; }
+.note { margin: 0 0 0.9rem; color: var(--muted); font-size: 0.88rem; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.7rem 0; & + & { border-top: 1px solid var(--border); } }
+.rowText { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+.rowLabel { font-weight: 600; }
+.rowNote { color: var(--muted); font-size: 0.82rem; }
+.toggle {
+	position: relative; flex: 0 0 auto; width: 44px; height: 24px; border-radius: 999px; padding: 0;
+	background: var(--surface-2); border: 1px solid var(--border); transition: background var(--motion-micro), border-color var(--motion-micro);
+	&::after { content: ""; position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: var(--muted); transition: transform var(--motion-standard) var(--ease), background var(--motion-micro); }
+}
+.on { background: var(--accent); border-color: var(--accent); &::after { transform: translateX(20px); background: #fff; } }
+.slider { width: 180px; accent-color: var(--accent); }
+.keys { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 1rem; }
+.keyRow { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.45rem 0.6rem; border-radius: 5px; background: rgba(255, 255, 255, 0.03); }
+.keyLabel { font-size: 0.92rem; }
+.key { min-width: 5.5rem; padding: 0.35rem 0.7rem; border-radius: 5px; border: 1px solid var(--border); background: var(--surface-2); font-family: var(--font-display); font-weight: 700; &:hover { border-color: var(--muted); } }
+.capturing { border-color: var(--accent); color: var(--accent-hover); }
+.unbound { border-style: dashed; border-color: var(--danger); color: var(--muted); }

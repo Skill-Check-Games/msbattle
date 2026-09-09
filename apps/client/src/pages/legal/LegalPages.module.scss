@@ -1,0 +1,10 @@
+.legal {
+	max-width: 68ch; margin: 0 auto; line-height: 1.6;
+	h1 { font-size: 1.8rem; margin: 0 0 0.25rem; }
+	h2 { font-size: 1.1rem; margin: 1.6rem 0 0.4rem; }
+	p, li { color: var(--text); }
+	ul { padding-left: 1.2rem; }
+	li + li { margin-top: 0.35rem; }
+	a { color: var(--accent-hover); }
+}
+.updated { color: var(--muted); font-size: 0.85rem; margin: 0 0 1.2rem; }

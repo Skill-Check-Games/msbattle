@@ -7,14 +7,16 @@ import HomePage from "../pages/home/HomePage";
 import SoloPage from "../pages/solo/SoloPage";
 import PlayPage from "../pages/play/PlayPage";
 import PuzzlePage from "../pages/puzzles/PuzzlePage";
+import LeaderboardPage from "../pages/leaderboard/LeaderboardPage";
+import SettingsPage from "../pages/settings/SettingsPage";
+import { PrivacyPage, TermsPage } from "../pages/legal/LegalPages";
 import Placeholder from "../pages/Placeholder";
 import styles from "./App.module.scss";
 
 // Routes not ported yet render a placeholder so links work and the smoke test can visit them.
 const PENDING: Array<[string, string]> = [
 	["/learn", "Learn"], ["/custom", "Custom rooms"],
-	["/leaderboard", "Leaderboard"], ["/profile", "Profile"], ["/settings", "Settings"], ["/shop", "Shop"],
-	["/replay", "Replay"], ["/privacy", "Privacy Policy"], ["/terms", "Terms of Service"], ["/admin", "Admin"]
+	["/profile", "Profile"], ["/shop", "Shop"], ["/replay", "Replay"], ["/admin", "Admin"]
 ];
 
 export default function App() {
@@ -31,6 +33,10 @@ export default function App() {
 					<Route path="/puzzles/streak" element={<PuzzlePage mode="streak" />} />
 					<Route path="/puzzles/storm" element={<PuzzlePage mode="storm" />} />
 					<Route path="/puzzles/daily" element={<PuzzlePage mode="daily" />} />
+					<Route path="/leaderboard" element={<LeaderboardPage />} />
+					<Route path="/settings" element={<SettingsPage />} />
+					<Route path="/privacy" element={<PrivacyPage />} />
+					<Route path="/terms" element={<TermsPage />} />
 					{PENDING.map(([path, title]) => <Route key={path} path={path} element={<Placeholder title={title} />} />)}
 					<Route path="*" element={<Placeholder title="Not found" />} />
 				</Routes>
