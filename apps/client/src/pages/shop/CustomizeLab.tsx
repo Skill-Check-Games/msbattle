@@ -100,17 +100,17 @@ export default function CustomizeLab({ host, tab: tabProp, onTabChange }: { host
 				{status && <div className={`${styles.status} ${status.kind === "success" ? styles.statusOk : styles.statusErr}`}>{status.text}</div>}
 				{tab === "avatar" && (
 					<Panel title="Choose Avatar" sub="Opponents see this next to your name in every match.">
-						<Grid kind="avatar" ids={avatarValues} owned={owned} activeId={preview.avatar || account?.avatarColor || DEFAULT_AVATAR} labelOf={avatarLabel} blurbOf={(id) => AVATAR_BLURBS[id] || "The default flag colour."} preview={(id) => <CanvasHolder build={() => buildAvatarCanvas(id, 96)} />} onSelect={pickAvatar} onPreviewLocked={(id, item) => previewLocked("avatar", id, item)} />
+						<Grid kind="avatar" ids={avatarValues} owned={owned} currentId={account?.avatarColor || DEFAULT_AVATAR} previewId={preview.avatar} labelOf={avatarLabel} blurbOf={(id) => AVATAR_BLURBS[id] || "The default flag colour."} preview={(id) => <CanvasHolder build={() => buildAvatarCanvas(id, 96)} />} onSelect={pickAvatar} onPreviewLocked={(id, item) => previewLocked("avatar", id, item)} />
 					</Panel>
 				)}
 				{tab === "skin" && (
 					<Panel title="Choose Board Skin" sub="How your board looks, to you and to opponents.">
-						<Grid kind="skin" ids={BOARD_SKIN_LIST} owned={owned} activeId={preview.skin || localBoardSkin} labelOf={(id) => BOARD_SKINS[id].label} blurbOf={(id) => BOARD_SKINS[id].blurb} preview={(id) => <SkinPreview id={id} cellPx={34} />} onSelect={pickSkin} onPreviewLocked={(id, item) => previewLocked("skin", id, item)} />
+						<Grid kind="skin" ids={BOARD_SKIN_LIST} owned={owned} currentId={localBoardSkin} previewId={preview.skin} labelOf={(id) => BOARD_SKINS[id].label} blurbOf={(id) => BOARD_SKINS[id].blurb} preview={(id) => <SkinPreview id={id} cellPx={34} />} onSelect={pickSkin} onPreviewLocked={(id, item) => previewLocked("skin", id, item)} />
 					</Panel>
 				)}
 				{tab === "revealEffect" && (
 					<Panel title="Choose Reveal Effect" sub="What happens when a tile opens. Click the preview board to play it.">
-						<div className={styles.grid}>{REVEAL_EFFECT_LIST.map(id => <EffectCard key={id} id={id} owned={owned} active={id === (preview.effect || localRevealEffect)} onSelect={pickEffect} onPreviewLocked={(item) => previewLocked("revealEffect", id, item)} />)}</div>
+						<div className={styles.grid}>{REVEAL_EFFECT_LIST.map(id => <EffectCard key={id} id={id} owned={owned} active={id === localRevealEffect} previewing={id === preview.effect} onSelect={pickEffect} onPreviewLocked={(item) => previewLocked("revealEffect", id, item)} />)}</div>
 					</Panel>
 				)}
 				</div>
@@ -120,7 +120,7 @@ export default function CustomizeLab({ host, tab: tabProp, onTabChange }: { host
 				<div className={styles.boardFrame}><GameBoard session={session} cellPx={cellPxFor(colsRef.current)} keyboard={false} /></div>
 				<div className={styles.boardHint}>Click a tile to test the effect!</div>
 				<button type="button" className={`btn btn-ghost ${styles.reset} ${dirty ? styles.resetDirty : ""}`} disabled={!dirty} onClick={resetBoard}><span className={styles.btnIcon} aria-hidden="true">↻</span><span>Reset board</span></button>
-				{preview.last && <button type="button" className={`btn btn-primary ${styles.buy}`} onClick={() => setPurchase(preview.last)}>Buy {preview.last.label} · {priceLabel(preview.last.id)}</button>}
+				{preview.last && <button type="button" className={`btn btn-primary ${styles.buy}`} onClick={() => setPurchase(preview.last)}><span className={styles.btnIcon} aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 4h2l2.4 11.2a1 1 0 0 0 1 .8h9.6a1 1 0 0 0 1-.8L21 8H6.5" /><circle cx="9.5" cy="20" r="1.3" /><circle cx="17.5" cy="20" r="1.3" /></svg></span><span>Buy {preview.last.label} · {priceLabel(preview.last.id)}</span></button>}
 			</div>
 			{purchase && <PurchaseModal item={purchase} fake={fakeShop && fakeAllowed} onClose={() => setPurchase(null)} onBought={() => onBought(purchase)} onError={(text) => setStatus({ text, kind: "error" })} />}
 		</div>
@@ -133,17 +133,17 @@ function Panel({ title, sub, children }: { title: string; sub: string; children:
 	return <div><h3 className={styles.panelTitle}>{title}</h3><p className={styles.panelSub}>{sub}</p>{children}</div>;
 }
 
-interface GridProps { kind: Kind; ids: string[]; owned?: string[]; activeId: string; labelOf: (id: string) => string; blurbOf: (id: string) => string; preview: (id: string) => React.ReactNode; onSelect: (id: string) => void; onPreviewLocked: (id: string, item: ShopItem | null) => void; }
-function Grid({ kind, ids, owned, activeId, labelOf, blurbOf, preview, onSelect, onPreviewLocked }: GridProps) {
+interface GridProps { kind: Kind; ids: string[]; owned?: string[]; currentId: string; previewId?: string | null; labelOf: (id: string) => string; blurbOf: (id: string) => string; preview: (id: string) => React.ReactNode; onSelect: (id: string) => void; onPreviewLocked: (id: string, item: ShopItem | null) => void; }
+function Grid({ kind, ids, owned, currentId, previewId, labelOf, blurbOf, preview, onSelect, onPreviewLocked }: GridProps) {
 	const sorted = [...ids.filter(id => itemUnlocked(kind, id, owned)), ...ids.filter(id => !itemUnlocked(kind, id, owned))];
 	return (
 		<div className={styles.grid}>
 			{sorted.map(id => {
-				const unlocked = itemUnlocked(kind, id, owned), active = id === activeId, item = itemById(id);
+				const unlocked = itemUnlocked(kind, id, owned), active = id === currentId, previewing = !!previewId && id === previewId && !unlocked, item = itemById(id);
 				return (
-					<button key={id} type="button" className={`${styles.tile} ${item?.tier ? styles["tier_" + item.tier] : ""} ${active ? (unlocked ? styles.tileActive : styles.tilePreviewing) : ""} ${unlocked ? "" : styles.tileLocked}`} onClick={() => unlocked ? onSelect(id) : onPreviewLocked(id, item)}>
+					<button key={id} type="button" className={`${styles.tile} ${item?.tier ? styles["tier_" + item.tier] : ""} ${active ? styles.tileActive : ""} ${previewing ? styles.tilePreviewing : ""} ${unlocked ? "" : styles.tileLocked}`} onClick={() => unlocked ? onSelect(id) : onPreviewLocked(id, item)}>
 						<div className={styles.tilePreview}>{preview(id)}</div>
-						{!unlocked ? <><span className={styles.lock}>🔒</span><span className={styles.lockBar}>{active ? "Previewing" : "Click to preview"}</span></> : active ? <span className={`${styles.lockBar} ${styles.selectedBar}`}>Selected</span> : null}
+						{!unlocked ? <><span className={styles.lock}>🔒</span><span className={styles.lockBar}>{previewing ? "Previewing" : "Click to preview"}</span></> : <span className={`${styles.lockBar} ${styles.currentBar} ${active ? styles.selectedBar : ""}`}>Current</span>}
 						<div className={styles.tileBody}><div className={styles.tileName}>{labelOf(id)}</div><span className={styles.tileBlurb}>{blurbOf(id)}</span></div>
 					</button>
 				);
@@ -173,7 +173,7 @@ export function SkinPreview({ id, cellPx = 22 }: { id: string; cellPx?: number }
 }
 
 // One reveal-effect card with its own tiny demo board: hover plays it, the active one replays.
-function EffectCard({ id, owned, active, onSelect, onPreviewLocked }: { id: string; owned?: string[]; active: boolean; onSelect: (id: string) => void; onPreviewLocked: (item: ShopItem | null) => void }) {
+function EffectCard({ id, owned, active, previewing, onSelect, onPreviewLocked }: { id: string; owned?: string[]; active: boolean; previewing?: boolean; onSelect: (id: string) => void; onPreviewLocked: (item: ShopItem | null) => void }) {
 	const unlocked = itemUnlocked("revealEffect", id, owned), item = itemById(id);
 	const ref = useRef<HTMLCanvasElement>(null);
 	const demo = useRef<{ play: () => void; reset: () => void } | null>(null);
@@ -200,11 +200,11 @@ function EffectCard({ id, owned, active, onSelect, onPreviewLocked }: { id: stri
 	}, [id, active]);
 	const fx = Cosmetics.REVEAL_EFFECTS[id];
 	return (
-		<button type="button" className={`${styles.tile} ${item?.tier ? styles["tier_" + item.tier] : ""} ${active ? (unlocked ? styles.tileActive : styles.tilePreviewing) : ""} ${unlocked ? "" : styles.tileLocked}`}
+		<button type="button" className={`${styles.tile} ${item?.tier ? styles["tier_" + item.tier] : ""} ${active && unlocked ? styles.tileActive : ""} ${previewing && !unlocked ? styles.tilePreviewing : ""} ${unlocked ? "" : styles.tileLocked}`}
 			onMouseEnter={() => demo.current?.play()} onMouseLeave={() => demo.current?.reset()}
 			onClick={() => unlocked ? onSelect(id) : onPreviewLocked(item)}>
 			<div className={styles.tilePreview}><canvas ref={ref} className={styles.fxCanvas} /></div>
-			{!unlocked ? <><span className={styles.lock}>🔒</span><span className={styles.lockBar}>{active ? "Previewing" : "Click to preview"}</span></> : active ? <span className={`${styles.lockBar} ${styles.selectedBar}`}>Selected</span> : null}
+			{!unlocked ? <><span className={styles.lock}>🔒</span><span className={styles.lockBar}>{previewing ? "Previewing" : "Click to preview"}</span></> : <span className={`${styles.lockBar} ${styles.currentBar} ${active ? styles.selectedBar : ""}`}>Current</span>}
 			<div className={styles.tileBody}><div className={styles.tileName}>{fx.label}</div><span className={styles.tileBlurb}>{fx.blurb.replace(" — ", ". ")}</span></div>
 		</button>
 	);

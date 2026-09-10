@@ -22,10 +22,12 @@
 	@include below($bp-sm) { flex-direction: row; align-items: center; gap: 0.75rem; padding: 0.5rem 0.65rem; }
 }
 // Selected tiles are green: a ring plus a full-width "Selected" bar pinned to the bottom (the tile keeps room for it).
-.tileActive { border-color: var(--success); background: rgba(34, 197, 94, 0.08); box-shadow: 0 0 0 2px var(--success), 0 10px 28px rgba(34, 197, 94, 0.2); padding-bottom: 2rem; @include below($bp-sm) { padding-bottom: 0.5rem; } }
-.selectedBar { transform: none; background: var(--success); }
+.tileActive { border-color: var(--success); }
+// The Current bar is always mounted on unlocked tiles so it slides away like the preview bars do.
+.lockBar.currentBar { background: var(--success); }
+.lockBar.selectedBar { transform: none; }
 // A locked item being previewed: the blue ring and its bar stays up, reading "Previewing".
-.tilePreviewing { opacity: 1 !important; border-color: var(--accent); background: rgba(99, 102, 241, 0.1); box-shadow: 0 0 0 2px var(--accent), 0 10px 28px rgba(99, 102, 241, 0.25); padding-bottom: 2rem; .lockBar { transform: none; } @include below($bp-sm) { padding-bottom: 0.5rem; } }
+.tilePreviewing { opacity: 1 !important; border-color: var(--accent); .lockBar { transform: none; } }
 // Locked tiles sit dimmed; hovering undims them and slides a full-width "Click to preview" bar up from the bottom.
 .tileLocked { opacity: 0.55; transition: opacity 0.15s, border-color 0.15s; &:hover { opacity: 1; .lockBar { transform: translateY(0); } } }
 .lockBar { position: absolute; left: 0; right: 0; bottom: 0; padding: 0.45rem 0.5rem; background: var(--accent); color: #fff; font-size: 0.78rem; font-weight: 700; text-align: center; transform: translateY(100%); transition: transform 0.18s ease; pointer-events: none; @include below($bp-sm) { display: none; } }
