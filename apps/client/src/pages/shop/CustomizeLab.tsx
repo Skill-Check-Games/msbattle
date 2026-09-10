@@ -141,9 +141,9 @@ function Grid({ kind, ids, owned, activeId, labelOf, blurbOf, preview, onSelect,
 			{sorted.map(id => {
 				const unlocked = itemUnlocked(kind, id, owned), active = id === activeId, item = itemById(id);
 				return (
-					<button key={id} type="button" className={`${styles.tile} ${item?.tier ? styles["tier_" + item.tier] : ""} ${active ? styles.tileActive : ""} ${unlocked ? "" : styles.tileLocked}`} onClick={() => unlocked ? onSelect(id) : onPreviewLocked(id, item)}>
+					<button key={id} type="button" className={`${styles.tile} ${item?.tier ? styles["tier_" + item.tier] : ""} ${active ? (unlocked ? styles.tileActive : styles.tilePreviewing) : ""} ${unlocked ? "" : styles.tileLocked}`} onClick={() => unlocked ? onSelect(id) : onPreviewLocked(id, item)}>
 						<div className={styles.tilePreview}>{preview(id)}</div>
-						{!unlocked ? <><span className={styles.lock}>🔒</span><span className={styles.lockBar}>Click to preview</span></> : active ? <span className={styles.check}>✓</span> : null}
+						{!unlocked ? <><span className={styles.lock}>🔒</span><span className={styles.lockBar}>{active ? "Previewing" : "Click to preview"}</span></> : active ? <span className={`${styles.lockBar} ${styles.selectedBar}`}>Selected</span> : null}
 						<div className={styles.tileBody}><div className={styles.tileName}>{labelOf(id)}</div><span className={styles.tileBlurb}>{blurbOf(id)}</span></div>
 					</button>
 				);
@@ -200,11 +200,11 @@ function EffectCard({ id, owned, active, onSelect, onPreviewLocked }: { id: stri
 	}, [id, active]);
 	const fx = Cosmetics.REVEAL_EFFECTS[id];
 	return (
-		<button type="button" className={`${styles.tile} ${item?.tier ? styles["tier_" + item.tier] : ""} ${active ? styles.tileActive : ""} ${unlocked ? "" : styles.tileLocked}`}
+		<button type="button" className={`${styles.tile} ${item?.tier ? styles["tier_" + item.tier] : ""} ${active ? (unlocked ? styles.tileActive : styles.tilePreviewing) : ""} ${unlocked ? "" : styles.tileLocked}`}
 			onMouseEnter={() => demo.current?.play()} onMouseLeave={() => demo.current?.reset()}
 			onClick={() => unlocked ? onSelect(id) : onPreviewLocked(item)}>
 			<div className={styles.tilePreview}><canvas ref={ref} className={styles.fxCanvas} /></div>
-			{!unlocked ? <><span className={styles.lock}>🔒</span><span className={styles.lockBar}>Click to preview</span></> : active ? <span className={styles.check}>✓</span> : null}
+			{!unlocked ? <><span className={styles.lock}>🔒</span><span className={styles.lockBar}>{active ? "Previewing" : "Click to preview"}</span></> : active ? <span className={`${styles.lockBar} ${styles.selectedBar}`}>Selected</span> : null}
 			<div className={styles.tileBody}><div className={styles.tileName}>{fx.label}</div><span className={styles.tileBlurb}>{fx.blurb.replace(" — ", ". ")}</span></div>
 		</button>
 	);
