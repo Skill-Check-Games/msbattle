@@ -29,8 +29,7 @@ const REVEAL_GLYPHS: Record<string, string> = { ripple: "🌊", spark: "⚡", sh
 // Demo board layout: an 8x11 (8x8 on phones) fixed layout with a mine-free opening. The Effects
 // demo swaps in a sparse corner-mine layout and floods from the middle so one wave opens it all.
 const DEMO_ROWS = 8;
-const DEMO_MINES = [[0, 5], [1, 7], [1, 9], [2, 3], [2, 8], [2, 10], [3, 0], [3, 5], [4, 2], [4, 7], [5, 4], [6, 1], [6, 6], [7, 3]];
-const FX_MINES = [[0, 0], [7, 0], [0, 7], [7, 7]];
+const DEMO_MINES = [[0, 5], [1, 7], [1, 9], [2, 3], [2, 8], [2, 10], [3, 0], [3, 5], [4, 2], [5, 4], [6, 1], [7, 3]];
 const DEMO_OPEN_AT = [1, 1];
 
 export default function CustomizeLab({ host, tab: tabProp, onTabChange }: { host: "page" | "modal"; tab?: Tab; onTabChange?: (t: Tab) => void }) {
@@ -69,17 +68,10 @@ export default function CustomizeLab({ host, tab: tabProp, onTabChange }: { host
 	useEffect(() => { session.skin = preview.skin; session.render(); }, [preview.skin]);
 
 	const resetBoard = () => { minesRef.current = DEMO_MINES; session.setBoard(DEMO_ROWS, colsRef.current, cellAt, restingState()); setDirty(false); };
-	const demonstrate = () => {
-		minesRef.current = FX_MINES;
-		session.setBoard(DEMO_ROWS, colsRef.current, cellAt, null);
-		session.performAction(Math.floor(DEMO_ROWS / 2), Math.floor(colsRef.current / 2), false);
-		setDirty(true);
-		if (window.innerWidth <= 860) document.querySelector("[data-lab-preview]")?.scrollIntoView({ behavior: "smooth", block: "start" });
-	};
 	const owned = account?.ownedItems;
 	const previewLocked = (kind: Kind, id: string, item: ShopItem | null) => {
 		setPreview(p => ({ ...p, [kind === "avatar" ? "avatar" : kind === "skin" ? "skin" : "effect"]: id, last: item }));
-		if (kind === "revealEffect") { applyRevealEffect(id); demonstrate(); }
+		if (kind === "revealEffect") applyRevealEffect(id);
 	};
 	const clearPreview = (kind: Kind) => setPreview(p => ({ ...p, [kind === "avatar" ? "avatar" : kind === "skin" ? "skin" : "effect"]: null, last: p.last && p.last.kind === kind ? null : p.last }));
 	// Leaving the lab reverts any previewed effect to the real pick (the skin preview never touched the real pick).
@@ -87,7 +79,7 @@ export default function CustomizeLab({ host, tab: tabProp, onTabChange }: { host
 
 	const pickAvatar = (id: string) => { clearPreview("avatar"); update({ avatarColor: id }); getSocket().emit("set_avatar", { color: id }); };
 	const pickSkin = (id: string) => { clearPreview("skin"); setBoardSkin(id); session.render(); };
-	const pickEffect = (id: string) => { clearPreview("revealEffect"); if (id === localRevealEffect) { demonstrate(); return; } setRevealEffect(id); demonstrate(); };
+	const pickEffect = (id: string) => { clearPreview("revealEffect"); if (id !== localRevealEffect) setRevealEffect(id); };
 
 	const onBought = (item: ShopItem) => {
 		update({ ownedItems: [...(owned || []), item.id] });
@@ -127,7 +119,7 @@ export default function CustomizeLab({ host, tab: tabProp, onTabChange }: { host
 				<div className={styles.identity}><DuelIdentity player={identity as any} side="you" /></div>
 				<div className={styles.boardFrame}><GameBoard session={session} cellPx={cellPxFor(colsRef.current)} keyboard={false} /></div>
 				<div className={styles.boardHint}>Click a tile to test the effect!</div>
-				<button type="button" className={`btn btn-ghost ${styles.reset} ${dirty ? styles.resetDirty : ""}`} disabled={!dirty} onClick={resetBoard}>↻ Reset board</button>
+				<button type="button" className={`btn btn-ghost ${styles.reset} ${dirty ? styles.resetDirty : ""}`} disabled={!dirty} onClick={resetBoard}><span className={styles.btnIcon} aria-hidden="true">↻</span><span>Reset board</span></button>
 				{preview.last && <button type="button" className={`btn btn-primary ${styles.buy}`} onClick={() => setPurchase(preview.last)}>Buy {preview.last.label} · {priceLabel(preview.last.id)}</button>}
 			</div>
 			{purchase && <PurchaseModal item={purchase} fake={fakeShop && fakeAllowed} onClose={() => setPurchase(null)} onBought={() => onBought(purchase)} onError={(text) => setStatus({ text, kind: "error" })} />}
@@ -151,7 +143,7 @@ function Grid({ kind, ids, owned, activeId, labelOf, blurbOf, preview, onSelect,
 				return (
 					<button key={id} type="button" className={`${styles.tile} ${item?.tier ? styles["tier_" + item.tier] : ""} ${active ? styles.tileActive : ""} ${unlocked ? "" : styles.tileLocked}`} onClick={() => unlocked ? onSelect(id) : onPreviewLocked(id, item)}>
 						<div className={styles.tilePreview}>{preview(id)}</div>
-						{!unlocked ? <span className={styles.lock}>🔒</span> : active ? <span className={styles.check}>✓</span> : null}
+						{!unlocked ? <><span className={styles.lock}>🔒</span><span className={styles.lockBar}>Click to preview</span></> : active ? <span className={styles.check}>✓</span> : null}
 						<div className={styles.tileBody}><div className={styles.tileName}>{labelOf(id)}</div><span className={styles.tileBlurb}>{blurbOf(id)}</span></div>
 					</button>
 				);
@@ -212,7 +204,7 @@ function EffectCard({ id, owned, active, onSelect, onPreviewLocked }: { id: stri
 			onMouseEnter={() => demo.current?.play()} onMouseLeave={() => demo.current?.reset()}
 			onClick={() => unlocked ? onSelect(id) : onPreviewLocked(item)}>
 			<div className={styles.tilePreview}><canvas ref={ref} className={styles.fxCanvas} /></div>
-			{!unlocked ? <span className={styles.lock}>🔒</span> : active ? <span className={styles.check}>✓</span> : null}
+			{!unlocked ? <><span className={styles.lock}>🔒</span><span className={styles.lockBar}>Click to preview</span></> : active ? <span className={styles.check}>✓</span> : null}
 			<div className={styles.tileBody}><div className={styles.tileName}>{fx.label}</div><span className={styles.tileBlurb}>{fx.blurb.replace(" — ", ". ")}</span></div>
 		</button>
 	);

@@ -1,4 +1,4 @@
-.page { max-width: 560px; }
+.page { max-width: 600px; margin: 0 auto; padding: 1.5rem 1.6rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
 .title { margin: 0 0 1rem; font-size: 1.6rem; }
 .list { margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: 0.4rem; li { font-size: 0.9rem; line-height: 1.5; } }
 .examples { display: flex; gap: 1rem; margin-top: 0.9rem; }

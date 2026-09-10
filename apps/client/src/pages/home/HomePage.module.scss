@@ -10,7 +10,7 @@
 // Click-to-edit avatar: brightens on hover and shows a pencil badge in the corner (as production).
 .youAvatar {
 	position: relative; cursor: pointer; transition: filter 0.12s; canvas { border-radius: 6px; }
-	&::after { content: "✎"; position: absolute; right: 4px; bottom: 4px; width: 17px; height: 17px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 10px; line-height: 1; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 2px var(--surface-2); opacity: 0; transition: opacity 0.12s; }
+	&::after { content: "✎"; position: absolute; right: 5px; bottom: 5px; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 15px; line-height: 1; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 2px var(--surface-2); opacity: 0; transition: opacity 0.12s; }
 	&:hover { filter: brightness(1.12); &::after { opacity: 1; } }
 }
 .youFlag { cursor: pointer; transition: border-color 0.12s; &:hover { border-color: var(--muted); } }
