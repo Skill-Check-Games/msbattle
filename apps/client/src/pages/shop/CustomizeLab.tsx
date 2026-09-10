@@ -17,8 +17,11 @@ import { ShopItem, itemById, itemUnlocked, priceLabel, buyItem } from "./shop-ap
 import styles from "./CustomizeLab.module.scss";
 
 type Kind = "avatar" | "skin" | "revealEffect";
-type Tab = Kind;
+export type Tab = Kind;
 const TABS: Array<[Tab, string]> = [["avatar", "Avatar"], ["skin", "Board"], ["revealEffect", "Effects"]];
+// URL slugs for the tabs (/shop/<slug>, /customize/<slug>): every tab is a loadable address.
+export const TAB_SLUGS: Record<Tab, string> = { avatar: "avatar", skin: "board", revealEffect: "effects" };
+export function tabFromSlug(slug: string | undefined): Tab | null { for (const t of Object.keys(TAB_SLUGS) as Tab[]) if (TAB_SLUGS[t] === slug) return t; return null; }
 const AVATAR_BLURBS: Record<string, string> = { anon: "The default anonymous silhouette.", mine: "The classic sea mine, staring back.", "img:scout-dog": "Sniffs out the safest tile first.", "img:sentry-fox": "Keeps a sharp eye on the board.", "img:sentry-owl": "Never misses a clue.", "img:signal-cat": "Always alert for danger.", "img:guard-teddy": "A cuddly line of defense." };
 const avatarLabel = (v: string) => v === "anon" ? "Anonymous" : v === "mine" ? "Mine" : itemById(v)?.label || "Flag";
 const REVEAL_GLYPHS: Record<string, string> = { ripple: "🌊", spark: "⚡", shatter: "💥", crt: "📺", dust: "💨" };
@@ -30,10 +33,12 @@ const DEMO_MINES = [[0, 5], [1, 7], [1, 9], [2, 3], [2, 8], [2, 10], [3, 0], [3,
 const FX_MINES = [[0, 0], [7, 0], [0, 7], [7, 7]];
 const DEMO_OPEN_AT = [1, 1];
 
-export default function CustomizeLab({ host }: { host: "page" | "modal" }) {
+export default function CustomizeLab({ host, tab: tabProp, onTabChange }: { host: "page" | "modal"; tab?: Tab; onTabChange?: (t: Tab) => void }) {
 	const { account, update, providers } = useAuth();
 	useCosmetics();
-	const [tab, setTab] = useState<Tab>("avatar");
+	const [tabState, setTabState] = useState<Tab>("avatar");
+	const tab = tabProp || tabState;
+	const setTab = (t: Tab) => { setTabState(t); onTabChange?.(t); };
 	const [preview, setPreview] = useState<{ avatar: string | null; skin: string | null; effect: string | null; last: ShopItem | null }>({ avatar: null, skin: null, effect: null, last: null });
 	const [purchase, setPurchase] = useState<ShopItem | null>(null);
 	const [fakeShop, setFakeShop] = useState(false);

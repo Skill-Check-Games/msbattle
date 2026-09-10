@@ -1,10 +1,9 @@
-// "How to play": rules, two example boards, and the live (rebindable) controls. Opened from the navbar.
+// "How to play": rules, two example boards, and the live (rebindable) controls. A page (/help).
 import { Link } from "react-router-dom";
-import Modal from "./Modal";
-import { keybindings } from "../shared/keybindings";
-import LearnBoard from "../pages/learn/LearnBoard";
-import type { BoardSpec } from "../pages/learn/learn-data";
-import styles from "./HelpModal.module.scss";
+import { keybindings } from "../../shared/keybindings";
+import LearnBoard from "../learn/LearnBoard";
+import type { BoardSpec } from "../learn/learn-data";
+import styles from "./HelpPage.module.scss";
 
 const MINES = [[0, 1], [1, 0], [1, 1]];
 const SAFE: number[][] = [];
@@ -12,10 +11,11 @@ for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) if (!MINES.some(m => m[0
 const NUMBERS: BoardSpec = { rows: 4, cols: 4, mines: MINES, revealed: SAFE };
 const FLAGS: BoardSpec = { rows: 4, cols: 4, mines: MINES, revealed: SAFE, flagged: MINES };
 
-export default function HelpModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+export default function HelpPage() {
 	const key = (a: "reveal" | "flag" | "next") => keybindings.label(keybindings.get(a));
 	return (
-		<Modal open={open} onClose={onClose} title="How to play" width={540}>
+		<section className={styles.page}>
+			<h1 className={styles.title}>How to play</h1>
 			<ul className={styles.list}>
 				<li><b>Reveal</b> tiles to uncover them. A number tells you how many of the 8 neighbouring tiles are mines.</li>
 				<li><b>Flag</b> the tiles you've worked out are mines.</li>
@@ -26,7 +26,7 @@ export default function HelpModal({ open, onClose }: { open: boolean; onClose: (
 				<figure className={styles.example}><div className={styles.board}><LearnBoard spec={NUMBERS} cellPx={21} /></div><figcaption className={styles.cap}>Each number = mines in the 8 tiles around it</figcaption></figure>
 				<figure className={styles.example}><div className={styles.board}><LearnBoard spec={FLAGS} cellPx={21} /></div><figcaption className={styles.cap}>Flag the mines, clear the rest to win</figcaption></figure>
 			</div>
-			<p className={styles.foot}>Want a guided walkthrough? Try the <Link to="/learn" onClick={onClose}>Learn</Link> lessons.</p>
+			<p className={styles.foot}>Want a guided walkthrough? Try the <Link to="/learn">Learn</Link> lessons.</p>
 			<h3 className={styles.sectionTitle}>Controls</h3>
 			<div className={styles.controls}>
 				<div className={styles.ctrl}><span className={styles.act}>Reveal a tile</span><span className={styles.keys}>Left-click <i>or</i> <kbd>{key("reveal")}</kbd></span></div>
@@ -35,7 +35,7 @@ export default function HelpModal({ open, onClose }: { open: boolean; onClose: (
 				<div className={styles.ctrl}><span className={styles.act}>Move the cursor</span><span className={styles.keys}><kbd>↑ ↓ ← →</kbd></span></div>
 				<div className={styles.ctrl}><span className={styles.act}>Jump to next area</span><span className={styles.keys}><kbd>{key("next")}</kbd></span></div>
 			</div>
-			<p className={styles.foot}>Keys are rebindable on the <Link to="/settings" onClick={onClose}>Settings</Link> page.</p>
-		</Modal>
+			<p className={styles.foot}>Keys are rebindable on the <Link to="/settings">Settings</Link> page.</p>
+		</section>
 	);
 }

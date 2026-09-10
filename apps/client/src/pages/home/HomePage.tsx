@@ -4,8 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import RankedPicker, { RankedStyle } from "./RankedPicker";
 import PuzzlesPicker from "./PuzzlesPicker";
 import Modal from "../../app/Modal";
-import CustomizeLab from "../shop/CustomizeLab";
-import { Link, useNavigate } from "react-router-dom";
+import CustomizeLab, { TAB_SLUGS, tabFromSlug } from "../shop/CustomizeLab";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "../../shared/auth";
 import { AvatarChip } from "../../shared/Avatar";
 import { RankBadge, PlacementBadge, PuzzleRankBadge, PuzzleLockedBadge } from "../../shared/RankBadge";
@@ -27,7 +27,7 @@ const MODE_BOARDS: Record<string, BoardSpec> = {
 	puzzles: { rows: 6, cols: 9, mines: [[0, 3], [1, 0], [1, 2], [2, 0], [3, 5], [4, 3], [5, 2]], revealed: [[1, 1], [1, 3], [1, 4], [2, 1], [2, 2], [2, 3], [2, 4], [3, 1], [3, 2], [3, 3], [3, 4], [4, 1], [4, 2], [4, 4]], flagged: [] }
 };
 
-export default function HomePage({ openPuzzles = false }: { openPuzzles?: boolean }) {
+export default function HomePage({ openPuzzles = false, customize = false }: { openPuzzles?: boolean; customize?: boolean }) {
 	const { account } = useAuth();
 	const { skin } = useCosmetics();
 	const matches = useMatchHistory(account);
@@ -39,7 +39,7 @@ export default function HomePage({ openPuzzles = false }: { openPuzzles?: boolea
 		<section className={styles.dash}>
 			<RankedPicker style={picker} onClose={() => setPicker(null)} />
 			<PuzzlesPicker open={puzzles} onClose={() => { setPuzzles(false); if (location.pathname === "/puzzles") navigate("/", { replace: true }); }} />
-			<IdentityRow account={account} matches={matches} />
+			<IdentityRow account={account} matches={matches} customize={customize} />
 			<div className={styles.main}>
 				<div className={styles.modes}>
 					<ModeRow onOpen={() => setPicker("sprint")} title="Sprint" sub="Quick rounds, fewer mines" spec={MODE_BOARDS.sprint} skin={skin}
@@ -58,9 +58,14 @@ export default function HomePage({ openPuzzles = false }: { openPuzzles?: boolea
 }
 
 // ---- identity row ----
-function IdentityRow({ account, matches }: { account: Account | null; matches: ReturnType<typeof useMatchHistory> }) {
+function IdentityRow({ account, matches, customize }: { account: Account | null; matches: ReturnType<typeof useMatchHistory>; customize: boolean }) {
 	const { signIn, update } = useAuth();
-	const [lab, setLab] = useState(false);
+	const navigate = useNavigate();
+	const { tab: slug } = useParams();
+	// The customize modal is addressable: /customize/<tab> opens it, closing returns to /.
+	const labTab = customize ? (tabFromSlug(slug) || "avatar") : null;
+	const lab = !!labTab;
+	const setLab = (open: boolean) => navigate(open ? "/customize/avatar" : "/");
 	const [flagOpen, setFlagOpen] = useState(false);
 	const flagBtn = useRef<HTMLButtonElement>(null);
 	const closeFlag = useCallback(() => setFlagOpen(false), []);
@@ -69,7 +74,7 @@ function IdentityRow({ account, matches }: { account: Account | null; matches: R
 	const flagSrc = countryFlagSrcSquare(account?.country);
 	return (
 		<div className={styles.you}>
-			<Modal open={lab} onClose={() => setLab(false)} width={1200} title="Customize" labelledBy="lab_title" className={styles.labDialog}>{lab && <CustomizeLab host="modal" />}<div className={styles.labFoot}><button className="btn btn-primary" type="button" onClick={() => setLab(false)}>Done</button></div></Modal>
+			<Modal open={lab} onClose={() => setLab(false)} width={1200} title="Customize" labelledBy="lab_title" className={styles.labDialog}>{lab && <CustomizeLab host="modal" tab={labTab!} onTabChange={t => navigate("/customize/" + TAB_SLUGS[t], { replace: true })} />}<div className={styles.labFoot}><button className="btn btn-primary" type="button" onClick={() => setLab(false)}>Done</button></div></Modal>
 			<button type="button" className={`${styles.youBox} ${styles.youAvatar}`} title="Edit avatar" onClick={() => setLab(true)}>
 				{account ? <AvatarChip avatar={account.avatarColor} country={account.country} px={73} corner={0} title="" /> : <span className={`skel-shimmer ${styles.avatarSkel}`} />}
 			</button>

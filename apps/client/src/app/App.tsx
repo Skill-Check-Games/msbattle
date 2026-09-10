@@ -12,6 +12,7 @@ import SettingsPage from "../pages/settings/SettingsPage";
 import { PrivacyPage, TermsPage } from "../pages/legal/LegalPages";
 import ProfilePage from "../pages/profile/ProfilePage";
 import ShopPage from "../pages/shop/ShopPage";
+import HelpPage from "../pages/help/HelpPage";
 import LearnPage from "../pages/learn/LearnPage";
 import ReplayPage from "../pages/replay/ReplayPage";
 import CustomPage from "../pages/custom/CustomPage";
@@ -43,6 +44,8 @@ export default function App() {
 					<Route path="/solo" element={<SoloPage />} />
 					<Route path="/play" element={<PlayPage />} />
 					<Route path="/puzzles" element={<HomePage openPuzzles />} />
+					<Route path="/customize/:tab" element={<HomePage customize />} />
+					<Route path="/customize" element={<HomePage customize />} />
 					<Route path="/puzzles/play" element={<PuzzlePage mode="rated" />} />
 					<Route path="/puzzles/streak" element={<PuzzlePage mode="streak" />} />
 					<Route path="/puzzles/storm" element={<PuzzlePage mode="storm" />} />
@@ -50,6 +53,8 @@ export default function App() {
 					<Route path="/leaderboard" element={<LeaderboardPage />} />
 					<Route path="/profile" element={<ProfilePage />} />
 					<Route path="/shop" element={<ShopPage />} />
+					<Route path="/shop/:tab" element={<ShopPage />} />
+					<Route path="/help" element={<HelpPage />} />
 					<Route path="/learn" element={<LearnPage />} />
 					<Route path="/replay" element={<ReplayPage />} />
 					<Route path="/custom" element={<CustomPage />} />

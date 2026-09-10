@@ -1,12 +1,16 @@
 // The Shop page IS the customize lab hosted as a page, plus the Stripe return status.
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import CustomizeLab from "./CustomizeLab";
+import { Navigate, useNavigate, useParams, useSearchParams, useLocation } from "react-router-dom";
+import CustomizeLab, { TAB_SLUGS, tabFromSlug } from "./CustomizeLab";
 import { checkPurchaseReturn } from "./shop-api";
 import styles from "./ShopPage.module.scss";
 
 export default function ShopPage() {
 	const [params, setParams] = useSearchParams();
+	const { tab: slug } = useParams();
+	const navigate = useNavigate();
+	const location = useLocation();
+	const tab = tabFromSlug(slug);
 	const [banner, setBanner] = useState<{ text: string; kind: string } | null>(null);
 	useEffect(() => {
 		const purchase = params.get("purchase");
@@ -19,12 +23,13 @@ export default function ShopPage() {
 		}
 		setParams({}, { replace: true });
 	}, []);
+	if (!tab) return <Navigate to={"/shop/avatar" + location.search} replace />;
 	return (
 		<section>
 			<h1 className={styles.title}>Shop</h1>
 			<p className={styles.sub}>Cosmetics only. Avatars and board skins never change how the game plays.</p>
 			{banner && <div className={`${styles.banner} ${banner.kind === "success" ? styles.ok : banner.kind === "error" ? styles.err : ""}`}>{banner.text}</div>}
-			<CustomizeLab host="page" />
+			<CustomizeLab host="page" tab={tab} onTabChange={t => navigate("/shop/" + TAB_SLUGS[t] + location.search, { replace: true })} />
 		</section>
 	);
 }

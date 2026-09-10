@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 // Every route loads without a page error, at desktop and at a narrow phone width, with a screenshot
 // per route for eyeballing. Add a route here when it lands.
-const ROUTES = ["/", "/solo", "/learn", "/custom", "/replay", "/leaderboard", "/profile", "/shop", "/settings", "/privacy", "/terms", "/admin", "/admin/lab", "/admin/puzzles", "/admin/combined-puzzles", "/admin/starting-positions", "/admin/patterns", "/admin/start-patterns", "/admin/bots", "/admin/marathon-boards", "/admin/debug", "/admin/design", "/admin/countdown", "/admin/sounds"];
+const ROUTES = ["/", "/solo", "/learn", "/help", "/customize/effects", "/shop/board", "/custom", "/replay", "/leaderboard", "/profile", "/shop", "/settings", "/privacy", "/terms", "/admin", "/admin/lab", "/admin/puzzles", "/admin/combined-puzzles", "/admin/starting-positions", "/admin/patterns", "/admin/start-patterns", "/admin/bots", "/admin/marathon-boards", "/admin/debug", "/admin/design", "/admin/countdown", "/admin/sounds"];
 
 for (const route of ROUTES) {
 	test(`loads ${route}`, async ({ page }) => {
