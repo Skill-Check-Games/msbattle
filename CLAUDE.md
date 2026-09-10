@@ -12,11 +12,11 @@ archive; grep it for a subsystem when you need the backstory).
 
 ## Commands
 
-- `npm run dev` — Node server with dev login (`DEV_AUTH=1`) on :1337, serving the last `npm run build`
-  of the React client plus socket.io, `/api`, `/auth`. Auto-loads `.env`.
-- `npm run dev:client` — Vite dev server for the React client on :5173 (HMR), proxying socket.io,
-  `/api` and `/auth` to :1337. **Day-to-day loop for client work: run both.** Edit under
-  `apps/client/src`, the browser hot-reloads. Dev login: http://localhost:5173/auth/dev.
+- `npm run dev` — Node server with dev login (`DEV_AUTH=1`) on :1337: socket.io, `/api`, `/auth`, and in
+  dev (`VITE_PROXY=1`) every page/asset request is proxied to the Vite dev server, so **http://localhost:1337
+  hot-reloads** (falls back to the built `dist/` when Vite is not running). Auto-loads `.env`.
+- `npm run dev:client` — the Vite dev server on :5173 (HMR; `--host` for phones). **Day-to-day loop: run
+  both, browse :1337.** Edit under `apps/client/src`, the browser updates in place. Dev login: `/auth/dev`.
 - `npm run stop` / `npm run restart` — stop, or stop + start the Node server. **Always use these npm
   scripts** for the server lifecycle, never ad-hoc `node`/`kill`/`lsof`. Restart after any change under
   `apps/server/src/**` or `packages/core/**` (the server side); the client needs no restart.

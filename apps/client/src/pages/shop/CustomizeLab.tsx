@@ -99,6 +99,7 @@ export default function CustomizeLab({ host }: { host: "page" | "modal" }) {
 			<div className={styles.picker}>
 				<div className={styles.tabs}>{TABS.map(([id, label]) => <button key={id} type="button" className={`${styles.tab} ${tab === id ? styles.tabActive : ""}`} onClick={() => setTab(id)}>{label}</button>)}</div>
 				{fakeAllowed && host === "page" && <label className={styles.fake}><input type="checkbox" checked={fakeShop} onChange={(e) => setFakeShop(e.target.checked)} /> Fake shop</label>}
+				<div className={styles.panel}>
 				{status && <div className={`${styles.status} ${status.kind === "success" ? styles.statusOk : styles.statusErr}`}>{status.text}</div>}
 				{tab === "avatar" && (
 					<Panel title="Choose Avatar" sub="Opponents see this next to your name in every match.">
@@ -115,6 +116,7 @@ export default function CustomizeLab({ host }: { host: "page" | "modal" }) {
 						<div className={styles.grid}>{REVEAL_EFFECT_LIST.map(id => <EffectCard key={id} id={id} owned={owned} active={id === (preview.effect || localRevealEffect)} onSelect={pickEffect} onPreviewLocked={(item) => previewLocked("revealEffect", id, item)} />)}</div>
 					</Panel>
 				)}
+				</div>
 			</div>
 			<div className={styles.preview} data-lab-preview="">
 				<div className={styles.identity}><DuelIdentity player={identity as any} side="you" /></div>

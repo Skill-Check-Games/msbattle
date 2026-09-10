@@ -3,6 +3,7 @@
 // carries Vite's content hashes and is cached forever; everything else in dist (flags, avatars,
 // skins, the logo) gets a short lifetime. Only text is compressed (brotli, then gzip).
 var fs = require("fs");
+var http = require("http");
 var path = require("path");
 var zlib = require("zlib");
 
@@ -32,6 +33,22 @@ var SW_KILL_SWITCH = [
 	'\t);',
 	'});'
 ].join("\n");
+
+// Dev (`npm run dev` sets VITE_PROXY=1): page and asset requests are proxied to the Vite dev server, so
+// http://localhost:1337 hot-reloads exactly like :5173 while socket.io, /api and /auth stay local. Vite's
+// HMR client is told to open its websocket on Vite's own port (see vite.config.ts server.hmr). If Vite
+// is not running the request falls through to the built dist/ as in production.
+var VITE_URL = process.env.VITE_PROXY === "1" ? (process.env.VITE_URL || "http://localhost:5173") : null;
+function proxyToVite(req, res, onFail) {
+	var u = new URL(VITE_URL);
+	var headers = Object.assign({}, req.headers, { host: u.host });
+	var pr = http.request({ hostname: u.hostname, port: u.port, path: req.url, method: req.method, headers: headers }, function(r) {
+		res.writeHead(r.statusCode, r.headers);
+		r.pipe(res);
+	});
+	pr.on("error", onFail);
+	req.pipe(pr);
+}
 
 // Shown when dist/ is missing (a checkout that has not run `npm run build` yet).
 var NOT_BUILT = "<!DOCTYPE html><html><head><meta charset=\"utf-8\"><title>MSBattle</title></head>" +
@@ -67,6 +84,11 @@ function serveBuffer(res, body, headers, encoding) {
 }
 
 function serve(res, pathname, req) {
+	if (VITE_URL && req) { proxyToVite(req, res, function() { serveDist(res, pathname, req); }); return; }
+	serveDist(res, pathname, req);
+}
+
+function serveDist(res, pathname, req) {
 	if (pathname === "/sw.js") {
 		serveBuffer(res, Buffer.from(SW_KILL_SWITCH), { "Content-Type": "text/javascript", "Cache-Control": "no-cache" }, pickEncoding(req));
 		return;

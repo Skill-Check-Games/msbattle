@@ -17,6 +17,8 @@ export default defineConfig({
 	build: { commonjsOptions: { include: [/packages\/core\//, /node_modules/] } },
 	server: {
 		port: 5173,
+		// The Node dev server (:1337) proxies pages to Vite; the HMR client then connects straight to this port.
+		hmr: { clientPort: 5173 },
 		// autoRewrite: the OAuth callback answers with a redirect to OAUTH_REDIRECT_BASE (:1337); rewriting the
 		// Location host keeps a dev sign-in on this origin instead of dropping into the legacy client.
 		proxy: Object.fromEntries(proxied.map(p => [p, { target: SERVER, changeOrigin: false, ws: p === "/socket.io", autoRewrite: p === "/auth" }]))

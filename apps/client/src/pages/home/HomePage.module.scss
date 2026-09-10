@@ -7,7 +7,13 @@
 .you { display: flex; align-items: stretch; gap: var(--gap-tight); margin-bottom: var(--gap-group); min-height: 75px; }
 .youBox { background: linear-gradient(110deg, var(--surface-2), var(--surface)); border: 1px solid var(--border); border-radius: 7px; }
 .youAvatar, .youFlag { flex: 0 0 75px; width: 75px; min-height: 75px; overflow: hidden; display: flex; align-items: center; justify-content: center; padding: 0; }
-.youAvatar { cursor: pointer; transition: border-color var(--motion-micro); &:hover { border-color: var(--muted); } canvas { border-radius: 6px; } }
+// Click-to-edit avatar: brightens on hover and shows a pencil badge in the corner (as production).
+.youAvatar {
+	position: relative; cursor: pointer; transition: filter 0.12s; canvas { border-radius: 6px; }
+	&::after { content: "✎"; position: absolute; right: 4px; bottom: 4px; width: 17px; height: 17px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 10px; line-height: 1; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 2px var(--surface-2); opacity: 0; transition: opacity 0.12s; }
+	&:hover { filter: brightness(1.12); &::after { opacity: 1; } }
+}
+.youFlag { cursor: pointer; transition: border-color 0.12s; &:hover { border-color: var(--muted); } }
 .youFlag img { width: 73px; height: 73px; border-radius: 6px; object-fit: cover; display: block; }
 .flagEmpty { font-size: 1.4rem; color: var(--muted); }
 .avatarSkel { display: block; width: 62px; height: 62px; border-radius: 50%; }
@@ -57,8 +63,8 @@
 	display: flex; align-items: center; gap: 0.9rem; width: 100%; text-align: left; font: inherit;
 	background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
 	padding: 0.75rem 0.9rem 0.75rem 0.75rem; text-decoration: none; color: var(--text);
-	transition: border-color 0.15s ease;
-	&:hover { border-color: var(--accent); }
+	transition: border-color 0.15s ease, box-shadow 0.15s ease;
+	&:hover { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent), 0 12px 28px rgba(0, 0, 0, 0.35); }
 }
 .rowBoard { flex: 0 0 auto; display: flex; align-items: center; width: 144px; min-height: 98px; }
 // Frame radius = canvas radius (4) + frame padding (3): concentric corners.
@@ -167,6 +173,7 @@
 	.signin { padding: 0.25rem 0.6rem; font-size: 0.76rem; }
 }
 
-.labDialog { width: min(1200px, 96vw); }
-.labFoot { display: flex; justify-content: flex-end; margin-top: 1rem; }
+// Fixed-size dialog: switching tabs never resizes it; each column scrolls inside instead.
+.labDialog { width: min(1200px, 96vw); height: min(760px, 90vh); display: flex; flex-direction: column; overflow: hidden; @media (max-width: 860px) { height: auto; max-height: calc(100dvh - 1.5rem); overflow-y: auto; } }
+.labFoot { flex: 0 0 auto; display: flex; justify-content: flex-end; margin-top: 1rem; }
 .nameError { font-size: 0.78rem; color: var(--danger); margin-left: 0.4rem; }

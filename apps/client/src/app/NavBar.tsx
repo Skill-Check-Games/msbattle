@@ -32,7 +32,7 @@ export default function NavBar() {
 		<header className={styles.topbar}>
 			<Link to="/" className={styles.brand} aria-label="MSBattle home">
 				<img src="/logo.svg" alt="" width="28" height="28" />
-				<span><b>MS</b>Battle</span>
+				<span className={styles.brandName}>MSBattle</span>
 			</Link>
 			<nav className={styles.links}>
 				{links.map(([to, label]) => (

@@ -3,15 +3,19 @@
 .topbar {
 	position: relative;
 	display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 1rem;
-	min-height: 82px; padding: 0 2rem;
-	background: rgba(11, 16, 32, 0.6); border-bottom: 1px solid var(--border);
-	@include below($bp-lg) { grid-template-columns: 1fr auto; min-height: 72px; padding: 0 1rem; }
+	padding: 1.25rem 2rem; z-index: 100;
+	background: rgba(11, 16, 32, 0.6); border-bottom: 1px solid var(--border); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+	@include below($bp-lg) { grid-template-columns: 1fr auto; padding: 0.85rem 1rem; }
 }
+// The brand mark: the favicon tile, slightly tilted, straightening on hover; the name is a gradient text.
 .brand {
-	display: inline-flex; align-items: center; gap: 0.5rem; text-decoration: none;
-	font-family: var(--font-display); font-size: 1.3rem; font-weight: 700; letter-spacing: 0.01em;
-	img { width: 32px; height: 32px; }
-	b { color: var(--accent-hover); font-weight: 700; }
+	display: inline-flex; align-items: center; gap: 0.55rem; text-decoration: none; user-select: none;
+	img { display: block; width: 2rem; height: 2rem; transform: rotate(-5deg); transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1); }
+	&:hover img { transform: rotate(0deg) scale(1.06); }
+}
+.brandName {
+	font-family: var(--font-display); font-size: 1.3rem; font-weight: 800; letter-spacing: -0.01em;
+	background: linear-gradient(90deg, #e6e9f5 0%, #a5b4fc 60%, #818cf8 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 .links { display: flex; gap: 0.25rem; justify-content: center; @include below($bp-lg) { display: none; } }
 .link {
@@ -42,9 +46,9 @@
 }
 .panel {
 	position: absolute; top: 100%; left: 0; right: 0; z-index: 50;
-	display: flex; flex-direction: column; gap: 0.15rem; padding: 0.6rem 0.9rem 0.9rem;
-	background: var(--surface); border-bottom: 1px solid var(--border); box-shadow: var(--shadow);
+	display: flex; flex-direction: column; gap: 0.15rem; padding: 0.5rem;
+	background: var(--bg); border-bottom: 1px solid var(--border); box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55);
 }
-.panelLink { padding: 0.6rem 0.7rem; border-radius: 6px; text-decoration: none; color: var(--muted); font-weight: 600; &:hover { color: var(--text); } }
+.panelLink { padding: 0.7rem 0.85rem; border-radius: 6px; text-decoration: none; color: var(--muted); font-weight: 600; font-size: 1rem; text-align: left; white-space: nowrap; &:hover { color: var(--text); background: var(--surface); } &.active { color: #fff; background: rgba(99, 102, 241, 0.22); } }
 .panelIdentity { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin-top: 0.5rem; padding-top: 0.7rem; border-top: 1px solid var(--border); }
 .linkBtn { border: 0; background: none; font-weight: 600; font-size: 0.92rem; font-family: inherit; }

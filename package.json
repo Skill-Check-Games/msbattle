@@ -10,7 +10,7 @@
 	"packageManager": "npm@10",
 	"scripts": {
 		"start": "node apps/server/src/minesweeperServer.js",
-		"dev": "DEV_AUTH=1 node apps/server/src/minesweeperServer.js",
+		"dev": "DEV_AUTH=1 VITE_PROXY=1 node apps/server/src/minesweeperServer.js",
 		"dev:client": "npm run dev --workspace apps/client",
 		"stop": "pkill -f 'node apps/server/src/minesweeperServer.js' || true",
 		"restart": "npm run stop; sleep 1; npm run dev",
