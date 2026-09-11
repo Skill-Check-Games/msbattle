@@ -3,7 +3,7 @@
 // nothing here touches the DOM except through the session's canvas, which GameBoard binds.
 import { useSyncExternalStore } from "react";
 import MoveHash from "core/src/common/MoveHash.js";
-import { getSocket } from "../online/socket";
+import { getSocket, activeSocket, startMatchSocket, teardownMatchSocket } from "../online/socket";
 import { pushToast } from "../app/Toasts";
 import { BoardSession, ActionResult } from "./board-session";
 import { KNOWN, UNKNOWN, MINE } from "./board-render";
@@ -59,6 +59,9 @@ class MatchStore {
 	private pendingReveal = false;
 	private lastFinished: Record<string, boolean> = {};
 	private opponentSessions = new Map<string, BoardSession>();
+	private mainId: string | null = null;   // the lobby socket's player id, restored when a match connection ends
+	// Closes the per-match game-server connection (split deployment) and goes back to the main identity.
+	private dropMatchSocket() { teardownMatchSocket(); if (this.mainId) this.myId = this.mainId; }
 	private lastCursorAt = 0;
 	private searchAckTimer: number | null = null;
 	private wired = false;
@@ -68,7 +71,7 @@ class MatchStore {
 			mode: () => (this.state.inRoom && this.state.room && this.state.room.phase === "playing" && this.state.roundLive && !this.state.roundResultShown) ? "multiplayer" : null,
 			rules: () => this.state.room ? { noFlags: this.state.room.modifier === "noFlags", onlyFlags: this.state.room.modifier === "onlyFlags", deathPenalty: this.state.room.deathPenalty } : null,
 			// Opponents see where your pointer is (throttled; only during a live round).
-			onCursor: (r, c) => { const now = Date.now(); if (!this.state.roundLive || now - this.lastCursorAt < 80) return; this.lastCursorAt = now; getSocket().emit("cursor", { r, c }); },
+			onCursor: (r, c) => { const now = Date.now(); if (!this.state.roundLive || now - this.lastCursorAt < 80) return; this.lastCursorAt = now; activeSocket().emit("cursor", { r, c }); },
 			sound,
 			onAction: (r, c, asFlag, result) => this.emitMove(r, c, asFlag, result),
 			onFreeze: (until) => this.set({ frozenUntil: until })
@@ -104,7 +107,14 @@ class MatchStore {
 	wire() {
 		if (this.wired) return; this.wired = true;
 		const socket = getSocket();
-		socket.on("connected", (d) => { this.myId = d.id; });
+		socket.on("connected", (d) => { this.myId = d.id; this.mainId = d.id; });
+		// Split deployment: the match is played on a game server. On that server this client's id is the
+		// GAME socket's id (matches are keyed by socket id), so it is adopted for the match: which board is
+		// mine, winnerId and standings all compare against it. The main id comes back on teardown.
+		socket.on("match_handoff", (d) => {
+			if (!d || !d.gameUrl || !d.token) return;
+			startMatchSocket(d.gameUrl, d.token, (id) => { this.myId = id; this.set({});  });
+		});
 		socket.on("joined_room", (d) => {
 			this.set({ inRoom: true, mode: d && d.mode ? d.mode : this.state.mode, search: null, seriesResult: null, roundResult: null, gameProgress: "", roundDeadline: null, waitingCleared: false });
 			this.resetRound();
@@ -190,11 +200,11 @@ class MatchStore {
 			const fromSeq = (d && d.fromSeq) || 0;
 			const missing = this.moveLog.filter(m => m.seq > fromSeq);
 			if (!missing.length) return;
-			getSocket().emit("resync_moves", this.withSync({ id: this.myId, moves: missing.map(m => ({ r: m.r, c: m.c, flag: m.flag })) }));
+			activeSocket().emit("resync_moves", this.withSync({ id: this.myId, moves: missing.map(m => ({ r: m.r, c: m.c, flag: m.flag })) }));
 		});
 		setInterval(() => {
 			if (this.session.hooks.mode() !== "multiplayer" || !this.state.room || !this.moveLog.length) return;
-			getSocket().emit("move_sync", this.withSync({ id: this.myId }));
+			activeSocket().emit("move_sync", this.withSync({ id: this.myId }));
 		}, 5000);
 	}
 
@@ -224,12 +234,13 @@ class MatchStore {
 	createRoom(opts: CreateRoomOptions) { getSocket().emit("create_room", opts); }
 	joinRoom(roomId: number) { getSocket().emit("join_room", { roomId }); }
 	cancelSearch() { if (this.searchAckTimer) { clearTimeout(this.searchAckTimer); this.searchAckTimer = null; } getSocket().emit("cancel_ranked"); this.set({ search: null, mode: null }); this.teardown(); }
-	leaveRoom() { getSocket().emit("leave_room"); this.teardown(); }
-	playAnother() { const mode = this.state.mode || "sprint_duo"; getSocket().emit("leave_room"); this.findRanked(mode); }
+	leaveRoom() { activeSocket().emit("leave_room"); this.teardown(); }
+	playAnother() { const mode = this.state.mode || "sprint_duo"; activeSocket().emit("leave_room"); this.dropMatchSocket(); this.findRanked(mode); }
 	dismissSeriesResult() { this.set({ seriesResult: null }); }
-	ready() { getSocket().emit("ready"); }
+	ready() { activeSocket().emit("ready"); }
 	flash(message: string) { this.set({ message }); setTimeout(() => { if (this.state.message === message) this.set({ message: null }); }, 4000); }
 	teardown() {
+		this.dropMatchSocket();
 		cancelCountdown();
 		this.session.idleSuppressed = false;
 		this.session.setIdle(false);
@@ -272,7 +283,7 @@ class MatchStore {
 	private withSync<T extends object>(data: T): T & { seq: number; hash: number } { return { ...data, seq: this.moveSeq, hash: this.moveHash }; }
 	private recordMove(r: number, c: number, flag: boolean) { this.moveSeq++; this.moveHash = MoveHash.next(this.moveHash, r, c, flag); this.moveLog.push({ seq: this.moveSeq, r, c, flag }); }
 	private emitMove(r: number, c: number, asFlag: boolean, result: ActionResult | null) {
-		const socket = getSocket();
+		const socket = activeSocket();
 		this.recordMove(r, c, asFlag);
 		socket.emit(asFlag ? "right_click" : "left_click", this.withSync({ r, c, id: this.myId }));
 		if (result && result.clearedFlags) for (const [cr, cc] of result.clearedFlags) { this.recordMove(cr, cc, true); socket.emit("right_click", this.withSync({ r: cr, c: cc, id: this.myId })); }
@@ -280,7 +291,7 @@ class MatchStore {
 	private clearReported = false;
 	private reportClear() {
 		if (this.clearReported) return; this.clearReported = true;
-		getSocket().emit("record_clear", { noFlag: this.session.clearNoFlag, noReveal: this.session.clearNoReveal });
+		activeSocket().emit("record_clear", { noFlag: this.session.clearNoFlag, noReveal: this.session.clearNoReveal });
 		setTimeout(() => { this.clearReported = false; }, 2000);
 	}
 }
