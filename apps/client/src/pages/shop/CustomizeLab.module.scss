@@ -1,6 +1,7 @@
 @use "../../styles/variables" as *;
 
-.body { display: grid; grid-template-columns: minmax(320px, 1fr) minmax(300px, 1.15fr); gap: 1.4rem; align-items: start; @include below(860px) { grid-template-columns: 1fr; gap: var(--gap-group); } }
+// The lab green: a step darker than the site --success (#22c55e) so the ring and Current bar read solid, not neon.
+.body { --lab-green: #1cb454; display: grid; grid-template-columns: minmax(320px, 1fr) minmax(300px, 1.15fr); gap: 1.4rem; align-items: start; @include below(860px) { grid-template-columns: 1fr; gap: var(--gap-group); } }
 .modalHost { flex: 1 1 auto; min-height: 0; align-items: stretch; grid-template-rows: minmax(0, 1fr); .picker, .preview { min-height: 0; } .panel { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 0.4rem 0.6rem 4px; margin-left: -4px; } .preview { overflow-y: auto; } @include below(860px) { .panel { overflow: visible; } } }
 .page .preview { position: sticky; top: 1rem; @include below(860px) { position: static; } }
 .picker { min-width: 0; display: flex; flex-direction: column; gap: 0.6rem; }
@@ -22,15 +23,15 @@
 	@include below($bp-sm) { flex-direction: row; align-items: center; gap: 0.75rem; padding: 0.5rem 0.65rem; }
 }
 // Selected tiles are green: a ring plus a full-width "Selected" bar pinned to the bottom (the tile keeps room for it).
-.tileActive { border-color: var(--success); }
+.tileActive, .tileActive:hover { border-color: var(--lab-green); }
 // The Current bar is always mounted on unlocked tiles so it slides away like the preview bars do.
-.lockBar.currentBar { background: var(--success); }
+.lockBar.currentBar { background: var(--lab-green); }
 .lockBar.selectedBar { transform: none; }
 // A locked item being previewed: the blue ring and its bar stays up, reading "Previewing".
-.tilePreviewing { opacity: 1 !important; border-color: var(--accent); .lockBar { transform: none; } }
+.tilePreviewing, .tilePreviewing:hover { opacity: 1 !important; border-color: var(--accent); .lockBar { transform: none; } }
 // Locked tiles sit dimmed; hovering undims them and slides a full-width "Click to preview" bar up from the bottom.
 .tileLocked { opacity: 0.55; transition: opacity 0.15s, border-color 0.15s; &:hover { opacity: 1; .lockBar { transform: translateY(0); } } }
-.lockBar { position: absolute; left: 0; right: 0; bottom: 0; padding: 0.45rem 0.5rem; background: var(--accent); color: #fff; font-size: 0.78rem; font-weight: 700; text-align: center; transform: translateY(100%); transition: transform 0.18s ease; pointer-events: none; @include below($bp-sm) { display: none; } }
+.lockBar { position: absolute; left: 0; right: 0; bottom: 0; padding: 0.45rem 0.5rem; background: var(--accent); color: #fff; font-size: 0.78rem; font-weight: 700; text-align: center; transform: translateY(calc(100% + 2px)); transition: transform 0.18s ease; pointer-events: none; @include below($bp-sm) { display: none; } }
 .tier_rare { border-color: rgba(167, 139, 250, 0.5); }
 .tier_epic { border-color: rgba(252, 211, 77, 0.55); }
 .tilePreview { display: flex; align-items: center; justify-content: center; margin: 0.85rem 0.85rem 0; @include below($bp-sm) { flex: 0 0 auto; width: 60px; height: 60px; margin: 0; canvas { width: auto !important; height: auto !important; max-width: 60px; max-height: 60px; } } }

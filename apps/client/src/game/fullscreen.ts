@@ -31,6 +31,7 @@ export function exitGameFullscreen() {
 		if (exit) { const r = exit.call(document); if (r && r.catch) r.catch(() => {}); }
 	} catch { /* ignore */ }
 }
-// Desktop games: only when the player opted in. Phone duels: always (the layout depends on it).
+// Desktop games: only when the player opted in. Phone battles against other players: always (the
+// landscape layout depends on it; puzzles and solo never force it).
 export const autoEnterGameFullscreen = () => { if (autoFullscreenEnabled()) enterGameFullscreen(); };
 export const enterDuelMobileFullscreen = () => { if (phoneSizedDevice() || isMobileViewport()) enterGameFullscreen(true); };

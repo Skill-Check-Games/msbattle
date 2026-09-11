@@ -2,7 +2,7 @@
 // Time Trial and Streak runs, and the daily puzzle. The server deals puzzle_board, judges every
 // click (left_click/right_click) and answers with puzzle_result, puzzle_run_end or
 // puzzle_daily_result. The board is a fixed square box so puzzles of any shape sit the same.
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getSocket, onSocket } from "../../online/socket";
 import { useAuth } from "../../shared/auth";
@@ -10,14 +10,13 @@ import { BoardSession, ActionResult } from "../../game/board-session";
 import { KNOWN, UNKNOWN } from "../../game/board-render";
 import { makeBoardDecoder } from "../../game/board-decoder";
 import { sound } from "../../audio/sound";
-import GameBoard from "../../game/GameBoard";
+import GameBoard, { SHAKE_PAD_X, SHAKE_PAD_Y } from "../../game/GameBoard";
 import { PuzzleRankBadge } from "../../shared/RankBadge";
 import { puzzleLadder } from "../../shared/puzzle-ladder";
 import { ResultPanel, ResultHeader, ResultDetail, ResultFoot, ResultActions } from "../../game/ResultPanel";
 import { formatDailyDate } from "../home/home-data";
 import BoardLogic from "core/src/common/BoardLogic.js";
-import { useInGameBody } from "../play/mobile";
-import { FullscreenButton } from "../play/hud";
+import { useInGameBody, useMediaQuery, PORTRAIT_MQ } from "../play/mobile";
 import styles from "./PuzzlePage.module.scss";
 
 export type PuzzleMode = "rated" | "streak" | "storm" | "daily";
@@ -29,7 +28,12 @@ interface RatedResult { solved: boolean; hintUsed: boolean; playerAfter?: number
 interface RunEnd { mode: "streak" | "storm"; solves: number; score: number; bestBefore: number; best: number; }
 interface DailyResult { date: string; solved: boolean; streak: number; bestStreak?: number; }
 
-const PUZZLE_BOX_PX = 480, PUZZLE_CELL_MAX = 75, PUZZLE_BOX_PX_MOBILE = 320, PUZZLE_CELL_MAX_MOBILE = 56;
+// Desktop's box is measured live (all the room under the header, capped by the width left beside the
+// card), like the legacy client did; 480 is only the pre-measure fallback. Phones use a fixed box.
+// Phones stack everything in one column: the board box spans the width and its cells fit that width
+// (minus the box padding), capped so a tiny puzzle does not become huge.
+const PUZZLE_BOX_PX = 480, PUZZLE_CELL_MAX = 75, PUZZLE_BOX_PX_MOBILE = 320, PUZZLE_CELL_MAX_MOBILE = 56, PHONE_BOX_PAD = 14;
+const CARD_PX = 320, GRID_GAP_PX = 20;
 const difficultyLabel = (tier: number) => tier <= 2 ? "Easy" : tier <= 4 ? "Medium" : "Hard";
 
 export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
@@ -49,6 +53,10 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 	const [boardFlash, setBoardFlash] = useState<"solved" | "fail" | null>(null);
 	const [tick, setTick] = useState(0);
 	const boardHostRef = useRef<HTMLDivElement>(null);
+	const gridRef = useRef<HTMLDivElement>(null);
+	const [desktopBox, setDesktopBox] = useState(PUZZLE_BOX_PX);
+	const [phoneW, setPhoneW] = useState(PUZZLE_BOX_PX_MOBILE);
+	const mobile = useMediaQuery(PORTRAIT_MQ);
 
 	const session = useMemo(() => new BoardSession({
 		mode: () => { const p = puzzleRef.current; return p && !p.finished ? "puzzle" : null; },
@@ -112,6 +120,23 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 	const started = useRef<string | null>(null);
 	useEffect(() => { if (!account || started.current === mode) return; started.current = mode; start(mode); }, [mode, !!account]);
 
+	// Fit the board box to the viewport: the height left under the header, or the width left beside the
+	// card, whichever is smaller; clamped so odd windows stay usable and huge ones don't blow cells up.
+	useLayoutEffect(() => {
+		const measure = () => {
+			const grid = gridRef.current, host = boardHostRef.current; if (!grid || !host) return;
+			const stacked = getComputedStyle(grid).flexDirection === "column";
+			if (stacked) { setPhoneW(Math.max(1, grid.clientWidth - PHONE_BOX_PAD * 2 - SHAKE_PAD_X * 2)); return; }
+			const availH = window.innerHeight - host.getBoundingClientRect().top - 32;
+			const availW = grid.clientWidth - (CARD_PX + GRID_GAP_PX);
+			const box = Math.min(availH, availW);
+			if (box > 0) setDesktopBox(Math.max(240, Math.min(900, Math.floor(box))));
+		};
+		measure();
+		window.addEventListener("resize", measure);
+		return () => window.removeEventListener("resize", measure);
+	}, [!!account, !!puzzleRef.current, status, mobile]);
+
 	function withFlash(fn: () => void) {
 		setPendingFlash(pf => { if (pf) { setBoardFlash(pf); setTimeout(() => { setBoardFlash(null); fn(); }, 280); } else fn(); return null; });
 	}
@@ -127,9 +152,8 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 
 	const p = puzzleRef.current;
 	const isRun = !!p && (p.mode === "streak" || p.mode === "storm" || p.mode === "daily");
-	const mobile = window.matchMedia("(max-width: 700px)").matches;
-	const box = mobile ? PUZZLE_BOX_PX_MOBILE : PUZZLE_BOX_PX, cellMax = mobile ? PUZZLE_CELL_MAX_MOBILE : PUZZLE_CELL_MAX;
-	const cellPx = session.rows ? Math.min(cellMax, Math.floor(box / Math.max(session.rows, session.cols))) : 32;
+	const box = desktopBox;
+	const cellPx = !session.rows ? 32 : mobile ? Math.min(PUZZLE_CELL_MAX_MOBILE, Math.floor(phoneW / session.cols)) : Math.min(PUZZLE_CELL_MAX, Math.floor((box - SHAKE_PAD_X * 2) / session.cols), Math.floor((box - SHAKE_PAD_Y * 2) / session.rows));
 	const ladder = puzzleLadder(account?.puzzlePoints || 0);
 	void tick;
 
@@ -137,12 +161,12 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 		<section className={styles.page}>
 			<div className={styles.header}>
 				<button className="btn btn-ghost" onClick={exit}>← Exit game</button>
-				<span className={styles.title}>{TITLES[mode]} <FullscreenButton /></span>
+				<span className={styles.title}>{TITLES[mode]}</span>
 			</div>
 			{!account ? <p className={styles.empty}>Sign in to play. Your score is tied to your account.</p> : !p && status ? <p className={styles.empty}>{status}</p> : (
-				<div className={styles.grid}>
+				<div className={styles.grid} ref={gridRef}>
 					<div className={styles.boardCol} ref={boardHostRef}>
-						<div className={`${styles.boardWrap} ${boardFlash === "solved" ? styles.flashSolved : boardFlash === "fail" ? styles.flashFail : ""}`} style={{ width: box, height: box }}>
+						<div className={`${styles.boardWrap} ${boardFlash === "solved" ? styles.flashSolved : boardFlash === "fail" ? styles.flashFail : ""}`} style={mobile ? { width: "100%", padding: PHONE_BOX_PAD } : { width: box, height: box }} data-shake-host="">
 							<GameBoard session={session} cellPx={cellPx} className={styles.board}>
 								{flash && <div className={`${styles.flash} ${flash.solved ? styles.flashOk : styles.flashBad}`}><div className={styles.flashIcon}>{flash.solved ? "✓" : "✗"}</div><div className={styles.flashLabel}>{flash.solved ? "Solved" : "Mine hit"}</div></div>}
 							</GameBoard>
@@ -150,7 +174,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 						{p && !isRun && p.puzzleId != null && <div className={styles.info}>Puzzle #{p.puzzleId}<span className={styles.sep}>·</span><span style={{ color: difficultyLabel(p.difficulty) === "Easy" ? "var(--success)" : difficultyLabel(p.difficulty) === "Medium" ? "var(--energy-streak)" : "var(--danger)" }}>{difficultyLabel(p.difficulty)}</span></div>}
 					</div>
 					<aside className={styles.card}>
-						<div className={styles.cardHead}><span className={styles.cardTitle}>{TITLES[mode]}</span></div>
+						<div className={styles.cardHead}><button type="button" className={styles.back} onClick={exit} aria-label="Back to lobby">←</button><span className={styles.cardTitle}>{TITLES[mode]}</span></div>
 						{!isRun ? (
 							<>
 								<div className={styles.ladderHead}>
@@ -177,6 +201,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 									<div className={styles.runStat}><span className={styles.runLabel}>{p.mode === "streak" ? "Level" : p.mode === "storm" ? "Time" : "Today"}</span><span className={styles.runValue}>{p.mode === "streak" ? String(p.run.targetRating || 0) : p.mode === "storm" ? stormClock(p.run.endsAt || 0) : formatDailyDate(p.run.date || "")}</span></div>
 								</div>
 								<div className={styles.runFoot}><span>Best</span><span>{p.mode === "streak" ? account.streakBest || 0 : p.mode === "storm" ? account.stormBest || 0 : p.run.bestStreak || 0}</span></div>
+								<button className={`btn ${styles.hint} ${p.hintUsed ? styles.hintUsed : ""}`} disabled={p.finished} onClick={() => getSocket().emit("puzzle_hint")}>💡 Hint</button>
 							</>
 						) : null}
 					</aside>

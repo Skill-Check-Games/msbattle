@@ -3,9 +3,9 @@
 import { useEffect, ReactNode } from "react";
 import styles from "./Modal.module.scss";
 
-interface Props { open: boolean; onClose: () => void; title?: string; width?: number; children: ReactNode; className?: string; labelledBy?: string; }
+interface Props { open: boolean; onClose: () => void; title?: string; width?: number; children: ReactNode; className?: string; labelledBy?: string; hideClose?: boolean; }  // hideClose: Escape / backdrop only (pickers whose header is a framed row)
 
-export default function Modal({ open, onClose, title, width, children, className, labelledBy }: Props) {
+export default function Modal({ open, onClose, title, width, children, className, labelledBy, hideClose }: Props) {
 	useEffect(() => {
 		if (!open) return;
 		const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -19,7 +19,7 @@ export default function Modal({ open, onClose, title, width, children, className
 			<div className={styles.backdrop} onClick={onClose} />
 			<div className={`${styles.dialog} ${className || ""}`} role="dialog" aria-modal="true" aria-labelledby={labelledBy} style={width ? { width: `min(${width}px, 100%)` } : undefined}>
 				{title && <div className={styles.head}><h2 id={labelledBy}>{title}</h2></div>}
-				<button className={styles.close} type="button" onClick={onClose} aria-label="Close">×</button>
+				{!hideClose && <button className={styles.close} type="button" onClick={onClose} aria-label="Close">×</button>}
 				{children}
 			</div>
 		</div>

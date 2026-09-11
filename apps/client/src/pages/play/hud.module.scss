@@ -3,19 +3,62 @@
 .opp .idInfo { align-items: flex-end; }
 .idAvatar :global(canvas) { border-radius: 6px; }
 .idInfo { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
-.idName { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.01em; display: inline-flex; align-items: center; gap: 0.35rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.idTier { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; font-weight: 700; }
+.idName { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.01em; display: inline-flex; align-items: center; gap: 0.35rem; white-space: nowrap; min-width: 0; max-width: 100%; }
+// the name text is its own box so it can truncate with an ellipsis inside the flex row (the flag stays)
+.idNameText { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.idTier { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; font-weight: 700; white-space: nowrap; min-width: 0; max-width: 100%; > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; } }
+// Empty-seat skeleton, sized like the real avatar (52px), name line and tier line.
+.skelAvatar { display: block; width: 52px; height: 52px; border-radius: 6px; flex: 0 0 auto; }
+.skelAvatarBig { width: 64px; height: 64px; }
+.skelName { display: block; width: 7rem; height: 0.95rem; border-radius: 4px; margin: 0.2rem 0; }
+.skelTier { display: block; width: 4.5rem; height: 0.7rem; border-radius: 4px; margin-top: 0.2rem; }
 .opp .idTier { flex-direction: row-reverse; }
+// plain: the opponent's identity reads left to right like the player's own.
+.plain.opp.id { flex-direction: row; text-align: left; }
+.plain.opp .idInfo { align-items: flex-start; }
+.plain.opp .idTier { flex-direction: row; }
 
-.barRow { display: flex; align-items: center; gap: 0.7rem; min-width: 0; }
-.opp.barRow { flex-direction: row-reverse; }
-.bar { position: relative; flex: 1 1 auto; height: 10px; border-radius: 5px; background: rgba(255, 255, 255, 0.08); overflow: visible; }
-.barFill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; background: var(--side, var(--duel-you, #3b82f6)); transition: width 0.3s ease; }
-.you .barFill { --side: var(--duel-you, #3b82f6); }
-.opp .barFill { --side: var(--duel-opp, #fb7185); }
-.barPct { position: absolute; right: 0; top: -1.35rem; font-size: 0.8rem; font-variant-numeric: tabular-nums; }
-.opp .barPct { right: auto; left: 0; }
-.cellsLeft { font-size: 0.78rem; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.you { --side: var(--duel-you, #3b82f6); }
+.opp { --side: var(--duel-opp, #fb7185); }
+.barRow { display: flex; flex-direction: column; gap: 0.3rem; width: 100%; min-width: 0; }
+.barLine { display: flex; align-items: center; gap: 0.6rem; width: 100%; }
+.bar { position: relative; flex: 1 1 auto; height: 10px; border-radius: 5px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+.barFill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; background: var(--side); transition: width 0.3s ease; }
+.barPct { flex: 0 0 auto; font-weight: 800; font-size: 1rem; font-variant-numeric: tabular-nums; color: var(--side); }
+.cellsLeft { font-size: 0.78rem; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; text-align: center; }
+
+// Desktop 1v1 bar (DuelBar): --bar-bg is the track colour the dark text copy uses.
+.duelBar { --bar-bg: #0e1526; position: relative; width: 100%; height: 26px; background: var(--bar-bg); border: 1px solid var(--border); overflow: hidden; }
+.duelFill { position: absolute; top: 0; bottom: 0; transition: width 0.3s ease; }
+.you .duelFill { left: 0; background: linear-gradient(90deg, var(--side), color-mix(in srgb, var(--side) 55%, #fff)); }
+.opp .duelFill { right: 0; background: linear-gradient(270deg, var(--side), color-mix(in srgb, var(--side) 55%, #fff)); }
+.duelLabels { position: absolute; inset: 0; display: flex; align-items: center; gap: 0.6rem; padding: 0 0.7rem; font-size: 0.8rem; white-space: nowrap; pointer-events: none; transition: clip-path 0.3s ease; }
+.you .duelLabels { justify-content: flex-end; }
+.opp .duelLabels { justify-content: flex-end; flex-direction: row-reverse; }  // row-reverse: flex-end is the left (centre) end
+.duelPct, .duelLeft { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--text); }
+.duelLabelsDark .duelPct, .duelLabelsDark .duelLeft { color: var(--bar-bg); }
+
+// Lead bar (desktop 1v1): two card-like halves, flat fills, slanted seam at --x with a 4px gap.
+.leadBar { position: relative; height: 30px; width: 100%; }
+.leadSeg {
+	position: absolute; inset: 0; border: 1px solid var(--side); background: var(--side);
+	box-shadow: 0 0 0 1px color-mix(in srgb, var(--side) 30%, transparent), 0 0 28px -8px var(--side);
+	transition: clip-path 0.3s ease;
+}
+.leadSeg.you { border-radius: 10px 0 0 10px; clip-path: polygon(0 0, calc(var(--x) + 10px) 0, calc(var(--x) - 10px) 100%, 0 100%); }
+.leadSeg.opp { border-radius: 0 10px 10px 0; clip-path: polygon(calc(var(--x) + 14px) 0, 100% 0, 100% 100%, calc(var(--x) - 6px) 100%); }
+.leadFlat { height: 16px; }
+.leadFlat .leadSeg { border-radius: 0; border: 0; box-shadow: none; }
+// Card head readout
+.arenaStat { display: flex; flex-direction: column; flex: 0 0 auto; line-height: 1; gap: 3px; }
+.arenaStat.you { align-items: flex-end; text-align: right; }
+.arenaStat.opp { align-items: flex-start; text-align: left; }
+.statPct { font-family: var(--font-display); font-size: 1.85rem; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; color: var(--side); }
+.statLeft { font-size: 0.78rem; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 600; }
+// Mine hit: red for the whole penalty, then it fades back to muted with the rest of the card (0.25s, PlayPage.module.scss).
+.statLeft { transition: color 0.25s ease; }
+.statHit { color: var(--danger); }
+.statPct { transition: color 0.25s ease; }
 
 .urgent { color: var(--danger) !important; }
 .warning { color: #fbbf24 !important; }
@@ -33,4 +76,7 @@
 .vertical.id, .vertical.opp.id { flex-direction: column; text-align: center; gap: 0.4rem; }
 .vertical .idInfo, .vertical.opp .idInfo { align-items: center; }
 .vertical.opp .idTier { flex-direction: row; }
-.vertical .idName { font-size: 1rem; max-width: 100%; }
+.vertical .idName { font-size: 1.05rem; max-width: 100%; }
+// Landscape-phone portrait frame: a circle in the side colour with a soft halo.
+.ring .idAvatar { margin: 6px 0 2px; }
+.ring .idAvatar :global(canvas) { border-radius: 50%; box-shadow: 0 0 0 3px var(--side), 0 0 0 7px color-mix(in srgb, var(--side) 22%, transparent), 0 0 20px -2px var(--side); }

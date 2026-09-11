@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { match, useMatch, RoomSummary } from "../../game/match-store";
 import Modal from "../../app/Modal";
+import { enterDuelMobileFullscreen } from "../../game/fullscreen";
 import styles from "./CustomPage.module.scss";
 
 const BOARD_DIMS: Record<string, [number, number]> = { small: [10, 13], medium: [16, 20], large: [16, 30] };
@@ -58,7 +59,7 @@ function RoomRow({ room, joinable }: { room: RoomSummary; joinable?: boolean }) 
 				</div>
 				<div className={styles.meta}>{room.phase !== "planning" && `Game ${room.gamesPlayed} of ${room.gameCount} · `}{(room.players || []).join(", ")}</div>
 			</div>
-			{joinable ? <button type="button" className="btn" disabled={full} onClick={() => match.joinRoom(room.id)}>{full ? "Full" : "Join"}</button> : <span className={styles.badge}>In game</span>}
+			{joinable ? <button type="button" className="btn" disabled={full} onClick={() => { enterDuelMobileFullscreen(); match.joinRoom(room.id); }}>{full ? "Full" : "Join"}</button> : <span className={styles.badge}>In game</span>}
 		</li>
 	);
 }

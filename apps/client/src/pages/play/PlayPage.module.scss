@@ -1,6 +1,10 @@
 @use "../../styles/variables" as *;
 
 .view { --duel-you: #3b82f6; --duel-opp: #fb7185; position: relative; animation: fade 180ms ease; }
+// Live (navbar hidden, main padding 0.75rem + 1.5rem): the view fills the viewport so the duel grid can
+// sit vertically centred in it, like the old client.
+.live { min-height: calc(100dvh - 2.25rem); display: flex; flex-direction: column; }
+.live .duelStack { margin: auto; }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 .header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
 .headerRight { display: flex; align-items: center; gap: 0.8rem; min-height: 1.5em; }
@@ -11,7 +15,6 @@
 .spinner { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--border); border-top-color: var(--accent); animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .message { margin: 0 0 1rem; color: var(--danger); }
-.fsBtn { padding: 0.35rem 0.6rem; font-size: 1.1rem; line-height: 1; }
 
 // Timer badge (1v1): a cyan-to-red gradient border via the padding-box/border-box trick.
 .timerBadge {
@@ -21,29 +24,37 @@
 .duelTimer { font-family: var(--font-display); font-size: 1.3rem; font-weight: 800; line-height: 1; min-width: 5ch; min-height: 1em; text-align: center; font-variant-numeric: tabular-nums; }
 .timerMode { font-size: 0.66rem; letter-spacing: 0.12em; color: var(--muted); font-weight: 700; min-width: 140px; text-align: center; min-height: 1em; }
 
-// ---- 1v1 duel: two arenas across a VS column ----
-.duelGrid { display: grid; grid-template-columns: minmax(0, 1fr) 150px minmax(0, 1fr); gap: 1rem; align-items: start; @include below($bp-lg) { grid-template-columns: 1fr; } }
+// ---- 1v1 duel: the lead bar over two cards side by side (identity + readout, board). The stack
+// shrink-wraps the cards so the bar spans exactly their width, and sits centred in the live view ----
+.duelStack { position: relative; display: flex; flex-direction: column; gap: 1rem; width: max-content; max-width: 100%; margin: 0 auto; }
+.barRow { position: relative; }
+// The clock sits centred just above the lead bar, larger than the header badge it replaced.
+.stackTimer { display: flex; justify-content: center; margin-bottom: 0.15rem; .timerBadge { padding: 0.5rem 1.5rem; } .duelTimer { font-size: 2rem; transition: color 0.3s ease; } }
+// Before GO the clock shows the round length, dimmed; it brightens when it starts ticking.
+.clockIdle .duelTimer { color: var(--muted); }
+// Two cards side by side; from 1100px down they stack (DUEL_STACK_MQ in PlayPage.tsx sizes the boards for that).
+$bp-duel-stack: 1100px;
+.duelGrid { display: grid; grid-template-columns: auto auto; justify-content: center; gap: 1rem; align-items: stretch; @include below($bp-duel-stack) { grid-template-columns: 1fr; } }
 .arena {
-	display: flex; flex-direction: column; gap: 0.7rem; padding: 0.9rem 1rem; border-radius: 10px; min-width: 0;
+	position: relative; display: flex; flex-direction: column; gap: 0.85rem; padding: 1rem 1.1rem; border-radius: 10px; min-width: 0;
 	background: var(--surface); border: 1px solid var(--side); box-shadow: 0 0 0 1px color-mix(in srgb, var(--side) 35%, transparent), 0 0 28px -8px var(--side);
 }
 .arenaYou { --side: var(--duel-you); }
-.arenaOpp { --side: var(--duel-opp); align-items: flex-end; }
+.arenaOpp { --side: var(--duel-opp); }
+// Mine hit: the card's own colour turns red and the board dims, both fading in over 0.25s; they hold for
+// the whole penalty, and when it lifts the .hit class goes and the same 0.25s transitions fade everything
+// back together (HIT_OUT_MS in PlayPage.tsx). The rest of the treatment is .frozen below.
+.arena, .lsCenter, .boardCard { transition: border-color 0.25s ease, box-shadow 0.25s ease; }
+// The dim is the cover's own dark tint (.frozen below), over the whole card: dimming only the canvas made
+// its rectangle stand out against the card, and the explosion layer above the cover stays bright.
+.view .hit.hit { --side: var(--danger); }   // (specificity: beats the landscape card's own --side)
+// A fixed-height head row (two-line identity) and boards anchored to the card bottom: the two boards
+// stay level even while the opponent's identity is still filling in.
+.arenaHead { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-width: 0; margin: 0 6px; min-height: 66px; > :first-child { flex: 1 1 auto; min-width: 0; } }
+.arenaHeadOpp { flex-direction: row-reverse; }
 .searching { opacity: 0.75; }
-.boardWrap { position: relative; width: 100%; display: flex; justify-content: center; }
-.arenaOpp .boardWrap { justify-content: center; }
+.boardWrap { position: relative; width: 100%; display: flex; justify-content: center; flex: 1 1 auto; align-items: flex-end; }
 .oppCanvas { display: block; max-width: 100%; height: auto !important; width: auto !important; border-radius: 4px; }
-.center { display: flex; flex-direction: column; align-items: center; gap: 1rem; padding-top: 4rem; @include below($bp-lg) { padding-top: 0; flex-direction: row; justify-content: center; } }
-.vs {
-	width: 48px; height: 48px; transform: rotate(45deg); border-radius: 8px; display: flex; align-items: center; justify-content: center;
-	background: var(--surface-2); border: 1px solid var(--border);
-	&::before { content: "VS"; transform: rotate(-45deg); font-family: var(--font-display); font-weight: 800; font-size: 0.9rem; }
-}
-.goalPill { font-size: 0.72rem; font-weight: 600; color: var(--muted); padding: 0.35rem 0.7rem; border-radius: 999px; border: 1px solid var(--border); white-space: nowrap; }
-.meter { width: 100%; display: flex; flex-direction: column; gap: 0.5rem; align-items: stretch; }
-.meterTrack { position: relative; width: 100%; height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--duel-you), rgba(255, 255, 255, 0.15), var(--duel-opp)); }
-.meterMarker { position: absolute; top: 50%; left: 50%; width: 12px; height: 12px; transform: translate(-50%, -50%) rotate(45deg); background: var(--text); border-radius: 3px; box-shadow: 0 0 10px rgba(230, 233, 245, 0.6); transition: left 0.3s ease; }
-.meterCallout { font-size: 0.85rem; font-weight: 700; color: var(--muted); text-align: center; }
 
 // ---- classic / 6-player layout ----
 .grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 1.25rem; align-items: start; @include below($bp-lg) { grid-template-columns: 1fr; } }
@@ -65,53 +76,121 @@
 .oppPct { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 0.85rem; min-width: 2.6rem; text-align: right; }
 .oppBoardWrap { position: relative; display: flex; justify-content: center; }
 
-// ---- board overlays ----
-.overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 4rem; border-radius: 4px; pointer-events: none; z-index: 4; }
-.frozen { color: #fde68a; font-size: 4.5rem; background: rgba(239, 68, 68, 0.25); }
+// ---- board overlays: cover the whole card they sit in (its corner radius included) ----
+.overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 4rem; border-radius: inherit; pointer-events: none; z-index: 4; }
+// The mine-hit freeze covers the board: it swallows every pointer event (no hover, no clicks) until it lifts.
+// The mine-hit cover: swallows every pointer event until the penalty lifts (no hover, no clicks, no menu),
+// wears the red edge glow on the whole card, and holds one big numeral over the board. It fades in over
+// 0.25s (from @starting-style), stays for the whole penalty, and at 0 gets .frozenOut and fades away in
+// the same 0.25s, letting input through at once.
+.frozen {
+	position: absolute; inset: 0; z-index: 4; border-radius: inherit; pointer-events: auto; cursor: default;
+	display: flex; align-items: center; justify-content: center; opacity: 1; transition: opacity 0.25s ease;
+	background: rgba(5, 8, 18, 0.5);
+	box-shadow: inset 0 0 0 3px var(--danger), inset 0 0 70px 12px rgba(239, 68, 68, 0.55);
+	@starting-style { opacity: 0; }
+}
+.frozenOut { opacity: 0; pointer-events: none; }
+.frozenCount { font-family: var(--font-display); font-weight: 700; font-size: 5rem; letter-spacing: -0.04em; color: #fff; line-height: 1; font-variant-numeric: tabular-nums; }
 .cleared { color: var(--success); font-size: 1.6rem; background: rgba(34, 197, 94, 0.2); padding: 1rem; text-align: center; }
 
 // ---- phones: portrait ----
-.strip { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 0.6rem; align-items: center; margin-bottom: 0.7rem; padding: 0.5rem 0.65rem; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); }
-.stripSide { min-width: 0; --side: var(--duel-you); }
-.stripOpp { --side: var(--duel-opp); }
-.stripHead { display: flex; justify-content: space-between; gap: 0.4rem; font-size: 0.78rem; font-weight: 600; b { font-variant-numeric: tabular-nums; color: var(--side); } }
-.stripName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.stripBar { height: 5px; margin-top: 0.3rem; border-radius: 3px; background: rgba(255, 255, 255, 0.08); overflow: hidden; span { display: block; height: 100%; background: var(--side); transition: width 0.3s ease; } }
-.stripTimer { font-family: var(--font-display); font-weight: 800; font-size: 1rem; min-width: 4.5ch; text-align: center; font-variant-numeric: tabular-nums; }
 .actionBar { display: none; }
 .navBtn, .modeBtn { border: 1px solid var(--border); background: var(--surface-2); border-radius: 6px; font-weight: 700; padding: 0.6rem 0.4rem; }
-.navBtn { flex: 0 0 44px; font-size: 1.3rem; line-height: 1; }
+.navBtn { flex: 0 0 44px; font-size: 1.3rem; line-height: 1; &:disabled { opacity: 0.4; } }
 .modeBtn { flex: 1 1 0; }
 .modeActive { border-color: var(--accent); color: var(--accent-hover); background: rgba(99, 102, 241, 0.14); }
 .portrait {
 	.header { margin-bottom: 0.6rem; gap: 0.5rem; }
-	.timerBadge { padding: 0.25rem 0.6rem; }
-	.timerBadge, .timerMode, .fsBtn { display: none; }
+	.timerMode, .fsBtn { display: none; }
+	// The narrow 1v1: one tight column centred on the screen. A row with the exit cross at the left and
+	// the clock in the middle, the lead bar, the board card (no head), and the buttons right under it,
+	// all 4px apart, with the smallest gutters that still show the card edge so the board gets the width.
+	&.live { min-height: calc(100dvh - 6px); }
+	.header, .stackTimer, .arenaHead { display: none; }
+	.duelStack { width: 100%; margin: auto; gap: 4px; }
+	.topRow { position: relative; display: flex; align-items: center; justify-content: center; min-height: 34px; }
+	// The exit cross sits in the very top-left corner of the screen, away from the board.
+	.topExit { position: fixed; top: calc(6px + env(safe-area-inset-top, 0px)); left: calc(6px + env(safe-area-inset-left, 0px)); z-index: 6; width: 34px; height: 34px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface-2); color: var(--muted); font-size: 1.15rem; line-height: 1; padding: 0; display: grid; place-items: center; &:hover { color: var(--text); border-color: var(--muted); } }
+	.topClock { padding: 0.25rem 0.9rem; .duelTimer { font-size: 1.2rem; transition: color 0.3s ease; } }
+	.clockIdle .duelTimer { color: var(--muted); }
 	.duelGrid { display: block; }
-	.center, .arenaOpp, .side, .tools { display: none; }
-	.arena { padding: 0.6rem; box-shadow: none; }
-	.boardCard { padding: 0.5rem; width: 100%; }
-	.boardWrap { justify-content: flex-start; }
-	.actionBar { display: flex; gap: 0.5rem; position: sticky; bottom: 0; z-index: 5; margin-top: 0.7rem; padding: 0.5rem 0 calc(0.5rem + env(safe-area-inset-bottom, 0px)); background: var(--bg); }
+	.arenaOpp, .side, .tools { display: none; }
+	// The card shakes as a whole here (data-shake-host), so the scroller needs only a 3px gutter
+	// (PORTRAIT_GUTTER_X in PlayPage.tsx keeps the column fit in step): canvas edge to card edge is 7px.
+	.arena { padding: 3px; box-shadow: none; }
+	.boardCard { padding: 3px; width: 100%; }
+	.board > div:first-child { padding: 3px; width: var(--board-view-w, auto); }
+	.boardWrap { justify-content: center; }
+	// (boardWrap stays centred: the scroller is cropped to whole columns above)
+	.actionBar { display: flex; gap: 0.5rem; }
 }
 
-// ---- phones: landscape (a dedicated three-column layout, board centred and pannable) ----
+// ---- phones: landscape (the legacy three-panel layout: you | board | opponent), also used when a
+// portrait phone is force-rotated (body.duel-force-rotate, below) ----
 .landscape {
-	display: grid; grid-template-columns: 150px minmax(0, 1fr) 150px; grid-template-rows: minmax(0, 1fr); gap: 0.6rem;
+	// Three columns (LS_PANEL_W in PlayPage.tsx matches the side column width). In a 1v1 the lead bar sits
+	// inside the board card along its top edge, and the card's border wears the bar's colours where it
+	// touches them: the top edge is blue up to the seam and red past it, the sides take the colour they meet.
+	position: relative; display: grid; grid-template-columns: 158px minmax(0, 1fr) 158px; grid-template-rows: minmax(0, 1fr); column-gap: 0.6rem;
 	height: 100dvh; padding: 0.5rem calc(0.5rem + env(safe-area-inset-right, 0px)) 0.5rem calc(0.5rem + env(safe-area-inset-left, 0px)); overflow: hidden; animation: none;
-	.lsPanel { position: relative; display: flex; flex-direction: column; align-items: center; gap: 0.6rem; padding: 2rem 0.5rem 0.6rem; border-radius: 10px; background: var(--surface); border: 1px solid var(--side); min-height: 0; overflow: hidden; }
-	.lsYou { --side: var(--duel-you); }
-	.lsOpp { --side: var(--duel-opp); }
-	.lsBack { position: absolute; top: 0.4rem; left: 0.4rem; width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface-2); font-size: 1rem; line-height: 1; padding: 0; }
-	.lsTimer { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; }
-	.timerMode { min-width: 0; }
+	// Side panels and the board card all wear the arena look: a border in the side colour, a faint tint
+	// fading into the surface, and a soft outer glow.
+	.lsPanel, .lsBoardCard {
+		position: relative; min-height: 0; border-radius: 7px; border: 1px solid var(--side);
+		background: linear-gradient(180deg, color-mix(in srgb, var(--side) 12%, var(--surface)), var(--surface) 60%);
+		box-shadow: 0 0 26px -6px var(--side), inset 0 0 22px -14px var(--side);
+	}
+	// No clipping on the panels or the board wrap: a mine explosion (ExplosionLayer) may spill past the board and the card edges here too.
+	.lsPanel { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.6rem; padding: 0.6rem 0.5rem; }
+	.lsYou { --side: var(--duel-you); padding-top: 0.8rem; }
+	.lsOpp { --side: var(--duel-opp); padding-top: 0.8rem; }
+	.lsBack { position: absolute; top: 0.5rem; left: 0.5rem; width: 34px; height: 34px; border-radius: 6px; border: 1px solid var(--border); background: rgba(255, 255, 255, 0.05); color: var(--muted); font-size: 1.4rem; line-height: 1; padding: 0 0 0.15rem; &:hover { color: var(--text); border-color: var(--muted); } }
+	// Timer box: mode line over the clock, framed by the you-to-opponent gradient like the desktop badge.
+	// The clock is just the time: no icon, no mode line, no box. Dimmed until GO (clockIdle).
+	.lsClock .duelTimer { font-size: 1.4rem; transition: color 0.3s ease; }
+	.lsSpacer { flex: 1 1 auto; }
+	.lsLeft { font-size: 0.74rem; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+	// Your bottom block matches the opponent's mini board height so both "cells left" lines sit level.
+	.lsBottom { width: 100%; height: calc(var(--ls-mini-h, 104px) - 0.5rem); display: flex; flex-direction: column; justify-content: flex-end; gap: 0.4rem; }   // minus the panel's bottom padding: the mini board opposite runs to the edge, this block stops at the padding, so both tops (and the cells-left lines above them) are level
+	.lsNav { display: flex; gap: 0.4rem; .navBtn { flex: 1 1 0; } }
+	// The mode button: two faces stacked, Reveal (a covered cell) and the red-tinted Flag; a tap crossfades
+	// between them in 150ms. No 3D flip: a quick clean fade reads better at this size.
+	.lsMode { width: 100%; height: 40px; border: 0; background: none; padding: 0; position: relative; }
+	.flipCard { position: relative; display: block; width: 100%; height: 100%; }
+	.flipFace { position: absolute; inset: 0; border-radius: 7px; border: 1px solid var(--border); background: var(--surface-2); display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-weight: 700; font-size: 0.9rem; color: var(--text); opacity: 1; transition: opacity 0.15s ease; }
+	.flipBack { opacity: 0; border-color: var(--danger); background: rgba(239, 68, 68, 0.16); }
+	.lsModeFlag .flipFace { opacity: 0; }
+	.lsModeFlag .flipBack { opacity: 1; }
+	.cellIcon { width: 20px; height: 20px; border-radius: 5px; background: linear-gradient(#4f93f7, #2563eb); border: 1px solid #1e40af; box-sizing: border-box; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28); flex: 0 0 auto; }
 	// Grid rows give the board row a definite height, so the board's scroller can be capped to it.
-	.lsCenter { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 0.4rem; min-height: 0; min-width: 0; padding-top: 1rem; }
-	.lsBoardWrap { overflow: hidden; display: flex; justify-content: center; align-items: stretch; min-height: 0;
-		> :first-child { display: flex; flex-direction: column; max-width: 100%; height: 100%; }
-		> :first-child > div:first-child { flex: 1 1 auto; min-height: 0; overflow: auto; } }
-	.lsOppBoard { width: 100%; display: flex; justify-content: center; canvas { max-height: 120px; } }
-	.lsWaiting { display: flex; align-items: center; gap: 0.4rem; font-size: 0.75rem; color: var(--muted); text-align: center; }
-	.actionBar { display: flex; gap: 0.5rem; flex: 0 0 auto; }
+	// The centre column: an outer box with no visible edges that stacks the lead bar (1v1) over the board
+	// card. The bar has the rounded top corners; the board card starts right under it with the border,
+	// square at the top and rounded at the bottom, so no border line ever runs alongside the bar.
+	.lsCenter { --side: var(--duel-you); position: relative; display: grid; grid-template-rows: minmax(0, 1fr); min-width: 0; min-height: 0; }
+	.lsCenterBar { grid-template-rows: auto minmax(0, 1fr); }
+	.lsBar { border-radius: 7px 7px 0 0; overflow: hidden; }
+	.lsBoardCard { display: grid; grid-template-rows: minmax(0, 1fr); min-width: 0; padding: 0.55rem 0.6rem 0.6rem; }
+	.lsCenterBar .lsBoardCard { border-top: 0; border-radius: 0 0 7px 7px; }
+	// The game area is a fixed box regardless of zoom level: the wrap fills it, the scroller fills the wrap,
+	// and the canvas pans or zooms inside. A canvas narrower than the box (the overview) is centred by its
+	// own margin, which resolves to 0 once it overflows, so scrollLeft 0 always means the board's left edge.
+	// min-width 0 (it is a grid item): otherwise it grows to the zoomed-in board and spills out of the card
+	.lsBoardWrap { display: flex; justify-content: center; align-items: stretch; min-height: 0; min-width: 0;
+		// min-height 0: without it the wrap (a flex item) grows to its zoomed-in board and spills out of the card;
+		// the scroller inside clips the board, while the explosion layer (also inside the wrap) may still spill.
+		> :first-child { display: flex; flex-direction: column; width: 100%; max-width: 100%; min-width: 0; height: 100%; min-height: 0; max-height: 100%; }
+		> :first-child > div:first-child { flex: 1 1 auto; min-height: 0; overflow: auto; }
+		canvas { margin: 0 auto; } }
+	// The opponent's mini board fills the bottom of its panel edge to edge (no gutter, no label).
+	// 1px of panel shows around the mini board's edges.
+	.lsOppBoard { width: calc(100% + 1rem - 2px); margin: 0 calc(-0.5rem + 1px) calc(-0.5rem + 1px); display: flex; justify-content: center; flex: 0 0 auto; [data-board-scroll] { padding: 0; } canvas { border-radius: 0 0 5px 5px; } }
+	.lsOppSkel { display: block; width: 100%; height: var(--ls-mini-h, 96px); border-radius: 0 0 6px 6px; }
 	.searchStatus { font-size: 0.8rem; }
+}
+// A phone held in portrait: the landscape layout is laid out at the viewport's height x width, then
+// rotated 90 degrees from its top-left corner and pulled back up by its own height to fill the screen.
+:global(body.duel-force-rotate) .landscape {
+	position: fixed; top: 0; left: 0; width: 100vh; height: 100vw; z-index: 40; background: var(--bg);
+	transform-origin: top left; transform: rotate(90deg) translateY(-100%);
 }

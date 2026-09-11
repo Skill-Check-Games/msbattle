@@ -24,8 +24,18 @@
 	&:hover { color: var(--text); background: var(--surface); }
 }
 .active { color: #fff; background: rgba(99, 102, 241, 0.22); &:hover { color: #fff; background: rgba(99, 102, 241, 0.22); } }
-.identity { display: flex; justify-content: flex-end; align-items: center; gap: 0.6rem; @include below($bp-lg) { display: none; } }
-.name { font-weight: 600; }
+.identity { display: flex; justify-content: flex-end; align-items: center; gap: 1rem; @include below($bp-lg) { display: none; } }
+
+// Signed-in identity: a 2.6rem circle (provider photo, else a letter on the accent) that opens a popover.
+.account { position: relative; display: flex; align-items: center; }
+.avatarBtn { display: flex; align-items: center; justify-content: center; width: 2.6rem; height: 2.6rem; padding: 0; border: 0; border-radius: 50%; background: none; line-height: 0; cursor: pointer; &:hover .avatarImg, &:hover .avatarFallback { box-shadow: 0 0 0 2px var(--accent-hover); } }
+.avatarImg { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
+.avatarFallback { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 700; font-size: 1rem; }
+.popover { position: absolute; top: calc(100% + 0.4rem); right: 0; min-width: 11rem; z-index: 50; display: flex; flex-direction: column; gap: 0.15rem; padding: 0.5rem; background: var(--surface); border: 1px solid var(--border); border-radius: 5px; box-shadow: var(--shadow); }
+.popoverHead { display: flex; align-items: center; gap: 0.45rem; padding: 0.3rem 0.5rem 0.5rem; margin-bottom: 0.2rem; border-bottom: 1px solid var(--border); strong { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } }
+.providerLogo { display: inline-flex; align-items: center; flex: 0 0 auto; svg { width: 1.05rem; height: 1.05rem; display: block; } }
+.popoverLink { display: block; width: 100%; text-align: left; padding: 0.45rem 0.5rem; border-radius: 4px; border: 0; background: none; color: var(--text); font: inherit; font-size: 0.88rem; text-decoration: none; cursor: pointer; &:hover { background: var(--surface-2); } }
+.popoverSignOut { color: var(--danger); }
 
 // Burger: a fixed 40px square so the icon swap never shifts the row.
 .burger {
@@ -50,5 +60,11 @@
 	background: var(--bg); border-bottom: 1px solid var(--border); box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55);
 }
 .panelLink { padding: 0.7rem 0.85rem; border-radius: 6px; text-decoration: none; color: var(--muted); font-weight: 600; font-size: 1rem; text-align: left; white-space: nowrap; &:hover { color: var(--text); background: var(--surface); } &.active { color: #fff; background: rgba(99, 102, 241, 0.22); } }
-.panelIdentity { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; margin-top: 0.5rem; padding-top: 0.7rem; border-top: 1px solid var(--border); }
+// Burger-panel account card: avatar chip + name + tier row linking to the profile, then the actions.
+.menuAccount { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.5rem; padding: 0.7rem 0.35rem 0.3rem; border-top: 1px solid var(--border); }
+.menuAccountId { display: flex; align-items: center; gap: 0.75rem; text-decoration: none; color: var(--text); min-width: 0; }
+.menuAccountText { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; strong { font-size: 1.05rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }
+.menuAccountTier { font-size: 0.85rem; color: var(--muted); }
+.menuActions { display: flex; align-items: center; gap: 0.6rem; }
+.menuBtn { flex: 1 1 auto; justify-content: center; padding: 0.75rem; font-size: 1rem; background: var(--surface-2); border: 1px solid var(--border); }
 .linkBtn { border: 0; background: none; font-weight: 600; font-size: 0.92rem; font-family: inherit; }

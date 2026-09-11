@@ -1,39 +1,49 @@
-.hero { display: flex; align-items: center; gap: 1rem; }
+// The ranked result (legacy "Focus" layout): roomier, left-aligned, the rating change is the hero and
+// the opponent or standings context sits under a divider. No coloured panel border.
+.ranked { width: min(94vw, 560px); padding: 2rem 2.1rem; gap: 1.35rem; align-items: flex-start; text-align: left; border-color: var(--border); }
+.hero { display: flex; align-items: center; gap: 1.1rem; }
 .heroBadge { flex: 0 0 auto; }
 .heading { font-family: var(--font-display); font-size: 1.85rem; font-weight: 800; letter-spacing: -0.01em; line-height: 1; }
-.headingWin { color: var(--energy-gold); }
-.sub { color: var(--muted); font-size: 0.85rem; margin-top: 0.25rem; }
-.ratingCard { margin-top: 0.6rem; padding: 0.9rem 1rem; border-radius: 7px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border); }
+.rankedLose .heading { color: var(--muted); }
+.rankedWin .heading, .headingWin { color: var(--energy-gold); text-shadow: 0 0 24px rgba(252, 211, 51, 0.45); }
+.sub { color: var(--muted); font-size: 0.85rem; margin-top: 0.3rem; }
+.ratingCard { align-self: stretch; padding: 1.1rem 1.2rem; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 0.65rem; }
 .cols { display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; gap: 0.5rem; }
-.col { display: flex; flex-direction: column; gap: 0.15rem; }
-.center { align-items: center; }
+.col { display: flex; flex-direction: column; gap: 0.1rem; }
+.center { align-items: center; padding-bottom: 0.2rem; .colNum { font-size: 1.4rem; } }
 .right { align-items: flex-end; }
-.colLabel { font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
-.colNum { font-family: var(--font-display); font-size: 1.6rem; font-weight: 800; font-variant-numeric: tabular-nums; }
-.old { color: var(--muted); }
-.gain { color: var(--success); }
+.colLabel { font-size: 0.66rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.colNum { font-family: var(--font-display); font-size: 2rem; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.old { font-size: 1.15rem; color: var(--muted); font-weight: 700; }
+.gain { color: var(--energy-win); }
 .loss { color: var(--danger); }
 .flat { color: var(--muted); }
-.track { position: relative; height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.08); margin-top: 0.7rem; overflow: hidden; }
-.trackFill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); transition: width 0.9s cubic-bezier(0.22, 1, 0.36, 1); }
-.progLabels { display: flex; justify-content: space-between; margin-top: 0.4rem; font-size: 0.78rem; font-weight: 700; color: var(--muted); }
-.divider { height: 1px; background: var(--border); margin: 0.9rem 0 0.6rem; }
-.context { display: flex; flex-direction: column; gap: 0.6rem; }
-.oppLine { display: flex; justify-content: space-between; align-items: center; font-weight: 700; font-size: 0.9rem; }
-.oppName { font-size: 1rem; }
-.times { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
-.timeChip { padding: 0.5rem 0.7rem; border-radius: 6px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border); }
-.timeLabel { font-size: 0.66rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
-.timeVal { font-family: var(--font-display); font-weight: 800; font-size: 1.15rem; font-variant-numeric: tabular-nums; }
-.you { color: var(--duel-you, #3b82f6); }
-.oppc { color: var(--duel-opp, #fb7185); }
-.dnf { color: var(--muted); font-size: 0.9rem; }
-.eyebrow { font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
-.standings { display: flex; flex-direction: column; gap: 0.3rem; }
-.srow { display: grid; grid-template-columns: 2rem 1fr auto 3.5rem; gap: 0.6rem; align-items: center; padding: 0.4rem 0.6rem; border-radius: 5px; background: rgba(255, 255, 255, 0.03); font-size: 0.9rem; }
-.srowMe { background: rgba(99, 102, 241, 0.14); border: 1px solid rgba(99, 102, 241, 0.4); }
-.srank { font-family: var(--font-display); font-weight: 800; color: var(--muted); }
-.g1 { color: var(--energy-gold); } .g2 { color: #e2e8f0; } .g3 { color: #f0b486; }
+.track { position: relative; height: 0.5rem; border-radius: 999px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+.trackFill { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: linear-gradient(90deg, var(--accent), var(--accent-hover)); transition: width 0.9s cubic-bezier(0.22, 1, 0.36, 1); }
+.rankedWin .trackFill { background: linear-gradient(90deg, var(--energy-win), #86efac); }
+.progLabels { display: flex; justify-content: space-between; align-items: baseline; font-size: 0.78rem; span:first-child { font-weight: 700; } span:last-child { color: var(--muted); } }
+.divider { height: 1px; background: var(--border); align-self: stretch; }
+.context { display: flex; flex-direction: column; gap: 0.6rem; align-self: stretch; }
+.oppLine { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; }
+.oppName { font-size: 0.98rem; font-weight: 700; }
+.oppTier { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.8rem; font-weight: 700; }
+.tierDot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; display: inline-block; }
+.times { display: flex; gap: 1.4rem; flex-wrap: wrap; }
+.timeChip { display: flex; flex-direction: column; gap: 0.15rem; }
+.timeLabel { font-size: 0.64rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.timeVal { font-family: var(--font-display); font-weight: 700; font-size: 1rem; font-variant-numeric: tabular-nums; }
+.you { color: var(--energy-win); }
+.oppc { color: var(--muted); }
+.dnf { color: var(--danger); }
+.eyebrow { font-size: 0.66rem; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.standings { display: flex; flex-direction: column; gap: 2px; }
+.srow { display: grid; grid-template-columns: 1.4rem 1fr auto auto; gap: 0.5rem; align-items: center; padding: 0.35rem 0.45rem; border-radius: 4px; font-size: 0.85rem; }
+.srowMe { background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.2); font-weight: 700; }
+.srank { font-weight: 800; color: var(--muted); text-align: center; font-size: 0.78rem; }
+.g1 { color: var(--energy-gold); } .g2 { color: #cbd5e1; } .g3 { color: #d08b5b; }
 .sname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.stime { font-variant-numeric: tabular-nums; }
+.stime { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 0.78rem; }
+// Actions stretch across the panel; Play another grows, Leave keeps its size.
+.ranked :global(.kbd-btn-group), .ranked > div:last-child { align-self: stretch; }
+.again { flex: 1 1 auto; }
 .casualHeader { text-align: center; font-size: 1.4rem; font-weight: 800; font-family: var(--font-display); }

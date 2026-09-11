@@ -26,10 +26,11 @@ const AVATAR_BLURBS: Record<string, string> = { anon: "The default anonymous sil
 const avatarLabel = (v: string) => v === "anon" ? "Anonymous" : v === "mine" ? "Mine" : itemById(v)?.label || "Flag";
 const REVEAL_GLYPHS: Record<string, string> = { ripple: "🌊", spark: "⚡", shatter: "💥", crt: "📺", dust: "💨" };
 
-// Demo board layout: an 8x11 (8x8 on phones) fixed layout with a mine-free opening. The Effects
-// demo swaps in a sparse corner-mine layout and floods from the middle so one wave opens it all.
+// Demo board layout: an 8x11 (8x8 on phones) fixed layout. The pre-revealed top-left opening is the
+// legacy client's exact 13 cells (rows 0-1 to column 4, row 2 to column 2), with the mines placed so its
+// border shows a 3 and a 4; the rest is mostly one zero region, so a click on the right clears most of it.
 const DEMO_ROWS = 8;
-const DEMO_MINES = [[0, 5], [1, 7], [1, 9], [2, 3], [2, 8], [2, 10], [3, 0], [3, 5], [4, 2], [5, 4], [6, 1], [7, 3]];
+const DEMO_MINES = [[0, 5], [2, 3], [2, 5], [3, 1], [3, 2], [3, 3], [1, 8], [6, 1]];
 const DEMO_OPEN_AT = [1, 1];
 
 export default function CustomizeLab({ host, tab: tabProp, onTabChange }: { host: "page" | "modal"; tab?: Tab; onTabChange?: (t: Tab) => void }) {

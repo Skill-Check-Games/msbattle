@@ -42,6 +42,12 @@ function createGame(mineCount, gameRows, gameCols) {
 	game.init = init;
 	game.revealedSafeCount = revealedSafeCount;
 	game.totalSafeSquares = rows * cols - numMines;
+	game.openingSafeCount = 0;
+	// Fraction of the safe cells left after the opening cascade that have been cleared (0 to 1).
+	game.progress = function() {
+		var opening = game.openingSafeCount || 0, total = (game.totalSafeSquares || 0) - opening;
+		return total > 0 ? Math.max(0, Math.min(1, (revealedSafeCount() - opening) / total)) : 0;
+	};
 	game.win = null;
 	game.mineHit = null;
 	game.onMove = null; // optional (button, r, c) hook, fired on each APPLIED move — used for replay capture
@@ -213,6 +219,9 @@ function createGame(mineCount, gameRows, gameCols) {
 			firstClick = true;
 		}
 		game.totalSafeSquares = rows * cols - numMines;
+		// The opening cascade is a gift, not progress: the round's percentage counts only the safe cells
+		// that were still covered after it (progress() below), so everyone starts the round at 0%.
+		game.openingSafeCount = template ? template.knownCells.length : 0;
 		game.frozenUntil = 0;
 		game.finished = false;
 		game.finishedAt = 0;

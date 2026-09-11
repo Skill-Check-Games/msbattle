@@ -1,15 +1,16 @@
 @use "../../styles/variables" as *;
 
-.dialog { padding-top: 1.4rem; }
-.head { display: grid; grid-template-columns: auto 1fr auto; gap: 1rem; align-items: center; padding-right: 2.4rem; @include below($bp-sm) { grid-template-columns: 1fr auto; gap: 0.75rem; } }
-.icon { width: 3.6rem; height: 3.6rem; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border); svg { width: 2rem; height: 2rem; } @include below($bp-sm) { display: none; } }
-.title { margin: 0; font-size: 1.5rem; }
-.sub { margin: 0.15rem 0 0; color: var(--muted); font-size: 0.9rem; }
-.rating { text-align: right; display: flex; flex-direction: column; align-items: flex-end; gap: 0.15rem; }
-.tier { font-weight: 700; white-space: nowrap; }
+// Legacy picker: the header is its own framed row (icon, title + sub, tier + rating), no close button.
+.dialog { padding-top: 1.5rem; }
+.head { display: grid; grid-template-columns: auto 1fr auto; gap: 1rem; align-items: center; margin: 0 0 1rem; padding: 1rem 1.2rem; border-radius: 6px; background: var(--surface); border: 1px solid var(--border); @include below($bp-sm) { grid-template-columns: 1fr auto; gap: 0.75rem; } }
+.icon { width: 3.6rem; height: 3.6rem; display: flex; align-items: center; justify-content: center; border-radius: 0.6rem; background: rgba(255, 255, 255, 0.04); svg { width: 2.4rem; height: 2.4rem; } @include below($bp-sm) { display: none; } }
+.title { margin: 0; font-size: 1.6rem; }
+.sub { margin: 0.2rem 0 0; color: var(--muted); font-size: 0.85rem; }
+.rating { text-align: right; display: flex; flex-direction: column; align-items: flex-end; }
+.tier { font-weight: 700; font-size: 1.1rem; white-space: nowrap; }
 .num { font-size: 0.85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
-.pitch { margin: 1rem 0 1.1rem; color: var(--muted); }
-.options { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; @include below($bp-sm) { grid-template-columns: 1fr; } }
+.pitch { margin: 0 0 1.4rem; color: var(--text); opacity: 0.85; font-size: 0.95rem; }
+.options { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; @include below($bp-sm) { grid-template-columns: 1fr; } }
 .option {
 	display: flex; flex-direction: column; align-items: flex-start; gap: 0.4rem; padding: 1.5rem; border-radius: 7px; text-align: left;
 	background: var(--surface); border: 1px solid var(--border); transition: border-color var(--motion-micro);

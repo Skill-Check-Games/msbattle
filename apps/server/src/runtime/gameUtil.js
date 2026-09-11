@@ -32,6 +32,7 @@ function gameForBroadcast(g, pid) {
 		id: pid,
 		playerName: g.playerName,
 		skin: g.skin || null,
+		revealEffect: g.revealEffect || null,
 		avatar: g.avatar || null,
 		country: g.country || null,
 		state: g.state,
@@ -39,7 +40,7 @@ function gameForBroadcast(g, pid) {
 		finishedAt: g.finishedAt,
 		safeCount: safeCount,
 		totalSafe: totalSafe,
-		progress: totalSafe > 0 ? safeCount / totalSafe : 0,
+		progress: g.progress ? g.progress() : (totalSafe > 0 ? safeCount / totalSafe : 0),   // net of the opening cascade: rounds start at 0%
 		frozenUntil: g.frozenUntil,
 		playing: g.playing
 	};

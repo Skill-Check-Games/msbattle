@@ -3,9 +3,10 @@
 // same operations (performAction with local prediction, server frames via applyServerState, the
 // countdown and go sweeps, opponent thumbnails' mirrored reveal). React components mount a session
 // on a canvas (GameBoard.tsx); pages decide what an action means (the `hooks`).
+import { Explosion, makeExplosion, explosionLife } from "./explosion";
 import BoardLogic from "core/src/common/BoardLogic.js";
 import {
-	BoardView, CellAnim, MINE, UNKNOWN, KNOWN, FLAGGED,
+	BoardView, CellAnim, HoverKind, MINE, UNKNOWN, KNOWN, FLAGGED,
 	REVEAL_DUR, FLAG_DUR, MINE_DUR, SETTLE_DUR, WAVE_STEP_MS, WAVE_MAX_MS,
 	drawKnownBase, drawNumber, drawUnknown, roundRectPath, paletteHasGlow, localBoardSkin
 } from "./board-render";
@@ -22,6 +23,9 @@ export interface SessionHooks {
 	onFlagPlaced?: () => void;
 	rules?: () => { noFlags?: boolean; onlyFlags?: boolean; deathPenalty?: number } | null;
 	onFreeze?: (until: number) => void;
+	// The pointer moved over a cell of the local board (throttled by the caller); used to show the
+	// cursor to opponents.
+	onCursor?: (r: number, c: number) => void;
 	sound?: SoundLike;
 }
 
@@ -37,6 +41,8 @@ const COUNTDOWN_GLYPHS: Record<string, string[]> = {
 export const COUNTDOWN_STYLE = { fadeInMs: 200, holdMs: 300, fadeOutMs: 500, gapMs: 100 };
 export const countdownTickMs = () => Math.max(50, COUNTDOWN_STYLE.fadeInMs + COUNTDOWN_STYLE.holdMs + COUNTDOWN_STYLE.fadeOutMs + COUNTDOWN_STYLE.gapMs);
 export const BOARD_GO_STYLE = { durationMs: 700, width: 3, brightness: 0.7, color: "#bfdbfe", pauseAfterMs: 300 };
+// Hovered chordable number: lift it and the cells its chord would open (false), or wiggle its digit (true).
+export const NUMBER_HOVER_WIGGLE = false;
 export const boardGoTotalMs = () => Math.max(0, BOARD_GO_STYLE.durationMs) + Math.max(0, BOARD_GO_STYLE.pauseAfterMs);
 export const naturalCountdownTotalMs = () => boardGoTotalMs() + 3 * countdownTickMs();
 export const BOARD_IDLE_STYLE = { speed: 3, brightness: 0.7, color: "#bfdbfe" };
@@ -52,7 +58,6 @@ const rgbaStr = (rgb: RGB, a: number) => "rgba(" + rgb.r + ", " + rgb.g + ", " +
 const lightenRgb = (rgb: RGB, amt: number): RGB => ({ r: Math.round(rgb.r + (255 - rgb.r) * amt), g: Math.round(rgb.g + (255 - rgb.g) * amt), b: Math.round(rgb.b + (255 - rgb.b) * amt) });
 
 interface GlyphState { glyph: string[]; scale: number; start: number; number: number; }
-interface OpponentTarget { canvas: HTMLCanvasElement; skin: string | null; state: number[][]; }
 
 export class BoardSession {
 	rows = 0; cols = 0;
@@ -78,10 +83,19 @@ export class BoardSession {
 	private anims: Record<string, AnimEntry> = {};
 	private raf: number | null = null;
 	private glyphs: GlyphState[] = [];
+	explosions: Explosion[] = [];   // mines that went off; ExplosionLayer paints them over (and past) the board
+	private explosionListeners = new Set<() => void>();
+	onExplosion(cb: () => void): () => void { this.explosionListeners.add(cb); return () => { this.explosionListeners.delete(cb); }; }
 	private goAnim: { start: number } | null = null;
 	private idleActive = false;
-	private oppAnims: Record<string, AnimEntry> | null = null;
-	private oppTargets: OpponentTarget[] | null = null;
+	// Hover (local board): the cell under the pointer and whether acting on it would do anything.
+	private hover: { r: number; c: number } | null = null;
+	private hoverKind: HoverKind = null;
+	private hoverExtra: string[] = [];   // a hovered chordable number: the covered cells its chord would open
+	// Mirror boards (opponents): the focus ring follows the last cell that changed when no live cursor
+	// has been received, so bots and late joiners still show where play is happening.
+	mirror = false;
+	revealEffect: string | null = null;   // mirror boards: the opponent's chosen reveal effect
 	private listeners = new Set<() => void>();
 
 	constructor(hooks: SessionHooks) { this.hooks = hooks; }
@@ -97,6 +111,7 @@ export class BoardSession {
 		this.hintClues = []; this.hintCovered = [];
 		this.frozenUntil = 0;
 		this.render();
+		this.emitChange(); // GameBoard re-sizes its canvas to the new rows/cols
 	}
 	coveredState(): number[][] { const s: number[][] = []; for (let r = 0; r < this.rows; r++) s.push(new Array(this.cols).fill(UNKNOWN)); return s; }
 	clone(state: number[][]): number[][] { return state.map(row => row.slice()); }
@@ -104,9 +119,89 @@ export class BoardSession {
 	// A frame from the server (draw_board): diff against the last seen state and animate the changes.
 	applyServerState(state: number[][]) {
 		if (!this.state) { this.state = state; this.prevState = this.clone(state); this.render(); return; }
+		if (this.mirror) this.trackMirrorFocus(state);
 		this.state = state;
 		this.queueRevealAnimations(state);
 		this.prevState = this.clone(state);
+	}
+	// Mirror boards: point the focus ring at what just changed (the one cell, or the centre of a cascade).
+	// If the ring was already walking toward a cell that changed, it lands there instead.
+	private trackMirrorFocus(state: number[][]) {
+		if (!this.prevState) return;
+		let n = 0, sr = 0, sc = 0, nearTarget = true;
+		const t = this.travel || this.lastTarget;
+		for (let r = 0; r < this.rows; r++) for (let c = 0; c < this.cols; c++) if (state[r][c] !== this.prevState[r][c]) { n++; sr += r; sc += c; if (t && (Math.abs(r - t.r) > 1 || Math.abs(c - t.c) > 1)) nearTarget = false; }
+		if (!n) return;
+		this.stopTravel();
+		// An announced cell that just acted (itself or its neighbours, a chord) is where the ring lands;
+		// anything else, such as a cascade, lands on the centre of what changed.
+		if (t && nearTarget) { this.focusedR = t.r; this.focusedC = t.c; } else { this.focusedR = Math.round(sr / n); this.focusedC = Math.round(sc / n); }
+		this.focusVisible = true; this.lastTarget = null;
+	}
+	// A live cursor from an opponent: the focus ring moves there. A human's pointer just snaps (it is a
+	// continuous stream). A bot announces its next cell with the time until it clicks, and the ring walks
+	// there one cell at a time, longer axis first, like a player steering with the keyboard, timed to
+	// arrive just before the click.
+	private travel: { r: number; c: number; timer: number } | null = null;
+	private lastTarget: { r: number; c: number } | null = null;
+	private stopTravel() { if (this.travel) { clearTimeout(this.travel.timer); this.travel = null; } }
+	setMirrorFocus(r: number, c: number, etaMs?: number) {
+		if (r < 0 || c < 0 || r >= this.rows || c >= this.cols) return;
+		this.stopTravel(); this.lastTarget = { r, c };
+		if (etaMs == null || !this.focusVisible) { this.focusedR = r; this.focusedC = c; this.focusVisible = true; this.updateFocusOverlay(); return; }
+		const steps = Math.abs(r - this.focusedR) + Math.abs(c - this.focusedC);
+		if (!steps) return;
+		const interval = Math.max(28, Math.min(110, (etaMs - 140) / steps));
+		const step = () => {
+			const dr = r - this.focusedR, dc = c - this.focusedC;
+			if (Math.abs(dr) >= Math.abs(dc) && dr) this.focusedR += Math.sign(dr); else if (dc) this.focusedC += Math.sign(dc);
+			this.updateFocusOverlay();
+			if (this.focusedR === r && this.focusedC === c) { this.travel = null; this.lastTarget = { r, c }; return; }
+			this.travel = { r, c, timer: window.setTimeout(step, interval) };
+		};
+		this.travel = { r, c, timer: window.setTimeout(step, Math.min(interval, 60)) };
+	}
+
+	// ---- chord ----
+	// The covered cells a click on the number at (r, c) would open, or null when it is not chordable:
+	// its flagged neighbours plus any neighbouring mines already shown must match the number, and
+	// something covered must remain. Hover and the click itself share this, so they can never disagree.
+	private chordTargets(r: number, c: number): number[][] | null {
+		const s = this.state; if (!s || s[r][c] !== KNOWN) return null;
+		const clue = this.cellAt(r, c); if (clue <= 0) return null;
+		const ctx = BoardLogic.chordContext(r, c, this.rows, this.cols,
+			(rr: number, cc: number) => s[rr][cc] === FLAGGED,
+			(rr: number, cc: number) => s[rr][cc] === KNOWN && this.cellAt(rr, cc) === MINE,
+			(rr: number, cc: number) => s[rr][cc] === UNKNOWN);
+		return ctx.flagCount === clue && ctx.covered.length ? ctx.covered : null;
+	}
+
+	// ---- hover (local board) ----
+	// Whether acting on (r, c) would do anything: a covered cell can be opened or flagged; a number
+	// can be chorded when chordTargets says so.
+	private clickableKind(r: number, c: number): HoverKind {
+		const s = this.state; if (!s || !this.hooks.mode() || this.isFrozen()) return null;
+		const v = s[r][c];
+		if (v === UNKNOWN || v === FLAGGED) return "cell";
+		return this.chordTargets(r, c) ? "chord" : null;
+	}
+	private refreshHoverKind() {
+		const kind = this.hover ? this.clickableKind(this.hover.r, this.hover.c) : null;
+		this.hoverKind = kind;
+		this.hoverExtra = [];
+		if (kind === "chord" && this.hover) for (const cell of this.chordTargets(this.hover.r, this.hover.c) || []) this.hoverExtra.push(cell[0] + "," + cell[1]);
+		if (this.canvas) this.canvas.style.cursor = kind ? "pointer" : "";
+		if (NUMBER_HOVER_WIGGLE && kind === "chord") this.startAnimLoop();
+	}
+	setHover(cell: { r: number; c: number } | null) {
+		const prev = this.hover;
+		if ((prev ? prev.r + "," + prev.c : "") === (cell ? cell.r + "," + cell.c : "")) return;
+		const keys: string[] = [...this.hoverExtra]; if (prev) keys.push(prev.r + "," + prev.c);
+		this.hover = cell;
+		this.refreshHoverKind();
+		if (cell) keys.push(cell.r + "," + cell.c); keys.push(...this.hoverExtra);
+		this.render(keys);
+		if (cell) this.hooks.onCursor?.(cell.r, cell.c);
 	}
 	subscribe(cb: () => void): () => void { this.listeners.add(cb); return () => { this.listeners.delete(cb); }; }
 	private emitChange() { this.listeners.forEach(cb => cb()); }
@@ -131,21 +226,15 @@ export class BoardSession {
 		if (s[r][c] === UNKNOWN) {
 			hitMine = this.localReveal(r, c, revealed);
 		} else if (s[r][c] === KNOWN) {
-			const v = this.cellAt(r, c);
-			if (v > 0) {
-				const ctx = BoardLogic.chordContext(r, c, this.rows, this.cols,
-					(rr: number, cc: number) => s[rr][cc] === FLAGGED,
-					(rr: number, cc: number) => s[rr][cc] === KNOWN && this.cellAt(rr, cc) === MINE,
-					(rr: number, cc: number) => s[rr][cc] === UNKNOWN);
-				if (ctx.flagCount === v) {
-					for (const cell of ctx.covered) if (this.localReveal(cell[0], cell[1], revealed)) hitMine = true;
-					if (hitMine) { // a detonating chord clears every wrong flag around the number
-						for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
-							if (!dr && !dc) continue;
-							const nr = r + dr, nc = c + dc;
-							if (nr < 0 || nc < 0 || nr >= this.rows || nc >= this.cols) continue;
-							if (s[nr][nc] === FLAGGED && this.cellAt(nr, nc) !== MINE) { s[nr][nc] = UNKNOWN; clearedFlags.push([nr, nc]); }
-						}
+			const targets = this.chordTargets(r, c);
+			if (targets) {
+				for (const cell of targets) if (this.localReveal(cell[0], cell[1], revealed)) hitMine = true;
+				if (hitMine) { // a detonating chord clears every wrong flag around the number
+					for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+						if (!dr && !dc) continue;
+						const nr = r + dr, nc = c + dc;
+						if (nr < 0 || nc < 0 || nr >= this.rows || nc >= this.cols) continue;
+						if (s[nr][nc] === FLAGGED && this.cellAt(nr, nc) !== MINE) { s[nr][nc] = UNKNOWN; clearedFlags.push([nr, nc]); }
 					}
 				}
 			}
@@ -203,7 +292,8 @@ export class BoardSession {
 		this.emitChange();
 		return didChange;
 	}
-	freeze(ms: number) { this.frozenUntil = Date.now() + ms; this.hooks.onFreeze?.(this.frozenUntil); }
+	// A mine hit: nothing on the board responds until the penalty has run, and the hover lift goes at once.
+	freeze(ms: number) { this.frozenUntil = Date.now() + ms; this.setHover(null); this.hooks.onFreeze?.(this.frozenUntil); }
 	isFrozen() { return Date.now() < this.frozenUntil; }
 
 	// ---- focus (keyboard cursor) ----
@@ -275,11 +365,12 @@ export class BoardSession {
 		return true;
 	}
 	private view(canvas: HTMLCanvasElement, state: number[][], skin: string | null): BoardView {
-		return new BoardView(canvas, this.rows, this.cols, state, this.cellAt, { skin, ownBoard: canvas === this.canvas && this.ownBoard });
+		return new BoardView(canvas, this.rows, this.cols, state, this.cellAt, { skin, ownBoard: canvas === this.canvas && this.ownBoard, forceRevealEffect: this.mirror ? (this.revealEffect || "ripple") : null, wiggleHover: NUMBER_HOVER_WIGGLE, hoverAt: this.hover ? (r, c) => (this.hover && this.hover.r === r && this.hover.c === c ? this.hoverKind : this.hoverExtra.length && this.hoverExtra.indexOf(r + "," + c) !== -1 ? "peek" : null) : null });
 	}
 	// Paint the board; dirtyKeys ("r,c") limits the repaint to those cells and their neighbours.
 	render(dirtyKeys?: string[]) {
 		const canvas = this.canvas; if (!canvas) return;
+		this.refreshHoverKind();
 		if (this.state) {
 			const now = performance.now();
 			const bv = this.view(canvas, this.state, this.skin || localBoardSkin);
@@ -316,11 +407,14 @@ export class BoardSession {
 		this.updatePressOverlay();
 		this.updateFocusOverlay();
 	}
+	// Drops every in-flight cell animation. The idle twinkle is a mode, not an animation: if it is on it
+	// keeps running across the reset, so the board never freezes between the search, the match being
+	// found and the countdown (each of those resets the board).
 	resetAnimations() {
 		this.prevState = this.state ? this.clone(this.state) : null;
-		this.anims = {}; this.lastActionCell = null; this.glyphs = []; this.goAnim = null;
-		this.oppAnims = null; this.oppTargets = null;
+		this.anims = {}; this.lastActionCell = null; this.glyphs = []; this.goAnim = null; this.explosions = [];
 		if (this.raf) { cancelAnimationFrame(this.raf); this.raf = null; }
+		if (this.idleActive) this.startAnimLoop();
 	}
 	// Wave order: breadth-first through the revealed set from the clicked tile, so the animation spreads
 	// outward the way the flood did; unreachable cells fall back to straight-line distance.
@@ -361,10 +455,10 @@ export class BoardSession {
 			const step = maxDepth > 0 ? Math.min(WAVE_STEP_MS, WAVE_MAX_MS / maxDepth) : WAVE_STEP_MS;
 			for (const cell of revealed) {
 				const isMine = this.cellAt(cell[0], cell[1]) === MINE;
-				if (isMine) hitMine = true; else safeRevealed++;
+				if (isMine) { hitMine = true; this.explosions.push(makeExplosion(cell[0], cell[1], now)); } else safeRevealed++;
 				this.anims[cell[0] + "," + cell[1]] = { type: isMine ? "mine" : "reveal", start: now + depths[cell[0] + "," + cell[1]] * step };
 			}
-			if (hitMine) this.triggerShake();
+			if (hitMine) { this.triggerShake(); this.startAnimLoop(); this.explosionListeners.forEach(cb => cb()); }
 		}
 		const snd = this.hooks.sound;
 		if (snd) {
@@ -383,24 +477,37 @@ export class BoardSession {
 			let alive = false;
 			const keys = Object.keys(this.anims);
 			for (const key of keys) { const a = this.anims[key]; if (now >= a.start + durOf(a.type)) delete this.anims[key]; else alive = true; }
-			if (this.glyphs.length || this.goAnim || this.idleActive) alive = true;
-			if (this.oppTargets && this.paintOpponentRevealFrame()) alive = true;
+			this.explosions = this.explosions.filter(e => now - e.start < explosionLife(e, this.frozenUntil, now));
+			if (this.glyphs.length || this.goAnim || this.idleActive || this.explosions.length) alive = true;
+			// A hovered chordable number wiggles, so its cell repaints every frame while the pointer is on it.
+			if (NUMBER_HOVER_WIGGLE && this.hoverKind === "chord" && this.hover) { keys.push(this.hover.r + "," + this.hover.c); alive = true; }
 			this.render(keys);
 			if (alive) this.raf = requestAnimationFrame(step);
 			else { this.raf = null; this.render(); }
 		};
 		this.raf = requestAnimationFrame(step);
 	}
+	// Shakes the whole board card when the canvas sits in one (an ancestor marked data-shake-host, e.g.
+	// the duel arena), else the canvas inside its padded scroll container (GameBoard) so nothing clips.
+	// Driven through the Web Animations API rather than a class: React owns the host's className and
+	// rewrites it on the very render the mine hit triggers (the card turns red), which would drop a class.
 	triggerShake() {
-		const wrap = this.canvas && this.canvas.parentElement; if (!wrap) return;
-		wrap.classList.remove("shake"); void wrap.offsetWidth; wrap.classList.add("shake");
+		const canvas = this.canvas; if (!canvas) return;
+		const el = (canvas.closest("[data-shake-host]") as HTMLElement | null) || canvas;
+		if (typeof el.animate !== "function") return;
+		el.animate([
+			{ transform: "translate(0, 0)" }, { transform: "translate(-5px, 2px)" }, { transform: "translate(5px, -2px)" },
+			{ transform: "translate(-4px, 1px)" }, { transform: "translate(4px, -1px)" }, { transform: "translate(0, 0)" },
+		], { duration: 350, easing: "ease" });
 	}
 
 	// ---- countdown / go / idle ----
-	startCountdownGlyph(number: number) {
+	// at: a shared timestamp so every board in view (yours and the mirrors) runs the same digit off the same
+	// clock; the first frame is painted right away rather than on the next animation tick for the same reason.
+	startCountdownGlyph(number: number, at = performance.now()) {
 		const glyph = COUNTDOWN_GLYPHS[String(number)]; if (!glyph || !this.rows) return;
-		this.glyphs.push({ glyph, scale: Math.max(1, Math.round(this.rows / 10)), start: performance.now(), number });
-		this.startAnimLoop();
+		this.glyphs.push({ glyph, scale: Math.max(1, Math.round(this.rows / 10)), start: at, number });
+		this.startAnimLoop(); this.render();
 	}
 	private paintCountdown(ctx: CanvasRenderingContext2D, sw: number, sh: number) {
 		if (!this.state) return;
@@ -432,7 +539,12 @@ export class BoardSession {
 		return true;
 	}
 	startBoardGo() { if (!this.rows || !this.cols) { this.goAnim = null; return; } this.goAnim = { start: performance.now() }; this.startAnimLoop(); }
-	setIdle(active: boolean) { if (active === this.idleActive) return; this.idleActive = active; if (active) this.startAnimLoop(); else this.render(); }
+	setIdle(active: boolean) {
+		if (active && this.idleSuppressed) return;
+		if (!active) this.idleFade = null;
+		if (active === this.idleActive) return;
+		this.idleActive = active; if (active) this.startAnimLoop(); else this.render();
+	}
 	private goFront(): { frontP: number; width: number; maxP: number } | null {
 		if (!this.goAnim) return null;
 		const duration = Math.max(50, BOARD_GO_STYLE.durationMs), elapsed = performance.now() - this.goAnim.start;
@@ -446,10 +558,27 @@ export class BoardSession {
 		const g = ctx.createLinearGradient(0, 0, 0, h); g.addColorStop(0, rgbaStr(lightenRgb(base, 0.85), 0.92)); g.addColorStop(1, rgbaStr(lightenRgb(base, 0.32), 0.78));
 		roundRectPath(ctx, 0, 0, w, h, rad); ctx.fillStyle = g; ctx.fill(); ctx.shadowBlur = 0; ctx.restore();
 	}
-	private idleAlpha(r: number, c: number, now: number): number {
+	private idleAlpha(r: number, c: number, now: number, fade = 1): number {
 		const seed = ((r * 928371 + c * 123457) % 1000) / 1000;
 		const wave = Math.sin((now / 1000) * BOARD_IDLE_STYLE.speed * (0.4 + seed * 0.6) + seed * Math.PI * 2);
-		return Math.max(0, wave) * 0.28 * BOARD_IDLE_STYLE.brightness;
+		return Math.max(0, wave) * 0.28 * BOARD_IDLE_STYLE.brightness * fade;
+	}
+	// The fade factor for this frame, computed once so every cell of the frame shares it; the fade ends
+	// (idle off) only after the whole frame has painted, never halfway through it.
+	private idleFadeFactor(now: number): number {
+		if (!this.idleFade) return 1;
+		return Math.max(0, 1 - (now - this.idleFade.start) / this.idleFade.dur);
+	}
+	private endIdleFadeIfDone(fade: number) { if (this.idleFade && fade <= 0) { this.idleFade = null; this.idleActive = false; } }
+	// Fades the idle twinkle out over fadeMs and keeps it off (until the next search starts it again),
+	// so a stray "planning" room update cannot bring it back mid-sequence.
+	private idleFade: { start: number; dur: number } | null = null;
+	idleSuppressed = false;
+	fadeIdleOut(fadeMs: number) {
+		this.idleSuppressed = true;
+		if (!this.idleActive || this.idleFade) return;
+		this.idleFade = { start: performance.now(), dur: Math.max(50, fadeMs) };
+		this.startAnimLoop();
 	}
 	private drawIdleCell(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, rad: number, alpha: number, base: RGB) {
 		ctx.save(); ctx.translate(x, y); ctx.globalAlpha = Math.max(0, Math.min(1, alpha));
@@ -468,13 +597,14 @@ export class BoardSession {
 		return true;
 	}
 	private paintIdle(ctx: CanvasRenderingContext2D, sw: number, sh: number, isRevealed: ((r: number, c: number) => boolean) | null) {
-		const now = performance.now(), base = hexToRgb(BOARD_IDLE_STYLE.color);
+		const now = performance.now(), base = hexToRgb(BOARD_IDLE_STYLE.color), fade = this.idleFadeFactor(now);
 		const gap = Math.max(1, Math.round(Math.min(sw, sh) * 0.08)), w = sw - gap, h = sh - gap, rad = Math.min(w, h) * 0.2;
-		for (let r = 0; r < this.rows; r++) for (let c = 0; c < this.cols; c++) {
+		if (fade > 0) for (let r = 0; r < this.rows; r++) for (let c = 0; c < this.cols; c++) {
 			if (isRevealed && isRevealed(r, c)) continue;
-			const a = this.idleAlpha(r, c, now); if (a <= 0.015) continue;
+			const a = this.idleAlpha(r, c, now, fade); if (a <= 0.015) continue;
 			this.drawIdleCell(ctx, c * sw + gap / 2, r * sh + gap / 2, w, h, rad, a, base);
 		}
+		this.endIdleFadeIfDone(fade);
 	}
 	private paintHints(ctx: CanvasRenderingContext2D, sw: number, sh: number) {
 		if (!this.hintClues.length && !this.hintCovered.length) return;
@@ -487,22 +617,4 @@ export class BoardSession {
 		ctx.restore();
 	}
 
-	// ---- opponent thumbnails mirroring the opening reveal ----
-	startOpponentRevealAnim(targets: OpponentTarget[]) {
-		if (!targets.length) return;
-		this.oppAnims = { ...this.anims }; this.oppTargets = targets; this.startAnimLoop();
-	}
-	private paintOpponentRevealFrame(): boolean {
-		const now = performance.now(); let alive = false;
-		const touched = Object.keys(this.oppAnims!);
-		for (const key of touched) { const a = this.oppAnims![key]; if (now >= a.start + durOf(a.type)) delete this.oppAnims![key]; else alive = true; }
-		const dirty = touched.map(k => k.split(",").map(Number));
-		for (const t of this.oppTargets!) {
-			const bv = this.view(t.canvas, t.state, t.skin);
-			bv.animAt = (r, c) => { const a = this.oppAnims![r + "," + c]; return a ? { type: a.type, t: (now - a.start) / durOf(a.type) } : null; };
-			bv.draw(dirty);
-		}
-		if (!alive) { this.oppAnims = null; this.oppTargets = null; }
-		return alive;
-	}
 }

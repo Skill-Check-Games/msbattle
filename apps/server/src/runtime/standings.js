@@ -64,7 +64,7 @@ function buildStandings(room) {
 			name: names[pid] || "Anonymous",
 			safeCount: safeCount,
 			// Fraction of safe cells cleared this round (1 = finished) — feeds the margin-of-victory bonus.
-			progress: finished ? 1 : (totalSafe > 0 ? safeCount / totalSafe : 0),
+			progress: finished ? 1 : (g && g.progress ? g.progress() : (totalSafe > 0 ? safeCount / totalSafe : 0)),
 			finished: finished,
 			finishedAt: finishedAt,
 			finishMs: (finished && roundStart && finishedAt) ? (finishedAt - roundStart) : null,

@@ -10,7 +10,8 @@ const TOUCH_MOVE_TOLERANCE = 12;
 export interface InputOptions {
 	flagMode: () => boolean;                      // touch tap tool: reveal (false) or flag (true)
 	onTap?: (x: number, y: number, changed: boolean) => void;   // after a tap or click acted (duel zoom gestures)
-	interceptTap?: (x: number, y: number) => boolean;           // return true to swallow the tap (zoomed-out overview)
+	interceptTap?: (x: number, y: number) => boolean;           // return true to swallow the tap (zoomed-out overview); may act on it (zoom in)
+	swallowingTaps?: () => boolean;                             // pure check of the same state, for touchstart: no long press while taps are swallowed
 }
 
 export function attachBoardInput(session: BoardSession, canvas: HTMLCanvasElement, opts: InputOptions): () => void {
@@ -44,7 +45,7 @@ export function attachBoardInput(session: BoardSession, canvas: HTMLCanvasElemen
 		touchStartX = t.clientX; touchStartY = t.clientY; touchMoved = false; longPressFired = false;
 		session.setPressed(session.cellFromClient(t.clientX, t.clientY));
 		cancelLongPress();
-		if (opts.interceptTap && opts.interceptTap(touchStartX, touchStartY)) return; // no long press while zoomed out
+		if (opts.swallowingTaps && opts.swallowingTaps()) return; // no long press while zoomed out (interceptTap itself acts, so it runs only at the tap's end)
 		longPressTimer = window.setTimeout(() => {
 			longPressTimer = null;
 			if (touchMoved) return;
@@ -73,6 +74,8 @@ export function attachBoardInput(session: BoardSession, canvas: HTMLCanvasElemen
 		opts.onTap?.(touchStartX, touchStartY, changed);
 	};
 	const onTouchCancel = () => { cancelLongPress(); touchMoved = true; session.setPressed(null); };
+	const onMouseMove = (e: MouseEvent) => { if (Date.now() - lastTouchAt < 500) return; session.setHover(session.cellFromClient(e.clientX, e.clientY)); };
+	const onMouseLeave = () => session.setHover(null);
 
 	canvas.addEventListener("click", onClick);
 	canvas.addEventListener("contextmenu", onContextMenu);
@@ -80,7 +83,12 @@ export function attachBoardInput(session: BoardSession, canvas: HTMLCanvasElemen
 	canvas.addEventListener("touchmove", onTouchMove, { passive: true });
 	canvas.addEventListener("touchend", onTouchEnd, { passive: false });
 	canvas.addEventListener("touchcancel", onTouchCancel);
+	canvas.addEventListener("mousemove", onMouseMove);
+	canvas.addEventListener("mouseleave", onMouseLeave);
 	return () => {
+		session.setHover(null);
+		canvas.removeEventListener("mousemove", onMouseMove);
+		canvas.removeEventListener("mouseleave", onMouseLeave);
 		cancelLongPress();
 		canvas.removeEventListener("click", onClick);
 		canvas.removeEventListener("contextmenu", onContextMenu);

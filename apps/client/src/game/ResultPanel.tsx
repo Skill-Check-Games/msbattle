@@ -3,7 +3,8 @@
 import { useEffect, useRef, ReactNode } from "react";
 import styles from "./ResultPanel.module.scss";
 
-export function ResultPanel({ kind, children }: { kind?: "win" | "lose" | "neutral"; children: ReactNode }) {
+// slow: a longer, plain fade-in (the round-end banner lifts away over the same time, so the two cross).
+export function ResultPanel({ kind, children, className, slow }: { kind?: "win" | "lose" | "neutral"; children: ReactNode; className?: string; slow?: boolean }) {
 	const ref = useRef<HTMLDivElement>(null);
 	useEffect(() => {
 		const panel = ref.current!;
@@ -20,7 +21,7 @@ export function ResultPanel({ kind, children }: { kind?: "win" | "lose" | "neutr
 		return () => document.removeEventListener("keydown", onKey);
 	}, []);
 	return (
-		<div ref={ref} className={`${styles.panel} ${kind === "win" ? styles.win : kind === "lose" ? styles.lose : ""} kbd-btn-group`} role="dialog" aria-modal="true">
+		<div ref={ref} className={`${styles.panel} ${slow ? styles.slow : ""} ${kind === "win" ? styles.win : kind === "lose" ? styles.lose : ""} ${className || ""} kbd-btn-group`} role="dialog" aria-modal="true">
 			{children}
 		</div>
 	);

@@ -39,6 +39,7 @@ module.exports = {
 	// --- [control] player identity --- (owned by main; copied into a MatchConfig and passed to the game server)
 	names: {},          // playerID -> display name
 	skins: {},          // playerID -> board skin id (renders each player's board in their own skin)
+	revealEffects: {},  // playerID -> reveal effect id (opponents see each other's boards open with it)
 	avatars: {},        // playerID -> avatar cloth colour (#rrggbb; null → default red flag)
 	countries: {},      // playerID -> ISO-3166 alpha-2 country code (null → none)
 	accounts: {},       // playerID -> { userId, token, ratings… } for signed-in players

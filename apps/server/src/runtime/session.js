@@ -12,7 +12,7 @@ var roomState = require("./roomState");
 var gameUtil = require("./gameUtil");
 var ShopCatalog = require("core/src/common/ShopCatalog");
 
-var accounts = appState.accounts, names = appState.names, games = appState.games, roomMapping = appState.roomMapping, skins = appState.skins;
+var accounts = appState.accounts, names = appState.names, games = appState.games, roomMapping = appState.roomMapping, skins = appState.skins, revealEffects = appState.revealEffects;
 var avatars = appState.avatars, countries = appState.countries, sockets = appState.sockets;
 var updateDraw = gameUtil.updateDraw;
 
@@ -240,11 +240,8 @@ function registerSocketHandlers(socket, playerID) {
 		}
 	});
 
-	// Cascade reveal effect: a PURELY LOCAL rendering preference (see Cosmetics.js's own comment) —
-	// unlike set_skin above, there's no opponent-visible state to persist or rebroadcast, since
-	// nobody but the local player ever sees their own reveal effect. Still a real ShopCatalog
-	// purchasable though, so still needs the same server-side ownership check a client can't bypass
-	// by just editing localStorage — this is purely a verify-and-reject-if-not-owned round trip.
+	// Cascade reveal effect. Like the skin it is mirrored to opponents (their view of this board opens
+	// with it), so it is kept per player and attached to the live game; paid ones need ownership.
 	socket.on("set_reveal_effect", function(data) {
 		var effect = (data && typeof data.effect === "string") ? data.effect.trim().slice(0, 32) : "";
 		if (!/^[a-z0-9_-]*$/i.test(effect)) return;
@@ -253,7 +250,13 @@ function registerSocketHandlers(socket, playerID) {
 			var acc = accounts[playerID];
 			if (!acc || !db.ownsItem(acc.userId, "revealEffect", effect)) {
 				socket.emit("reveal_effect_rejected", { reason: "not_owned", effect: effect });
+				return;
 			}
+		}
+		revealEffects[playerID] = effect;
+		if (games[playerID]) {
+			games[playerID].revealEffect = effect;
+			updateDraw(roomMapping[playerID]);
 		}
 	});
 

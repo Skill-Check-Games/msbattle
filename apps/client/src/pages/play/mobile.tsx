@@ -1,9 +1,8 @@
-// Phone pieces of the in-game page: media-query hooks, the portrait progress strip, the bottom
+// Phone pieces of the in-game page: media-query hooks, the bottom
 // action bar (Reveal / Flag + jump between unsolved areas), and the "jump to another area" logic.
 import { useEffect, useState } from "react";
 import { BoardSession } from "../../game/board-session";
 import { UNKNOWN, KNOWN } from "../../game/board-render";
-import type { GameFrame, RoomPlayer } from "../../game/match-store";
 import { music } from "../../audio/music";
 import { exitGameFullscreen, phoneSizedDevice } from "../../game/fullscreen";
 import styles from "./PlayPage.module.scss";
@@ -27,30 +26,14 @@ export function useInGameBody() {
 	}, []);
 }
 
-export function MobileStrip({ me, opp, myFrame, oppFrame, timerText, timerCls }: { me: RoomPlayer | null; opp: RoomPlayer | null; myFrame: GameFrame | null; oppFrame: GameFrame | null; timerText: string; timerCls: string }) {
-	const pct = (f: GameFrame | null) => Math.round(((f && f.progress) || 0) * 100);
-	const side = (name: string, f: GameFrame | null, cls: string) => (
-		<div className={`${styles.stripSide} ${cls}`}>
-			<div className={styles.stripHead}><span className={styles.stripName}>{name}</span><b>{pct(f)}%</b></div>
-			<div className={styles.stripBar}><span style={{ width: pct(f) + "%" }} /></div>
-		</div>
-	);
-	return (
-		<div className={styles.strip}>
-			{side(me ? me.name : "You", myFrame, styles.stripYou)}
-			<div className={`${styles.stripTimer} ${timerCls}`}>{timerText}</div>
-			{side(opp ? opp.name : "Searching…", oppFrame, styles.stripOpp)}
-		</div>
-	);
-}
-
-export function ActionBar({ flagMode, setFlagMode, session, className }: { flagMode: boolean; setFlagMode: (f: boolean) => void; session: BoardSession; className?: string }) {
+// navDisabled: during a mine penalty the area jumps are off (nothing moves), only the mode buttons stay live.
+export function ActionBar({ flagMode, setFlagMode, session, className, navDisabled }: { flagMode: boolean; setFlagMode: (f: boolean) => void; session: BoardSession; className?: string; navDisabled?: boolean }) {
 	return (
 		<div className={`${styles.actionBar} ${className || ""}`}>
-			<button type="button" className={styles.navBtn} aria-label="Previous unsolved area" onClick={() => jumpArea(session, -1)}>‹</button>
+			<button type="button" className={styles.navBtn} aria-label="Previous unsolved area" disabled={navDisabled} onClick={() => jumpArea(session, -1)}>‹</button>
 			<button type="button" className={`${styles.modeBtn} ${!flagMode ? styles.modeActive : ""}`} onClick={() => setFlagMode(false)}>Reveal</button>
 			<button type="button" className={`${styles.modeBtn} ${flagMode ? styles.modeActive : ""}`} onClick={() => setFlagMode(true)}>🚩 Flag</button>
-			<button type="button" className={styles.navBtn} aria-label="Next unsolved area" onClick={() => jumpArea(session, 1)}>›</button>
+			<button type="button" className={styles.navBtn} aria-label="Next unsolved area" disabled={navDisabled} onClick={() => jumpArea(session, 1)}>›</button>
 		</div>
 	);
 }

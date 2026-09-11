@@ -9,6 +9,8 @@
 	animation: panel-pop var(--motion-standard) var(--ease) both;
 }
 @keyframes panel-pop { from { opacity: 0; transform: translate(-50%, -50%) scale(0.96); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+// The series result after a 1v1: it fades in over 600ms (WIN_LEAVE_MS in MatchFound.tsx) as the winner banner lifts away.
+.slow { animation-duration: 600ms; animation-timing-function: ease-out; }
 .win { border-color: rgba(34, 197, 94, 0.45); }
 .lose { border-color: rgba(239, 68, 68, 0.45); }
 .header { text-align: center; font-size: 1.2rem; font-weight: 700; }

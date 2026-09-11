@@ -20,9 +20,9 @@ export default function RankedPicker({ style, onClose }: { style: RankedStyle | 
 	const meta = META[style];
 	const rating = account ? (style === "sprint" ? account.ratingSprint : account.ratingStandard) : null;
 	const tier = rating != null ? tierFor(rating, account?.provisional) : null;
-	const pick = (mode: string) => { onClose(); autoEnterGameFullscreen(); if (mode.endsWith("_duo")) enterDuelMobileFullscreen(); match.findRanked(mode); navigate("/play"); };
+	const pick = (mode: string) => { onClose(); autoEnterGameFullscreen(); enterDuelMobileFullscreen(); match.findRanked(mode); navigate("/play"); };
 	return (
-		<Modal open onClose={onClose} width={620} labelledBy="ranked_modal_title" className={styles.dialog}>
+		<Modal open onClose={onClose} width={620} labelledBy="ranked_modal_title" className={styles.dialog} hideClose>
 			<div className={styles.head}>
 				<div className={styles.icon} style={{ color: meta.color }} aria-hidden="true"><svg viewBox="0 0 24 24"><path d={meta.icon} fill="currentColor" /></svg></div>
 				<div><h2 id="ranked_modal_title" className={styles.title}>{meta.title}</h2><p className={styles.sub}>{meta.sub}</p></div>

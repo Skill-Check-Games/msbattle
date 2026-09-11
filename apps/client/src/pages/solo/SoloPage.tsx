@@ -15,7 +15,6 @@ import GameBoard from "../../game/GameBoard";
 import { ResultPanel, ResultHeader, ResultDetail, ResultFoot, ResultActions } from "../../game/ResultPanel";
 import { autoEnterGameFullscreen } from "../../game/fullscreen";
 import { useInGameBody } from "../play/mobile";
-import { FullscreenButton } from "../play/hud";
 import styles from "./SoloPage.module.scss";
 
 type Size = "small" | "medium" | "large";
@@ -133,11 +132,11 @@ export default function SoloPage() {
 		<section className={styles.page}>
 			<div className={styles.header}>
 				<button className="btn btn-ghost" onClick={() => navigate("/")}>← Exit game</button>
-				<span className={styles.mode}>Free play <FullscreenButton /></span>
+				<span className={styles.mode}>Free play</span>
 			</div>
 			<div className={styles.grid}>
 				<div className={styles.left} ref={boardHostRef}>
-					<div className={styles.boardCard}>
+					<div className={styles.boardCard} data-shake-host="">
 						<GameBoard session={session} cellPx={cellPx} className={styles.board}>
 							{solo && !solo.started && !solo.counting && (
 								<div className={styles.startOverlay}><button className={`btn btn-primary ${styles.startBtn}`} onClick={() => { autoEnterGameFullscreen(); begin(); }}>Start</button></div>

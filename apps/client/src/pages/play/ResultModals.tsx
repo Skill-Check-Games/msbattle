@@ -49,7 +49,7 @@ function RankedResult({ result, myId }: { result: SeriesResult; myId: string | n
 
 	const opp = isDuo ? standings.find(s => s.id !== myId) : null;
 	return (
-		<ResultPanel kind={won ? "win" : "lose"}>
+		<ResultPanel slow kind={won ? "win" : "lose"} className={`${styles.ranked} ${won ? styles.rankedWin : styles.rankedLose}`}>
 			<div className={styles.hero}>
 				<div className={styles.heroBadge}><RankBadge rating={newRating} size={13} /></div>
 				<div>
@@ -69,7 +69,7 @@ function RankedResult({ result, myId }: { result: SeriesResult; myId: string | n
 			<div className={styles.divider} />
 			{opp ? (
 				<div className={styles.context}>
-					<div className={styles.oppLine}><span className={styles.oppName}>{opp.name}</span>{typeof opp.rating === "number" && <span style={{ color: tierFor(opp.rating, opp.provisional).color }}>{tierFor(opp.rating, opp.provisional).name}</span>}</div>
+					<div className={styles.oppLine}><span className={styles.oppName}>{opp.name}</span>{typeof opp.rating === "number" && <span className={styles.oppTier} style={{ color: tierFor(opp.rating, opp.provisional).color }}><span className={styles.tierDot} style={{ background: tierFor(opp.rating, opp.provisional).color }} />{tierFor(opp.rating, opp.provisional).name}</span>}</div>
 					<div className={styles.times}><TimeChip label="Your time" s={mine} you /><TimeChip label="Their time" s={opp} /></div>
 				</div>
 			) : (
@@ -86,7 +86,7 @@ function RankedResult({ result, myId }: { result: SeriesResult; myId: string | n
 				</div>
 			)}
 			<ResultActions>
-				<button className="btn btn-primary" onClick={() => match.playAnother()}>Play another</button>
+				<button className={`btn btn-primary ${styles.again}`} onClick={() => match.playAnother()}>Play another</button>
 				<button className="btn" onClick={() => match.leaveRoom()}>Leave</button>
 			</ResultActions>
 		</ResultPanel>
@@ -101,7 +101,7 @@ function TimeChip({ label, s, you }: { label: string; s: Standing; you?: boolean
 function CasualResult({ result, myId }: { result: SeriesResult; myId: string | null }) {
 	const won = result.winnerId === myId;
 	return (
-		<ResultPanel kind={won ? "win" : "lose"}>
+		<ResultPanel slow kind={won ? "win" : "lose"}>
 			<div className={styles.casualHeader}>{!result.winnerId ? "Draw" : won ? "You win!" : (result.winnerName || "Opponent") + " wins"}</div>
 			<ResultActions>
 				<button className="btn btn-primary" onClick={() => match.dismissSeriesResult()}>Rematch</button>

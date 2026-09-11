@@ -54,6 +54,8 @@ var COUNT_DOWN_TIME = 3; // digits shown to the client ("3, 2, 1") — NOT the s
 // than this, the round will go live while the client is still mid-animation again, same symptom as
 // the bug this constant fixes.
 var ROUND_START_DELAY_MS = 5000;
+// The first round of a ranked match gets extra time: the clients play the match-found banner before the countdown.
+var FIRST_ROUND_START_DELAY_MS = 7300;
 var BETWEEN_GAMES_DELAY = 3000;
 var SERIES_END_DELAY = 6000;
 var PROVISIONAL_GAMES = 5;
@@ -117,6 +119,7 @@ var nextRoomId = 1;
 var sockets = appState.sockets;
 var names = appState.names;
 var skins = appState.skins; // playerID -> board skin id
+var revealEffects = appState.revealEffects; // playerID -> reveal effect id
 var avatars = appState.avatars; // playerID -> avatar cloth colour
 var countries = appState.countries; // playerID -> ISO country code
 var accounts = appState.accounts; // socketId -> { userId, token } for signed-in players
@@ -517,7 +520,8 @@ function startGame(room) {
 	// zero by construction). Paired with clock sync (see time_sync above) so each client converts
 	// it to a local delay against ITS OWN clock rather than trusting startDelayMs against whenever
 	// its own copy of this event happened to arrive over the network.
-	var startAt = Date.now() + ROUND_START_DELAY_MS;
+	var startDelay = (room.ranked && room.gamesPlayed === 0) ? FIRST_ROUND_START_DELAY_MS : ROUND_START_DELAY_MS;
+	var startAt = Date.now() + startDelay;
 	var startPayload = {
 		time: COUNT_DOWN_TIME,
 		// The actual server-side delay (ms) before this round goes live -- decoupled from
@@ -525,7 +529,7 @@ function startGame(room) {
 		// animation sequence is independently tunable. Anything that needs to know when input
 		// will really be accepted (rather than just how many digits to show) should read this,
 		// not derive a guess from `time`.
-		startDelayMs: ROUND_START_DELAY_MS,
+		startDelayMs: startDelay,
 		// Absolute server wall-clock time this round goes live — see the comment on `startAt`
 		// above the client should prefer this (converted via its synced clock offset) over
 		// startDelayMs whenever it has one, so every player's countdown lands on GO together
@@ -565,7 +569,7 @@ function startGame(room) {
 		roomState.broadcastRoomState(room);
 		updateDraw(room);
 		botMgr.startBotTicksForRoom(room);
-	}, ROUND_START_DELAY_MS);
+	}, startDelay);
 }
 
 function startSeries(room) {
@@ -585,6 +589,7 @@ function createPlayerGame(playerID, gameRows, gameCols) {
 	var game = gameCreator.createGame(0, gameRows, gameCols);
 	game.playerName = names[playerID] || "Anonymous";
 	game.skin = skins[playerID] || null; // null → opponents render this board in the default skin (bots, too)
+	game.revealEffect = revealEffects[playerID] || null; // null → the default effect on opponents' mirrors
 	game.avatar = avatars[playerID] || null; // avatar cloth colour, broadcast so panels show each player's flag
 	game.country = countries[playerID] || null;
 	game.win = function() { gameWin(playerID); };
@@ -767,6 +772,22 @@ function registerGameplayHandlers(socket, playerID) {
 		updateDraw(room);
 		checkMoveSync(game, data);
 	});
+	// Pointer position on the player's own board, relayed to everyone else in the room (throttled per
+	// player) so their mirror of this board can show where the player is looking.
+	socket.on("cursor", function(data) {
+		var room = roomMapping[playerID];
+		if (!room || room.phase !== "playing" || !data) return;
+		var r = data.r | 0, c = data.c | 0;
+		var game = games[playerID];
+		if (!game || r < 0 || c < 0 || r >= game.rows || c >= game.cols) return;
+		var now = Date.now();
+		if (game.lastCursorAt && now - game.lastCursorAt < 60) return;
+		game.lastCursorAt = now;
+		for (var i = 0; i < room.players.length; i++) {
+			var pid = room.players[i];
+			if (pid !== playerID && sockets[pid]) sockets[pid].emit("opp_cursor", { id: playerID, r: r, c: c });
+		}
+	});
 	socket.on("left_click", function(data) {
 		if (puzzleMode.handleLeftClick(playerID, data)) return; // single-player puzzle in progress
 		var room = roomMapping[playerID];
@@ -884,6 +905,7 @@ function attachGameClient(socket, playerID) {
 	if (seat.avatar) avatars[playerID] = seat.avatar;
 	if (seat.country) countries[playerID] = seat.country;
 	if (seat.skin) skins[playerID] = seat.skin;
+	if (seat.revealEffect) revealEffects[playerID] = seat.revealEffect;
 	if (seat.userId != null) accounts[playerID] = { userId: seat.userId };
 	games[playerID] = createPlayerGame(playerID, entry.room.rows, entry.room.cols);
 	roomMapping[playerID] = entry.room;
@@ -998,7 +1020,7 @@ io.on("connection", function (socket) {
 		socket.on("disconnect", function(reason) {
 			console.log("[conn] game disconnect pid=" + playerID + " reason=" + reason + " inRoom=" + (!!roomMapping[playerID]));
 			if (roomMapping[playerID]) removePlayerFromRoom(playerID);
-			delete sockets[playerID]; delete names[playerID]; delete skins[playerID];
+			delete sockets[playerID]; delete names[playerID]; delete skins[playerID]; delete revealEffects[playerID];
 			delete avatars[playerID]; delete countries[playerID]; delete accounts[playerID];
 		});
 		return;
@@ -1016,9 +1038,17 @@ io.on("connection", function (socket) {
 
 	socket.on("find_ranked", function(data) {
 		if (!accounts[playerID]) { socket.emit("ranked_rejected", { reason: "Sign in to play ranked." }); return; }
-		if (roomMapping[playerID]) return;
 		var mode = (data && data.mode) || "sprint_duo";
 		if (!ranked.isValidMode(mode)) { socket.emit("ranked_rejected", { reason: "Unknown ranked mode." }); return; }
+		// A reconnect within the grace window lands the socket back in its previous room (migrateReconnectedPlayer)
+		// even though the fresh page never showed it. Asking for a new match means leaving that one: silently
+		// ignoring the request left the client searching at 0/2 forever.
+		if (roomMapping[playerID]) {
+			var leaveEloInfo = removePlayerFromRoom(playerID);
+			socket.join("lobby");
+			socket.emit("left_room", leaveEloInfo ? { ratingDelta: leaveEloInfo.delta, rating: leaveEloInfo.newRating, provisional: leaveEloInfo.provisional } : null);
+			if (roomMapping[playerID]) { socket.emit("ranked_rejected", { reason: "You are still in a match. Leave it first." }); return; }
+		}
 		ranked.enqueue(playerID, mode);
 	});
 
@@ -1301,7 +1331,7 @@ function evictAbandonedPlayer(playerID) {
 	if (roomMapping[playerID]) removePlayerFromRoom(playerID);
 	delete sockets[playerID];
 	delete names[playerID];
-	delete skins[playerID];
+	delete skins[playerID]; delete revealEffects[playerID];
 	delete avatars[playerID];
 	delete countries[playerID];
 	delete accounts[playerID]; // session stays valid in the DB for reconnect

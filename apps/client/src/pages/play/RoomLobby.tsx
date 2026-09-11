@@ -1,6 +1,7 @@
 // Custom room waiting room: one seat per maxPlayers (bots can be added to empty seats by the owner),
 // the series ruleset card (editable by the owner in planning), and the Ready bar.
 import { getSocket } from "../../online/socket";
+import { enterDuelMobileFullscreen } from "../../game/fullscreen";
 import { tierFor } from "../../shared/ranking";
 import { formatGameProgress } from "../../game/match-store";
 import type { RoomState } from "../../game/match-store";
@@ -75,7 +76,7 @@ export default function RoomLobby({ room, myId }: { room: RoomState; myId: strin
 			</div>
 			<div className={styles.readyBar}>
 				<span className={styles.readyStatus}>{iAmReady ? "Waiting for others…" : status}</span>
-				{!iAmReady && <button className="btn btn-primary" disabled={room.players.length < 2} onClick={() => socket.emit("ready")}>Ready</button>}
+				{!iAmReady && <button className="btn btn-primary" disabled={room.players.length < 2} onClick={() => { enterDuelMobileFullscreen(); socket.emit("ready"); }}>Ready</button>}
 			</div>
 		</div>
 	);

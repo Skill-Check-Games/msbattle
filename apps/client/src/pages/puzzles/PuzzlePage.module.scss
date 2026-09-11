@@ -5,11 +5,13 @@
 .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
 .title { color: var(--muted); font-weight: 600; }
 .empty { color: var(--muted); }
-.grid { display: flex; gap: 1.25rem; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+// Board column and card sit side by side at equal height: the card stretches to the board box's height
+// and pins its footer + Hint to the bottom (legacy: .game-side align-self: stretch, flex: 0 0 320px).
+.grid { display: flex; gap: 1.25rem; align-items: stretch; flex-wrap: wrap; justify-content: center; }
 .boardCol { display: flex; flex-direction: column; align-items: center; gap: 0.6rem; }
 .boardWrap {
 	position: relative; display: flex; align-items: center; justify-content: center; max-width: 100%;
-	background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow);
+	background: var(--surface); border: 1px solid var(--border); border-radius: 6px; box-shadow: var(--shadow);
 	transition: box-shadow 0.25s;
 }
 .flashSolved { box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.6), var(--shadow); }
@@ -17,8 +19,9 @@
 .board { vertical-align: top; }
 .info { font-size: 0.82rem; color: var(--muted); display: inline-flex; gap: 0.4rem; align-items: center; }
 .sep { opacity: 0.6; }
-.card { width: 300px; max-width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 1.1rem 1.2rem; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 0.75rem; }
+.card { width: 320px; flex: 0 0 320px; max-width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 1.1rem 1.2rem; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 0.75rem; }
 .cardHead { display: flex; align-items: center; gap: 0.5rem; }
+.back { display: none; border: 0; background: none; padding: 0; width: 2.2rem; font-size: 1.7rem; line-height: 1; color: var(--muted); cursor: pointer; &:hover { color: var(--text); } }
 .cardTitle { font-size: 0.8rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
 .ladderHead { display: flex; align-items: center; gap: 0.5rem; }
 .ladderTier { font-family: var(--font-display); font-weight: 800; font-size: 1.05rem; }
@@ -29,14 +32,16 @@
 .rankBar { height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
 .rankFill { height: 100%; border-radius: 4px; transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
 .rankFoot { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--muted); font-variant-numeric: tabular-nums; }
-.hint { width: 100%; }
+.hint { width: 100%; margin-top: auto; }
 .hintUsed { opacity: 0.6; }
-.actions { display: flex; gap: 0.5rem; .btn { flex: 1 1 0; } }
+.actions { display: flex; gap: 0.5rem; margin-top: auto; .btn { flex: 1 1 0; } }
 .runRow { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
 .runStat { background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border); border-radius: 5px; padding: 0.55rem 0.7rem; display: flex; flex-direction: column; gap: 0.15rem; }
 .runLabel { font-size: 0.65rem; letter-spacing: 0.14em; color: var(--muted); text-transform: uppercase; font-weight: 700; }
 .runValue { font-family: var(--font-display); font-weight: 800; font-size: 1.3rem; font-variant-numeric: tabular-nums; }
-.runFoot { display: flex; justify-content: space-between; font-size: 0.82rem; color: var(--muted); span:last-child { font-weight: 700; color: var(--text); } }
+.runFoot { display: flex; justify-content: space-between; margin-top: auto; padding-top: 0.6rem; border-top: 1px solid var(--border); font-size: 0.82rem; color: var(--muted); span:last-child { font-weight: 700; color: var(--text); } }
+// With the footer taking the spare space, the Hint below it sits flush at the bottom.
+.runFoot + .hint { margin-top: 0; }
 .bestLine { text-align: center; font-weight: 700; color: var(--muted); }
 .flash { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.2rem; border-radius: 6px; pointer-events: none; animation: flash-in 1.2s ease both; z-index: 4; }
 .flashOk { background: rgba(34, 197, 94, 0.22); color: var(--success); }
@@ -44,4 +49,21 @@
 .flashIcon { font-size: 4rem; font-weight: 800; line-height: 1; }
 .flashLabel { font-size: 1.2rem; font-weight: 700; }
 @keyframes flash-in { 0% { opacity: 0; transform: scale(0.9); } 15% { opacity: 1; transform: scale(1); } 80% { opacity: 1; } 100% { opacity: 0; } }
-@include below($bp-md) { .card { width: 100%; } }
+// Phones (legacy portrait layout): the page header goes, the card flattens into the column so its head
+// and stats sit above the board and Hint lands at the bottom of the screen; the board box spans the
+// width at its natural height. The page fills the viewport so the bottom button really is at the bottom.
+@include below($bp-md) {
+	// The main element keeps its phone padding (1rem top, 1.5rem bottom, App.module.scss): fill exactly the rest.
+	.page { min-height: calc(100dvh - 2.5rem); display: flex; flex-direction: column; padding: 0 0 env(safe-area-inset-bottom, 0px); }
+	.header { display: none; }
+	.grid { flex: 1 1 auto; flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 0.9rem; }
+	.boardCol { flex: 1 1 auto; justify-content: center; width: 100%; }
+	.boardWrap { width: 100%; height: auto; box-sizing: border-box; }
+	.card { display: contents; }
+	.cardHead, .ladderHead, .rankBar, .rankFoot, .runRow, .runFoot { order: -1; }
+	.cardHead { gap: 0.8rem; margin-bottom: 0.3rem; }
+	.back { display: block; text-align: center; }
+	.cardTitle { font-size: 1.25rem; font-weight: 700; color: var(--text); text-transform: none; letter-spacing: 0; }
+	.runFoot { margin-top: 0; }
+	.hint, .actions { order: 1; margin-top: 0; width: 100%; }
+}

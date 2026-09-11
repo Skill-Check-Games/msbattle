@@ -1,15 +1,10 @@
 .wrap { position: relative; display: inline-block; max-width: 100%; }
-.scroll { display: inline-block; position: relative; line-height: 0; max-width: 100%; overflow: auto; scrollbar-width: none; &::-webkit-scrollbar { display: none; } }
+// padding = the shake gutter (SHAKE_PAD_X/Y in GameBoard.tsx): the canvas shakes inside this box.
+.scroll { display: inline-block; vertical-align: top; position: relative; line-height: 0; max-width: 100%; overflow: auto; padding: 3px 6px; scrollbar-width: none; &::-webkit-scrollbar { display: none; } }
 .canvas { display: block; touch-action: manipulation; }
+.explosionLayer { position: absolute; pointer-events: none; z-index: 5; }
 .focusRing, .pressHighlight { position: absolute; pointer-events: none; border-radius: 20%; box-sizing: border-box; }
 .focusRing { border: 2px solid #facc15; }
 .pressHighlight { background: rgba(255, 255, 255, 0.32); }
 
-:global(.shake) { animation: board-shake 0.35s ease; }
-@keyframes board-shake {
-	0%, 100% { transform: translate(0, 0); }
-	20% { transform: translate(-5px, 2px); }
-	40% { transform: translate(5px, -2px); }
-	60% { transform: translate(-4px, 1px); }
-	80% { transform: translate(4px, -1px); }
-}
+// The mine-hit shake is a Web Animation on the host (BoardSession.triggerShake), not a class.

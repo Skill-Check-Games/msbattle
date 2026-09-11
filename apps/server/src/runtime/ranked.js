@@ -41,7 +41,7 @@ var RANKED_MODES = {
 // Short pause between forming a match and starting game 1 — just long enough to land in the
 // game layout (covered board) before the countdown. There's no roster modal to read anymore
 // (the search waiting room already showed the field), so this is brief for every mode.
-var MATCH_REVEAL_MS = 1000;
+var MATCH_REVEAL_MS = 2800; // the "Enemy found" beat on the clients before the first round is scheduled
 // Bots "join" the queue one at a time at random intervals so it reads like real players.
 // Paced slowly enough that the waiting room is clearly visible before the field fills in.
 var BOT_JOIN_MIN_MS = 1200;
@@ -132,7 +132,9 @@ function broadcastRankedQueue(mode) {
 			mode: mode,
 			count: rankedCount(mode),
 			size: modeSize(mode),
-			members: rankedSearchMembers(pid, mode)
+			members: rankedSearchMembers(pid, mode),
+			// the round length this mode will play, so the client's clock can show it while the search runs
+			roundSeconds: (typeof RANKED_MODES[mode].roundSeconds === "number") ? RANKED_MODES[mode].roundSeconds : RANKED_RULES.roundSeconds
 		});
 	}
 }
@@ -325,6 +327,7 @@ function allocateMatchToGameServer(mode, modeDef, matchSize, humans, botSpecs) {
 			avatar: appState.avatars[pid] || null,
 			country: appState.countries[pid] || null,
 			skin: appState.skins[pid] || null,
+			revealEffect: appState.revealEffects[pid] || null,
 			userId: acc ? acc.userId : null,
 			rating: u ? readUserRating(u, style) : 1000,
 			played: u ? u.played : 0

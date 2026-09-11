@@ -11,10 +11,10 @@ export function cancelCountdown() { generation++; }
 
 export function countDown(session: BoardSession, delayMs: number, onDone: () => void, opts: { sound?: CountdownSound & Partial<SoundLike>; onDigit?: (n: number) => void; onGo?: () => void } = {}) {
 	const gen = ++generation;
-	session.startBoardGo();
-	opts.sound?.sweep?.();
 	const digitsMs = countdownTickMs() * 3;
 	const lead = Math.max(0, delayMs - digitsMs);
+	// No sweep before the digits any more: the board keeps its idle twinkle behind the 3-2-1 and the
+	// opening reveal at GO is what ends it, so nothing sits still between the match forming and the round.
 	const cycle = (n: number) => {
 		if (gen !== generation || n <= 0) return;
 		if (opts.onDigit) opts.onDigit(n); else session.startCountdownGlyph(n);
@@ -22,6 +22,6 @@ export function countDown(session: BoardSession, delayMs: number, onDone: () => 
 		setTimeout(() => cycle(n - 1), countdownTickMs());
 	};
 	setTimeout(() => { if (gen === generation) cycle(3); }, lead);
-	setTimeout(() => { if (gen !== generation) return; opts.sound?.go?.(); opts.onGo?.(); onDone(); }, delayMs);
+	setTimeout(() => { if (gen !== generation) return; session.setIdle(false); opts.sound?.go?.(); opts.onGo?.(); onDone(); }, delayMs);
 	return () => { if (gen === generation) generation++; };
 }

@@ -14,7 +14,7 @@ var Cosmetics = require("core/src/common/Cosmetics");
 // Per-bot state (same objects the server holds).
 var bots = appState.bots, botTickHandles = appState.botTickHandles, botLastClick = appState.botLastClick;
 var games = appState.games, rooms = appState.rooms, roomMapping = appState.roomMapping, names = appState.names;
-var avatars = appState.avatars;
+var avatars = appState.avatars, sockets = appState.sockets;
 var botDifficulty = appState.botDifficulty, botSpeedMs = appState.botSpeedMs, botDifficultyMs = appState.botDifficultyMs;
 var botDistanceMult = appState.botDistanceMult, botMaxDifficulty = appState.botMaxDifficulty, botRating = appState.botRating;
 var botMistake = appState.botMistake, botChord = appState.botChord;
@@ -76,6 +76,12 @@ function scheduleBotTick(room, botId) {
 	if (!move) return;
 
 	var delay = botPlayer.computeMoveDelay(game, botLastClick[botId] || null, move);
+	// Tell the humans in the room where the bot is heading and when it will click, so their mirror of
+	// this board can walk the focus ring there like a player moving with the keyboard.
+	for (var i = 0; i < room.players.length; i++) {
+		var pid = room.players[i];
+		if (!isBot(pid) && sockets[pid]) sockets[pid].emit("opp_cursor", { id: botId, r: move.r, c: move.c, eta: delay });
+	}
 	botTickHandles[botId] = setTimeout(function() {
 		delete botTickHandles[botId];
 		runBotMove(room, botId, move);

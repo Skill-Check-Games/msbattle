@@ -1,0 +1,9 @@
+// A bare icon (no frame, no fill), muted until hovered, with a 40px hit area so it lines up with the
+// avatar circle and the burger without reading as a full button.
+.btn {
+	display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto;
+	width: 40px; height: 40px; padding: 0; border: 0; border-radius: 6px;
+	background: none; color: var(--muted); cursor: pointer;
+	transition: color var(--motion-micro);
+	&:hover { color: var(--text); }
+}

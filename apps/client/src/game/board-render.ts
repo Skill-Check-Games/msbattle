@@ -95,9 +95,12 @@ export function roundRectPath(ctx: CanvasRenderingContext2D, x: number, y: numbe
 
 // ---- BoardView ----
 export interface CellAnim { type: "reveal" | "mine" | "flag" | "settle"; t: number; }
+export type HoverKind = "cell" | "chord" | "peek" | null;   // a covered cell you can open or flag, a number whose chord would open cells, or a cell that chord would open
 export interface BoardViewOptions {
 	xray?: boolean;
 	animAt?: ((r: number, c: number) => CellAnim | null) | null;
+	hoverAt?: ((r: number, c: number) => HoverKind) | null;   // the cell under the pointer, if acting on it would do something
+	wiggleHover?: boolean;   // chordable numbers wiggle their digit instead of lifting
 	includeCell?: ((r: number, c: number) => boolean) | null;
 	skin?: string | null;                 // null: the local player's skin
 	forceRevealEffect?: string | null;    // demo boards: show a specific effect
@@ -107,6 +110,7 @@ type OverlayFn = (ctx: CanvasRenderingContext2D, sw: number, sh: number) => void
 
 export class BoardView {
 	canvas: HTMLCanvasElement; rows: number; cols: number;
+	hoverAt: ((r: number, c: number) => HoverKind) | null; wiggleHover = false;
 	xray: boolean; animAt: BoardViewOptions["animAt"]; includeCell: BoardViewOptions["includeCell"];
 	skinId: string | null; forceRevealEffect: string | null; ownBoard: boolean;
 	private _state: number[][]; private _cellAt: (r: number, c: number) => number;
@@ -115,6 +119,7 @@ export class BoardView {
 		this.canvas = canvas; this.rows = rows; this.cols = cols; this._state = state; this._cellAt = cellAt;
 		this.xray = !!opts.xray; this.animAt = opts.animAt || null; this.includeCell = opts.includeCell || null;
 		this.skinId = opts.skin || null; this.forceRevealEffect = opts.forceRevealEffect || null; this.ownBoard = !!opts.ownBoard;
+		this.hoverAt = opts.hoverAt || null; this.wiggleHover = !!opts.wiggleHover;
 	}
 	setState(state: number[][]) { this._state = state; }
 	isCovered(r: number, c: number) { return this._state[r][c] === UNKNOWN; }
@@ -196,7 +201,13 @@ export function drawCell(ctx: CanvasRenderingContext2D, r: number, c: number, vi
 			drawMine(ctx, w, h, t);
 		} else {
 			const clue = view.getClue(r, c);
-			if (clue > 0) drawNumber(ctx, clue, w, h, t);
+			const hover = view.hoverAt ? view.hoverAt(r, c) : null;
+			if (clue > 0 && hover === "chord" && view.wiggleHover) {
+				// "Pick me": the digit of a chordable number wiggles under the pointer, a 1px sway and a 3 degree tilt.
+				const ph = performance.now() / 90;
+				ctx.save(); ctx.translate(w / 2 + Math.sin(ph) * 1.2, h / 2); ctx.rotate(Math.sin(ph * 1.3) * 0.05); ctx.translate(-w / 2, -h / 2);
+				drawNumber(ctx, clue, w, h, t); ctx.restore();
+			} else if (clue > 0) drawNumber(ctx, clue, w, h, t);
 		}
 		// The covered lid lifts off as the reveal plays, in the local player's chosen effect on their own
 		// board and the default elsewhere (an opponent's reveal is not yours to customize).
@@ -213,9 +224,19 @@ export function drawCell(ctx: CanvasRenderingContext2D, r: number, c: number, vi
 	} else {
 		drawUnknown(ctx, w, h, rad);
 	}
+	// Hover: one lift for everything the pointer can act on. A covered cell under the pointer, a
+	// chordable number, and the cells that chord would open (the session marks those "peek") all get
+	// the same highlight; with the wiggle variant the number's digit moves instead of lifting.
+	const hv = view.hoverAt ? view.hoverAt(r, c) : null;
+	if (hv === "cell" || hv === "peek" || (hv === "chord" && !view.wiggleHover)) drawHoverLift(ctx, w, h, rad);
 	ctx.restore();
 }
 
+// The hover highlight, drawn the same way wherever a cell lifts under (or because of) the pointer.
+export const HOVER_LIFT_ALPHA = 0.22;
+function drawHoverLift(ctx: CanvasRenderingContext2D, w: number, h: number, rad: number) {
+	roundRectPath(ctx, 0, 0, w, h, rad); ctx.fillStyle = `rgba(255, 255, 255, ${HOVER_LIFT_ALPHA})`; ctx.fill();
+}
 export function drawUnknown(ctx: CanvasRenderingContext2D, w: number, h: number, rad: number) {
 	const g = ctx.createLinearGradient(0, 0, 0, h);
 	g.addColorStop(0, COLOR_UNKNOWN_TOP); g.addColorStop(1, COLOR_UNKNOWN_BOTTOM);
