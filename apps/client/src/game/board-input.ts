@@ -24,7 +24,7 @@ export function attachBoardInput(session: BoardSession, canvas: HTMLCanvasElemen
 	const actAt = (x: number, y: number, asFlag: boolean): boolean => {
 		const cell = session.cellFromClient(x, y);
 		if (!cell) return false;
-		session.focusVisible = false;
+		if (session.focusVisible) { const pr = session.focusedR, pc = session.focusedC; session.focusVisible = false; session.focusChanged(pr, pc); }
 		return session.performAction(cell.r, cell.c, asFlag);
 	};
 	const onClick = (e: MouseEvent) => {
@@ -111,6 +111,7 @@ export function attachBoardKeyboard(session: BoardSession): () => void {
 		const action = keybindings.actionFor(e);
 		if (!action) return;
 		const skip = e.shiftKey;
+		const prevR = session.focusedR, prevC = session.focusedC;
 		let moved = false;
 		if (action === "up") moved = session.stepFocus(-1, 0, skip);
 		else if (action === "down") moved = session.stepFocus(1, 0, skip);
@@ -122,7 +123,7 @@ export function attachBoardKeyboard(session: BoardSession): () => void {
 		else return;
 		e.preventDefault();
 		session.focusVisible = true;
-		session.updateFocusOverlay();
+		session.focusChanged(prevR, prevC);   // the lift (and a chord's peek) follow the cursor like the mouse hover
 		void moved;
 	};
 	document.addEventListener("keydown", onKey);

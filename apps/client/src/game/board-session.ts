@@ -185,23 +185,40 @@ export class BoardSession {
 		if (v === UNKNOWN || v === FLAGGED) return "cell";
 		return this.chordTargets(r, c) ? "chord" : null;
 	}
+	// The cell the player is pointing at: the mouse hover, or, with the keyboard cursor showing, the focused
+	// cell. Both get the same treatment (the lift, and the cells a chord would open lifting with it).
+	private attention(): { r: number; c: number } | null {
+		if (this.hover) return this.hover;
+		if (this.focusVisible && !this.mirror && this.focusedR >= 0 && this.focusedR < this.rows && this.focusedC >= 0 && this.focusedC < this.cols) return { r: this.focusedR, c: this.focusedC };
+		return null;
+	}
+	private attentionKeys(): string[] { const a = this.attention(); const keys = [...this.hoverExtra]; if (a) keys.push(a.r + "," + a.c); return keys; }
 	private refreshHoverKind() {
-		const kind = this.hover ? this.clickableKind(this.hover.r, this.hover.c) : null;
+		const at = this.attention();
+		const kind = at ? this.clickableKind(at.r, at.c) : null;
 		this.hoverKind = kind;
 		this.hoverExtra = [];
-		if (kind === "chord" && this.hover) for (const cell of this.chordTargets(this.hover.r, this.hover.c) || []) this.hoverExtra.push(cell[0] + "," + cell[1]);
-		if (this.canvas) this.canvas.style.cursor = kind ? "pointer" : "";
+		if (kind === "chord" && at) for (const cell of this.chordTargets(at.r, at.c) || []) this.hoverExtra.push(cell[0] + "," + cell[1]);
+		if (this.canvas) this.canvas.style.cursor = this.hover && kind ? "pointer" : "";
 		if (NUMBER_HOVER_WIGGLE && kind === "chord") this.startAnimLoop();
 	}
 	setHover(cell: { r: number; c: number } | null) {
 		const prev = this.hover;
 		if ((prev ? prev.r + "," + prev.c : "") === (cell ? cell.r + "," + cell.c : "")) return;
-		const keys: string[] = [...this.hoverExtra]; if (prev) keys.push(prev.r + "," + prev.c);
+		const keys = this.attentionKeys();
 		this.hover = cell;
 		this.refreshHoverKind();
-		if (cell) keys.push(cell.r + "," + cell.c); keys.push(...this.hoverExtra);
+		keys.push(...this.attentionKeys());
 		this.render(keys);
 		if (cell) this.hooks.onCursor?.(cell.r, cell.c);
+	}
+	// The keyboard cursor moved (or showed/hid): repaint the cells that lose and gain the lift.
+	focusChanged(prevR: number, prevC: number) {
+		const keys = [...this.hoverExtra, prevR + "," + prevC];
+		this.refreshHoverKind();
+		keys.push(...this.attentionKeys());
+		this.render(keys);
+		this.updateFocusOverlay();
 	}
 	subscribe(cb: () => void): () => void { this.listeners.add(cb); return () => { this.listeners.delete(cb); }; }
 	private emitChange() { this.listeners.forEach(cb => cb()); }
@@ -365,7 +382,7 @@ export class BoardSession {
 		return true;
 	}
 	private view(canvas: HTMLCanvasElement, state: number[][], skin: string | null): BoardView {
-		return new BoardView(canvas, this.rows, this.cols, state, this.cellAt, { skin, ownBoard: canvas === this.canvas && this.ownBoard, forceRevealEffect: this.mirror ? (this.revealEffect || "ripple") : null, wiggleHover: NUMBER_HOVER_WIGGLE, hoverAt: this.hover ? (r, c) => (this.hover && this.hover.r === r && this.hover.c === c ? this.hoverKind : this.hoverExtra.length && this.hoverExtra.indexOf(r + "," + c) !== -1 ? "peek" : null) : null });
+		return new BoardView(canvas, this.rows, this.cols, state, this.cellAt, { skin, ownBoard: canvas === this.canvas && this.ownBoard, forceRevealEffect: this.mirror ? (this.revealEffect || "ripple") : null, wiggleHover: NUMBER_HOVER_WIGGLE, hoverAt: this.attention() ? (r, c) => { const a = this.attention(); return a && a.r === r && a.c === c ? this.hoverKind : this.hoverExtra.length && this.hoverExtra.indexOf(r + "," + c) !== -1 ? "peek" : null; } : null });
 	}
 	// Paint the board; dirtyKeys ("r,c") limits the repaint to those cells and their neighbours.
 	render(dirtyKeys?: string[]) {
