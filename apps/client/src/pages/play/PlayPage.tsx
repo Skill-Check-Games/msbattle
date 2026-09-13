@@ -244,8 +244,9 @@ export default function PlayPage() {
 	// seen through a close-up) and at GO, so nothing done during the countdown can carry a close-up into the round.
 	// (padKey reset: the padding effect re-centres the overview even when nothing about the canvas changed.)
 	useEffect(() => { stopZoomAnim(); pendingZoom.current = null; pendingPinch.current = null; firstTapDone.current = false; padKey.current = ""; if (session.canvas) clearZoomTransform(session.canvas); setZoomCellPx(null); }, [s.roundLive]);
-	// The round's end: back to the whole board, centred (the zoom-out is anchored on the board's middle cell, so
-	// it ends with every cell in view wherever the player was), unless it is already there.
+	// The round's end: back to exactly the start position, the whole board centred (the zoom-out is anchored on
+	// the board's middle cell, so it ends with every cell in view wherever the player was), unless already there.
+	// From here the board is held (boardHeld) until the next round's GO.
 	useEffect(() => {
 		const canvas = session.canvas, sc = canvas && canvas.parentElement;
 		if (!s.roundResultShown || !canvas || !sc || !phoneLandscapeRef.current) return;
@@ -257,6 +258,8 @@ export default function PlayPage() {
 		}
 		zoomTo(null, (session.rows - 1) / 2, (session.cols - 1) / 2);
 	}, [s.roundResultShown]);
+	// The board is held (no pan, pinch, tap or area jump moves it) before GO and once the round's result is up.
+	const boardHeld = () => !match.state.roundLive || match.state.roundResultShown;
 	// Phone landscape: a drag anywhere in the board card pans the board, two fingers pinch-zoom it. Keyed on the
 	// landscape branch being rendered (not just the media query): the board card these listen on only exists once
 	// the match is on.
@@ -264,8 +267,9 @@ export default function PlayPage() {
 		const host = boardHostRef.current; if (!host || !lsBranch) return;
 		const scroller = () => host.querySelector<HTMLElement>("[data-board-scroll]");
 		// A mine penalty blocks playing, not looking: pan and pinch stay live (a desktop player sees the whole board
-		// throughout, a phone player should get to look around too). Only before GO is the board held still.
-		const blocked = () => !match.state.roundLive;
+		// throughout, a phone player should get to look around too). The board is held still before GO and once
+		// the round's result is up (it animates back to the start position then).
+		const blocked = boardHeld;
 		const detachPan = attachPanAnywhere(host, scroller, blocked);
 		const detachPinch = attachPinchZoom(host, {
 			canvas: () => session.canvas, maxPx: ZOOMED_IN_CELL_PX, blocked,
@@ -282,14 +286,14 @@ export default function PlayPage() {
 		return () => { detachPan(); detachPinch(); };
 	}, [lsBranch]);
 	// The round's first tap, from the untouched overview, zooms in on that cell instead of acting (it shows the
-	// board zooms, and "go here" is what the first tap means); every later tap plays at whatever zoom. Before GO
-	// (the countdown, the wait for an opponent) a tap does nothing: the round must start at the overview.
-	const firstTapPending = () => phoneLandscapeRef.current && (!match.state.roundLive || (!firstTapDone.current && zoomRef.current === null));
+	// board zooms, and "go here" is what the first tap means); every later tap plays at whatever zoom. While the
+	// board is held (the countdown, the wait for an opponent, the result) a tap does nothing at all.
+	const firstTapPending = () => phoneLandscapeRef.current && (boardHeld() || (!firstTapDone.current && zoomRef.current === null));
 	const zoomInput = useMemo<Partial<InputOptions>>(() => ({
 		swallowingTaps: firstTapPending,
 		interceptTap: (x, y) => {
 			if (!firstTapPending()) return false;
-			if (!match.state.roundLive) return true;
+			if (boardHeld()) return true;
 			firstTapDone.current = true;
 			const cell = session.cellFromClient(x, y); if (cell) zoomTo(ZOOMED_IN_CELL_PX, cell.r, cell.c);
 			return true;
@@ -342,7 +346,7 @@ export default function PlayPage() {
 	// The overlays (mine-hit freeze tint, "cleared" notice) cover the whole board card, not just the canvas.
 	const board = <GameBoard session={session} cellPx={cellPx} flagMode={() => flagRef.current} input={zoomInput} className={styles.board} />;
 
-	const actionBar = <ActionBar flagMode={flagMode} setFlagMode={setFlagMode} session={session} navDisabled={!s.roundLive} />;
+	const actionBar = <ActionBar flagMode={flagMode} setFlagMode={setFlagMode} session={session} navDisabled={!s.roundLive || s.roundResultShown} />;
 
 	if (lsBranch) {
 		const opp = opps[0] || null;
@@ -368,11 +372,11 @@ export default function PlayPage() {
 							<span className={`${styles.flipFace} ${styles.flipBack}`}>🚩 Flag</span>
 						</span>
 					</button>
-					{/* The area jumps, a full-width pair right under the mode button. Off until GO (like every other way of moving
-					    the board: it stays at the overview through the countdown), live through a mine penalty (looking around is allowed). */}
+					{/* The area jumps, a full-width pair right under the mode button. Off while the board is held (before GO, and once
+					    the result is up), live through a mine penalty (looking around is allowed). */}
 					<div className={styles.lsNav}>
-						<button type="button" className={styles.navBtn} aria-label="Previous unsolved area" disabled={!s.roundLive} onClick={() => jumpArea(session, -1)}>‹</button>
-						<button type="button" className={styles.navBtn} aria-label="Next unsolved area" disabled={!s.roundLive} onClick={() => jumpArea(session, 1)}>›</button>
+						<button type="button" className={styles.navBtn} aria-label="Previous unsolved area" disabled={!s.roundLive || s.roundResultShown} onClick={() => jumpArea(session, -1)}>‹</button>
+						<button type="button" className={styles.navBtn} aria-label="Next unsolved area" disabled={!s.roundLive || s.roundResultShown} onClick={() => jumpArea(session, 1)}>›</button>
 					</div>
 					{s.search && !duo && <span className={styles.searchStatus}><span className={styles.spinner} />{s.search.members.length}/{s.search.size}</span>}
 					<div className={`${styles.lsClock} ${!timer.text ? styles.clockIdle : ""}`}><span className={`${styles.duelTimer} ${timer.cls}`}>{clockText}</span></div>

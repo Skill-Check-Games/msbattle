@@ -167,6 +167,7 @@ export function attachPanAnywhere(host: HTMLElement, getScroller: () => HTMLElem
 		const sc = getScroller(); if (!sc || !p.moved || performance.now() - p.at > 80) return;   // a finger that stopped before lifting does not glide
 		let vx = p.vx, vy = p.vy, last = performance.now();
 		const frame = (now: number) => {
+			if (blocked && blocked()) { glide = 0; return; }   // the board got held mid-glide (the round ended): stop where it is, the page takes over
 			const dt = now - last; last = now;
 			sc.scrollLeft += vx * dt; sc.scrollTop += vy * dt;
 			const k = Math.pow(GLIDE_DECAY, dt / 16); vx *= k; vy *= k;
