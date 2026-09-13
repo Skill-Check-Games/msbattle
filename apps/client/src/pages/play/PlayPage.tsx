@@ -5,9 +5,9 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { match, useMatch, MODE_LABELS, STYLE_LABELS, GameFrame, RoomPlayer } from "../../game/match-store";
-import GameBoard from "../../game/GameBoard";
-import { useCellPx } from "../../game/use-cell-px";
-import { animateZoom, measureZoomStart, viewportCenterCell, DoubleTapTracker, attachPanAnywhere, ZOOMED_IN_CELL_PX, ZoomAnchor } from "../../game/duel-zoom";
+import GameBoard, { SHAKE_PAD_X, SHAKE_PAD_Y } from "../../game/GameBoard";
+import { useCellPx, fitCellPx, CellPxOptions, DESKTOP_CELL_MIN } from "../../game/use-cell-px";
+import { animateZoom, measureZoomStart, attachPanAnywhere, attachPinchZoom, clearZoomTransform, ZOOMED_IN_CELL_PX, ZoomAnchor, PinchCommit } from "../../game/duel-zoom";
 import type { InputOptions } from "../../game/board-input";
 import { DuelIdentity, ProgressBar, LeadBar, ArenaStat, PlaceStamp, useRoundTimer, formatRoundTime, cellsLeftOf } from "./hud";
 import { phoneSizedDevice } from "../../game/fullscreen";
@@ -25,9 +25,27 @@ import styles from "./PlayPage.module.scss";
 
 const DUEL_GAP_PX = 16;  // .duelGrid's gap between the two cards (PlayPage.module.scss)
 const LS_PANEL_W = 158;  // the landscape side panels' width (matches .landscape's grid columns in PlayPage.module.scss)
+const FOUND_GAP_MS = 300;        // the match-found banner is gone at least this long before the 3-2-1 begins
+const FOUND_WAIT_MAX_MS = 4000;  // how long the found card waits for start_game beyond its natural length before giving up
+const LS_SHORT_MAX_H = 370;   // landscape layouts this short (small phones) use the compact side panels (.lsShort)
+// Everything on your side panel other than the mode box, top to bottom, in px (page padding, panel padding, the
+// identity block, the gaps, the arrows, the clock, the cells-left line), for the normal and the short (lsShort)
+// panels. Must follow the sizes in .landscape / .lsShort in PlayPage.module.scss; a few px of slack included.
+const LS_FIXED_H = 262, LS_FIXED_H_SHORT = 224;
 const PORTRAIT_GUTTER_X = 3;  // the board scroller's side padding in the narrow layout (matches .portrait .board in PlayPage.module.scss)
 const FORCE_LANDSCAPE = true;   // phones play battles in landscape; a portrait-held phone gets the layout rotated (body.duel-force-rotate)
-const DUEL_STACK_MQ = "(max-width: 1100px)";  // below this the 1v1 cards stack (must match $bp-duel-stack in PlayPage.module.scss)
+// Desktop 1v1 (DESKTOP_CELL_MIN cells): the cards sit side by side when the window is wide enough for two
+// boards at that size; when it is not, they stack one above the other if the height holds that; and when
+// neither fits (a short, narrow window) they stay side by side with cells down to DESKTOP_FIT_MIN_CELL. A live
+// desktop page never scrolls (base.scss clips it), so the layout has to fit rather than overflow.
+const DUO_CARD_CHROME_W = 50;   // an arena's padding + border + the shake gutter, either side of its board
+const DUO_CARD_CHROME_H = 120;  // an arena's padding, head row, gap and border above and below its board
+const DUO_STACK_CHROME_H = 330; // header, clock, lead bar, gaps and page padding around the stacked cards
+const MAIN_GUTTER_PX = 56;      // main's side padding while live (1.75rem each side, base.scss)
+const DESKTOP_FIT_MIN_CELL = 14;   // a desktop board may shrink to this to fit the window (1v1 side by side, 7-player)
+const MULTI_BOTTOM_GAP = 200;   // 7-player: below your board sit the card's padding, the progress bar, the tools row and the page padding
+const OPP_CARD_CHROME_H = 61;   // a 7-player opponent card's padding, head row and border above and below its mini board
+const OPP_GRID_GAP = 11;        // .oppGrid's gap (0.7rem)
 // Safe cells still to open; with no frame yet (before the round) everyone has the whole board left.
 const cellsLeftNum = (f: GameFrame | null) => f ? Math.max(0, (f.totalSafe || 0) - (f.safeCount || 0)) : 1;
 
@@ -39,13 +57,18 @@ export default function PlayPage() {
 	const flagRef = useRef(flagMode); flagRef.current = flagMode;
 	const session = match.session;
 	const boardHostRef = useRef<HTMLDivElement>(null);
-	// Phone landscape zoom (duel-zoom.ts): the board starts at the whole-board overview every round; a tap
-	// zooms in on that cell, a double tap that changed nothing zooms back out, and the round's end zooms out.
-	const [zoomedOut, setZoomedOut] = useState(true);
-	const zoomedOutRef = useRef(true); zoomedOutRef.current = zoomedOut;
+	// Phone landscape zoom (duel-zoom.ts): the board starts at the whole-board overview every round (zoomCellPx
+	// null: the fit, centred); the round's first tap zooms in on that cell, then taps play at any zoom and two
+	// fingers pinch freely between the overview and ZOOMED_IN_CELL_PX (zoomCellPx: an explicit cell size); the
+	// round's end zooms back out.
+	const [zoomCellPx, setZoomCellPx] = useState<number | null>(null);
+	const zoomRef = useRef<number | null>(null); zoomRef.current = zoomCellPx;
+	const cellPxRef = useRef(0);
+	const firstTapDone = useRef(false);
 	const phoneLandscapeRef = useRef(false);
 	const pendingZoom = useRef<ZoomAnchor | null>(null);
-	const doubleTap = useRef(new DoubleTapTracker());
+	const pendingPinch = useRef<(PinchCommit & { fromCellPx: number }) | null>(null);
+	const zoomAnim = useRef<(() => void) | null>(null);
 	const viewRef = useRef<HTMLElement>(null);
 	// Match-found moment: when the opponent's seat fills during a ranked 1v1, play the banner once.
 	const [searchSince, setSearchSince] = useState<number | null>(null);
@@ -54,18 +77,34 @@ export default function PlayPage() {
 	const oppId = (match.opponents()[0] || {}).id || null;
 	const lastOppRef = useRef<string | null>(null);
 	useEffect(() => { if (s.search && searchSince == null) setSearchSince(Date.now()); if (!s.search && !s.inRoom) setSearchSince(null); }, [s.search, s.inRoom]);
+	const foundAt = useRef(0);
 	useEffect(() => {
 		// Only the seat filling during a search plays it, never a roster refresh mid-round.
 		if (oppId && !lastOppRef.current && searchSince != null && match.isDuo() && !s.roundLive) {
 			lastOppRef.current = oppId;
+			foundAt.current = Date.now();
 			setFoundPhase("card");
-			const t1 = setTimeout(() => setFoundPhase("cardOut"), FOUND_CARD_MS), t1b = setTimeout(() => setFoundPhase("banner"), FOUND_CARD_MS + CARD_LEAVE_MS), t2 = setTimeout(() => setFoundPhase(null), FOUND_CARD_MS + MATCH_FOUND_MS);
-			// Once the slabs have landed, the board's idle twinkle dissolves and stays off for the countdown.
-			const t3 = setTimeout(() => match.session.fadeIdleOut(900), FOUND_CARD_MS + 700);
-			return () => { clearTimeout(t1); clearTimeout(t1b); clearTimeout(t2); clearTimeout(t3); };
 		}
 		if (!oppId && !s.inRoom) lastOppRef.current = null;   // a new search starts fresh; a roster blip inside a room does not
 	}, [oppId]);
+	// The card gives way to the banner after FOUND_CARD_MS, or sooner when the round's 3-2-1 is due sooner: the
+	// banner (MATCH_FOUND_MS from the card's leave to its exit) must be gone FOUND_GAP_MS before the first digit,
+	// whatever the gap between the roster's arrival and start_game turned out to be (on phones it varies).
+	// Until start_game has said when the digits begin, the card waits (with a cap, in case it never comes).
+	useEffect(() => {
+		if (foundPhase !== "card") return;
+		const natural = foundAt.current + FOUND_CARD_MS, digitsAt = s.countdownDigitsAt;
+		const at = digitsAt == null ? natural + FOUND_WAIT_MAX_MS : Math.min(natural, digitsAt - FOUND_GAP_MS - MATCH_FOUND_MS);
+		const t = setTimeout(() => setFoundPhase("cardOut"), Math.max(0, at - Date.now()));
+		return () => clearTimeout(t);
+	}, [foundPhase, s.countdownDigitsAt]);
+	useEffect(() => {
+		if (foundPhase !== "cardOut") return;
+		const t1 = setTimeout(() => setFoundPhase("banner"), CARD_LEAVE_MS), t2 = setTimeout(() => setFoundPhase(null), MATCH_FOUND_MS);
+		// Once the slabs have landed, the board's idle twinkle dissolves and stays off for the countdown.
+		const t3 = setTimeout(() => match.session.fadeIdleOut(900), 700);
+		return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+	}, [foundPhase]);
 	// The round's end (1v1): the winner's banner slides in over the cards, holds for WIN_BANNER_MS, then slides
 	// back out; the series result modal, when there is one, waits for that moment and arrives as it leaves.
 	const [winPhase, setWinPhase] = useState<"in" | "out" | null>(null);
@@ -102,6 +141,12 @@ export default function PlayPage() {
 	// undoes the rotation). Puzzles and solo never do this.
 	const forceRotate = FORCE_LANDSCAPE && battle && !planningLobby && !landscape && portraitOrientation && phoneSizedDevice();
 	const phoneLandscape = landscape || forceRotate;
+	// The landscape layout's height: the viewport's, or the viewport's width when force-rotated. Short screens
+	// (small phones: 360px and under) get the compact side panels (lsShort) and a mini board that fits the budget.
+	const [viewport, setViewport] = useState(() => ({ w: window.innerWidth, h: window.innerHeight }));
+	useEffect(() => { const on = () => setViewport({ w: window.innerWidth, h: window.innerHeight }); window.addEventListener("resize", on); return () => window.removeEventListener("resize", on); }, []);
+	const lsHeight = forceRotate ? viewport.w : viewport.h;
+	const lsShort = phoneLandscape && lsHeight <= LS_SHORT_MAX_H;
 	useEffect(() => { document.body.classList.toggle("duel-force-rotate", forceRotate); return () => { document.body.classList.remove("duel-force-rotate"); }; }, [forceRotate]);
 	const rows = session.rows, cols = session.cols;
 	// 1v1: the board fits its own arena (padding + border, the bar row below); otherwise the board card.
@@ -112,8 +157,14 @@ export default function PlayPage() {
 	// the cell size comes from the view's width split in two; the height budget is fixed chrome (header,
 	// lead bar, card head, paddings) since the stack is centred in the viewport.
 	const desktopDuo = duo && !phoneLandscape && !portrait;
-	const duoStacked = useMediaQuery(DUEL_STACK_MQ);   // the two cards one above the other
-	const cellPx = useCellPx(desktopDuo ? viewRef : boardHostRef, { rows, cols, maxCell: duo ? 100 : 54, chrome: phoneLandscape ? 0 : duo ? 38 : 42, minCell: phoneLandscape ? (zoomedOut ? 1 : ZOOMED_IN_CELL_PX) : undefined, fitBox: phoneLandscape ? "[data-board-scroll]" : undefined, gutterX: portrait && !phoneLandscape ? PORTRAIT_GUTTER_X : undefined, bottomGap: phoneLandscape ? 64 : duo ? 64 : undefined, desktopFit: phoneLandscape, topOffset: desktopDuo ? 250 : undefined, reserve: desktopDuo && !duoStacked ? DUEL_GAP_PX : undefined, share: desktopDuo && !duoStacked ? 2 : undefined });
+	const sideBySideNeeds = 2 * (cols * DESKTOP_CELL_MIN + DUO_CARD_CHROME_W) + DUEL_GAP_PX, stackFits = viewport.h >= 2 * (rows * DESKTOP_CELL_MIN + DUO_CARD_CHROME_H) + DUO_STACK_CHROME_H;
+	const duoStacked = portrait || (!!cols && viewport.w - MAIN_GUTTER_PX < sideBySideNeeds && stackFits);   // the two cards one above the other
+	// Landscape phones: the overview is the whole board fitted to the scroller box (lsOverview); a zoom level
+	// pins the cell size exactly (min = max).
+	const lsOverview: CellPxOptions = { rows, cols, minCell: 1, maxCell: ZOOMED_IN_CELL_PX, chrome: 0, fitBox: "[data-board-scroll]", bottomGap: 64, desktopFit: true };
+	const lsBranch = phoneLandscape && battle && !planningLobby;   // the landscape branch is what is rendered (the search still shows the desktop branch)
+	const cellPx = useCellPx(desktopDuo ? viewRef : boardHostRef, phoneLandscape ? { ...lsOverview, minCell: zoomCellPx ?? 1, maxCell: zoomCellPx ?? ZOOMED_IN_CELL_PX, key: lsBranch } : { rows, cols, maxCell: duo ? 100 : 54, minCell: (desktopDuo && !duoStacked) || multi ? DESKTOP_FIT_MIN_CELL : undefined, chrome: duo ? 38 : 42, gutterX: portrait ? PORTRAIT_GUTTER_X : undefined, bottomGap: duo ? 72 : multi ? MULTI_BOTTOM_GAP : undefined, desktopFit: false, topOffset: desktopDuo ? 250 : undefined, reserve: desktopDuo && !duoStacked ? DUEL_GAP_PX : undefined, share: desktopDuo && !duoStacked ? 2 : undefined });
+	cellPxRef.current = cellPx;
 
 	phoneLandscapeRef.current = phoneLandscape;
 	// Narrow layout: the scroller is cropped to whole columns (no sliver of a partial column at the edge)
@@ -132,10 +183,36 @@ export default function PlayPage() {
 		if (!portraitBoard || !sc) return;
 		sc.scrollLeft = (sc.scrollWidth - sc.clientWidth) / 2; sc.scrollTop = (sc.scrollHeight - sc.clientHeight) / 2;
 	}, [portraitBoard, viewW, rows, cols, s.roundLive]);
-	const zoomTo = (out: boolean, r: number, c: number) => {
-		const canvas = session.canvas; if (!canvas || !session.cols || zoomedOutRef.current === out) return;
+	const stopZoomAnim = () => { if (zoomAnim.current) { zoomAnim.current(); zoomAnim.current = null; } };
+	// Landscape phones: the board floats in a scroll area padded on every side by half the box, so at any zoom
+	// it can be pushed until its edge reaches the box's centre (a quarter of the box's worth of board always
+	// stays in view) and it stays where a gesture left it instead of snapping to the centre. Only the round's
+	// start (and a resize while still at the untouched overview) centres it, here. Declared before the zoom
+	// effects below, which read the canvas's offset (margins included) in the same commit.
+	// Runs every commit (the landscape branch mounts a fresh canvas without any size input changing) but only
+	// acts when the canvas, its size or the box's size differ from the last time, so a panned overview is not
+	// re-centred by the frames arriving during the round.
+	const padKey = useRef("");
+	useLayoutEffect(() => {
+		const canvas = session.canvas, sc = canvas && canvas.parentElement; if (!canvas || !sc) return;
+		if (!phoneLandscape) { if (padKey.current) { canvas.style.margin = ""; padKey.current = ""; } return; }
+		const key = [canvas.offsetWidth, canvas.offsetHeight, sc.clientWidth, sc.clientHeight, zoomCellPx].join(",");
+		if (padKey.current === key && padCanvas.current === canvas) return;
+		padKey.current = key; padCanvas.current = canvas;
+		const mx = Math.max(0, Math.round(sc.clientWidth / 2) - SHAKE_PAD_X), my = Math.max(0, Math.round(sc.clientHeight / 2) - SHAKE_PAD_Y);   // measured from the scroller's padding edge
+		canvas.style.margin = `${my}px ${mx}px`;
+		if (zoomRef.current === null && !pendingZoom.current && !pendingPinch.current) {
+			sc.scrollLeft = canvas.offsetLeft - (sc.clientWidth - canvas.offsetWidth) / 2;
+			sc.scrollTop = canvas.offsetTop - (sc.clientHeight - canvas.offsetHeight) / 2;
+		}
+	});
+	const padCanvas = useRef<HTMLCanvasElement | null>(null);
+	// The animated zoom (a tap zooming in, the round's end zooming out): to `target` (null: the overview), centred on a cell.
+	const zoomTo = (target: number | null, r: number, c: number) => {
+		const canvas = session.canvas; if (!canvas || !session.cols || zoomRef.current === target) return;
+		stopZoomAnim(); pendingPinch.current = null;
 		pendingZoom.current = measureZoomStart(canvas, session.cols, r, c);
-		setZoomedOut(out);
+		setZoomCellPx(target);
 		if (navigator.vibrate) navigator.vibrate(8);
 	};
 	// Once the canvas has been laid out at the new cell size (GameBoard's own layout effect runs first), play the zoom.
@@ -144,33 +221,78 @@ export default function PlayPage() {
 		if (!a || !canvas) return;
 		if (Math.abs(canvas.clientWidth / session.cols - a.fromCellPx) < 0.5) return;   // the resize has not landed yet
 		pendingZoom.current = null;
-		return animateZoom(canvas, session.rows, session.cols, a);
-	}, [cellPx, zoomedOut]);
+		const cancel = animateZoom(canvas, session.rows, session.cols, a, () => { zoomAnim.current = null; });
+		zoomAnim.current = cancel;
+		return () => { if (zoomAnim.current === cancel) { cancel(); zoomAnim.current = null; } };
+	}, [cellPx, zoomCellPx]);
+	// A pinch has ended: the board is laid out at the new size (or is already, when the size did not change);
+	// scroll so the anchored board point sits where the fingers left it, then drop the gesture's transform.
+	const applyPinch = (c: PinchCommit) => {
+		const canvas = session.canvas, sc = canvas && canvas.parentElement; if (!canvas || !sc) return;
+		sc.scrollLeft = c.fx * canvas.offsetWidth + canvas.offsetLeft - c.mx;
+		sc.scrollTop = c.fy * canvas.offsetHeight + canvas.offsetTop - c.my;
+		clearZoomTransform(canvas);
+	};
+	useLayoutEffect(() => {
+		const a = pendingPinch.current, canvas = session.canvas;
+		if (!a || !canvas) return;
+		if (Math.abs(canvas.offsetWidth / session.cols - a.fromCellPx) < 0.05) return;   // the resize has not landed yet
+		pendingPinch.current = null;
+		applyPinch(a);
+	}, [cellPx, zoomCellPx]);
 	// Every round starts at the overview: the overview is restored both when a round ends (the result is not
 	// seen through a close-up) and at GO, so nothing done during the countdown can carry a close-up into the round.
-	useEffect(() => { pendingZoom.current = null; setZoomedOut(true); }, [s.roundLive]);
+	// (padKey reset: the padding effect re-centres the overview even when nothing about the canvas changed.)
+	useEffect(() => { stopZoomAnim(); pendingZoom.current = null; pendingPinch.current = null; firstTapDone.current = false; padKey.current = ""; if (session.canvas) clearZoomTransform(session.canvas); setZoomCellPx(null); }, [s.roundLive]);
+	// The round's end: back to the whole board, centred (the zoom-out is anchored on the board's middle cell, so
+	// it ends with every cell in view wherever the player was), unless it is already there.
 	useEffect(() => {
-		if (!s.roundResultShown || zoomedOutRef.current || !session.canvas) return;
-		const mid = viewportCenterCell(session.canvas, session.rows, session.cols); zoomTo(true, mid.r, mid.c);
+		const canvas = session.canvas, sc = canvas && canvas.parentElement;
+		if (!s.roundResultShown || !canvas || !sc || !phoneLandscapeRef.current) return;
+		const atOverview = zoomRef.current === null && Math.abs(sc.scrollLeft - (canvas.offsetLeft - (sc.clientWidth - canvas.offsetWidth) / 2)) < 2 && Math.abs(sc.scrollTop - (canvas.offsetTop - (sc.clientHeight - canvas.offsetHeight) / 2)) < 2;
+		if (atOverview) return;
+		if (zoomRef.current === null) {   // already the overview size, only panned: a quick scroll back to the centre
+			sc.scrollTo({ left: canvas.offsetLeft - (sc.clientWidth - canvas.offsetWidth) / 2, top: canvas.offsetTop - (sc.clientHeight - canvas.offsetHeight) / 2, behavior: "smooth" });
+			return;
+		}
+		zoomTo(null, (session.rows - 1) / 2, (session.cols - 1) / 2);
 	}, [s.roundResultShown]);
-	// A drag anywhere in the board card pans the board (phone landscape only).
+	// Phone landscape: a drag anywhere in the board card pans the board, two fingers pinch-zoom it. Keyed on the
+	// landscape branch being rendered (not just the media query): the board card these listen on only exists once
+	// the match is on.
 	useEffect(() => {
-		const host = boardHostRef.current; if (!host || !phoneLandscape) return;
-		return attachPanAnywhere(host, () => host.querySelector<HTMLElement>("[data-board-scroll]"), () => session.isFrozen());
-	}, [phoneLandscape]);
+		const host = boardHostRef.current; if (!host || !lsBranch) return;
+		const scroller = () => host.querySelector<HTMLElement>("[data-board-scroll]");
+		// A mine penalty blocks playing, not looking: pan and pinch stay live (a desktop player sees the whole board
+		// throughout, a phone player should get to look around too). Only before GO is the board held still.
+		const blocked = () => !match.state.roundLive;
+		const detachPan = attachPanAnywhere(host, scroller, blocked);
+		const detachPinch = attachPinchZoom(host, {
+			canvas: () => session.canvas, maxPx: ZOOMED_IN_CELL_PX, blocked,
+			cellPxNow: canvas => canvas.offsetWidth / Math.max(1, session.cols),
+			overviewPx: () => fitCellPx(host, session.canvas, { ...lsOverview, rows: session.rows, cols: session.cols }),
+			onStart: () => { stopZoomAnim(); pendingZoom.current = null; pendingPinch.current = null; if (session.canvas) clearZoomTransform(session.canvas); },
+			onCommit: c => {
+				firstTapDone.current = true;   // zooming by hand is the round's first action too: no tap-to-zoom after it
+				if (Math.abs(cellPxRef.current - c.cellPx) < 0.25) { applyPinch(c); return; }   // no relayout coming: settle the scroll now
+				pendingPinch.current = { ...c, fromCellPx: cellPxRef.current };
+				setZoomCellPx(c.cellPx);
+			},
+		});
+		return () => { detachPan(); detachPinch(); };
+	}, [lsBranch]);
+	// The round's first tap, from the untouched overview, zooms in on that cell instead of acting (it shows the
+	// board zooms, and "go here" is what the first tap means); every later tap plays at whatever zoom. Before GO
+	// (the countdown, the wait for an opponent) a tap does nothing: the round must start at the overview.
+	const firstTapPending = () => phoneLandscapeRef.current && (!match.state.roundLive || (!firstTapDone.current && zoomRef.current === null));
 	const zoomInput = useMemo<Partial<InputOptions>>(() => ({
-		// Zoomed out, cells are too small to tap precisely: any tap means "zoom in here" instead of acting.
-		swallowingTaps: () => phoneLandscapeRef.current && zoomedOutRef.current,
+		swallowingTaps: firstTapPending,
 		interceptTap: (x, y) => {
-			if (!phoneLandscapeRef.current || !zoomedOutRef.current) return false;
-			// Before GO (the countdown, the wait for an opponent) a tap does nothing: the round must start at the overview.
+			if (!firstTapPending()) return false;
 			if (!match.state.roundLive) return true;
-			const cell = session.cellFromClient(x, y); if (cell) zoomTo(false, cell.r, cell.c);
+			firstTapDone.current = true;
+			const cell = session.cellFromClient(x, y); if (cell) zoomTo(ZOOMED_IN_CELL_PX, cell.r, cell.c);
 			return true;
-		},
-		onTap: (x, y, changed) => {
-			if (!phoneLandscapeRef.current || !doubleTap.current.tap(x, y, changed) || !session.canvas) return;
-			const mid = viewportCenterCell(session.canvas, session.rows, session.cols); zoomTo(true, mid.r, mid.c);
 		},
 	}), [session]);
 	const me = match.me(), opps = match.opponents();
@@ -220,20 +342,25 @@ export default function PlayPage() {
 	// The overlays (mine-hit freeze tint, "cleared" notice) cover the whole board card, not just the canvas.
 	const board = <GameBoard session={session} cellPx={cellPx} flagMode={() => flagRef.current} input={zoomInput} className={styles.board} />;
 
-	const actionBar = <ActionBar flagMode={flagMode} setFlagMode={setFlagMode} session={session} navDisabled={s.frozenUntil > Date.now()} />;
+	const actionBar = <ActionBar flagMode={flagMode} setFlagMode={setFlagMode} session={session} navDisabled={!s.roundLive} />;
 
-	if (phoneLandscape && battle && !planningLobby) {
+	if (lsBranch) {
 		const opp = opps[0] || null;
 		// The opponent's mini board sits right under their name at the panel's inner width; the mode button on your
 		// side is the same box (same height, same width) right under your name, with the two area jumps beneath it.
-		const miniPx = cols ? (LS_PANEL_W - 2 - 16) / cols : 6, miniH = rows ? Math.round(rows * miniPx) : 0;   // panel width minus its border and 0.5rem padding each side
+		// Cells are sized to the panel's inner width (minus its border and 0.5rem padding each side), and no taller
+		// than what the panel's height leaves for the box, so a short screen never pushes the name under the box.
+		const boxMaxH = Math.max(40, lsHeight - (lsShort ? LS_FIXED_H_SHORT : LS_FIXED_H));
+		const miniPx = cols && rows ? Math.min((LS_PANEL_W - 2 - 16) / cols, boxMaxH / rows) : 6, miniH = rows ? Math.round(rows * miniPx) : 0;
 		return (
-			<section className={`${styles.view} ${styles.landscape} ${duo ? styles.duo : styles.multi}`} style={{ "--ls-mini-h": miniH + "px" } as React.CSSProperties}>
+			<section className={`${styles.view} ${styles.landscape} ${lsShort ? styles.lsShort : ""} ${duo ? styles.duo : styles.multi}`} style={{ "--ls-mini-h": miniH + "px" } as React.CSSProperties}>
 				<div className={`${styles.lsPanel} ${styles.lsYou}`}>
-					<button className={styles.lsBack} onClick={exit} aria-label="Exit game">‹</button>
+					<button className={styles.lsBack} onClick={exit} aria-label="Exit game" title="Exit game">
+						<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l-5-5 5-5M5 12h11" /></svg>
+					</button>
 					{/* Opposite the back button: a way back into fullscreen after an accidental exit (a swipe from the edge). */}
 					<FullscreenButton className={styles.lsFs} lockLandscape />
-					<DuelIdentity player={me || (account ? { id: "", name: account.name, avatar: account.avatarColor, country: account.country, rating: undefined } as any : null)} side="you" vertical ring noTier />
+					<DuelIdentity player={me || (account ? { id: "", name: account.name, avatar: account.avatarColor, country: account.country, rating: undefined } as any : null)} side="you" vertical ring noTier avatarPx={lsShort ? 48 : 64} />
 					{/* One button that flips between the two tools: a card with Reveal (a covered cell) on the front and Flag on the red back. */}
 					<button type="button" className={`${styles.lsMode} ${flagMode ? styles.lsModeFlag : ""}`} onClick={() => setFlagMode(!flagMode)} aria-pressed={flagMode} aria-label={flagMode ? "Flag mode, tap for reveal" : "Reveal mode, tap for flag"}>
 						<span className={styles.flipCard} aria-hidden="true">
@@ -241,11 +368,11 @@ export default function PlayPage() {
 							<span className={`${styles.flipFace} ${styles.flipBack}`}>🚩 Flag</span>
 						</span>
 					</button>
-					{/* The area jumps, a full-width pair right under the mode button. During a mine penalty nothing moves:
-					    the jumps are off, only the mode button stays live. */}
+					{/* The area jumps, a full-width pair right under the mode button. Off until GO (like every other way of moving
+					    the board: it stays at the overview through the countdown), live through a mine penalty (looking around is allowed). */}
 					<div className={styles.lsNav}>
-						<button type="button" className={styles.navBtn} aria-label="Previous unsolved area" disabled={myHit === "on"} onClick={() => jumpArea(session, -1)}>‹</button>
-						<button type="button" className={styles.navBtn} aria-label="Next unsolved area" disabled={myHit === "on"} onClick={() => jumpArea(session, 1)}>›</button>
+						<button type="button" className={styles.navBtn} aria-label="Previous unsolved area" disabled={!s.roundLive} onClick={() => jumpArea(session, -1)}>‹</button>
+						<button type="button" className={styles.navBtn} aria-label="Next unsolved area" disabled={!s.roundLive} onClick={() => jumpArea(session, 1)}>›</button>
 					</div>
 					{s.search && !duo && <span className={styles.searchStatus}><span className={styles.spinner} />{s.search.members.length}/{s.search.size}</span>}
 					<div className={`${styles.lsClock} ${!timer.text ? styles.clockIdle : ""}`}><span className={`${styles.duelTimer} ${timer.cls}`}>{clockText}</span></div>
@@ -261,12 +388,13 @@ export default function PlayPage() {
 						{boardOverlays}
 					</div>
 				</div>
-				<div className={`${styles.lsPanel} ${styles.lsOpp}`}>
+				{/* The opponent's mine hit reads like your own: the panel turns red and the penalty count sits over their mini board. */}
+				<div className={`${styles.lsPanel} ${styles.lsOpp} ${hitClass(oppHit)}`}>
 					{duo ? (
 						<>
 							{/* The panel is laid out in full from the start (skeleton identity, board slot), so nothing moves when the opponent arrives. */}
-							<DuelIdentity player={opp || null} side="opp" vertical ring noTier skeleton={!opp} />
-							<div className={styles.lsOppBoard}>{opp ? <OpponentBoard playerId={opp.id} skin={opp.skin || "classic"} frame={frameOf(opp)} rows={rows} cols={cols} cellPx={miniPx} className={styles.oppCanvas} covered /> : <span className={`skel-shimmer ${styles.lsOppSkel}`} />}</div>
+							<DuelIdentity player={opp || null} side="opp" vertical ring noTier skeleton={!opp} avatarPx={lsShort ? 48 : 64} />
+							<div className={styles.lsOppBoard}>{opp ? <OpponentBoard playerId={opp.id} skin={opp.skin || "classic"} frame={frameOf(opp)} rows={rows} cols={cols} cellPx={miniPx} className={styles.oppCanvas} covered sound /> : <span className={`skel-shimmer ${styles.lsOppSkel}`} />}{hitCount(oppFrozenUntil, oppHit)}</div>
 							<span className={styles.lsLeft}>{(opp && cellsLeftOf(frameOf(opp))) || "\u00a0"}</span>
 							<span className={styles.lsSpacer} />
 							{searchSince != null && !s.roundLive && ((!opp && s.search) || foundPhase === "card" || foundPhase === "cardOut") && <FindingEnemy since={searchSince} found={foundPhase === "card" || foundPhase === "cardOut"} leaving={foundPhase === "cardOut"} compact />}
@@ -275,7 +403,7 @@ export default function PlayPage() {
 				</div>
 				{(foundPhase === "banner" || foundPhase === "cardOut") && <MatchFoundBanner me={me} opp={opp} compact />}
 				{winBanner(true)}
-				{s.seriesResult && winPhase !== "in" && <SeriesResultModal result={s.seriesResult} myId={match.myId} />}
+				{s.seriesResult && winPhase !== "in" && <SeriesResultModal result={s.seriesResult} myId={match.myId} compact />}
 			</section>
 		);
 	}
@@ -302,7 +430,7 @@ export default function PlayPage() {
 					{/* Narrow layout: one row above the bar with the exit cross at the left and the clock centred (the header and head are hidden). */}
 					{portrait && <div className={styles.topRow}><button type="button" className={styles.topExit} onClick={exit} aria-label="Exit game">×</button><div className={`${styles.timerBadge} ${styles.topClock} ${!timer.text ? styles.clockIdle : ""}`}><div className={`${styles.duelTimer} ${timer.cls}`}>{clockText}</div></div></div>}
 					<LeadBar myLeft={cellsLeftNum(myFrame)} opLeft={cellsLeftNum(opps[0] ? frameOf(opps[0]) : null)} />
-					<div className={styles.duelGrid}>
+					<div className={`${styles.duelGrid} ${duoStacked ? styles.duelGridStacked : ""}`}>
 						<div className={`${styles.arena} ${styles.arenaYou} ${hitClass(myHit)}`} style={viewW ? ({ "--board-view-w": viewW + "px" } as React.CSSProperties) : undefined} ref={boardHostRef} data-shake-host="">
 							<div className={styles.arenaHead}>
 								<DuelIdentity player={me || (account ? { id: "", name: account.name, avatar: account.avatarColor, country: account.country, rating: undefined } as any : null)} side="you" plain />
@@ -319,7 +447,7 @@ export default function PlayPage() {
 								<ArenaStat frame={opps[0] ? frameOf(opps[0]) : null} side="opp" hit={oppHit === "on"} />
 							</div>
 							<div className={styles.boardWrap}>
-								<OpponentBoard playerId={opps[0] ? opps[0].id : "slot1"} skin={opps[0] ? opps[0].skin || "classic" : "classic"} frame={opps[0] ? frameOf(opps[0]) : null} rows={rows} cols={cols} cellPx={cellPx} covered />
+								<OpponentBoard playerId={opps[0] ? opps[0].id : "slot1"} skin={opps[0] ? opps[0].skin || "classic" : "classic"} frame={opps[0] ? frameOf(opps[0]) : null} rows={rows} cols={cols} cellPx={cellPx} covered sound />
 								{searchSince != null && !s.roundLive && ((!opps[0] && s.search) || foundPhase === "card" || foundPhase === "cardOut") && <FindingEnemy since={searchSince} found={foundPhase === "card" || foundPhase === "cardOut"} leaving={foundPhase === "cardOut"} />}
 							</div>
 							{hitCount(oppFrozenUntil, oppHit)}
@@ -359,9 +487,21 @@ function OpponentCard({ player, frame, rows, cols, place }: { player: RoomPlayer
 	const ref = useRef<HTMLDivElement>(null);
 	const [cellPx, setCellPx] = useState(13);
 	useEffect(() => {
-		const compute = () => { const w = ref.current ? ref.current.clientWidth - 24 : 0; setCellPx(Math.max(8, Math.min(26, w > 0 && cols ? Math.floor(w / cols) : 13))); };
+		// Cells fit the card's width, and no taller than the card's share of the height under the header: the
+		// grid's rows of cards (two cards per row) must all fit on screen, since a live desktop page never scrolls.
+		const compute = () => {
+			const el = ref.current, w = el ? el.clientWidth - 24 : 0;
+			let px = w > 0 && cols ? Math.floor(w / cols) : 13;
+			const grid = el && el.parentElement;
+			if (grid && rows) {
+				const cardRows = Math.max(1, Math.ceil(grid.children.length / 2));
+				const avail = (window.innerHeight - grid.getBoundingClientRect().top - 24 - (cardRows - 1) * OPP_GRID_GAP) / cardRows - OPP_CARD_CHROME_H;
+				if (avail > 0) px = Math.min(px, Math.floor(avail / rows));
+			}
+			setCellPx(Math.max(6, Math.min(26, px)));
+		};
 		compute(); window.addEventListener("resize", compute); return () => window.removeEventListener("resize", compute);
-	}, [cols]);
+	}, [cols, rows]);
 	const tier = player && typeof player.rating === "number" ? tierFor(player.rating, player.provisional) : null;
 	const pct = Math.round(((frame && frame.progress) || 0) * 100);
 	return (

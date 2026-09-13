@@ -40,12 +40,12 @@ export function attachBoardInput(session: BoardSession, canvas: HTMLCanvasElemen
 	};
 	const onTouchStart = (e: TouchEvent) => {
 		lastTouchAt = Date.now();
-		if (e.touches.length !== 1) { cancelLongPress(); session.setPressed(null); return; }
+		if (e.touches.length !== 1) { touchMoved = true; cancelLongPress(); session.setPressed(null); return; }   // a second finger: a pinch, never a tap
 		const t = e.touches[0];
 		touchStartX = t.clientX; touchStartY = t.clientY; touchMoved = false; longPressFired = false;
-		session.setPressed(session.cellFromClient(t.clientX, t.clientY));
 		cancelLongPress();
-		if (opts.swallowingTaps && opts.swallowingTaps()) return; // no long press while zoomed out (interceptTap itself acts, so it runs only at the tap's end)
+		if (opts.swallowingTaps && opts.swallowingTaps()) return; // no press highlight or long press while taps are swallowed (before GO, the first-tap zoom): interceptTap runs at the tap's end
+		session.setPressed(session.cellFromClient(t.clientX, t.clientY));
 		longPressTimer = window.setTimeout(() => {
 			longPressTimer = null;
 			if (touchMoved) return;
@@ -57,7 +57,7 @@ export function attachBoardInput(session: BoardSession, canvas: HTMLCanvasElemen
 	};
 	const onTouchMove = (e: TouchEvent) => {
 		lastTouchAt = Date.now();
-		if (e.touches.length !== 1) return;
+		if (e.touches.length !== 1) { touchMoved = true; cancelLongPress(); session.setPressed(null); return; }   // the second finger may have landed off the canvas
 		const t = e.touches[0];
 		if (Math.abs(t.clientX - touchStartX) > TOUCH_MOVE_TOLERANCE || Math.abs(t.clientY - touchStartY) > TOUCH_MOVE_TOLERANCE) {
 			touchMoved = true; cancelLongPress(); session.setPressed(null);

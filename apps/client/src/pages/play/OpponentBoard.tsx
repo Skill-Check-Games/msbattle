@@ -3,15 +3,21 @@
 // reveals, flags and mine hits the same animations (and shake) as your own; the focus ring follows
 // their live cursor when one is relayed, else the last cell that changed. Every player races the same
 // layout, so the clues come from the local session's decoder.
-import { useEffect, useLayoutEffect, useMemo } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { sound } from "../../audio/sound";
 import { BoardSession } from "../../game/board-session";
 import GameBoard from "../../game/GameBoard";
 import { match, GameFrame } from "../../game/match-store";
 
-interface Props { playerId: string; skin: string | null; frame: GameFrame | null; rows: number; cols: number; cellPx: number; className?: string; covered?: boolean; }
+// sound: their mine hits are heard (a softer, more distant blast than your own); reveals and flags stay silent. 1v1 only.
+interface Props { playerId: string; skin: string | null; frame: GameFrame | null; rows: number; cols: number; cellPx: number; className?: string; covered?: boolean; sound?: boolean; }
 
-export default function OpponentBoard({ playerId, skin, frame, rows, cols, cellPx, className, covered }: Props) {
-	const session = useMemo(() => { const s = new BoardSession({ mode: () => "mirror" }); s.mirror = true; s.ownBoard = false; return s; }, []);
+export default function OpponentBoard({ playerId, skin, frame, rows, cols, cellPx, className, covered, sound: withSound }: Props) {
+	const soundRef = useRef(!!withSound); soundRef.current = !!withSound;
+	const session = useMemo(() => {
+		const s = new BoardSession({ mode: () => "mirror", sound: { cascade() {}, flag() {}, unflag() {}, mine: () => { if (soundRef.current) sound.opponentMine(); } } });
+		s.mirror = true; s.ownBoard = false; return s;
+	}, []);
 	useEffect(() => { match.registerOpponentSession(playerId, session); return () => match.registerOpponentSession(playerId, null); }, [playerId, session]);
 	useLayoutEffect(() => { session.skin = skin || "classic"; session.render(); }, [session, skin]);
 	// The opponent's own reveal effect, shipped with every frame, plays on their mirror.

@@ -51,7 +51,7 @@ test("a second connection authenticating as the same user mid-round reclaims the
 		var c1Disconnected = once(c1, "disconnect", 5000);
 		var c2Authenticated = once(c2, "authenticated", 5000);
 		var c2RoomState = once(c2, "room_state", 5000);
-		var c2DrawBoard = once(c2, "draw_board", 8000);
+		var c2DrawBoard = once(c2, "draw_board", 12000);   // the first frame comes when the round goes live: FIRST_ROUND_START_DELAY_MS (8.3s) after start_game
 		c2.emit("authenticate", { token: auth1.token });
 
 		var auth2 = await c2Authenticated;

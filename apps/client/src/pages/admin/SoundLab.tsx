@@ -29,6 +29,7 @@ const GAME_SOUNDS: { name: string; desc: string; play: () => void }[] = [
 	{ name: "flag", desc: "Placing a flag.", play: () => sound.flag() },
 	{ name: "unflag", desc: "Removing a flag.", play: () => sound.unflag() },
 	{ name: "mine", desc: "Revealing a mine.", play: () => sound.mine() },
+	{ name: "opponentMine", desc: "Your 1v1 opponent hits a mine: the blast from further away.", play: () => sound.opponentMine() },
 	{ name: "beep", desc: "Generic short blip, used for the 3-2-1 countdown digits.", play: () => sound.beep(440) },
 	{ name: "sweep", desc: "The idle-to-ready board sweep, right as a round is about to start.", play: () => sound.sweep() },
 	{ name: "go", desc: "The moment a round actually goes live, at the end of the countdown.", play: () => sound.go() },

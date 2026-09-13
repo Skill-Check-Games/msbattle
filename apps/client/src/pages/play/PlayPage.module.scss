@@ -32,9 +32,9 @@
 .stackTimer { display: flex; justify-content: center; margin-bottom: 0.15rem; .timerBadge { padding: 0.5rem 1.5rem; } .duelTimer { font-size: 2rem; transition: color 0.3s ease; } }
 // Before GO the clock shows the round length, dimmed; it brightens when it starts ticking.
 .clockIdle .duelTimer { color: var(--muted); }
-// Two cards side by side; from 1100px down they stack (DUEL_STACK_MQ in PlayPage.tsx sizes the boards for that).
-$bp-duel-stack: 1100px;
-.duelGrid { display: grid; grid-template-columns: auto auto; justify-content: center; gap: 1rem; align-items: stretch; @include below($bp-duel-stack) { grid-template-columns: 1fr; } }
+// Two cards side by side, or one above the other (duelGridStacked: PlayPage.tsx decides from what fits the window).
+.duelGrid { display: grid; grid-template-columns: auto auto; justify-content: center; gap: 1rem; align-items: stretch; }
+.duelGridStacked { grid-template-columns: 1fr; }
 .arena {
 	position: relative; display: flex; flex-direction: column; gap: 0.85rem; padding: 1rem 1.1rem; border-radius: 10px; min-width: 0;
 	background: var(--surface); border: 1px solid var(--side); box-shadow: 0 0 0 1px color-mix(in srgb, var(--side) 35%, transparent), 0 0 28px -8px var(--side);
@@ -71,8 +71,8 @@ $bp-duel-stack: 1100px;
 .oppCard { position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.6rem 0.75rem; min-width: 0; }
 .oppFinished { border-color: rgba(34, 197, 94, 0.45); }
 .oppHead { display: flex; align-items: center; gap: 0.5rem; min-width: 0; margin-bottom: 0.5rem; }
-.oppName { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.3rem; }
-.oppTier { font-size: 0.72rem; font-weight: 700; }
+.oppName { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 0.15rem; }   // + the flag's own 0.4rem margin
+.oppTier { font-size: 0.72rem; font-weight: 700; white-space: nowrap; }
 .oppPct { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 0.85rem; min-width: 2.6rem; text-align: right; }
 .oppBoardWrap { position: relative; display: flex; justify-content: center; }
 
@@ -145,9 +145,10 @@ $bp-duel-stack: 1100px;
 	.lsPanel { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.6rem; padding: 0.6rem 0.5rem; }
 	.lsYou { --side: var(--duel-you); padding-top: 0.8rem; }
 	.lsOpp { --side: var(--duel-opp); padding-top: 0.8rem; }
-	// The two corner buttons on your panel: back (top left) and fullscreen (top right), the same 34px frame.
-	.lsBack, .lsFs { position: absolute; top: 0.5rem; width: 34px; height: 34px; border-radius: 6px; border: 1px solid var(--border); background: rgba(255, 255, 255, 0.05); color: var(--muted); &:hover { color: var(--text); border-color: var(--muted); } }
-	.lsBack { left: 0.5rem; font-size: 1.4rem; line-height: 1; padding: 0 0 0.15rem; }
+	// The two corner buttons on your panel: exit (top left) and fullscreen (top right), bare muted icons with
+	// a 34px hit area, no frame or fill, so they sit quietly beside the avatar.
+	.lsBack, .lsFs { position: absolute; top: 0.5rem; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--muted); &:hover { color: var(--text); } }
+	.lsBack { left: 0.5rem; }
 	.lsFs { right: 0.5rem; }
 	// Timer box: mode line over the clock, framed by the you-to-opponent gradient like the desktop badge.
 	// The clock is just the time: no icon, no mode line, no box. Dimmed until GO (clockIdle).
@@ -155,7 +156,7 @@ $bp-duel-stack: 1100px;
 	.lsSpacer { flex: 1 1 auto; }
 	.lsLeft { font-size: 0.74rem; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 	// The area jumps: a full-width pair tucked right under the mode button (a tighter gap than the panel's).
-	.lsNav { display: flex; gap: 0.4rem; width: 100%; margin-top: -0.2rem; .navBtn { flex: 1 1 0; height: 34px; padding: 0; } }
+	.lsNav { display: flex; gap: 0.4rem; width: 100%; margin-top: -0.2rem; .navBtn { flex: 1 1 0; height: 41px; padding: 0; } }
 	// The mode button: two faces stacked, Reveal (a covered cell) and the red-tinted Flag; a tap crossfades
 	// between them in 150ms. No 3D flip: a quick clean fade reads better at this size.
 	// It takes the opponent's mini board's box exactly (same height, the panel's inner width) right under your name.
@@ -179,16 +180,36 @@ $bp-duel-stack: 1100px;
 	// and the canvas pans or zooms inside. A canvas narrower than the box (the overview) is centred by its
 	// own margin, which resolves to 0 once it overflows, so scrollLeft 0 always means the board's left edge.
 	// min-width 0 (it is a grid item): otherwise it grows to the zoomed-in board and spills out of the card
+	// Every touch in the game is the game's (duel-zoom.ts pans and pinches the board in JS): the browser never
+	// scrolls or page-zooms here, so a second finger landing beside the board cannot hand the gesture to it.
+	// The scroller and canvas repeat it: a scroll gesture only consults the elements between the finger and the
+	// scroller, so the section's value alone would not stop the browser panning the board (before GO, say).
+	touch-action: none;
+	[data-board-scroll], [data-board-scroll] canvas { touch-action: none; }
 	.lsBoardWrap { display: flex; justify-content: center; align-items: stretch; min-height: 0; min-width: 0;
 		// min-height 0: without it the wrap (a flex item) grows to its zoomed-in board and spills out of the card;
 		// the scroller inside clips the board, while the explosion layer (also inside the wrap) may still spill.
 		> :first-child { display: flex; flex-direction: column; width: 100%; max-width: 100%; min-width: 0; height: 100%; min-height: 0; max-height: 100%; }
-		> :first-child > div:first-child { flex: 1 1 auto; min-height: 0; overflow: auto; }
-		canvas { margin: 0 auto; } }
+		// The scroller is a flex box; the canvas floats in it with margins the page sets (half the box or half
+		// the board on every side, PlayPage.tsx), so the board can be panned well past the box's edges and stays
+		// wherever a gesture left it. The page centres it at the round's start.
+		// overflow hidden, not auto: the board is only ever moved by script (scrollLeft/scrollTop), never by the browser.
+		> :first-child > div:first-child { flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; }
+		canvas { flex: 0 0 auto; } }
 	// The opponent's mini board sits right under their name at the panel's inner width (no gutter, no label).
-	.lsOppBoard { width: 100%; display: flex; justify-content: center; flex: 0 0 auto; [data-board-scroll] { padding: 0; } canvas { border-radius: 5px; } }
+	.lsOppBoard { position: relative; width: 100%; display: flex; justify-content: center; flex: 0 0 auto; border-radius: 5px; [data-board-scroll] { padding: 0; } canvas { border-radius: 5px; }
+		.frozenCount { font-size: 2.6rem; } }   // the penalty count over the mini board, sized to it
 	.lsOppSkel { display: block; width: 100%; height: var(--ls-mini-h, 96px); border-radius: 5px; }
 	.searchStatus { font-size: 0.8rem; }
+}
+// Short screens (LS_SHORT_MAX_H in PlayPage.tsx: 370px and under): tighter panels, a smaller avatar (48px, set
+// by the page), smaller arrows and clock. LS_FIXED_H_SHORT in PlayPage.tsx follows these sizes.
+.landscape.lsShort {
+	.lsPanel { gap: 0.5rem; }
+	.lsYou, .lsOpp { padding-top: 0.6rem; }
+	.lsPanel > div:first-of-type > :first-child { margin-top: 0; }   // the ring avatar loses its top margin
+	.lsNav { .navBtn { height: 36px; } }
+	.lsClock .duelTimer { font-size: 1.2rem; }
 }
 // A phone held in portrait: the landscape layout is laid out at the viewport's height x width, then
 // rotated 90 degrees from its top-left corner and pulled back up by its own height to fill the screen.

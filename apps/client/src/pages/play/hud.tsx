@@ -11,11 +11,13 @@ import styles from "./hud.module.scss";
 // portrait frame (a circle in the side colour).
 // skeleton: while the seat is empty (searching), shimmer placeholders sit exactly where the avatar, name
 // and tier will land, so the row does not move when the player arrives. noTier: name only, no rank line.
-export function DuelIdentity({ player, side, vertical, plain, ring, skeleton, noTier }: { player: RoomPlayer | null; side: "you" | "opp"; vertical?: boolean; plain?: boolean; ring?: boolean; skeleton?: boolean; noTier?: boolean }) {
+// avatarPx: the avatar's size (default 64 vertical, 52 in a row).
+export function DuelIdentity({ player, side, vertical, plain, ring, skeleton, noTier, avatarPx }: { player: RoomPlayer | null; side: "you" | "opp"; vertical?: boolean; plain?: boolean; ring?: boolean; skeleton?: boolean; noTier?: boolean; avatarPx?: number }) {
 	const cls = `${styles.id} ${styles[side]} ${vertical ? styles.vertical : ""} ${plain ? styles.plain : ""} ${ring ? styles.ring : ""}`;
+	const px = avatarPx || (vertical ? 64 : 52);
 	if (!player && skeleton) return (
 		<div className={cls} aria-label="Waiting for an opponent">
-			<span className={`skel-shimmer ${styles.skelAvatar} ${vertical ? styles.skelAvatarBig : ""}`} />
+			<span className={`skel-shimmer ${styles.skelAvatar}`} style={{ width: px, height: px }} />
 			<div className={styles.idInfo}><span className={`skel-shimmer ${styles.skelName}`} />{!noTier && <span className={`skel-shimmer ${styles.skelTier}`} />}</div>
 		</div>
 	);
@@ -23,7 +25,7 @@ export function DuelIdentity({ player, side, vertical, plain, ring, skeleton, no
 	const tier = !noTier && typeof player.rating === "number" ? tierFor(player.rating, player.provisional) : null;
 	return (
 		<div className={cls}>
-			<AvatarChip avatar={player.avatar} country={player.country} px={vertical ? 64 : 52} className={styles.idAvatar} />
+			<AvatarChip avatar={player.avatar} country={player.country} px={px} className={styles.idAvatar} />
 			<div className={styles.idInfo}>
 				<div className={styles.idName}><span className={styles.idNameText}>{player.name || "Anonymous"}</span><FlagChip country={player.country} px={16} /></div>
 				{tier && <div className={styles.idTier}><RankBadge rating={player.rating!} size={7} /><span style={{ color: tier.color }}>{tier.name}</span></div>}

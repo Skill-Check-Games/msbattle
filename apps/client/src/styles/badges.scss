@@ -29,4 +29,4 @@
 // Avatar canvas and small square flag chips (Avatar.tsx).
 .avatar-chip { display: inline-flex; align-items: center; gap: 0.35rem; flex: 0 0 auto; line-height: 0; }
 .avatar-canvas { display: block; border-radius: clamp(3px, 9%, 7px); }
-.flag-chip { display: inline-block; vertical-align: -0.18em; border-radius: 3px; object-fit: cover; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18); flex: 0 0 auto; }
+.flag-chip { display: inline-block; vertical-align: -0.18em; margin-left: 0.4rem; border-radius: 3px; object-fit: cover; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18); flex: 0 0 auto; }   // margin-left: a little air between a name and its flag everywhere

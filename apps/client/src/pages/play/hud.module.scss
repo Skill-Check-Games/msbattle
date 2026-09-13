@@ -3,13 +3,12 @@
 .opp .idInfo { align-items: flex-end; }
 .idAvatar :global(canvas) { border-radius: 6px; }
 .idInfo { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; }
-.idName { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.01em; display: inline-flex; align-items: center; gap: 0.35rem; white-space: nowrap; min-width: 0; max-width: 100%; }
+.idName { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.01em; display: inline-flex; align-items: center; gap: 0.2rem; white-space: nowrap; min-width: 0; max-width: 100%; }   // + the flag's own 0.4rem margin
 // the name text is its own box so it can truncate with an ellipsis inside the flex row (the flag stays)
 .idNameText { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .idTier { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; font-weight: 700; white-space: nowrap; min-width: 0; max-width: 100%; > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; } }
-// Empty-seat skeleton, sized like the real avatar (52px), name line and tier line.
-.skelAvatar { display: block; width: 52px; height: 52px; border-radius: 6px; flex: 0 0 auto; }
-.skelAvatarBig { width: 64px; height: 64px; }
+// Empty-seat skeleton, sized like the real avatar (inline width/height from DuelIdentity), name line and tier line.
+.skelAvatar { display: block; border-radius: 6px; flex: 0 0 auto; }
 .skelName { display: block; width: 7rem; height: 0.95rem; border-radius: 4px; margin: 0.2rem 0; }
 .skelTier { display: block; width: 4.5rem; height: 0.7rem; border-radius: 4px; margin-top: 0.2rem; }
 .opp .idTier { flex-direction: row-reverse; }

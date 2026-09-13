@@ -1,12 +1,16 @@
 .scrim { position: fixed; inset: 0; z-index: 299; background: rgba(3, 6, 12, 0.72); }
-.panel { position: fixed; z-index: 300; width: 320px; height: 420px; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55); }
-.narrow { top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(340px, calc(100vw - 24px)); height: min(460px, calc(100dvh - 40px)); }
-.head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.85rem 0.9rem 0.5rem; }
+// Sized like achtung-royale's picker (480 x 540 on desktop); the phone sheet takes the viewport minus a margin.
+.panel { position: fixed; z-index: 300; width: 480px; height: 540px; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55); }
+.narrow { top: 50%; left: 50%; transform: translate(-50%, -50%); width: calc(100vw - 24px); height: calc(100dvh - 40px); max-width: 480px; }
+.head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.7rem 0.9rem 0.6rem; border-bottom: 1px solid var(--border); }
 .title { font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
 .close { width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface-2); color: var(--muted); font-size: 1.1rem; line-height: 1; padding: 0; &:hover { color: var(--text); border-color: var(--muted); } }
-.search { margin: 0 0.9rem 0.6rem; padding: 0.5rem 0.65rem; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font: inherit; &:focus { outline: none; border-color: var(--accent); } }
-.grid { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.4rem; padding: 0 0.9rem 0.9rem; align-content: start; }
-.cell { display: flex; flex-direction: column; align-items: center; gap: 0.25rem; padding: 0.35rem; border-radius: 6px; border: 1px solid transparent; background: none; &:hover { background: var(--surface-2); border-color: var(--muted); } }
-.active { border-color: var(--accent); background: rgba(99, 102, 241, 0.12); }
+// 16px type: below that iOS Safari zooms the whole page in when the box takes focus.
+.search { margin: 0.6rem 0.75rem 0.3rem; padding: 0.5rem 0.65rem; border-radius: 6px; border: 1px solid var(--border); background: rgba(255, 255, 255, 0.06); color: var(--text); font: inherit; font-size: 16px; &:focus { outline: none; border-color: var(--accent); } }
+// As many 78px+ cards per row as fit (auto-fill), like achtung-royale's grid; labels may wrap to two lines.
+.grid { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); grid-auto-rows: min-content; gap: 6px; padding: 0.4rem 0.5rem 0.5rem; align-content: start; }
+.cell { display: flex; flex-direction: column; align-items: stretch; gap: 5px; padding: 6px 6px 5px; border-radius: 8px; border: 1px solid var(--border); background: rgba(255, 255, 255, 0.02); &:hover { background: var(--surface-2); border-color: var(--muted); } }
+.active { border-color: var(--accent); background: rgba(99, 102, 241, 0.14); .cellLabel { color: var(--text); } }
 .cellImg { width: 100%; aspect-ratio: 1 / 1; border-radius: 4px; overflow: hidden; background: var(--surface-2); img { width: 100%; height: 100%; object-fit: cover; display: block; } }
-.cellLabel { font-size: 0.66rem; color: var(--muted); text-align: center; line-height: 1.2; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cellLabel { font-size: 10.5px; color: var(--muted); text-align: center; line-height: 1.15; max-width: 100%; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.empty { grid-column: 1 / -1; color: var(--muted); font-size: 0.85rem; padding: 1rem; text-align: center; }

@@ -7,17 +7,20 @@ import { tierFor, tierProgress, ordinal, formatClearTime } from "../../shared/ra
 import { sound } from "../../audio/sound";
 import { match, MODE_LABELS, SeriesResult, Standing } from "../../game/match-store";
 import { useAuth } from "../../shared/auth";
+import { useMediaQuery, LANDSCAPE_PHONE_MQ } from "./mobile";
 import styles from "./ResultModals.module.scss";
 
 const deltaText = (d: number) => (d > 0 ? "+" : d < 0 ? "−" : "±") + Math.abs(d);
 const deltaCls = (d: number) => d > 0 ? styles.gain : d < 0 ? styles.loss : styles.flat;
 const styleField = (mode: string | null): "ratingSprint" | "ratingStandard" | null => !mode ? null : mode.indexOf("sprint") === 0 ? "ratingSprint" : mode.indexOf("standard") === 0 ? "ratingStandard" : null;
 
-export function SeriesResultModal({ result, myId }: { result: SeriesResult; myId: string | null }) {
-	return result.ranked ? <RankedResult result={result} myId={myId} /> : <CasualResult result={result} myId={myId} />;
+// compact: the landscape-phone layout (two columns side by side, sized to a short viewport).
+export function SeriesResultModal({ result, myId, compact }: { result: SeriesResult; myId: string | null; compact?: boolean }) {
+	const landscapePhone = useMediaQuery(LANDSCAPE_PHONE_MQ);   // the play page also passes compact for a force-rotated portrait phone
+	return result.ranked ? <RankedResult result={result} myId={myId} compact={compact || landscapePhone} /> : <CasualResult result={result} myId={myId} />;
 }
 
-function RankedResult({ result, myId }: { result: SeriesResult; myId: string | null }) {
+function RankedResult({ result, myId, compact }: { result: SeriesResult; myId: string | null; compact?: boolean }) {
 	const { account, update } = useAuth();
 	const standings = result.standings || [];
 	const mine: Standing = standings.find(s => s.id === myId) || ({} as Standing);
@@ -49,7 +52,7 @@ function RankedResult({ result, myId }: { result: SeriesResult; myId: string | n
 
 	const opp = isDuo ? standings.find(s => s.id !== myId) : null;
 	return (
-		<ResultPanel slow kind={won ? "win" : "lose"} className={`${styles.ranked} ${won ? styles.rankedWin : styles.rankedLose}`}>
+		<ResultPanel slow kind={won ? "win" : "lose"} className={`${styles.ranked} ${won ? styles.rankedWin : styles.rankedLose} ${compact ? styles.compact : ""}`}>
 			<div className={styles.hero}>
 				<div className={styles.heroBadge}><RankBadge rating={newRating} size={13} /></div>
 				<div>

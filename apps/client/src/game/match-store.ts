@@ -5,7 +5,7 @@ import { useSyncExternalStore } from "react";
 import MoveHash from "core/src/common/MoveHash.js";
 import { getSocket, activeSocket, startMatchSocket, teardownMatchSocket } from "../online/socket";
 import { pushToast } from "../app/Toasts";
-import { BoardSession, ActionResult } from "./board-session";
+import { BoardSession, ActionResult, countdownTickMs } from "./board-session";
 import { KNOWN, UNKNOWN, MINE } from "./board-render";
 import { makeBoardDecoder } from "./board-decoder";
 import { countDown, cancelCountdown } from "./countdown";
@@ -36,6 +36,7 @@ export interface MatchState {
 	search: RankedSearch | null;
 	mode: string | null;               // the ranked mode this match was found through
 	roundLive: boolean;                // GO has happened and the round is not over
+	countdownDigitsAt: number | null;  // when this round's 3-2-1 begins (Date.now() terms), known once start_game has arrived
 	roundResultShown: boolean;
 	roundDeadline: number | null;
 	gameProgress: string;              // "Game 2 of 5"
@@ -51,7 +52,7 @@ export interface MatchState {
 const rankedModeSize = (mode: string) => /_six$/.test(mode) ? 7 : 2;
 
 class MatchStore {
-	state: MatchState = { inRoom: false, rooms: null, room: null, search: null, mode: null, roundLive: false, roundResultShown: false, roundDeadline: null, gameProgress: "", frames: null, seriesResult: null, roundResult: null, frozenUntil: 0, waitingCleared: false, roundEndLeft: null, message: null };
+	state: MatchState = { inRoom: false, rooms: null, room: null, search: null, mode: null, roundLive: false, countdownDigitsAt: null, roundResultShown: false, roundDeadline: null, gameProgress: "", frames: null, seriesResult: null, roundResult: null, frozenUntil: 0, waitingCleared: false, roundEndLeft: null, message: null };
 	session: BoardSession;
 	myId: string | null = null;
 	private listeners = new Set<() => void>();
@@ -143,7 +144,7 @@ class MatchStore {
 		});
 		socket.on("start_game", (d) => {
 			sound.unlock();
-			this.set({ roundResultShown: false, roundLive: false, frozenUntil: 0, roundResult: null, roundEndLeft: null, waitingCleared: false, gameProgress: formatGameProgress(d.gameNumber, d.gameCount, (this.state.room && this.state.room.scoreTarget) || d.scoreTarget) });
+			this.set({ roundResultShown: false, roundLive: false, countdownDigitsAt: Date.now() + Math.max(0, (d.startDelayMs || 0) - 3 * countdownTickMs()), frozenUntil: 0, roundResult: null, roundEndLeft: null, waitingCleared: false, gameProgress: formatGameProgress(d.gameNumber, d.gameCount, (this.state.room && this.state.room.scoreTarget) || d.scoreTarget) });
 			this.lastFinished = {};
 			if (d.boardData && d.boardMask) {
 				const rows = d.rows || this.session.rows, cols = d.cols || this.session.cols;
@@ -151,6 +152,9 @@ class MatchStore {
 			}
 			this.setCoveredBoard();
 			this.session.focusedR = Math.floor(this.session.rows / 2); this.session.focusedC = Math.floor(this.session.cols / 2);
+			// The idle twinkle is gone before the first digit, whatever the match-found sequence did (and it stays
+			// suppressed: a room broadcast during the countdown must not bring it back).
+			this.session.fadeIdleOut(Math.min(900, Math.max(200, (d.startDelayMs || 0) - 3 * countdownTickMs() - 100)));
 			// The 3-2-1 is spelled out on every board in view, the opponents' mirrors included.
 			countDown(this.session, d.startDelayMs || 0, () => this.localRoundStartReveal(), { sound, onDigit: (n) => { const at = performance.now(); this.session.startCountdownGlyph(n, at); this.opponentSessions.forEach(o => o.startCountdownGlyph(n, at)); } });
 		});
@@ -213,7 +217,7 @@ class MatchStore {
 
 	// ---- actions ----
 	findRanked(mode: string) {
-		this.set({ search: { mode, size: rankedModeSize(mode), members: [] }, room: null, inRoom: false, mode, roundResultShown: false, roundLive: false, seriesResult: null, roundResult: null, frames: null, gameProgress: "", waitingCleared: false });
+		this.set({ search: { mode, size: rankedModeSize(mode), members: [] }, room: null, inRoom: false, mode, roundResultShown: false, roundLive: false, countdownDigitsAt: null, seriesResult: null, roundResult: null, frames: null, gameProgress: "", waitingCleared: false });
 		this.session.rows = 16; this.session.cols = 20; // ranked race boards are the medium preset
 		this.session.setBoard(16, 20, () => 0, null);
 		this.session.idleSuppressed = false;
@@ -245,7 +249,7 @@ class MatchStore {
 		this.session.idleSuppressed = false;
 		this.session.setIdle(false);
 		this.session.clear();
-		this.set({ inRoom: false, room: null, search: null, roundLive: false, roundResultShown: false, roundDeadline: null, gameProgress: "", frames: null, seriesResult: null, roundResult: null, frozenUntil: 0, waitingCleared: false });
+		this.set({ inRoom: false, room: null, search: null, roundLive: false, countdownDigitsAt: null, roundResultShown: false, roundDeadline: null, gameProgress: "", frames: null, seriesResult: null, roundResult: null, frozenUntil: 0, waitingCleared: false });
 	}
 
 	// ---- round helpers ----

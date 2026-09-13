@@ -11,7 +11,7 @@ export const MOBILE_PLAYER_CELL = 30;
 
 export function isMobileLayout(): boolean { return window.matchMedia("(max-width: 700px)").matches; }
 
-export interface CellPxOptions { rows: number; cols: number; maxCell?: number; minCell?: number; bottomGap?: number; chrome?: number; desktopFit?: boolean; topOffset?: number; reserve?: number; share?: number; fitBox?: string; gutterX?: number; }  // gutterX: the scroller's horizontal padding when a layout overrides the default shake gutter  // fitBox: a selector inside the container for a fixed-size box the board must fit (the phone landscape scroller), measured directly  // reserve/share: the container holds `share` boards side by side after `reserve` px of other columns  // chrome: the board card's padding + border around the canvas; desktopFit: skip the portrait-phone fit (landscape phones, force-rotated ones included); topOffset: fixed height above the board (instead of measuring the canvas, which moves when the board is centred)
+export interface CellPxOptions { rows: number; cols: number; maxCell?: number; minCell?: number; bottomGap?: number; chrome?: number; desktopFit?: boolean; topOffset?: number; reserve?: number; share?: number; fitBox?: string; gutterX?: number; key?: string | number | boolean; }  // key: anything whose change means the container element itself was replaced (a layout branch switch), so the hook re-measures and re-observes  // gutterX: the scroller's horizontal padding when a layout overrides the default shake gutter  // fitBox: a selector inside the container for a fixed-size box the board must fit (the phone landscape scroller), measured directly  // reserve/share: the container holds `share` boards side by side after `reserve` px of other columns  // chrome: the board card's padding + border around the canvas; desktopFit: skip the portrait-phone fit (landscape phones, force-rotated ones included); topOffset: fixed height above the board (instead of measuring the canvas, which moves when the board is centred)
 
 export function fitCellPx(container: HTMLElement | null, canvas: HTMLElement | null, o: CellPxOptions): number {
 	if (!o.rows || !o.cols) return PLAYER_CELL;
@@ -38,14 +38,18 @@ export function fitCellPx(container: HTMLElement | null, canvas: HTMLElement | n
 	return Math.max(o.minCell ?? DESKTOP_CELL_MIN, Math.min(o.maxCell ?? DESKTOP_CELL_MAX, cell));
 }
 
-// Recomputes on mount, on board size change and on window resize.
+// Recomputes on mount, on board size change, on window resize, and whenever the container (or the fit box
+// inside it) changes size on its own: a lead bar appearing above the board, a panel filling in.
 export function useCellPx(containerRef: RefObject<HTMLElement>, o: CellPxOptions): number {
 	const [px, setPx] = useState(PLAYER_CELL);
 	useEffect(() => {
 		const compute = () => setPx(fitCellPx(containerRef.current, containerRef.current?.querySelector("canvas") || null, o));
 		compute();
 		window.addEventListener("resize", compute);
-		return () => window.removeEventListener("resize", compute);
-	}, [containerRef, o.rows, o.cols, o.maxCell, o.minCell, o.chrome, o.desktopFit, o.topOffset, o.reserve, o.share, o.fitBox, o.gutterX]);
+		const watched = containerRef.current && o.fitBox ? containerRef.current.querySelector<HTMLElement>(o.fitBox) : containerRef.current;
+		const ro = watched && typeof ResizeObserver !== "undefined" ? new ResizeObserver(compute) : null;
+		if (ro && watched) ro.observe(watched);
+		return () => { window.removeEventListener("resize", compute); if (ro) ro.disconnect(); };
+	}, [containerRef, o.rows, o.cols, o.maxCell, o.minCell, o.chrome, o.desktopFit, o.topOffset, o.reserve, o.share, o.fitBox, o.gutterX, o.key]);
 	return px;
 }

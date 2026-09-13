@@ -54,8 +54,11 @@ var COUNT_DOWN_TIME = 3; // digits shown to the client ("3, 2, 1") — NOT the s
 // than this, the round will go live while the client is still mid-animation again, same symptom as
 // the bug this constant fixes.
 var ROUND_START_DELAY_MS = 5000;
-// The first round of a ranked match gets extra time: the clients play the match-found banner before the countdown.
-var FIRST_ROUND_START_DELAY_MS = 7300;
+// The first round of a ranked match gets extra time: the clients play the match-found card and banner
+// (FOUND_CARD_MS + MATCH_FOUND_MS = 5900ms from the roster's arrival) before the 3-2-1, and the client
+// anchors the banner's end to this delay, so the slack here is what absorbs a roster that arrived late
+// relative to start_game (phones on a flaky connection).
+var FIRST_ROUND_START_DELAY_MS = 8300;
 var BETWEEN_GAMES_DELAY = 3000;
 var SERIES_END_DELAY = 6000;
 var PROVISIONAL_GAMES = 5;

@@ -26,7 +26,7 @@ export function useInGameBody() {
 	}, []);
 }
 
-// navDisabled: during a mine penalty the area jumps are off (nothing moves), only the mode buttons stay live.
+// navDisabled: the area jumps are off until GO (the board holds the overview through the countdown); a mine penalty does not turn them off.
 export function ActionBar({ flagMode, setFlagMode, session, className, navDisabled }: { flagMode: boolean; setFlagMode: (f: boolean) => void; session: BoardSession; className?: string; navDisabled?: boolean }) {
 	return (
 		<div className={`${styles.actionBar} ${className || ""}`}>
@@ -76,6 +76,6 @@ export function scrollCellIntoView(session: BoardSession, r: number, c: number) 
 	const canvas = session.canvas; if (!canvas) return;
 	const scroller = canvas.parentElement; if (!scroller) return;
 	const cw = canvas.offsetWidth / session.cols, ch = canvas.offsetHeight / session.rows;
-	scroller.scrollTo({ left: (c + 0.5) * cw - scroller.clientWidth / 2, top: (r + 0.5) * ch - scroller.clientHeight / 2, behavior: "smooth" });
+	scroller.scrollTo({ left: canvas.offsetLeft + (c + 0.5) * cw - scroller.clientWidth / 2, top: canvas.offsetTop + (r + 0.5) * ch - scroller.clientHeight / 2, behavior: "smooth" });
 	if (scroller.offsetHeight > window.innerHeight) window.scrollTo({ top: scroller.getBoundingClientRect().top + window.scrollY + (r + 0.5) * ch - window.innerHeight / 2, behavior: "smooth" });
 }

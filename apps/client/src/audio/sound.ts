@@ -67,6 +67,8 @@ export const sound = {
 	},
 	unflag() { const live = liveMusic(); if (live && live.intensity > 0.15) tone({ type: "square", freq: live.chord.bassRoot * 1.5, dur: 0.04, gain: 0.05 }); else tone({ type: "square", freq: 300, dur: 0.04, gain: 0.04 }); },
 	mine() { noise({ dur: 0.35, cutoff: 500, gain: 0.5 }); tone({ type: "sine", freq: 150, toFreq: 50, dur: 0.4, gain: 0.22 }); },
+	// An opponent's mine (1v1): the same blast heard from further away, muffled and quieter.
+	opponentMine() { noise({ dur: 0.3, cutoff: 260, gain: 0.2 }); tone({ type: "sine", freq: 110, toFreq: 40, dur: 0.35, gain: 0.09 }); },
 	beep(freq: number) { tone({ type: "sine", freq, dur: 0.12, gain: 0.12 }); },
 	sweep() { [392, 440, 523, 587, 659, 784, 880].forEach((f, i) => tone({ type: "triangle", freq: f, dur: 0.17, gain: 0.065, delay: i * 0.09 })); },
 	go() { tone({ type: "sine", freq: 880, dur: 0.25, gain: 0.16 }); },
