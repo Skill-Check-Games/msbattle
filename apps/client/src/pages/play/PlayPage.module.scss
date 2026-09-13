@@ -145,20 +145,23 @@ $bp-duel-stack: 1100px;
 	.lsPanel { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 0.6rem; padding: 0.6rem 0.5rem; }
 	.lsYou { --side: var(--duel-you); padding-top: 0.8rem; }
 	.lsOpp { --side: var(--duel-opp); padding-top: 0.8rem; }
-	.lsBack { position: absolute; top: 0.5rem; left: 0.5rem; width: 34px; height: 34px; border-radius: 6px; border: 1px solid var(--border); background: rgba(255, 255, 255, 0.05); color: var(--muted); font-size: 1.4rem; line-height: 1; padding: 0 0 0.15rem; &:hover { color: var(--text); border-color: var(--muted); } }
+	// The two corner buttons on your panel: back (top left) and fullscreen (top right), the same 34px frame.
+	.lsBack, .lsFs { position: absolute; top: 0.5rem; width: 34px; height: 34px; border-radius: 6px; border: 1px solid var(--border); background: rgba(255, 255, 255, 0.05); color: var(--muted); &:hover { color: var(--text); border-color: var(--muted); } }
+	.lsBack { left: 0.5rem; font-size: 1.4rem; line-height: 1; padding: 0 0 0.15rem; }
+	.lsFs { right: 0.5rem; }
 	// Timer box: mode line over the clock, framed by the you-to-opponent gradient like the desktop badge.
 	// The clock is just the time: no icon, no mode line, no box. Dimmed until GO (clockIdle).
 	.lsClock .duelTimer { font-size: 1.4rem; transition: color 0.3s ease; }
 	.lsSpacer { flex: 1 1 auto; }
 	.lsLeft { font-size: 0.74rem; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-	// Your bottom block matches the opponent's mini board height so both "cells left" lines sit level.
-	.lsBottom { width: 100%; height: calc(var(--ls-mini-h, 104px) - 0.5rem); display: flex; flex-direction: column; justify-content: flex-end; gap: 0.4rem; }   // minus the panel's bottom padding: the mini board opposite runs to the edge, this block stops at the padding, so both tops (and the cells-left lines above them) are level
-	.lsNav { display: flex; gap: 0.4rem; .navBtn { flex: 1 1 0; } }
+	// The area jumps: a full-width pair tucked right under the mode button (a tighter gap than the panel's).
+	.lsNav { display: flex; gap: 0.4rem; width: 100%; margin-top: -0.2rem; .navBtn { flex: 1 1 0; height: 34px; padding: 0; } }
 	// The mode button: two faces stacked, Reveal (a covered cell) and the red-tinted Flag; a tap crossfades
 	// between them in 150ms. No 3D flip: a quick clean fade reads better at this size.
-	.lsMode { width: 100%; height: 40px; border: 0; background: none; padding: 0; position: relative; }
+	// It takes the opponent's mini board's box exactly (same height, the panel's inner width) right under your name.
+	.lsMode { width: 100%; height: var(--ls-mini-h, 104px); flex: 0 0 auto; border: 0; background: none; padding: 0; position: relative; }
 	.flipCard { position: relative; display: block; width: 100%; height: 100%; }
-	.flipFace { position: absolute; inset: 0; border-radius: 7px; border: 1px solid var(--border); background: var(--surface-2); display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-weight: 700; font-size: 0.9rem; color: var(--text); opacity: 1; transition: opacity 0.15s ease; }
+	.flipFace { position: absolute; inset: 0; border-radius: 5px; border: 1px solid var(--border); background: var(--surface-2); display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-weight: 700; font-size: 0.9rem; color: var(--text); opacity: 1; transition: opacity 0.15s ease; }
 	.flipBack { opacity: 0; border-color: var(--danger); background: rgba(239, 68, 68, 0.16); }
 	.lsModeFlag .flipFace { opacity: 0; }
 	.lsModeFlag .flipBack { opacity: 1; }
@@ -182,10 +185,9 @@ $bp-duel-stack: 1100px;
 		> :first-child { display: flex; flex-direction: column; width: 100%; max-width: 100%; min-width: 0; height: 100%; min-height: 0; max-height: 100%; }
 		> :first-child > div:first-child { flex: 1 1 auto; min-height: 0; overflow: auto; }
 		canvas { margin: 0 auto; } }
-	// The opponent's mini board fills the bottom of its panel edge to edge (no gutter, no label).
-	// 1px of panel shows around the mini board's edges.
-	.lsOppBoard { width: calc(100% + 1rem - 2px); margin: 0 calc(-0.5rem + 1px) calc(-0.5rem + 1px); display: flex; justify-content: center; flex: 0 0 auto; [data-board-scroll] { padding: 0; } canvas { border-radius: 0 0 5px 5px; } }
-	.lsOppSkel { display: block; width: 100%; height: var(--ls-mini-h, 96px); border-radius: 0 0 6px 6px; }
+	// The opponent's mini board sits right under their name at the panel's inner width (no gutter, no label).
+	.lsOppBoard { width: 100%; display: flex; justify-content: center; flex: 0 0 auto; [data-board-scroll] { padding: 0; } canvas { border-radius: 5px; } }
+	.lsOppSkel { display: block; width: 100%; height: var(--ls-mini-h, 96px); border-radius: 5px; }
 	.searchStatus { font-size: 0.8rem; }
 }
 // A phone held in portrait: the landscape layout is laid out at the viewport's height x width, then

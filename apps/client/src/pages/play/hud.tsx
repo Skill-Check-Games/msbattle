@@ -10,17 +10,17 @@ import styles from "./hud.module.scss";
 // plain: no mirroring for the opponent (both arenas read left to right); ring: the landscape-phone
 // portrait frame (a circle in the side colour).
 // skeleton: while the seat is empty (searching), shimmer placeholders sit exactly where the avatar, name
-// and tier will land, so the row does not move when the player arrives.
-export function DuelIdentity({ player, side, vertical, plain, ring, skeleton }: { player: RoomPlayer | null; side: "you" | "opp"; vertical?: boolean; plain?: boolean; ring?: boolean; skeleton?: boolean }) {
+// and tier will land, so the row does not move when the player arrives. noTier: name only, no rank line.
+export function DuelIdentity({ player, side, vertical, plain, ring, skeleton, noTier }: { player: RoomPlayer | null; side: "you" | "opp"; vertical?: boolean; plain?: boolean; ring?: boolean; skeleton?: boolean; noTier?: boolean }) {
 	const cls = `${styles.id} ${styles[side]} ${vertical ? styles.vertical : ""} ${plain ? styles.plain : ""} ${ring ? styles.ring : ""}`;
 	if (!player && skeleton) return (
 		<div className={cls} aria-label="Waiting for an opponent">
 			<span className={`skel-shimmer ${styles.skelAvatar} ${vertical ? styles.skelAvatarBig : ""}`} />
-			<div className={styles.idInfo}><span className={`skel-shimmer ${styles.skelName}`} /><span className={`skel-shimmer ${styles.skelTier}`} /></div>
+			<div className={styles.idInfo}><span className={`skel-shimmer ${styles.skelName}`} />{!noTier && <span className={`skel-shimmer ${styles.skelTier}`} />}</div>
 		</div>
 	);
 	if (!player) return <div className={cls} />;
-	const tier = typeof player.rating === "number" ? tierFor(player.rating, player.provisional) : null;
+	const tier = !noTier && typeof player.rating === "number" ? tierFor(player.rating, player.provisional) : null;
 	return (
 		<div className={cls}>
 			<AvatarChip avatar={player.avatar} country={player.country} px={vertical ? 64 : 52} className={styles.idAvatar} />

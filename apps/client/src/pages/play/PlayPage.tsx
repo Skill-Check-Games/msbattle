@@ -146,8 +146,9 @@ export default function PlayPage() {
 		pendingZoom.current = null;
 		return animateZoom(canvas, session.rows, session.cols, a);
 	}, [cellPx, zoomedOut]);
-	// Every round starts at the overview; the round's end zooms back out so the result is not seen through a close-up.
-	useEffect(() => { if (!s.roundLive) { pendingZoom.current = null; setZoomedOut(true); } }, [s.roundLive]);
+	// Every round starts at the overview: the overview is restored both when a round ends (the result is not
+	// seen through a close-up) and at GO, so nothing done during the countdown can carry a close-up into the round.
+	useEffect(() => { pendingZoom.current = null; setZoomedOut(true); }, [s.roundLive]);
 	useEffect(() => {
 		if (!s.roundResultShown || zoomedOutRef.current || !session.canvas) return;
 		const mid = viewportCenterCell(session.canvas, session.rows, session.cols); zoomTo(true, mid.r, mid.c);
@@ -162,6 +163,8 @@ export default function PlayPage() {
 		swallowingTaps: () => phoneLandscapeRef.current && zoomedOutRef.current,
 		interceptTap: (x, y) => {
 			if (!phoneLandscapeRef.current || !zoomedOutRef.current) return false;
+			// Before GO (the countdown, the wait for an opponent) a tap does nothing: the round must start at the overview.
+			if (!match.state.roundLive) return true;
 			const cell = session.cellFromClient(x, y); if (cell) zoomTo(false, cell.r, cell.c);
 			return true;
 		},
@@ -221,33 +224,33 @@ export default function PlayPage() {
 
 	if (phoneLandscape && battle && !planningLobby) {
 		const opp = opps[0] || null;
-		// The opponent's mini board fills its panel edge to edge; the bottom block on your side (cells left,
-		// the jumps, the mode button) is given the same height, so the two "cells left" lines sit level.
-		const miniPx = cols ? (LS_PANEL_W - 4) / cols : 6, miniH = rows ? Math.round(rows * miniPx) : 0;   // panel width minus its border and a 1px margin each side
+		// The opponent's mini board sits right under their name at the panel's inner width; the mode button on your
+		// side is the same box (same height, same width) right under your name, with the two area jumps beneath it.
+		const miniPx = cols ? (LS_PANEL_W - 2 - 16) / cols : 6, miniH = rows ? Math.round(rows * miniPx) : 0;   // panel width minus its border and 0.5rem padding each side
 		return (
 			<section className={`${styles.view} ${styles.landscape} ${duo ? styles.duo : styles.multi}`} style={{ "--ls-mini-h": miniH + "px" } as React.CSSProperties}>
 				<div className={`${styles.lsPanel} ${styles.lsYou}`}>
 					<button className={styles.lsBack} onClick={exit} aria-label="Exit game">‹</button>
-					<DuelIdentity player={me || (account ? { id: "", name: account.name, avatar: account.avatarColor, country: account.country, rating: undefined } as any : null)} side="you" vertical ring />
+					{/* Opposite the back button: a way back into fullscreen after an accidental exit (a swipe from the edge). */}
+					<FullscreenButton className={styles.lsFs} lockLandscape />
+					<DuelIdentity player={me || (account ? { id: "", name: account.name, avatar: account.avatarColor, country: account.country, rating: undefined } as any : null)} side="you" vertical ring noTier />
+					{/* One button that flips between the two tools: a card with Reveal (a covered cell) on the front and Flag on the red back. */}
+					<button type="button" className={`${styles.lsMode} ${flagMode ? styles.lsModeFlag : ""}`} onClick={() => setFlagMode(!flagMode)} aria-pressed={flagMode} aria-label={flagMode ? "Flag mode, tap for reveal" : "Reveal mode, tap for flag"}>
+						<span className={styles.flipCard} aria-hidden="true">
+							<span className={styles.flipFace}><i className={styles.cellIcon} />Reveal</span>
+							<span className={`${styles.flipFace} ${styles.flipBack}`}>🚩 Flag</span>
+						</span>
+					</button>
+					{/* The area jumps, a full-width pair right under the mode button. During a mine penalty nothing moves:
+					    the jumps are off, only the mode button stays live. */}
+					<div className={styles.lsNav}>
+						<button type="button" className={styles.navBtn} aria-label="Previous unsolved area" disabled={myHit === "on"} onClick={() => jumpArea(session, -1)}>‹</button>
+						<button type="button" className={styles.navBtn} aria-label="Next unsolved area" disabled={myHit === "on"} onClick={() => jumpArea(session, 1)}>›</button>
+					</div>
 					{s.search && !duo && <span className={styles.searchStatus}><span className={styles.spinner} />{s.search.members.length}/{s.search.size}</span>}
-					<span className={styles.lsSpacer} />
-					{/* the clock sits down by the cells-left line, above the controls */}
 					<div className={`${styles.lsClock} ${!timer.text ? styles.clockIdle : ""}`}><span className={`${styles.duelTimer} ${timer.cls}`}>{clockText}</span></div>
 					<span className={styles.lsLeft}>{cellsLeftOf(myFrame) || "\u00a0"}</span>
-					<div className={styles.lsBottom}>
-						<div className={styles.lsNav}>
-							{/* During a mine penalty nothing moves: the jumps are off, only the mode button stays live. */}
-							<button type="button" className={styles.navBtn} aria-label="Previous unsolved area" disabled={myHit === "on"} onClick={() => jumpArea(session, -1)}>‹</button>
-							<button type="button" className={styles.navBtn} aria-label="Next unsolved area" disabled={myHit === "on"} onClick={() => jumpArea(session, 1)}>›</button>
-						</div>
-						{/* One button that flips between the two tools: a card with Reveal (a covered cell) on the front and Flag on the red back. */}
-						<button type="button" className={`${styles.lsMode} ${flagMode ? styles.lsModeFlag : ""}`} onClick={() => setFlagMode(!flagMode)} aria-pressed={flagMode} aria-label={flagMode ? "Flag mode, tap for reveal" : "Reveal mode, tap for flag"}>
-							<span className={styles.flipCard} aria-hidden="true">
-								<span className={styles.flipFace}><i className={styles.cellIcon} />Reveal</span>
-								<span className={`${styles.flipFace} ${styles.flipBack}`}>🚩 Flag</span>
-							</span>
-						</button>
-					</div>
+					<span className={styles.lsSpacer} />
 				</div>
 				{/* Two boxes: the outer one (no visible edges) holds the bar and the board card; the board card below the bar
 				    carries the border, square at the top where it meets the bar and rounded at the bottom. */}
@@ -262,10 +265,10 @@ export default function PlayPage() {
 					{duo ? (
 						<>
 							{/* The panel is laid out in full from the start (skeleton identity, board slot), so nothing moves when the opponent arrives. */}
-							<DuelIdentity player={opp || null} side="opp" vertical ring skeleton={!opp} />
-							<span className={styles.lsSpacer} />
-							<span className={styles.lsLeft}>{(opp && cellsLeftOf(frameOf(opp))) || "\u00a0"}</span>
+							<DuelIdentity player={opp || null} side="opp" vertical ring noTier skeleton={!opp} />
 							<div className={styles.lsOppBoard}>{opp ? <OpponentBoard playerId={opp.id} skin={opp.skin || "classic"} frame={frameOf(opp)} rows={rows} cols={cols} cellPx={miniPx} className={styles.oppCanvas} covered /> : <span className={`skel-shimmer ${styles.lsOppSkel}`} />}</div>
+							<span className={styles.lsLeft}>{(opp && cellsLeftOf(frameOf(opp))) || "\u00a0"}</span>
+							<span className={styles.lsSpacer} />
 							{searchSince != null && !s.roundLive && ((!opp && s.search) || foundPhase === "card" || foundPhase === "cardOut") && <FindingEnemy since={searchSince} found={foundPhase === "card" || foundPhase === "cardOut"} leaving={foundPhase === "cardOut"} compact />}
 						</>
 					) : <Scoreboard room={room} search={s.search} frames={s.frames} myId={match.myId} />}
