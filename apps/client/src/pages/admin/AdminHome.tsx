@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { getSocket, onSocket } from "../../online/socket";
 import { useAuth } from "../../shared/auth";
-import { PUZZLE_TIERS, LEVELS_PER_TIER, pointsForTierLevel, puzzleLadder } from "../../shared/puzzle-ladder";
+import { PUZZLE_TIERS, LEVELS_PER_TIER, LEVEL_NUMERALS, ratingForTierLevel, puzzleLadder } from "../../shared/puzzle-ladder";
 import { AdminPage, adminStyles } from "./admin-shared";
 import styles from "./AdminHome.module.scss";
 
@@ -28,7 +28,7 @@ export default function AdminHome() {
 	// Both test actions below echo the fresh values; apply them so the account reflects them without a reload.
 	useEffect(() => onSocket("puzzles_reset", (d) => {
 		if (!account || !d) return;
-		update({ puzzlePoints: d.puzzlePoints, puzzleRating: d.puzzleRating, puzzleStreak: d.puzzleStreak || 0 });
+		update({ puzzleRating: d.puzzleRating, puzzleStreak: d.puzzleStreak || 0 });
 	}), [account, update]);
 	return (
 		<AdminPage title="Admin" sub="Puzzle pool tools. Generation requires DEV_AUTH locally or a PUZZLE_ADMIN_TOKEN on the server (set via ?token=… on the URL).">
@@ -61,10 +61,10 @@ function ResetCard() {
 	return (
 		<div className={adminStyles.card}>
 			<h2 className={adminStyles.cardTitle}>Reset puzzle progress</h2>
-			<p className={adminStyles.cardText}>Wipe your own puzzle rating back to the starting 450 and Puzzle Ladder points to 0. Admin only.</p>
+			<p className={adminStyles.cardText}>Wipe your own puzzle rating back to the starting 450 (Recruit I) and clear your streak. Admin only.</p>
 			{confirming ? (
 				<div className={styles.confirm}>
-					<span>Reset your puzzle rating to 450 and Ladder points to 0?</span>
+					<span>Reset your puzzle rating to 450?</span>
 					<div className={adminStyles.row}>
 						<button type="button" className={`${styles.btn} ${styles.danger}`} onClick={fire}>Reset</button>
 						<button type="button" className={styles.btn} onClick={() => setConfirming(false)}>Cancel</button>
@@ -77,33 +77,30 @@ function ResetCard() {
 	);
 }
 
-// Testing: put my own Ladder at an exact tier + level (server re-checks admin), optionally with a puzzle
-// rating so the served difficulty matches the rank being tested.
+// Testing: put my own puzzle rating at the start of an exact tier + level (server re-checks admin).
 function SetRankCard() {
 	const { account } = useAuth();
-	const current = puzzleLadder(account?.puzzlePoints || 0);
+	const current = puzzleLadder(account?.puzzleRating || 0);
 	const [tier, setTier] = useState(current.tierIndex);
 	const [level, setLevel] = useState(current.level);
-	const [rating, setRating] = useState("");
 	const [done, setDone] = useState(false);
 	const timer = useRef<number | null>(null);
 	useEffect(() => () => { if (timer.current) window.clearTimeout(timer.current); }, []);
-	const points = pointsForTierLevel(tier, level);
+	const rating = ratingForTierLevel(tier, level);
 	const fire = () => {
-		getSocket().emit("admin_set_puzzle_rank", { points, rating: rating.trim() === "" ? null : Number(rating) });
+		getSocket().emit("admin_set_puzzle_rank", { rating });
 		setDone(true);
 		timer.current = window.setTimeout(() => setDone(false), 1600);
 	};
 	return (
 		<div className={adminStyles.card}>
 			<h2 className={adminStyles.cardTitle}>Set puzzle rank</h2>
-			<p className={adminStyles.cardText}>Jump your own Puzzle Ladder to a tier and level (sets the points total to the start of that level). Rating is optional. Admin only.</p>
+			<p className={adminStyles.cardText}>Jump your own puzzle rating to the start of a tier and level. The rank is read off the rating, so this also changes which puzzles you are served. Admin only.</p>
 			<div className={styles.fields}>
 				<label>Tier <select value={tier} onChange={e => setTier(Number(e.target.value))}>{PUZZLE_TIERS.map((t, i) => <option key={t.name} value={i}>{t.name}</option>)}</select></label>
-				<label>Level <input type="number" min={1} max={LEVELS_PER_TIER} value={level} onChange={e => setLevel(Math.min(LEVELS_PER_TIER, Math.max(1, Number(e.target.value) || 1)))} /></label>
-				<label>Rating <input type="number" min={0} max={5000} placeholder={String(account?.puzzleRating ?? "")} value={rating} onChange={e => setRating(e.target.value)} /></label>
+				<label>Level <select value={level} onChange={e => setLevel(Number(e.target.value))}>{LEVEL_NUMERALS.slice(0, LEVELS_PER_TIER).map((n, i) => <option key={n} value={i + 1}>{n}</option>)}</select></label>
 			</div>
-			<p className={adminStyles.cardText}>= {points} pts{rating.trim() !== "" ? ", rating " + rating : ""}</p>
+			<p className={adminStyles.cardText}>= rating {rating}</p>
 			<button type="button" className={styles.btn} disabled={done} onClick={fire}>{done ? "✓ Set" : "Set my puzzle rank"}</button>
 		</div>
 	);

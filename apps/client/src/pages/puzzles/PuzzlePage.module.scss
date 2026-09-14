@@ -27,6 +27,7 @@
 .ladderTier { font-family: var(--font-display); font-weight: 800; font-size: 1.05rem; }
 .delta { font-weight: 800; animation: delta-pop 1s ease both; }
 .gain { color: var(--success); }
+.loss { color: var(--danger); }
 @keyframes delta-pop { 0% { opacity: 0; transform: translateY(6px); } 20% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; } }
 .streakChip { margin-left: auto; font-size: 0.8rem; font-weight: 700; color: var(--energy-streak); }
 .rankBar { height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }

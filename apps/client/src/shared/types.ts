@@ -18,7 +18,6 @@ export interface Account {
 	createdAt?: string;
 	provisional: boolean;
 	puzzleRating: number;
-	puzzlePoints: number;
 	puzzleStreak: number;
 	puzzlesSolved: number;
 	puzzlesAttempted: number;

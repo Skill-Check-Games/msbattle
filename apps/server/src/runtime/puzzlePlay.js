@@ -310,7 +310,15 @@ function finalizePuzzle(socket, playerID, solved) {
 	if (solved) playerActual = pp.hintUsed ? 0.5 : 1;
 	else playerActual = 0;
 	var puzzleActual = 1 - playerActual;
-	var playerAfter = db.eloUpdate(pp.playerBefore, pp.puzzleBefore, 20, playerActual);
+	// Streak: consecutive clean rated solves (a miss resets it, a hinted solve keeps but doesn't extend it).
+	// The rank is read off the rating, so the streak reward is a few extra rating points on top of the Elo
+	// exchange (puzzleStreakBonus) — small on purpose, the rating is still mostly earned against the puzzles.
+	var userNow = db.getUserById(pp.userId) || {};
+	var streakBefore = userNow.puzzle_streak || 0;
+	var streak = !solved ? 0 : pp.hintUsed ? streakBefore : streakBefore + 1;
+	if (streak !== streakBefore) db.setPuzzleStreak(pp.userId, streak);
+	var streakBonus = (solved && !pp.hintUsed) ? puzzleStreakBonus(streak) : 0;
+	var playerAfter = db.eloUpdate(pp.playerBefore, pp.puzzleBefore, 20, playerActual) + streakBonus;
 	// Pool floor (db.js): a much-solved trivial puzzle must not drift back down out of new players' window.
 	var puzzleAfter = Math.max(db.PUZZLE_RATING_FLOOR, db.eloUpdate(pp.puzzleBefore, pp.playerBefore, 10, puzzleActual));
 	db.updateUserPuzzleRating(pp.userId, playerAfter, solved);
@@ -321,16 +329,6 @@ function finalizePuzzle(socket, playerID, solved) {
 		playerBefore: pp.playerBefore, playerAfter: playerAfter,
 		puzzleBefore: pp.puzzleBefore, puzzleAfter: puzzleAfter
 	});
-	// Puzzle Ladder: award monotonic points on a solve, scaled by how hard the puzzle was relative to
-	// the player (regular/hard/extra-hard) plus a streak bonus. Hinted solves earn half the base and no
-	// bonus (the streak is kept but not extended); a miss earns none and breaks the streak.
-	var userNow = db.getUserById(pp.userId) || {};
-	var streakBefore = userNow.puzzle_streak || 0;
-	var streak = !solved ? 0 : pp.hintUsed ? streakBefore : streakBefore + 1;
-	if (streak !== streakBefore) db.setPuzzleStreak(pp.userId, streak);
-	var streakBonus = (solved && !pp.hintUsed) ? puzzleStreakBonus(streak) : 0;
-	var pointsEarned = solved ? puzzlePointsFor(pp.puzzleBefore - pp.playerBefore, pp.hintUsed) + streakBonus : 0;
-	var puzzlePoints = pointsEarned > 0 ? db.addPuzzlePoints(pp.userId, pointsEarned) : userNow.puzzle_points || 0;
 	socket.emit("puzzle_result", {
 		puzzleId: pp.puzzleId,
 		solved: solved,
@@ -340,23 +338,15 @@ function finalizePuzzle(socket, playerID, solved) {
 		playerDelta: playerAfter - pp.playerBefore,
 		puzzleBefore: pp.puzzleBefore,
 		puzzleAfter: puzzleAfter,
-		pointsEarned: pointsEarned,
 		streakBonus: streakBonus,
-		streak: streak,
-		puzzlePoints: puzzlePoints
+		streak: streak
 	});
 }
 
-// Points for a solved rated puzzle. Base scales with difficulty relative to the player (puzzle rating
-// minus player rating): regular 15, hard 20, extra-hard 25. Hinted solves earn half (rounded).
-function puzzlePointsFor(ratingDelta, hintUsed) {
-	var base = ratingDelta >= 150 ? 25 : ratingDelta >= 50 ? 20 : 15;
-	return hintUsed ? Math.round(base / 2) : base;
-}
-// Streak bonus on top of the base, by the streak length INCLUDING this solve: 3-4 → +5, 5-9 → +10,
-// 10+ → +15. Capped so the ladder rewards playing on without turning into a pure grind metric.
+// Streak bonus in RATING points on top of the Elo gain, by the streak length INCLUDING this solve:
+// 3-4 → +2, 5-9 → +4, 10+ → +6. Capped so a long run is a nudge, not a second rating engine.
 function puzzleStreakBonus(streak) {
-	return streak >= 10 ? 15 : streak >= 5 ? 10 : streak >= 3 ? 5 : 0;
+	return streak >= 10 ? 6 : streak >= 5 ? 4 : streak >= 3 ? 2 : 0;
 }
 
 // The puzzle branch of the server's left/right click handlers delegates here.

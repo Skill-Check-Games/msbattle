@@ -24,7 +24,7 @@ const TITLES: Record<PuzzleMode, string> = { rated: "Puzzle Ladder", streak: "St
 
 interface Run { mode: PuzzleMode; solves?: number; targetRating?: number; endsAt?: number; streak?: number; date?: string; bestStreak?: number; }
 interface Puzzle { puzzleId: number; difficulty: number; totalSafe: number; totalMines: number; playerRating: number; mode: PuzzleMode; run: Run | null; finished: boolean; hintUsed: boolean; }
-interface RatedResult { solved: boolean; hintUsed: boolean; playerAfter?: number; pointsEarned?: number; streakBonus?: number; streak?: number; puzzlePoints?: number; noRating?: boolean; }
+interface RatedResult { solved: boolean; hintUsed: boolean; playerAfter?: number; playerDelta?: number; streakBonus?: number; streak?: number; noRating?: boolean; }
 interface RunEnd { mode: "streak" | "storm"; solves: number; score: number; bestBefore: number; best: number; }
 interface DailyResult { date: string; solved: boolean; streak: number; bestStreak?: number; }
 
@@ -44,7 +44,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 	const [, bump] = useState(0);
 	const rerender = () => bump(n => n + 1);
 	const [status, setStatus] = useState<string>("");
-	const [flash, setFlash] = useState<{ solved: boolean; points?: number } | null>(null);
+	const [flash, setFlash] = useState<{ solved: boolean; delta?: number } | null>(null);
 	const [done, setDone] = useState<"solved" | "fail" | null>(null);
 	const [runEnd, setRunEnd] = useState<RunEnd | null>(null);
 	const [daily, setDaily] = useState<DailyResult | null>(null);
@@ -127,9 +127,9 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 					p.playerRating = d.playerAfter;
 					if (typeof d.streak === "number") setStreak(d.streak); else setStreak(s => d.solved ? s + 1 : 0);
 					setStreakBonus(d.streakBonus || 0);
-					if (account) update({ puzzleRating: d.playerAfter, puzzlesAttempted: (account.puzzlesAttempted || 0) + 1, puzzlesSolved: (account.puzzlesSolved || 0) + (d.solved ? 1 : 0), ...(typeof d.puzzlePoints === "number" ? { puzzlePoints: d.puzzlePoints } : {}) });
+					if (account) update({ puzzleRating: d.playerAfter, puzzlesAttempted: (account.puzzlesAttempted || 0) + 1, puzzlesSolved: (account.puzzlesSolved || 0) + (d.solved ? 1 : 0) });
 				}
-				if (d.solved) { sound.win(); setFlash({ solved: true, points: d.pointsEarned }); setTimeout(() => { setFlash(null); setDone("solved"); }, 1200); }
+				if (d.solved) { sound.win(); setFlash({ solved: true, delta: d.playerDelta }); setTimeout(() => { setFlash(null); setDone("solved"); }, 1200); }
 				else setDone("fail");
 				getSocket().emit("get_match_history");
 			}),
@@ -184,7 +184,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 	const isRun = !!p && (p.mode === "streak" || p.mode === "storm" || p.mode === "daily");
 	const box = desktopBox;
 	const cellPx = !session.rows ? 32 : mobile ? Math.min(PUZZLE_CELL_MAX_MOBILE, Math.floor(phoneW / session.cols)) : Math.min(PUZZLE_CELL_MAX, Math.floor((box - SHAKE_PAD_X * 2) / session.cols), Math.floor((box - SHAKE_PAD_Y * 2) / session.rows));
-	const ladder = puzzleLadder(account?.puzzlePoints || 0);
+	const ladder = puzzleLadder(account?.puzzleRating || 0);
 	void tick;
 
 	return (
@@ -208,13 +208,13 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 						{!isRun ? (
 							<>
 								<div className={styles.ladderHead}>
-									<PuzzleRankBadge points={account.puzzlePoints || 0} size={7} />
-									<span className={styles.ladderTier} style={{ color: ladder.tierColor }}>{ladder.atMax ? ladder.tierName + " · Max" : ladder.tierName + " · Lvl " + ladder.level}</span>
-									{flash && flash.points ? <span className={`${styles.delta} ${styles.gain}`}>+{flash.points}</span> : null}
+									<PuzzleRankBadge rating={account.puzzleRating || 0} size={7} />
+									<span className={styles.ladderTier} style={{ color: ladder.tierColor }}>{ladder.tierName + " " + ladder.levelLabel}</span>
+									{flash && typeof flash.delta === "number" && flash.delta !== 0 ? <span className={`${styles.delta} ${flash.delta > 0 ? styles.gain : styles.loss}`}>{flash.delta > 0 ? "+" : ""}{flash.delta}</span> : null}
 									{streak >= 2 && <span className={styles.streakChip}>🔥 {streak}{flash && streakBonus ? " · +" + streakBonus : ""}</span>}
 								</div>
 								<div className={styles.rankBar}><div className={styles.rankFill} style={{ width: ladder.levelPct + "%", background: ladder.tierColor }} /></div>
-								<div className={styles.rankFoot}><span>{ladder.atMax ? "Maxed" : ladder.pointsIntoLevel + " / " + ladder.pointsPerLevel + " pts"}</span><span>{ladder.atMax ? "" : "→ Lvl " + (ladder.level + 1)}</span></div>
+								<div className={styles.rankFoot}><span>{ladder.rating} rating</span><span>{ladder.nextLevelAt == null ? "" : "→ " + puzzleLadder(ladder.nextLevelAt).tierName + " " + puzzleLadder(ladder.nextLevelAt).levelLabel + " at " + ladder.nextLevelAt}</span></div>
 								{/* Hint button removed for now (2026-09-14); the server-side puzzle_hint path is still there. */}
 								{done && (
 									<div className={`${styles.actions} kbd-btn-group`} onKeyDown={onActionsKey}>

@@ -17,7 +17,7 @@ export function PlacementBadge({ size }: { size?: number }) {
 export function PuzzleLockedBadge({ size }: { size?: number }) {
 	return <div className="rank-badge rank-badge-placement" style={box(size)} dangerouslySetInnerHTML={{ __html: puzzleLockedBadgeSVG() }} />;
 }
-export function PuzzleRankBadge({ points, size }: { points: number; size?: number }) {
-	const { color, svg } = puzzleBadgeFor(points);
+export function PuzzleRankBadge({ rating, size }: { rating: number; size?: number }) {
+	const { color, svg } = puzzleBadgeFor(rating);
 	return <div className="rank-badge puzzle-rank-badge" style={box(size, { color })} dangerouslySetInnerHTML={{ __html: svg }} />;
 }

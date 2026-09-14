@@ -186,7 +186,7 @@ function RankedChip({ account, rating, played }: { account: Account | null; rati
 
 function PuzzleChip({ account }: { account: Account | null }) {
 	if (!account) return null;
-	if (!(account.puzzlePoints > 0)) {
+	if (!(account.puzzlesAttempted > 0)) {
 		return (
 			<>
 				<PuzzleLockedBadge size={9} />
@@ -194,13 +194,13 @@ function PuzzleChip({ account }: { account: Account | null }) {
 			</>
 		);
 	}
-	const pl = puzzleLadder(account.puzzlePoints);
+	const pl = puzzleLadder(account.puzzleRating);
 	return (
 		<>
-			<PuzzleRankBadge points={account.puzzlePoints} size={9} />
+			<PuzzleRankBadge rating={account.puzzleRating} size={9} />
 			<span className={styles.statText}>
 				<span className={styles.tier} style={{ color: pl.tierColor }}>{pl.tierName}</span>
-				<span className={styles.tierSub}>{pl.atMax ? "Max level" : "Lvl " + pl.level}</span>
+				<span className={styles.tierSub}>{pl.levelLabel} · {pl.rating}</span>
 			</span>
 		</>
 	);

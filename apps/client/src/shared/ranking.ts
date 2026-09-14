@@ -142,8 +142,8 @@ export function puzzleRankBadgeSVG(tierIndex: number): string {
 	const t = Math.max(0, Math.min(7, tierIndex | 0));
 	return '<svg viewBox="0 0 100 100" aria-hidden="true">' + puzzleBadgeParts.roundel(t + 1) + puzzleBadgeParts.EMBLEMS[t] + "</svg>";
 }
-export function puzzleBadgeFor(points: number): { color: string; svg: string } {
-	const l = puzzleLadder(points || 0);
+export function puzzleBadgeFor(rating: number): { color: string; svg: string } {
+	const l = puzzleLadder(rating || 0);
 	return { color: l.tierColor, svg: puzzleRankBadgeSVG(l.tierIndex) };
 }
 

@@ -59,7 +59,7 @@ function OwnProfile() {
 						<Stat label="Win rate" value={(account.played ? Math.round((account.wins || 0) / account.played * 100) : 0) + "%"} />
 						<Stat label="Best daily streak" value={"🔥 " + dailyBest} />
 					</div>
-					<Ladders ratingStandard={account.ratingStandard || 0} ratingSprint={account.ratingSprint || 0} puzzlePoints={account.puzzlePoints || 0} puzzlesSolved={account.puzzlesSolved || 0} puzzlesAttempted={account.puzzlesAttempted || 0} streakBest={account.streakBest || 0} stormBest={account.stormBest || 0} />
+					<Ladders ratingStandard={account.ratingStandard || 0} ratingSprint={account.ratingSprint || 0} puzzleRating={account.puzzleRating || 0} puzzlesAttemptedGate={account.puzzlesAttempted || 0} puzzlesSolved={account.puzzlesSolved || 0} puzzlesAttempted={account.puzzlesAttempted || 0} streakBest={account.streakBest || 0} stormBest={account.stormBest || 0} />
 				</div>
 			)}
 			{tab === "matches" && <Matches history={history} />}
@@ -89,7 +89,7 @@ function PublicProfile({ userId }: { userId: string }) {
 							<Stat label="Wins" value={String(profile.wins || 0)} />
 							<Stat label="Win rate" value={(profile.played ? Math.round((profile.wins || 0) / profile.played * 100) : 0) + "%"} />
 						</div>
-						<Ladders ratingStandard={profile.ratingStandard || 0} ratingSprint={profile.ratingSprint || 0} puzzlePoints={profile.puzzlePoints || 0} puzzlesSolved={profile.puzzlesSolved || 0} puzzlesAttempted={profile.puzzlesAttempted || 0} streakBest={profile.streakBest || 0} stormBest={profile.stormBest || 0} />
+						<Ladders ratingStandard={profile.ratingStandard || 0} ratingSprint={profile.ratingSprint || 0} puzzleRating={profile.puzzleRating || 0} puzzlesAttemptedGate={profile.puzzlesAttempted || 0} puzzlesSolved={profile.puzzlesSolved || 0} puzzlesAttempted={profile.puzzlesAttempted || 0} streakBest={profile.streakBest || 0} stormBest={profile.stormBest || 0} />
 					</>
 				)}
 			</div>
@@ -106,8 +106,8 @@ function Summary({ name, avatar, country, createdAt }: { name: string; avatar: s
 	);
 }
 function Stat({ label, value }: { label: string; value: string }) { return <div className={styles.stat}><div className={styles.statLabel}>{label}</div><div className={styles.statValue}>{value}</div></div>; }
-function Ladders(p: { ratingStandard: number; ratingSprint: number; puzzlePoints: number; puzzlesSolved: number; puzzlesAttempted: number; streakBest: number; stormBest: number }) {
-	const l = p.puzzlePoints > 0 ? puzzleLadder(p.puzzlePoints) : null;
+function Ladders(p: { ratingStandard: number; ratingSprint: number; puzzleRating: number; puzzlesAttemptedGate: number; puzzlesSolved: number; puzzlesAttempted: number; streakBest: number; stormBest: number }) {
+	const l = p.puzzlesAttemptedGate > 0 ? puzzleLadder(p.puzzleRating) : null;
 	return (
 		<>
 			<h3 className={styles.sectionTitle}>Ranked ladders</h3>
@@ -115,9 +115,9 @@ function Ladders(p: { ratingStandard: number; ratingSprint: number; puzzlePoints
 			<h3 className={styles.sectionTitle}>Puzzles</h3>
 			<div className={styles.ladders}>
 				<div className={styles.ladder}>
-					{l ? <PuzzleRankBadge points={p.puzzlePoints} size={11} /> : <PuzzleLockedBadge size={11} />}
-					<div className={styles.ladderInfo}><div className={styles.ladderMode}>Puzzle Ladder</div><div className={styles.ladderTier} style={{ color: l ? l.tierColor : undefined }}>{l ? l.tierName : "Unranked"}</div></div>
-					<div className={styles.ladderRating}>{l ? (l.atMax ? "Max" : "Lvl " + l.level) : ""}</div>
+					{l ? <PuzzleRankBadge rating={p.puzzleRating} size={11} /> : <PuzzleLockedBadge size={11} />}
+					<div className={styles.ladderInfo}><div className={styles.ladderMode}>Puzzle Ladder</div><div className={styles.ladderTier} style={{ color: l ? l.tierColor : undefined }}>{l ? l.tierName + " " + l.levelLabel : "Unranked"}</div></div>
+					<div className={styles.ladderRating}>{l ? String(l.rating) : ""}</div>
 				</div>
 			</div>
 			<div className={styles.stats}><Stat label="Solved" value={p.puzzlesSolved + " / " + p.puzzlesAttempted} /><Stat label="Best streak" value={String(p.streakBest)} /><Stat label="Best Time Trial" value={String(p.stormBest)} /></div>

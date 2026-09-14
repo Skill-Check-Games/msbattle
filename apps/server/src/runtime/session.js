@@ -44,7 +44,6 @@ function buildAccountPayload(user) {
 		createdAt: user.created_at,
 		provisional: user.played < PROVISIONAL_GAMES,
 		puzzleRating: user.puzzle_rating,
-		puzzlePoints: user.puzzle_points || 0,
 		puzzleStreak: user.puzzle_streak || 0,
 		puzzlesSolved: user.puzzles_solved,
 		puzzlesAttempted: user.puzzles_attempted,
@@ -81,7 +80,7 @@ function buildPublicProfilePayload(user) {
 		ratingSprint: user.rating_sprint, ratingStandard: user.rating_standard,
 		wins: user.wins, played: user.played,
 		provisional: user.played < PROVISIONAL_GAMES,
-		puzzlePoints: user.puzzle_points || 0,
+		puzzleRating: user.puzzle_rating,
 		puzzleStreak: user.puzzle_streak || 0,
 		puzzlesSolved: user.puzzles_solved,
 		puzzlesAttempted: user.puzzles_attempted,
@@ -312,22 +311,20 @@ function registerSocketHandlers(socket, playerID) {
 		var u = db.getUserById(acc.userId);
 		if (!u || !u.is_admin) return;
 		db.resetPuzzleProgress(acc.userId);
-		socket.emit("puzzles_reset", { puzzleRating: db.PUZZLE_START_RATING, puzzlePoints: 0, puzzleStreak: 0 });
+		socket.emit("puzzles_reset", { puzzleRating: db.PUZZLE_START_RATING, puzzleStreak: 0 });
 	});
 
-	// Admin/testing: jump MY Ladder to an exact points total (the client computes it from a tier + level
-	// pick) and optionally set the puzzle rating too. Same admin gate as the reset above.
+	// Admin/testing: set MY puzzle rating (the client computes it from a tier + level pick — the rank is
+	// read off the rating). Same admin gate as the reset above.
 	socket.on("admin_set_puzzle_rank", function(data) {
 		var acc = accounts[playerID];
 		if (!acc) return;
 		var u = db.getUserById(acc.userId);
 		if (!u || !u.is_admin) return;
-		var points = data && Number(data.points);
-		if (!Number.isFinite(points) || points < 0 || points > 100000) return;
-		var rating = data && data.rating != null && data.rating !== "" ? Number(data.rating) : null;
-		if (rating != null && (!Number.isFinite(rating) || rating < 0 || rating > 5000)) return;
-		var row = db.setPuzzleProgress(acc.userId, Math.round(points), rating != null ? Math.round(rating) : undefined);
-		socket.emit("puzzles_reset", { puzzleRating: row.puzzle_rating, puzzlePoints: row.puzzle_points, puzzleStreak: 0 });
+		var rating = data && Number(data.rating);
+		if (!Number.isFinite(rating) || rating < 0 || rating > 5000) return;
+		var row = db.setPuzzleProgress(acc.userId, Math.round(rating));
+		socket.emit("puzzles_reset", { puzzleRating: row.puzzle_rating, puzzleStreak: 0 });
 	});
 
 	// A solo/racing board cleared with no flag and/or no direct reveal (chord only) — challenge counters.
