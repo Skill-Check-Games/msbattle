@@ -86,6 +86,9 @@ addColumnIfMissing("users", "prefs", "TEXT");   // a JSON object of small UI pre
 // tier/level. Separate from puzzle_rating, which stays two-way and only sets puzzle difficulty.
 addColumnIfMissing("users", "puzzle_points", "INTEGER NOT NULL DEFAULT 0");
 addColumnIfMissing("users", "puzzles_solved", "INTEGER NOT NULL DEFAULT 0");
+// Consecutive rated solves (a miss resets it, a hinted solve neither extends nor breaks it) — drives the
+// streak bonus on ladder points (puzzlePlay.js puzzleStreakBonus). Persisted so it survives sessions.
+addColumnIfMissing("users", "puzzle_streak", "INTEGER NOT NULL DEFAULT 0");
 addColumnIfMissing("users", "puzzles_attempted", "INTEGER NOT NULL DEFAULT 0");
 addColumnIfMissing("users", "current_puzzle_id", "INTEGER");
 addColumnIfMissing("users", "streak_best", "INTEGER NOT NULL DEFAULT 0");
@@ -1463,6 +1466,17 @@ function updateUserPuzzleRating(userId, newRating, solved) {
 	bumpPuzzleStats(userId, newRating); // keep peak puzzle rating + active day for achievements
 }
 
+// Admin/testing: put a player at an exact Ladder points total (and, optionally, puzzle rating).
+function setPuzzleProgress(userId, points, rating) {
+	if (typeof rating === "number") db.prepare("UPDATE users SET puzzle_points = ?, puzzle_rating = ?, puzzle_streak = 0, current_puzzle_id = NULL WHERE id = ?").run(points, rating, userId);
+	else db.prepare("UPDATE users SET puzzle_points = ?, puzzle_streak = 0, current_puzzle_id = NULL WHERE id = ?").run(points, userId);
+	return db.prepare("SELECT puzzle_points, puzzle_rating FROM users WHERE id = ?").get(userId);
+}
+
+function setPuzzleStreak(userId, streak) {
+	db.prepare("UPDATE users SET puzzle_streak = ? WHERE id = ?").run(streak, userId);
+}
+
 // Add Puzzle Ladder points (never negative) and return the new total. Points only ever go up.
 function addPuzzlePoints(userId, points) {
 	points = Math.max(0, Math.round(points || 0));
@@ -1474,7 +1488,7 @@ function addPuzzlePoints(userId, points) {
 // Admin/testing: wipe a user's puzzle progress back to a fresh account — rating to 0 (the new-player
 // baseline), Ladder points to 0, no current puzzle, and clear the peak-rating achievement metric.
 function resetPuzzleProgress(userId) {
-	db.prepare("UPDATE users SET puzzle_rating = ?, puzzle_points = 0, current_puzzle_id = NULL WHERE id = ?").run(PUZZLE_START_RATING, userId);
+	db.prepare("UPDATE users SET puzzle_rating = ?, puzzle_points = 0, puzzle_streak = 0, current_puzzle_id = NULL WHERE id = ?").run(PUZZLE_START_RATING, userId);
 	try { db.prepare("UPDATE player_stats SET peak_puzzle_rating = 0 WHERE user_id = ?").run(userId); } catch (e) {}
 }
 
@@ -1711,6 +1725,8 @@ module.exports = {
 	// Puzzles
 	scoreToRating: scoreToRating,
 	poolRating: poolRating,
+	setPuzzleStreak: setPuzzleStreak,
+	setPuzzleProgress: setPuzzleProgress,
 	PUZZLE_RATING_FLOOR: PUZZLE_RATING_FLOOR,
 	PUZZLE_START_RATING: PUZZLE_START_RATING,
 	insertPuzzle: insertPuzzle,

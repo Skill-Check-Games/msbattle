@@ -10,9 +10,17 @@ export const PUZZLE_TIERS = [
 	{ name: "Bomb Squad",    color: "#d048c8" },
 	{ name: "Grandmaster",   color: "#eaf2ff" }
 ];
-const LEVELS_PER_TIER = 20;
-const POINTS_PER_LEVEL = 50;
+export const LEVELS_PER_TIER = 20;
+export const POINTS_PER_LEVEL = 50;
 const MAX_LEVEL = PUZZLE_TIERS.length * LEVELS_PER_TIER;
+export const MAX_PUZZLE_POINTS = MAX_LEVEL * POINTS_PER_LEVEL;
+
+// The points total at which a player is exactly at the start of `level` (1-based) of tier `tierIndex`.
+export function pointsForTierLevel(tierIndex: number, level: number): number {
+	const t = Math.min(PUZZLE_TIERS.length - 1, Math.max(0, tierIndex));
+	const l = Math.min(LEVELS_PER_TIER, Math.max(1, level));
+	return Math.min(MAX_PUZZLE_POINTS, (t * LEVELS_PER_TIER + (l - 1)) * POINTS_PER_LEVEL);
+}
 
 export interface PuzzleLadderInfo {
 	points: number; tierIndex: number; tierName: string; tierColor: string;

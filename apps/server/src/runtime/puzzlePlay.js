@@ -322,9 +322,15 @@ function finalizePuzzle(socket, playerID, solved) {
 		puzzleBefore: pp.puzzleBefore, puzzleAfter: puzzleAfter
 	});
 	// Puzzle Ladder: award monotonic points on a solve, scaled by how hard the puzzle was relative to
-	// the player (regular/hard/extra-hard). Hinted solves earn half; a miss earns none.
-	var pointsEarned = solved ? puzzlePointsFor(pp.puzzleBefore - pp.playerBefore, pp.hintUsed) : 0;
-	var puzzlePoints = pointsEarned > 0 ? db.addPuzzlePoints(pp.userId, pointsEarned) : (db.getUserById(pp.userId) || {}).puzzle_points || 0;
+	// the player (regular/hard/extra-hard) plus a streak bonus. Hinted solves earn half the base and no
+	// bonus (the streak is kept but not extended); a miss earns none and breaks the streak.
+	var userNow = db.getUserById(pp.userId) || {};
+	var streakBefore = userNow.puzzle_streak || 0;
+	var streak = !solved ? 0 : pp.hintUsed ? streakBefore : streakBefore + 1;
+	if (streak !== streakBefore) db.setPuzzleStreak(pp.userId, streak);
+	var streakBonus = (solved && !pp.hintUsed) ? puzzleStreakBonus(streak) : 0;
+	var pointsEarned = solved ? puzzlePointsFor(pp.puzzleBefore - pp.playerBefore, pp.hintUsed) + streakBonus : 0;
+	var puzzlePoints = pointsEarned > 0 ? db.addPuzzlePoints(pp.userId, pointsEarned) : userNow.puzzle_points || 0;
 	socket.emit("puzzle_result", {
 		puzzleId: pp.puzzleId,
 		solved: solved,
@@ -335,6 +341,8 @@ function finalizePuzzle(socket, playerID, solved) {
 		puzzleBefore: pp.puzzleBefore,
 		puzzleAfter: puzzleAfter,
 		pointsEarned: pointsEarned,
+		streakBonus: streakBonus,
+		streak: streak,
 		puzzlePoints: puzzlePoints
 	});
 }
@@ -344,6 +352,11 @@ function finalizePuzzle(socket, playerID, solved) {
 function puzzlePointsFor(ratingDelta, hintUsed) {
 	var base = ratingDelta >= 150 ? 25 : ratingDelta >= 50 ? 20 : 15;
 	return hintUsed ? Math.round(base / 2) : base;
+}
+// Streak bonus on top of the base, by the streak length INCLUDING this solve: 3-4 → +5, 5-9 → +10,
+// 10+ → +15. Capped so the ladder rewards playing on without turning into a pure grind metric.
+function puzzleStreakBonus(streak) {
+	return streak >= 10 ? 15 : streak >= 5 ? 10 : streak >= 3 ? 5 : 0;
 }
 
 // The puzzle branch of the server's left/right click handlers delegates here.

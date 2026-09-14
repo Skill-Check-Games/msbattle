@@ -19,6 +19,7 @@ export interface Account {
 	provisional: boolean;
 	puzzleRating: number;
 	puzzlePoints: number;
+	puzzleStreak: number;
 	puzzlesSolved: number;
 	puzzlesAttempted: number;
 	streakBest: number;
