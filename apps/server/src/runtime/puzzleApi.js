@@ -501,6 +501,27 @@ function puzzleJobStatus() {
 		dupes: puzzleJob.dupes
 	};
 }
+// Import the offline-generated pool file (scripts/fill-pool.js → puzzle-pool.json at the repo root) at
+// boot. INSERT OR IGNORE on canonical_key makes this idempotent, so every boot re-reads the file cheaply
+// and prod picks up new puzzles on deploy without running the generators on the live machine.
+var POOL_FILE_PATH = process.env.PUZZLE_POOL_FILE || path.join(require("../paths").REPO_ROOT, "puzzle-pool.json");
+function importPoolFile() {
+	var list;
+	try {
+		if (!fs.existsSync(POOL_FILE_PATH)) return;
+		list = JSON.parse(fs.readFileSync(POOL_FILE_PATH, "utf8"));
+	} catch (e) { console.error("puzzle pool file unreadable: " + (e && e.message)); return; }
+	if (!Array.isArray(list)) return;
+	var added = 0;
+	for (var i = 0; i < list.length; i++) {
+		var p = list[i];
+		if (!p || !p.key || !p.rows || !p.cols || !Array.isArray(p.mines) || !Array.isArray(p.revealed)) continue;
+		if (p.rows > 7 || p.cols > 7) continue; // 8-wide boards were dropped from the pool
+		try { if (db.insertPuzzle(p)) added++; } catch (e) { console.error("pool import row failed: " + (e && e.message)); }
+	}
+	console.log("puzzle pool file: " + list.length + " puzzle(s), " + added + " new");
+}
+
 function ensurePuzzlePoolTopUp() {
 	if (process.env.PUZZLE_POOL_TOPUP_DISABLED === "1") return;
 	var target = parseInt(process.env.PUZZLE_POOL_TARGET, 10);
@@ -561,5 +582,6 @@ function handleApiRoute(req, res, url) {
 
 module.exports = {
 	handleApiRoute: handleApiRoute,
-	ensurePoolTopUp: ensurePuzzlePoolTopUp
+	ensurePoolTopUp: ensurePuzzlePoolTopUp,
+	importPoolFile: importPoolFile
 };

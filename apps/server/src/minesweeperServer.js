@@ -1533,6 +1533,7 @@ function reapGuests() {
 app.listen(PORT, function() {
 	console.log("listening on " + PORT);
 	backfillOverlapClassification();
+	if (role.isMain()) puzzleApi.importPoolFile(); // offline-generated puzzles (puzzle-pool.json), idempotent
 	puzzleApi.ensurePoolTopUp();
 	reapGuests();
 	setInterval(reapGuests, 24 * 60 * 60 * 1000);
