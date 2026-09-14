@@ -495,8 +495,8 @@ function upsertUser(provider, providerId, providerName, avatarUrl, email) {
 	var info = db.prepare(
 		"INSERT INTO users (provider, provider_id, name, display_name, avatar_url, email, last_provider, created_at, " +
 		"rating_sprint, rating_standard, rating_tournament, rating_territory, puzzle_rating) " +
-		"VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 0)"
-	).run(provider, providerId, providerName, providerName, avatarUrl || null, emailLower, provider, Date.now());
+		"VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, ?)"
+	).run(provider, providerId, providerName, providerName, avatarUrl || null, emailLower, provider, Date.now(), PUZZLE_START_RATING);
 	linkIdentity(info.lastInsertRowid, provider, providerId, emailLower);
 	setProviderAuthFields(info.lastInsertRowid, provider, providerId, providerName);
 	var created = db.prepare("SELECT * FROM users WHERE id = ?").get(info.lastInsertRowid);
@@ -512,8 +512,8 @@ function createGuest() {
 	var info = db.prepare(
 		"INSERT INTO users (provider, provider_id, name, is_guest, created_at, " +
 		"rating_sprint, rating_standard, rating_tournament, rating_territory, puzzle_rating) " +
-		"VALUES ('guest', ?, ?, 1, ?, 0, 0, 0, 0, 0)"
-	).run(providerId, name, Date.now());
+		"VALUES ('guest', ?, ?, 1, ?, 0, 0, 0, 0, ?)"
+	).run(providerId, name, Date.now(), PUZZLE_START_RATING);
 	return db.prepare("SELECT * FROM users WHERE id = ?").get(info.lastInsertRowid);
 }
 
@@ -1023,6 +1023,21 @@ function achievementStats(userId) {
 // score ≈ 0.5) lands right at 0 and the deepest current puzzles
 // (score ≈ 13) reach ~3000. Shared formula lives in BoardLogic.scoreToRating.
 var scoreToRating = BoardLogic.scoreToRating;
+// Pool ratings are floored: every tier-1 (trivial) puzzle scores ≈1 → rating 0-150 by the raw formula, and
+// the cheapest non-trivial deduction lands at ≈540, so nothing exists in between. A player starting at 0
+// needed ~60 trivial solves to climb into range of the first interesting puzzle. Floor tier 1 at 400 and
+// start players just above it, so the first picks already mix tier 1 with the low end of tier 2.
+var PUZZLE_RATING_FLOOR = 400;
+var PUZZLE_START_RATING = 450;
+function poolRating(score) { return Math.max(PUZZLE_RATING_FLOOR, scoreToRating(score)); }
+// One-off, idempotent migration to the floored scale (2026-09-14): lift pre-floor pool rows to the floor
+// and move players who were still climbing through the trivial band to the new start. Players already
+// above the floor keep their rating. Cheap (two indexed-scan UPDATEs, no-ops once applied).
+try {
+	var flooredPuzzles = db.prepare("UPDATE puzzles SET rating = ? WHERE rating < ?").run(PUZZLE_RATING_FLOOR, PUZZLE_RATING_FLOOR).changes;
+	var startedUsers = db.prepare("UPDATE users SET puzzle_rating = ? WHERE puzzle_rating < ?").run(PUZZLE_START_RATING, PUZZLE_RATING_FLOOR).changes;
+	if (flooredPuzzles || startedUsers) console.log("puzzle rating floor migration: " + flooredPuzzles + " puzzle(s) lifted to " + PUZZLE_RATING_FLOOR + ", " + startedUsers + " player(s) moved to " + PUZZLE_START_RATING);
+} catch (e) { console.error("puzzle rating floor migration failed", e); }
 
 function insertPuzzle(p) {
 	var info = db.prepare(
@@ -1034,7 +1049,7 @@ function insertPuzzle(p) {
 	).run(
 		p.key, p.rows, p.cols,
 		JSON.stringify(p.mines), JSON.stringify(p.revealed),
-		p.coveredSafe, p.difficulty, p.score, scoreToRating(p.score),
+		p.coveredSafe, p.difficulty, p.score, poolRating(p.score),
 		p.maxEnumSize || 0,
 		p.needsCaseSplit ? 1 : 0,
 		p.cspMethod || "trivial",
@@ -1459,7 +1474,7 @@ function addPuzzlePoints(userId, points) {
 // Admin/testing: wipe a user's puzzle progress back to a fresh account — rating to 0 (the new-player
 // baseline), Ladder points to 0, no current puzzle, and clear the peak-rating achievement metric.
 function resetPuzzleProgress(userId) {
-	db.prepare("UPDATE users SET puzzle_rating = 0, puzzle_points = 0, current_puzzle_id = NULL WHERE id = ?").run(userId);
+	db.prepare("UPDATE users SET puzzle_rating = ?, puzzle_points = 0, current_puzzle_id = NULL WHERE id = ?").run(PUZZLE_START_RATING, userId);
 	try { db.prepare("UPDATE player_stats SET peak_puzzle_rating = 0 WHERE user_id = ?").run(userId); } catch (e) {}
 }
 
@@ -1596,6 +1611,8 @@ function recentlyAttemptedPuzzleIds(userId, windowMs) {
 // Find a puzzle near `targetRating` (±window) that the user hasn't recently
 // played. Widens the window in steps if no candidates exist at the initial
 // range. Returns null only if the table is empty for this user.
+// The window is skewed upward (−w/2 .. +3w/2): the served puzzle should tend to sit a little above the
+// player, which is where the "hard"/"extra-hard" ladder points live and what pulls the rating up.
 function pickPuzzleNearRating(targetRating, excludeIds, windows) {
 	windows = windows || [200, 400, 800, 2000];
 	var excludeClause = "";
@@ -1608,18 +1625,17 @@ function pickPuzzleNearRating(targetRating, excludeIds, windows) {
 		var w = windows[i];
 		var sql = "SELECT * FROM puzzles WHERE " + CURRICULUM_ONLY_CLAUSE + " AND rating BETWEEN ? AND ?" + excludeClause +
 			" ORDER BY RANDOM() LIMIT 1";
-		var p = [targetRating - w, targetRating + w].concat(params);
+		var p = [targetRating - w / 2, targetRating + w * 1.5].concat(params);
 		var stmt = db.prepare(sql);
 		var row = stmt.get.apply(stmt, p);
 		if (row) return deserializePuzzle(row);
 	}
-	// Last resort: any puzzle they haven't recently played.
-	if (excludeIds && excludeIds.length) {
-		var sql2 = "SELECT * FROM puzzles WHERE " + CURRICULUM_ONLY_CLAUSE + excludeClause + " ORDER BY RANDOM() LIMIT 1";
-		var stmt2 = db.prepare(sql2);
-		var row2 = stmt2.get.apply(stmt2, params);
-		if (row2) return deserializePuzzle(row2);
-	}
+	// Last resort: any puzzle they haven't recently played, however far from the target (the skewed
+	// windows above never reach far below a high-rated player, so this is what serves a thin pool).
+	var sql2 = "SELECT * FROM puzzles WHERE " + CURRICULUM_ONLY_CLAUSE + excludeClause + " ORDER BY RANDOM() LIMIT 1";
+	var stmt2 = db.prepare(sql2);
+	var row2 = stmt2.get.apply(stmt2, params);
+	if (row2) return deserializePuzzle(row2);
 	return null;
 }
 
@@ -1641,7 +1657,7 @@ function applyPuzzleClassification(id, analysis) {
 	).run(
 		analysis.difficulty,
 		analysis.score,
-		scoreToRating(analysis.score),
+		poolRating(analysis.score),
 		analysis.maxEnumSize || 0,
 		analysis.needsCaseSplit ? 1 : 0,
 		analysis.cspMethod || "trivial",
@@ -1692,6 +1708,9 @@ module.exports = {
 	achievementStats: achievementStats,
 	// Puzzles
 	scoreToRating: scoreToRating,
+	poolRating: poolRating,
+	PUZZLE_RATING_FLOOR: PUZZLE_RATING_FLOOR,
+	PUZZLE_START_RATING: PUZZLE_START_RATING,
 	insertPuzzle: insertPuzzle,
 	listPuzzles: listPuzzles,
 	puzzleCount: puzzleCount,

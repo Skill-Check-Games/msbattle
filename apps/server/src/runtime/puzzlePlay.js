@@ -17,7 +17,7 @@ var puzzlePlay = appState.puzzlePlay, puzzleRun = appState.puzzleRun, accounts =
 var obfuscateBoard = gameUtil.obfuscateBoard;
 
 // Streak / Storm tuning.
-var RUN_START_RATING = 100;
+var RUN_START_RATING = 400; // = the pool floor (db.PUZZLE_RATING_FLOOR): runs open on the easiest puzzles and step up from there
 var RUN_STEP = 60;
 var STORM_DURATION_MS = 3 * 60 * 1000;
 var STORM_MISS_PENALTY_MS = 10 * 1000;
@@ -311,7 +311,8 @@ function finalizePuzzle(socket, playerID, solved) {
 	else playerActual = 0;
 	var puzzleActual = 1 - playerActual;
 	var playerAfter = db.eloUpdate(pp.playerBefore, pp.puzzleBefore, 20, playerActual);
-	var puzzleAfter = db.eloUpdate(pp.puzzleBefore, pp.playerBefore, 10, puzzleActual);
+	// Pool floor (db.js): a much-solved trivial puzzle must not drift back down out of new players' window.
+	var puzzleAfter = Math.max(db.PUZZLE_RATING_FLOOR, db.eloUpdate(pp.puzzleBefore, pp.playerBefore, 10, puzzleActual));
 	db.updateUserPuzzleRating(pp.userId, playerAfter, solved);
 	db.updatePuzzleRating(pp.puzzleId, puzzleAfter, solved);
 	db.setCurrentPuzzle(pp.userId, null);
