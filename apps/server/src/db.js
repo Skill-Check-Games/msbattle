@@ -1611,10 +1611,12 @@ function recentlyAttemptedPuzzleIds(userId, windowMs) {
 // Find a puzzle near `targetRating` (±window) that the user hasn't recently
 // played. Widens the window in steps if no candidates exist at the initial
 // range. Returns null only if the table is empty for this user.
-// The window is skewed upward (−w/2 .. +3w/2): the served puzzle should tend to sit a little above the
-// player, which is where the "hard"/"extra-hard" ladder points live and what pulls the rating up.
+// Each window is [below, above] around the target, widened in turn until something matches. Skewed
+// upward: the served puzzle should tend to sit a little above the player, which is where the "hard"/
+// "extra-hard" ladder points live and what pulls the rating up.
+var PICK_WINDOWS = [[100, 200], [200, 600], [400, 1200], [1000, 3000]];
 function pickPuzzleNearRating(targetRating, excludeIds, windows) {
-	windows = windows || [200, 400, 800, 2000];
+	windows = windows || PICK_WINDOWS;
 	var excludeClause = "";
 	var params = [];
 	if (excludeIds && excludeIds.length) {
@@ -1625,7 +1627,7 @@ function pickPuzzleNearRating(targetRating, excludeIds, windows) {
 		var w = windows[i];
 		var sql = "SELECT * FROM puzzles WHERE " + CURRICULUM_ONLY_CLAUSE + " AND rating BETWEEN ? AND ?" + excludeClause +
 			" ORDER BY RANDOM() LIMIT 1";
-		var p = [targetRating - w / 2, targetRating + w * 1.5].concat(params);
+		var p = [targetRating - w[0], targetRating + w[1]].concat(params);
 		var stmt = db.prepare(sql);
 		var row = stmt.get.apply(stmt, p);
 		if (row) return deserializePuzzle(row);
