@@ -137,6 +137,7 @@ function startPuzzlePlay(socket, playerID, user, puzzle, run, opts) {
 	// the same way Solo's sidebar shows its best time continuously (rather than only after finishing).
 	var marathonBest = isMarathon ? db.getMarathonBest(user.id, puzzle.id) : null;
 
+	if (opts.silent) return; // resume: the client still holds this exact board — don't reset it
 	var obf = obfuscateBoard(board, puzzle.rows, puzzle.cols);
 	socket.emit("puzzle_board", {
 		mode: run ? run.mode : "rated",
@@ -429,6 +430,42 @@ function registerSocketHandlers(socket, playerID) {
 			delete puzzleRun[playerID];
 		}
 		startPuzzlePlay(socket, playerID, u, puzzle, null, { noRating: true });
+	});
+
+	// Reconnect (a network blip, or a server deploy — the in-memory play is gone either way): the client
+	// still holds the board and every move it made, so rebuild the same puzzle SILENTLY (no puzzle_board,
+	// which would reset its board) and replay the moves through the real engine. A board the player
+	// finished while disconnected completes here and fires the normal puzzle_result. Rated resumes must
+	// match the user's persisted current puzzle; daily must be today's; a practice replay (noRating) is
+	// free to resume anything. Otherwise the client falls back to asking for a fresh board.
+	socket.on("puzzle_resume", function(data) {
+		var u = authedUserForPuzzle(); if (!u) return;
+		var puzzleId = data && data.puzzleId;
+		var mode = (data && data.mode === "daily") ? "daily" : "rated";
+		var noRating = !!(data && data.noRating);
+		var moves = (data && Array.isArray(data.moves)) ? data.moves : [];
+		var puzzle = puzzleId ? db.getPuzzleById(puzzleId) : null;
+		function refuse(reason) { socket.emit("puzzle_resumed", { ok: false, reason: reason }); }
+		if (!puzzle) { refuse("no_puzzle"); return; }
+		var run = null;
+		if (mode === "daily") {
+			var date = db.todayUtc();
+			var daily = db.getOrPickDailyPuzzle(date);
+			var attempt = db.getDailyAttempt(u.id, date);
+			if (!daily || daily.id !== puzzle.id || (attempt && attempt.solved)) { refuse("not_today"); return; }
+			run = { mode: "daily", date: date, streak: db.dailyStreakForUser(u.id), bestStreak: db.dailyStreakBestForUser(u.id) };
+		} else if (!noRating && u.current_puzzle_id !== puzzle.id) { refuse("not_current"); return; }
+		delete puzzlePlay[playerID];
+		if (puzzleRun[playerID]) { clearStormTimer(playerID); delete puzzleRun[playerID]; }
+		startPuzzlePlay(socket, playerID, u, puzzle, run, { noRating: noRating, silent: true });
+		socket.emit("puzzle_resumed", { ok: true, puzzleId: puzzle.id, replayed: moves.length });
+		var cap = puzzle.rows * puzzle.cols * 4;
+		for (var i = 0; i < moves.length && i < cap; i++) {
+			var m = moves[i];
+			if (!puzzlePlay[playerID]) break; // the replay finished the puzzle
+			if (!m || typeof m.r !== "number" || typeof m.c !== "number") continue;
+			if (m.flag) handleRightClick(playerID, m); else handleLeftClick(playerID, m);
+		}
 	});
 
 	socket.on("puzzle_streak_start", function() {

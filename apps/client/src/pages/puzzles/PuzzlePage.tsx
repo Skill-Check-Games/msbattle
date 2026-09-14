@@ -23,7 +23,7 @@ export type PuzzleMode = "rated" | "streak" | "storm" | "daily";
 const TITLES: Record<PuzzleMode, string> = { rated: "Puzzle Ladder", streak: "Streak", storm: "Time Trial", daily: "Daily puzzle" };
 
 interface Run { mode: PuzzleMode; solves?: number; targetRating?: number; endsAt?: number; streak?: number; date?: string; bestStreak?: number; }
-interface Puzzle { puzzleId: number; difficulty: number; totalSafe: number; totalMines: number; playerRating: number; mode: PuzzleMode; run: Run | null; finished: boolean; hintUsed: boolean; }
+interface Puzzle { puzzleId: number; difficulty: number; totalSafe: number; totalMines: number; playerRating: number; mode: PuzzleMode; run: Run | null; finished: boolean; hintUsed: boolean; noRating?: boolean; }
 interface RatedResult { solved: boolean; hintUsed: boolean; playerBefore?: number; playerAfter?: number; playerDelta?: number; streakBonus?: number; streak?: number; noRating?: boolean; }
 interface RankChange { up: boolean; label: string; color: string; rating: number; }
 interface RunEnd { mode: "streak" | "storm"; solves: number; score: number; bestBefore: number; best: number; }
@@ -106,18 +106,23 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 	const session = useMemo(() => new BoardSession({
 		mode: () => { const p = puzzleRef.current; return p && !p.finished ? "puzzle" : null; },
 		sound,
-		onAction: (r, c, asFlag) => { session.hintClues = []; session.hintCovered = []; getSocket().emit(asFlag ? "right_click" : "left_click", { r, c }); },
+		onAction: (r, c, asFlag) => { session.hintClues = []; session.hintCovered = []; movesRef.current.push({ r, c, flag: !!asFlag }); getSocket().emit(asFlag ? "right_click" : "left_click", { r, c }); },
 		onAfterReveal: (result: ActionResult) => { const p = puzzleRef.current; if (p && (p.mode === "streak" || p.mode === "storm") && result.hitMine) setPendingFlash("fail"); }
 	}), []);
 	if (import.meta.env.DEV) (window as any).__puzzle = session;
 
 	const finish = () => { const p = puzzleRef.current; if (p) { p.finished = true; rerender(); } };
+	// Every move made on the current board, in order. A reconnect (network blip or server deploy) re-sends
+	// them with puzzle_resume so the server rebuilds the same board and replays them — the board on screen
+	// never resets, and a puzzle finished while disconnected still gets its result.
+	const movesRef = useRef<{ r: number; c: number; flag: boolean }[]>([]);
 
 	useEffect(() => {
 		const offs = [
 			onSocket("puzzle_board", (d) => {
 				const apply = () => {
-					puzzleRef.current = { puzzleId: d.puzzleId, difficulty: d.difficulty, totalSafe: d.totalSafe, totalMines: d.mines, playerRating: d.playerRating, mode: d.mode || "rated", run: d.run || null, finished: false, hintUsed: false };
+					puzzleRef.current = { puzzleId: d.puzzleId, difficulty: d.difficulty, totalSafe: d.totalSafe, totalMines: d.mines, playerRating: d.playerRating, mode: d.mode || "rated", run: d.run || null, finished: false, hintUsed: false, noRating: !!d.noRating };
+					movesRef.current = [];
 					const decoder = makeBoardDecoder(d.boardData, d.boardMask, d.cols);
 					const state: number[][] = []; for (let r = 0; r < d.rows; r++) state.push(new Array(d.cols).fill(UNKNOWN));
 					for (const rc of d.knownCells || []) state[rc[0]][rc[1]] = KNOWN;
@@ -158,6 +163,23 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 				else getSocket().emit("puzzle_daily_start");
 			}),
 			onSocket("puzzle_hint_pointer", (d) => { const p = puzzleRef.current; if (!p || d.alreadyUsed) return; p.hintUsed = true; session.hintClues = d.clueCells || []; session.hintCovered = d.coveredCells || []; session.render(); rerender(); }),
+			// The socket re-authenticated: after a reconnect, pick the current board back up where it was.
+			onSocket("authenticated", () => {
+				const p = puzzleRef.current;
+				if (!p || p.finished || p.puzzleId == null) return;
+				if (p.mode === "streak" || p.mode === "storm") {
+					// Runs are session-only on the server (it ended this one on the drop) — say so instead of a dead board.
+					puzzleRef.current = null; setStatus("Connection lost — the run ended. Start a new one from the menu."); rerender();
+					return;
+				}
+				getSocket().emit("puzzle_resume", { puzzleId: p.puzzleId, mode: p.mode, noRating: !!p.noRating, moves: movesRef.current });
+			}),
+			onSocket("puzzle_resumed", (d) => {
+				if (d && d.ok) return;
+				// The server couldn't rebuild this one (not the current puzzle any more, or a day rolled over): fresh board.
+				const p = puzzleRef.current;
+				getSocket().emit(p && p.mode === "daily" ? "puzzle_daily_start" : "puzzle_next");
+			}),
 			onSocket("puzzle_error", (d) => { const reason = (d && d.reason) || "unknown"; setStatus(reason === "auth_required" ? "Sign in to play rated puzzles." : reason === "no_puzzles" ? "No puzzles available yet." : "Couldn't load a puzzle: " + reason); })
 		];
 		const t = setInterval(() => setTick(n => n + 1), 250);
