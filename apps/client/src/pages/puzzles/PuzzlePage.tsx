@@ -24,7 +24,8 @@ const TITLES: Record<PuzzleMode, string> = { rated: "Puzzle Ladder", streak: "St
 
 interface Run { mode: PuzzleMode; solves?: number; targetRating?: number; endsAt?: number; streak?: number; date?: string; bestStreak?: number; }
 interface Puzzle { puzzleId: number; difficulty: number; totalSafe: number; totalMines: number; playerRating: number; mode: PuzzleMode; run: Run | null; finished: boolean; hintUsed: boolean; }
-interface RatedResult { solved: boolean; hintUsed: boolean; playerAfter?: number; playerDelta?: number; streakBonus?: number; streak?: number; noRating?: boolean; }
+interface RatedResult { solved: boolean; hintUsed: boolean; playerBefore?: number; playerAfter?: number; playerDelta?: number; streakBonus?: number; streak?: number; noRating?: boolean; }
+interface RankChange { up: boolean; label: string; color: string; rating: number; }
 interface RunEnd { mode: "streak" | "storm"; solves: number; score: number; bestBefore: number; best: number; }
 interface DailyResult { date: string; solved: boolean; streak: number; bestStreak?: number; }
 
@@ -51,6 +52,21 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 	// Consecutive rated solves — server-owned (survives sessions); the result event carries the new value.
 	const [streak, setStreak] = useState(account?.puzzleStreak || 0);
 	const [streakBonus, setStreakBonus] = useState(0);
+	// A rated result that crossed a rank boundary: a full-board card ("Rank up! Scout II") shown after the
+	// solve flash (or at once on a miss), with the rank-up/down jingle, so the moment is unmissable.
+	const [rankChange, setRankChange] = useState<RankChange | null>(null);
+	const rankChangeTimer = useRef<number | null>(null);
+	const showRankChange = (before: number, after: number, delayMs: number) => {
+		const a = puzzleLadder(before), b = puzzleLadder(after);
+		if (a.tierIndex === b.tierIndex && a.level === b.level) return;
+		const up = after > before;
+		window.setTimeout(() => {
+			(up ? sound.rankUp : sound.rankDown)();
+			setRankChange({ up, label: b.tierName + " " + b.levelLabel, color: b.tierColor, rating: after });
+			if (rankChangeTimer.current) window.clearTimeout(rankChangeTimer.current);
+			rankChangeTimer.current = window.setTimeout(() => setRankChange(null), 2600);
+		}, delayMs);
+	};
 	useEffect(() => { if (account && typeof account.puzzleStreak === "number") setStreak(account.puzzleStreak); }, [account?.puzzleStreak]);
 	const [pendingFlash, setPendingFlash] = useState<"solved" | "fail" | null>(null);
 	const [boardFlash, setBoardFlash] = useState<"solved" | "fail" | null>(null);
@@ -131,6 +147,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 				}
 				if (d.solved) { sound.win(); setFlash({ solved: true, delta: d.playerDelta }); setTimeout(() => { setFlash(null); setDone("solved"); }, 1200); }
 				else setDone("fail");
+				if (!d.noRating && typeof d.playerBefore === "number" && typeof d.playerAfter === "number") showRankChange(d.playerBefore, d.playerAfter, d.solved ? 1250 : 150);
 				getSocket().emit("get_match_history");
 			}),
 			onSocket("puzzle_run_end", (d: RunEnd) => withFlash(() => { finish(); if (account) update(d.mode === "streak" ? { streakBest: d.best } : { stormBest: d.best }); setRunEnd(d); })),
@@ -199,6 +216,13 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 						<div className={`${styles.boardWrap} ${boardFlash === "solved" ? styles.flashSolved : boardFlash === "fail" ? styles.flashFail : ""}`} style={mobile ? { width: "100%", padding: PHONE_BOX_PAD } : { width: box, height: box }} data-shake-host="">
 							<GameBoard session={session} cellPx={cellPx} className={styles.board}>
 								{flash && <div className={`${styles.flash} ${flash.solved ? styles.flashOk : styles.flashBad}`}><div className={styles.flashIcon}>{flash.solved ? "✓" : "✗"}</div><div className={styles.flashLabel}>{flash.solved ? "Solved" : "Mine hit"}</div></div>}
+								{rankChange && (
+									<div className={`${styles.flash} ${styles.rankFlash} ${rankChange.up ? styles.rankUp : styles.rankDown}`} style={{ borderColor: rankChange.color }}>
+										<div className={styles.rankFlashKicker}>{rankChange.up ? "Rank up!" : "Rank down"}</div>
+										<PuzzleRankBadge rating={rankChange.rating} size={9} />
+										<div className={styles.rankFlashLabel} style={{ color: rankChange.color }}>{rankChange.label}</div>
+									</div>
+								)}
 							</GameBoard>
 						</div>
 						{p && !isRun && p.puzzleId != null && <div className={styles.info}>Puzzle #{p.puzzleId}<span className={styles.sep}>·</span><span style={{ color: difficultyLabel(p.difficulty) === "Easy" ? "var(--success)" : difficultyLabel(p.difficulty) === "Medium" ? "var(--energy-streak)" : "var(--danger)" }}>{difficultyLabel(p.difficulty)}</span></div>}

@@ -1031,7 +1031,7 @@ var scoreToRating = BoardLogic.scoreToRating;
 // needed ~60 trivial solves to climb into range of the first interesting puzzle. Floor tier 1 at 400 and
 // start players just above it, so the first picks already mix tier 1 with the low end of tier 2.
 var PUZZLE_RATING_FLOOR = 400;
-var PUZZLE_START_RATING = 450;
+var PUZZLE_START_RATING = 400; // = the floor: a new player is Recruit I and sees the easiest puzzles first
 function poolRating(score) { return Math.max(PUZZLE_RATING_FLOOR, scoreToRating(score)); }
 // Idempotent startup migration (2026-09-14): pin every pool row's rating to the scoring function (play
 // used to move puzzle ratings by Elo; it no longer does), and move players who were still climbing
@@ -1624,7 +1624,7 @@ function recentlyAttemptedPuzzleIds(userId, windowMs) {
 // Each window is [below, above] around the target, widened in turn until something matches. Skewed
 // upward: the served puzzle should tend to sit a little above the player, which is where the "hard"/
 // "extra-hard" ladder points live and what pulls the rating up.
-var PICK_WINDOWS = [[100, 200], [200, 600], [400, 1200], [1000, 3000]];
+var PICK_WINDOWS = [[50, 100], [100, 200], [200, 600], [400, 1200], [1000, 3000]];
 function pickPuzzleNearRating(targetRating, excludeIds, windows) {
 	windows = windows || PICK_WINDOWS;
 	var excludeClause = "";
