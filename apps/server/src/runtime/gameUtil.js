@@ -130,12 +130,14 @@ function stashRoomEventForOfflineDelivery(room, event, payload) {
 // surfacing a long-dead result out of nowhere.
 function drainPendingRoomEvents(socket, userId) {
 	var q = pendingRoomEvents[userId];
-	if (!q || !q.length) return;
+	if (!q || !q.length) return false;
 	delete pendingRoomEvents[userId];
 	var now = Date.now();
+	var delivered = 0;
 	q.forEach(function(item) {
-		if (item.expiresAt >= now) socket.emit(item.event, item.payload);
+		if (item.expiresAt >= now) { socket.emit(item.event, item.payload); delivered++; }
 	});
+	return delivered > 0;
 }
 
 module.exports = {

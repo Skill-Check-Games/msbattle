@@ -51,6 +51,20 @@ function handleInternalRoute(req, res, url) {
 		return true;
 	}
 
+	// deploy workflow → game: take this server out of rotation ({"drain":true}, the default) so main routes
+	// new matches elsewhere while its live matches finish — poll /internal/health until activeMatches is
+	// 0, then deploy. {"drain":false} puts it back (an aborted deploy).
+	if (url.pathname === "/internal/drain" && req.method === "POST") {
+		readJson(req, function(err, body) {
+			if (err) { send(res, 400, { error: "bad_json" }); return; }
+			var on = !(body && body.drain === false);
+			lifecycle.setDraining(on);
+			console.log("[lifecycle] " + (on ? "draining (via /internal/drain)" : "back in rotation (via /internal/drain)") + " — " + lifecycle.activeMatchCount() + " active match(es)");
+			send(res, 200, { ok: true, draining: lifecycle.isDraining(), activeMatches: lifecycle.activeMatchCount() });
+		});
+		return true;
+	}
+
 	// main → game: build + run a match from an allocation spec.
 	if (url.pathname === "/internal/allocate" && req.method === "POST") {
 		if (!allocateHandler) { send(res, 503, { error: "no_allocate_handler" }); return true; }

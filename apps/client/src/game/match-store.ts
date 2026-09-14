@@ -3,7 +3,7 @@
 // nothing here touches the DOM except through the session's canvas, which GameBoard binds.
 import { useSyncExternalStore } from "react";
 import MoveHash from "core/src/common/MoveHash.js";
-import { getSocket, activeSocket, startMatchSocket, teardownMatchSocket } from "../online/socket";
+import { getSocket, activeSocket, startMatchSocket, teardownMatchSocket, hasMatchSocket } from "../online/socket";
 import { pushToast } from "../app/Toasts";
 import { BoardSession, ActionResult, countdownTickMs } from "./board-session";
 import { KNOWN, UNKNOWN, MINE } from "./board-render";
@@ -114,7 +114,27 @@ class MatchStore {
 		// mine, winnerId and standings all compare against it. The main id comes back on teardown.
 		socket.on("match_handoff", (d) => {
 			if (!d || !d.gameUrl || !d.token) return;
-			startMatchSocket(d.gameUrl, d.token, (id) => { this.myId = id; this.set({});  });
+			startMatchSocket(d.gameUrl, d.token, {
+				onAttached: (id, reconnected) => {
+					this.myId = id;
+					if (reconnected) { this.set({ message: null }); this.flash("Reconnected."); } else this.set({});
+				},
+				onDisconnect: (reason) => {
+					if (!this.state.inRoom || this.state.seriesResult) return;
+					if (reason === "io server disconnect") {
+						// The game server closed the connection: the match is over (a missed result may have just been
+						// delivered) or it no longer holds this seat. Give a result a moment to land, then leave.
+						setTimeout(() => {
+							if (!hasMatchSocket() || !this.state.inRoom || this.state.seriesResult) return;
+							this.teardown();
+							pushToast({ icon: "⚠️", label: "Match", name: "Lost the connection to the match.", complete: false });
+						}, 1500);
+						return;
+					}
+					// A transport drop: socket.io reconnects on its own and the server holds the seat meanwhile.
+					this.set({ message: "Connection lost — reconnecting…" });
+				},
+			});
 		});
 		socket.on("joined_room", (d) => {
 			// The search's roster stays until the room's first state replaces it (below): a moment with neither would

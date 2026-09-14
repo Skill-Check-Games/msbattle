@@ -312,6 +312,11 @@ function formRankedMatch(mode) {
 
 // Main role: build the allocation spec, POST it to a game server, and on success hand each human a join
 // token + the game server's address so their client connects there for the match (P1-5/P1-6).
+// The join token is the client's ONLY credential on the game server, and it is re-sent on every reconnect
+// (socket.io keeps the handshake auth) — so it has to outlive the whole match, not just the first connect.
+// A token is bound to one seat of one match, so a long life buys nothing to anyone but that player.
+var MATCH_TOKEN_TTL_MS = 3 * 60 * 60 * 1000;
+
 function allocateMatchToGameServer(mode, modeDef, matchSize, humans, botSpecs) {
 	if (!role.GAME_SERVERS.length) { // no game server configured — don't strand players, re-queue them
 		humans.forEach(function(pid) { if (appState.sockets[pid] && appState.accounts[pid]) enqueueRanked(pid, mode); });
@@ -361,7 +366,7 @@ function allocateMatchToGameServer(mode, modeDef, matchSize, humans, botSpecs) {
 			.then(function() {
 				humans.forEach(function(pid) {
 					var acc = appState.accounts[pid];
-					var token = matchToken.issueMatchToken({ matchId: matchId, playerKey: identity.playerKeyFor(pid), userId: acc ? acc.userId : null });
+					var token = matchToken.issueMatchToken({ matchId: matchId, playerKey: identity.playerKeyFor(pid), userId: acc ? acc.userId : null }, MATCH_TOKEN_TTL_MS);
 					var sock = appState.sockets[pid];
 					if (sock) sock.emit("match_handoff", { gameUrl: gameUrl, token: token, matchId: matchId, mode: mode, ranked: true });
 				});

@@ -10,7 +10,7 @@
 var crypto = require("crypto");
 
 var SECRET = process.env.MATCH_TOKEN_SECRET || "dev-insecure-match-secret";
-var DEFAULT_TTL_MS = 60 * 1000; // a join token is short-lived — it's spent immediately on connect
+var DEFAULT_TTL_MS = 60 * 1000; // default only; a real match handoff passes a match-long TTL (ranked.js) since reconnects re-present the token
 
 function sign(body) {
 	return crypto.createHmac("sha256", SECRET).update(body).digest("base64url");

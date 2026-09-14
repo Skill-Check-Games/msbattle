@@ -10,7 +10,7 @@ The split is **opt-in**: deploy `fly.main.toml` + `fly.game.toml` to run split, 
 
 ## Why this gives no-downtime deploys
 - A match runs entirely on a **game** server, not on main. **Deploying `main` never touches a live game** (lobby/matchmaking blips for a few seconds; the match keeps running on its game server, and clients' match sockets stay connected to it).
-- **Deploying the game tier drains**: each game server, on `SIGTERM`, finishes its active matches and refuses new ones (`/internal/allocate` → 503), so main routes new matches to other servers. Done as a fleet rollover (below), no in-game player is cut.
+- **Deploying the game tier drains**: the workflow drains one game app at a time (`/internal/drain` → it refuses new matches, main routes to the other app), waits for its live matches to end, then deploys it. No in-game player is cut (below).
 
 ## App layout
 - **main = the existing `erik-minesweeper` app**, redeployed in the `main` role (`fly.main.toml`). It keeps
@@ -62,15 +62,41 @@ fly deploy -c fly.main.toml    # then the control plane (erik-minesweeper)
   machine's own public URL in `GAME_SERVERS`. True per-match placement/affinity across an autoscaled fleet
   is the Phase 2 ("per-match allocation + multi-region") work.
 
-## Draining / fleet rollover (deploying the game tier without cutting matches)
-`fly deploy -c fly.game.toml` does a rolling replace by default, which would kill active matches. Instead:
-1. Start new game machines on the new release.
-2. The old machines receive `SIGTERM` → enter draining: finish active matches, refuse new ones (main
-   routes elsewhere), then exit once empty (`runtime/lifecycle.js`; `kill_timeout` gives short matches
-   time; longer ones keep the old machine alive until they end).
-3. Destroy the drained old machines.
-This is a Machines-API orchestration (a small deploy script), not a plain `fly deploy`. For a single game
-machine with no players mid-match, a normal deploy is fine.
+## Deploying the game tier without cutting matches (two apps, drain-then-deploy)
+A game server's match state lives only in its memory, and one fly app = one hostname = one machine (see
+the routing model above), so a plain `fly deploy` of a game app restarts its machine and kills every match
+on it. The fix is **two game apps** (`msbattle-game`, `msbattle-game-b` — same `fly.game.toml`, deployed
+with `-a`; both listed in main's `GAME_SERVERS`) and a workflow that deploys them **one at a time**:
+1. `POST /internal/drain` on app A → it refuses new matches (503), main allocates to B instead.
+2. Poll `/internal/health` until `activeMatches` is 0 (up to `DRAIN_MAX_WAIT_S`, then deploy anyway).
+3. `fly deploy -a A`, then the same for B (A, freshly deployed, is un-drained and takes matches meanwhile).
+4. Deploy main last. A game server retries its result report while main restarts, so a match that ends
+   during main's ~20s blip still persists.
+
+The workflow needs the `INTERNAL_SECRET` repo secret (same value as the fly apps') to call `/internal/*`;
+without it, it deploys without draining and prints a warning. An app that doesn't exist yet is skipped.
+
+**One-time setup for the second app** (the first is the existing `msbattle-game`):
+```sh
+fly apps create msbattle-game-b
+# same shared secrets as msbattle-game / erik-minesweeper — read the current values from the running machine:
+fly ssh console -a msbattle-game -C "printenv INTERNAL_SECRET"
+fly ssh console -a msbattle-game -C "printenv MATCH_TOKEN_SECRET"
+fly secrets set -a msbattle-game-b INTERNAL_SECRET=<value> MATCH_TOKEN_SECRET=<value>
+# and add INTERNAL_SECRET (same value) as a GitHub Actions repo secret so the workflow can drain.
+```
+The next push deploys it (and pins it to one machine); after that main routes to whichever app is up
+and not draining.
+
+**Mid-match reconnects** are a separate, client-facing part of the same story: a match socket that drops
+(wifi/cellular handoff, locked phone, proxy hiccup) reconnects with its join token — valid for hours, not
+the 60s it once was — and the game server rebinds it to the very same seat, held for a 45s grace window
+(`GAME_RECONNECT_GRACE_MS`). Only a player who never comes back is evicted (with the early-leave penalty).
+
+**Backstop:** on SIGINT/SIGTERM (`runtime/lifecycle.js`) a game server still drains on its own and fly
+waits `kill_timeout` (300s — a top-level key in `fly.game.toml`; under a section it is silently ignored)
+before force-killing. That only helps matches shorter than the timeout, which is why the workflow drains
+first.
 
 ## Verifying
 - Health: `curl -H "x-internal-secret: $SEC" https://msbattle-game.fly.dev/internal/health` →

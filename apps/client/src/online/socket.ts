@@ -29,14 +29,27 @@ export function getSocket(): SocketLike {
 let matchSocket: Socket | null = null;
 export function activeSocket(): SocketLike { return (matchSocket || getSocket()) as unknown as SocketLike; }
 export function hasMatchSocket(): boolean { return !!matchSocket; }
-export function startMatchSocket(gameUrl: string, token: string, onConnect?: (id: string) => void) {
+export interface MatchSocketHooks {
+	// The server names the id this socket plays as: its own socket id on a first attach, the seat's ORIGINAL
+	// id after a mid-match reconnect (the seat keeps one id for the whole match; only the transport changes).
+	onAttached?(id: string, reconnected: boolean): void;
+	// The match connection dropped. "io server disconnect" = the game server closed it on purpose (the match
+	// is over or it no longer knows this seat); anything else is a transport drop socket.io retries on its own.
+	onDisconnect?(reason: string): void;
+	onReconnecting?(attempt: number): void;
+}
+export function startMatchSocket(gameUrl: string, token: string, hooks: MatchSocketHooks = {}) {
 	teardownMatchSocket();
 	const main = getSocket() as unknown as Socket;
-	const gs = io(gameUrl, { transports: ["websocket"], forceNew: true, auth: { token } });
+	// The join token rides in the handshake and is re-sent as-is on every reconnect, which is how the game
+	// server recognises the seat. Quick retries: a phone's wifi→cellular handoff should be back in a second.
+	const gs = io(gameUrl, { transports: ["websocket"], forceNew: true, auth: { token }, reconnectionDelay: 500, reconnectionDelayMax: 3000 });
 	matchSocket = gs;
-	gs.on("connect", () => { if (onConnect && gs.id) onConnect(gs.id); });
+	gs.on("match_attached", (d: any) => { if (matchSocket === gs && d && d.id && hooks.onAttached) hooks.onAttached(d.id, !!d.reconnected); });
+	gs.on("disconnect", (reason: string) => { if (matchSocket === gs && hooks.onDisconnect) hooks.onDisconnect(reason); });
+	gs.io.on("reconnect_attempt", (n: number) => { if (matchSocket === gs && hooks.onReconnecting) hooks.onReconnecting(n); });
 	gs.onAny((event: string, ...args: any[]) => {
-		if (event === "connected" || event === "authenticated") return;   // lobby-only, never from the game socket
+		if (event === "connected" || event === "authenticated" || event === "match_attached") return;   // lobby-only / handled above
 		for (const h of main.listeners(event)) { try { (h as any)(...args); } catch (e) { console.error(`match event '${event}' handler error:`, e); } }
 	});
 }

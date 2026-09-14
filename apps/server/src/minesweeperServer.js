@@ -240,6 +240,7 @@ function deleteRoomIfEmpty(room) {
 		clearRoundTimer(room.id);
 		delete roundStarts[room.id];
 		delete rooms[room.id];
+		if (room.liveMatchId) forgetLiveMatch(room.liveMatchId);
 		return true;
 	}
 	return false;
@@ -556,6 +557,9 @@ function startGame(room) {
 		var pid = room.players[i];
 		if (sockets[pid]) sockets[pid].emit("start_game", startPayload);
 	}
+	// Kept so a game-socket that reconnects after this round began (game role, reattachGameClient) can be
+	// handed the round it missed — its client still holds the previous round's board otherwise.
+	room.lastStartGame = { payload: startPayload, at: Date.now() };
 	setTimeout(function() {
 		if (!rooms[room.id] || room.phase !== "playing") {
 			console.log("[round] round-start callback bailed room=" + room.id + " exists=" + !!rooms[room.id] + " phase=" + (room.phase));
@@ -886,9 +890,38 @@ function registerGameplayHandlers(socket, playerID) {
 // present (bot-only → starts at once). On end, the result is posted back to main.
 var ATTACH_TIMEOUT_MS = 30000;
 var gamePending = {}; // matchId -> { room, expected:Set(playerKey), attached:{playerKey:pid}, roster:{playerKey:entry}, started, timer }
+// Matches that have STARTED on this game server, kept until their room is torn down so a match socket that
+// drops mid-series (wifi/cellular handoff, a locked phone, a proxy hiccup) can come back with the same join
+// token and be bound to the very same seat: matchId -> { room, seats: { playerKey: { pid, seat, graceTimer,
+// disconnectedAt } } }. The seat keeps its ORIGINAL player id (the first socket's id) for the whole match —
+// a reconnect rebinds a new socket to that id (sockets[pid] = newSocket) instead of renaming the player
+// everywhere, so opponents, standings, replay and the room never see a change. Before this existed every
+// game-socket drop was terminal: the pending entry is gone once the series starts, so the reconnect was
+// rejected and the player evicted — the "progress stuck at N% and the match never resolves" bug.
+var gameLive = {};
+// How long a dropped game-socket's seat is held for the same token to reconnect before the player is
+// evicted (ranked early-leave penalty included). socket.io can take up to ~45s to notice a silent drop,
+// so this is measured from when the server noticed; the round timer bounds the wait for everyone else.
+var GAME_RECONNECT_GRACE_MS = Number(process.env.GAME_RECONNECT_GRACE_MS) || 45000; // env override for tests
+
+function forgetLiveMatch(matchId) {
+	var live = gameLive[matchId];
+	if (!live) return;
+	delete gameLive[matchId];
+	for (var key in live.seats) { if (live.seats[key].graceTimer) clearTimeout(live.seats[key].graceTimer); }
+}
+// The live seat a game-socket id belongs to, or null.
+function liveSeatForPid(playerID) {
+	var room = roomMapping[playerID];
+	var live = room && room.liveMatchId ? gameLive[room.liveMatchId] : null;
+	if (!live) return null;
+	for (var key in live.seats) { if (live.seats[key].pid === playerID) return live.seats[key]; }
+	return null;
+}
 
 function gameAllocate(spec) {
 	var room = gameService.buildMatchFromConfig(Object.assign({}, spec, { humans: [] })); // bots only; humans attach later
+	room.attachPending = true; // counted as an active match by lifecycle.activeMatchCount until it starts or aborts
 	var roster = {}, expected = [];
 	(spec.humanRoster || []).forEach(function(e) { roster[e.playerKey] = e; expected.push(e.playerKey); });
 	var entry = gamePending[spec.matchId] = { room: room, expected: new Set(expected), attached: {}, roster: roster, started: false, timer: null };
@@ -897,14 +930,25 @@ function gameAllocate(spec) {
 	return { matchId: spec.matchId };
 }
 
-// Bind a connecting game-socket to its reserved seat via the join token. Returns false (caller drops the
-// socket) if the token is bad, the match is unknown, or the seat is taken.
+// Bind a connecting game-socket to its reserved seat via the join token. Returns the player id the socket
+// now plays as: its own socket id for a first attach, the seat's original id for a mid-match reconnect
+// (see gameLive). Returns "ended" when the match is already over but the socket was handed the result it
+// missed, and false (caller drops the socket) if the token is bad, the match is unknown, or the seat is
+// taken by a still-connected socket.
 function attachGameClient(socket, playerID) {
 	var token = socket.handshake && socket.handshake.auth && socket.handshake.auth.token;
 	var payload = matchToken.verifyMatchToken(token);
 	if (!payload) return false;
 	var entry = gamePending[payload.matchId];
-	if (!entry) return false;
+	if (!entry) {
+		var live = gameLive[payload.matchId];
+		var held = live && live.seats[payload.playerKey];
+		if (held && rooms[live.room.id] && roomMapping[held.pid] === live.room) return reattachGameClient(socket, held, live.room);
+		// The match is gone (series over, room torn down). Anything this player missed while disconnected —
+		// the series_ended they were waiting for — was stashed per user; hand it over so the client resolves.
+		if (payload.userId != null && gameUtil.drainPendingRoomEvents(socket, payload.userId)) return "ended";
+		return false;
+	}
 	var seat = entry.roster[payload.playerKey];
 	if (!seat || entry.attached[payload.playerKey]) return false;
 	// Bind identity + account to this game-socket, create its game, seat it in the room.
@@ -925,9 +969,35 @@ function attachGameClient(socket, playerID) {
 	entry.room.seatByPid[playerID] = seat;
 	socket.join("room:" + entry.room.id);
 	socket.emit("connected", { id: playerID, oauth: oauth.providerFlags() });
+	socket.emit("match_attached", { id: playerID, reconnected: false });
 	socket.emit("joined_room", { roomId: entry.room.id, ranked: !!entry.room.ranked, mode: entry.room.rankedMode || null });
 	maybeStartPendingMatch(payload.matchId);
-	return true;
+	return playerID;
+}
+
+// Mid-match reconnect: rebind a fresh socket to the seat's existing player id. The old transport is
+// dead (or about to be — a client can reconnect before the server has noticed the old socket drop, in
+// which case the stale one is closed here and its disconnect handler sees it no longer owns the seat).
+function reattachGameClient(socket, held, room) {
+	var pid = held.pid;
+	if (held.graceTimer) { clearTimeout(held.graceTimer); held.graceTimer = null; }
+	var stale = sockets[pid];
+	sockets[pid] = socket;
+	if (stale && stale !== socket) { try { stale.disconnect(true); } catch (e) {} }
+	socket.join("room:" + room.id);
+	socket.emit("connected", { id: pid, oauth: oauth.providerFlags() });
+	socket.emit("match_attached", { id: pid, reconnected: true });
+	// Catch the client up, in order: a round result it missed while away, then the round that began
+	// while it was gone (its client still holds the previous round's board otherwise), then everyone's
+	// current boards. Its OWN moves need nothing here — the client buffers clicks made while offline
+	// and flushes them on reconnect, and the move-sync heartbeat heals any remaining gap.
+	var seat = held.seat;
+	if (seat && seat.userId != null) gameUtil.drainPendingRoomEvents(socket, seat.userId);
+	if (room.lastStartGame && held.disconnectedAt != null && room.lastStartGame.at > held.disconnectedAt) socket.emit("start_game", room.lastStartGame.payload);
+	held.disconnectedAt = null;
+	updateDraw(room);
+	roomState.broadcastRoomState(room);
+	return pid;
 }
 
 function maybeStartPendingMatch(matchId) {
@@ -937,6 +1007,11 @@ function maybeStartPendingMatch(matchId) {
 	entry.started = true;
 	if (entry.timer) { clearTimeout(entry.timer); entry.timer = null; }
 	delete gamePending[matchId]; // no longer pending — it's live now
+	entry.room.attachPending = false;
+	entry.room.liveMatchId = matchId;
+	var seats = {};
+	for (var key in entry.attached) seats[key] = { pid: entry.attached[key], seat: entry.roster[key], graceTimer: null, disconnectedAt: null };
+	gameLive[matchId] = { room: entry.room, seats: seats };
 	startSeries(entry.room);
 }
 
@@ -945,6 +1020,7 @@ function abortPendingMatch(matchId) {
 	if (!entry) return;
 	delete gamePending[matchId];
 	var room = entry.room;
+	room.attachPending = false;
 	if (room && rooms[room.id]) {
 		(room.players || []).slice().forEach(function(pid) { delete roomMapping[pid]; delete games[pid]; });
 		delete rooms[room.id];
@@ -979,16 +1055,43 @@ async function reportResultToMain(report) {
 			createdAt: report.replayPayload.createdAt
 		} : null
 	};
+	// Main may be mid-deploy (its machine restarts in ~20s) exactly when a match ends. Retry for about half
+	// a minute while the players wait for their result screen; if main still isn't back, show them the
+	// un-enriched standings and keep retrying in the background so the match is persisted (Elo + replay)
+	// once it returns — persistResult is idempotent per matchId, so a late duplicate is harmless.
+	var body = JSON.stringify(wire);
+	var waits = [1500, 3000, 6000, 10000, 10000];
+	for (var attempt = 0; attempt <= waits.length; attempt++) {
+		var standingsBack = await postReportToMain(body, attempt);
+		if (standingsBack) return standingsBack;
+		if (attempt < waits.length) await new Promise(function(r) { setTimeout(r, waits[attempt]); });
+	}
+	console.error("report to main failed for " + (waits.length + 1) + " attempts — showing un-rated result, retrying in background matchId=" + wire.matchId);
+	(async function() {
+		for (var i = 0; i < 20; i++) {
+			await new Promise(function(r) { setTimeout(r, 15000); });
+			if (await postReportToMain(body, "bg" + i)) { console.log("background report to main succeeded matchId=" + wire.matchId); return; }
+		}
+		console.error("giving up reporting matchId=" + wire.matchId + " to main");
+	})();
+	return null;
+}
+
+// One POST of a result report. Resolves with main's echoed standings, or null on any failure (network,
+// non-2xx, bad JSON) — never rejects.
+async function postReportToMain(body, attempt) {
 	try {
 		var res = await fetch(role.MAIN_URL + "/internal/report", {
 			method: "POST",
 			headers: { "content-type": "application/json", "x-internal-secret": role.INTERNAL_SECRET },
-			body: JSON.stringify(wire)
+			body: body,
+			signal: AbortSignal.timeout(8000)
 		});
+		if (!res.ok) throw new Error("HTTP " + res.status);
 		var data = await res.json();
 		return (data && data.standings) || null;
 	} catch (e) {
-		console.error("report to main failed", e);
+		console.error("report to main failed (attempt " + attempt + "): " + (e && e.message));
 		return null;
 	}
 }
@@ -1017,18 +1120,46 @@ io.on("connection", function (socket) {
 		// and is the leading suspect for "cleared the board but it said Defeat". Remove once confirmed.
 		var _tok = socket.handshake && socket.handshake.auth && socket.handshake.auth.token;
 		var _p = matchToken.verifyMatchToken(_tok);
-		if (!attachGameClient(socket, playerID)) {
-			console.log("[conn] game attach REJECTED pid=" + playerID + " validToken=" + (!!_p) + " matchId=" + (_p && _p.matchId) + " pendingExists=" + (!!(_p && gamePending[_p.matchId])) + " (valid token + no pending = mid-match reconnect)");
+		var attached = attachGameClient(socket, playerID);
+		if (!attached) {
+			console.log("[conn] game attach REJECTED pid=" + playerID + " validToken=" + (!!_p) + " matchId=" + (_p && _p.matchId) + " pendingExists=" + (!!(_p && gamePending[_p.matchId])) + " liveExists=" + (!!(_p && gameLive[_p.matchId])));
 			delete sockets[playerID]; socket.disconnect(true); return;
 		}
-		console.log("[conn] game attach OK pid=" + playerID + " matchId=" + (_p && _p.matchId) + " playerKey=" + (_p && _p.playerKey));
+		if (attached === "ended") {
+			// The match is over; the socket was just handed the result it missed. Close it once that's flushed.
+			console.log("[conn] game attach after match end pid=" + playerID + " matchId=" + (_p && _p.matchId) + " (missed result delivered)");
+			delete sockets[playerID];
+			setTimeout(function() { try { socket.disconnect(true); } catch (e) {} }, 1500);
+			return;
+		}
+		// A reconnect plays on under the seat's ORIGINAL id (see gameLive): every handler below is keyed by it.
+		if (attached !== playerID) { delete sockets[playerID]; playerID = attached; }
+		console.log("[conn] game attach OK pid=" + playerID + " socket=" + socket.id + " reconnect=" + (attached !== socket.id) + " matchId=" + (_p && _p.matchId) + " playerKey=" + (_p && _p.playerKey));
 		registerGameplayHandlers(socket, playerID);
-		socket.on("leave_room", function() { if (roomMapping[playerID]) removePlayerFromRoom(playerID); });
-		socket.on("disconnect", function(reason) {
-			console.log("[conn] game disconnect pid=" + playerID + " reason=" + reason + " inRoom=" + (!!roomMapping[playerID]));
+		socket.on("leave_room", function() {
+			if (sockets[playerID] !== socket) return; // a newer socket owns this seat
 			if (roomMapping[playerID]) removePlayerFromRoom(playerID);
-			delete sockets[playerID]; delete names[playerID]; delete skins[playerID]; delete revealEffects[playerID];
-			delete avatars[playerID]; delete countries[playerID]; delete accounts[playerID];
+		});
+		socket.on("disconnect", function(reason) {
+			var room = roomMapping[playerID];
+			// A newer socket already took this seat over (the client reconnected before this drop was noticed).
+			if (sockets[playerID] !== socket) { console.log("[conn] stale game socket closed pid=" + playerID + " socket=" + socket.id); return; }
+			var held = room && room.phase === "playing" && rooms[room.id] ? liveSeatForPid(playerID) : null;
+			console.log("[conn] game disconnect pid=" + playerID + " reason=" + reason + " inRoom=" + (!!room) + " grace=" + (!!held));
+			if (held) {
+				// Mid-series: hold the seat + live game state for the same token to reconnect into. Until then
+				// the player is simply AFK to everyone else — the round timer bounds the wait, nothing new.
+				delete sockets[playerID]; // the transport is dead; updateDraw already guards on sockets[pid]
+				held.disconnectedAt = Date.now();
+				held.graceTimer = setTimeout(function() {
+					held.graceTimer = null;
+					if (sockets[playerID]) return; // reconnected in the meantime
+					console.log("[conn] reconnect grace expired pid=" + playerID + " — evicting");
+					evictGamePlayer(playerID);
+				}, GAME_RECONNECT_GRACE_MS);
+				return;
+			}
+			evictGamePlayer(playerID);
 		});
 		return;
 	}
@@ -1334,6 +1465,13 @@ io.on("connection", function (socket) {
 // so nothing to hold open) or after RECONNECT_GRACE_MS with no reconnect (see above). Unchanged from what
 // used to run unconditionally in the disconnect handler itself, including the ranked early-leave Elo
 // penalty (inside removePlayerFromRoom) for whoever genuinely never came back.
+// Game role: the seat is gone for good (left, or the reconnect grace ran out).
+function evictGamePlayer(playerID) {
+	if (roomMapping[playerID]) removePlayerFromRoom(playerID);
+	delete sockets[playerID]; delete names[playerID]; delete skins[playerID]; delete revealEffects[playerID];
+	delete avatars[playerID]; delete countries[playerID]; delete accounts[playerID]; delete games[playerID];
+}
+
 function evictAbandonedPlayer(playerID) {
 	if (roomMapping[playerID]) removePlayerFromRoom(playerID);
 	delete sockets[playerID];

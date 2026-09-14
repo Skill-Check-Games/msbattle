@@ -7,13 +7,21 @@
 # Shared secrets (must match the main app):
 #   fly secrets set -a msbattle-game INTERNAL_SECRET=<same as main> MATCH_TOKEN_SECRET=<same as main>
 #
-# DRAINING ON DEPLOY: the process drains on SIGTERM (finish active matches, then exit — see
-# runtime/lifecycle.js), and refuses new matches while draining so main routes them elsewhere. kill_timeout
-# gives the drain time; for matches longer than it, do a *fleet rollover* (start new machines, let old ones
-# drain to empty, then destroy them) via the Machines API rather than a rolling replace — see DEPLOY_SPLIT.md.
+# DRAINING ON DEPLOY: there are TWO game apps (msbattle-game, msbattle-game-b — both deployed from this file
+# with -a) and the deploy workflow takes them one at a time: POST /internal/drain (main stops routing new
+# matches to it — the other app takes them), wait until /internal/health reports 0 active matches, THEN
+# `fly deploy` it. So a deploy never cuts a live match. The SIGTERM drain below is the backstop for a
+# manual/unexpected stop. See DEPLOY_SPLIT.md.
 
 app = "msbattle-game"
 primary_region = "arn"
+
+# Shutdown: TOP-LEVEL keys, on purpose — a key placed after a [section] header belongs to that section, and
+# an earlier `kill_timeout` that sat under [http_service] was silently ignored (the machine kept fly's 5s
+# default and was hard-killed mid-drain, cutting live matches). kill_signal SIGTERM = the lifecycle drain
+# handler (it handles SIGINT too); kill_timeout = how long fly waits for the drain before force-killing.
+kill_signal = "SIGTERM"
+kill_timeout = "300s"
 
 [build]
 
@@ -36,9 +44,6 @@ primary_region = "arn"
   auto_start_machines = false
   min_machines_running = 1
 
-# Give the SIGTERM drain time to let active matches finish before fly force-kills (default is ~5s).
-# A best-of-5 can still outlast this — see the fleet-rollover note above for matches that need longer.
-kill_timeout = "300s"
 
 [[vm]]
   cpu_kind = "shared"

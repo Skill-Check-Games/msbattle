@@ -22,7 +22,9 @@ primary_region = "arn"
   RANKED_DB = "/data/ranked.db"
   # Public URL(s) of the game fleet — used BOTH to allocate matches and as the address handed to the
   # browser in match_handoff, so it must be reachable from clients. Comma-separated for several servers.
-  GAME_SERVERS = "https://msbattle-game.fly.dev"
+  # Two game apps so a deploy can drain one while the other keeps taking matches (see fly.game.toml).
+  # Order = allocation preference: the first healthy, non-draining one gets the match.
+  GAME_SERVERS = "https://msbattle-game.fly.dev,https://msbattle-game-b.fly.dev"
 
 [mounts]
   source = "minesweeper_data"
