@@ -28,6 +28,10 @@ function styleKMultiplier(style, played) {
 // K-factor: big swings for a player's first matches (placement), settling to a stable floor so an
 // established rating stops bouncing. K=150 game 1 → 40 from ~game 8 on (× the per-style multiplier).
 function kFactor(played, style) { return Math.max(40, 150 - played * 14) * styleKMultiplier(style, played); }
+// Bots never persist a rating, but the result card shows them gaining and losing like anyone else (a row
+// with no rating change would say "this one is a bot"). Their swing is computed by the same pairwise math
+// off their pool rating, with a settled match count so they get the ordinary K, never the placement one.
+var BOT_SETTLED_PLAYED = 10;
 
 // Margin-of-victory: a dominant finish boosts the rating GAIN by up to the style's margin bonus. The
 // margin is the gap between this player's progress (avg fraction of board cleared across the series) and
@@ -107,7 +111,7 @@ function computeRankedElo(parts, style) {
 	for (var i = 0; i < n; i++) {
 		var p = parts[i];
 		p.delta = null; p.newRating = null; p.provisional = false;
-		if (n < 2 || p.bot || !p.userId) continue;
+		if (n < 2 || (!p.bot && !p.userId)) continue;
 		var sum = 0;
 		for (var j = 0; j < n; j++) {
 			if (i === j) continue;
@@ -118,12 +122,12 @@ function computeRankedElo(parts, style) {
 		}
 		// Normalize by sqrt(n-1) instead of (n-1) so beating more opponents pays
 		// more: 1v1 top spot ~K/2; 6-player top spot ~K*sqrt(5)/2 ≈ 2.2× as much.
-		var delta = kFactor(p.played, style) * sum / Math.sqrt(n - 1);
+		var delta = kFactor(p.bot ? BOT_SETTLED_PLAYED : p.played, style) * sum / Math.sqrt(n - 1);
 		// Reward dominant wins: scale a positive swing by how far ahead of the field you finished.
 		if (delta > 0) delta *= marginFactor(p, parts, style);
 		p.delta = Math.round(delta);
 		p.newRating = Math.max(0, p.rating + p.delta); // Bronze I floors at 0
-		p.provisional = (p.played + 1) < PROVISIONAL_GAMES;
+		p.provisional = p.bot ? false : (p.played + 1) < PROVISIONAL_GAMES;
 	}
 	return parts;
 }
@@ -158,6 +162,8 @@ function applyRankedElo(standings, style) {
 		});
 	}
 	for (var k = 0; k < standings.length; k++) {
+		// Bots get the same two display fields (never persisted) so a result card cannot be read for who is human.
+		if (parts[k].bot) { standings[k].ratingDelta = parts[k].delta; standings[k].rating = parts[k].newRating; standings[k].provisional = false; }
 		if (!parts[k].bot && parts[k].userId) {
 			standings[k].ratingDelta = parts[k].delta;
 			standings[k].rating = parts[k].newRating;
@@ -197,7 +203,12 @@ function applyRankedEloFromReport(standings, style) {
 	computeRankedElo(parts, style);
 	for (var i = 0; i < parts.length; i++) {
 		var p = parts[i];
-		if (!p.userId) continue;
+		if (!p.userId) {   // a bot: the display fields only, nothing persisted (see BOT_SETTLED_PLAYED)
+			standings[i].ratingDelta = p.delta;
+			standings[i].rating = p.newRating;
+			standings[i].provisional = false;
+			continue;
+		}
 		db.updateRating(p.userId, p.newRating, p.rank === 1, style);
 		db.recordMatch({
 			userId: p.userId, style: style, ratingBefore: p.rating, ratingAfter: p.newRating,

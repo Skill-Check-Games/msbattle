@@ -168,14 +168,16 @@ function RankAnimLab() {
 // the "before" rating first and restored when the preview closes. Its own Play another / Leave
 // buttons would act on a match that does not exist, so they are hidden behind a single Close preview.
 const RESULT_PREVIEW_NAMES = ["Foxglove", "Ironclad99", "Nimbus", "Quartzite", "Redwood", "Silversmith"];
-function buildPreviewStandings(totalPlayers: number, myRank: number, myRating: number, myDelta: number, myName: string): Standing[] {
+const RESULT_PREVIEW_FLAGS = ["SE", "DE", "US", "FR", "NO", "GB"];
+function buildPreviewStandings(totalPlayers: number, myRank: number, myRating: number, myDelta: number, myName: string, myProvisional = false): Standing[] {
 	const entries: Standing[] = [];
 	let nameIdx = 0;
 	for (let rank = 1; rank <= totalPlayers; rank++) {
-		if (rank === myRank) entries.push({ id: "me", name: myName, rank, rating: myRating, ratingDelta: myDelta, provisional: false, finished: true, finishMs: 42000, progress: 1 });
+		if (rank === myRank) entries.push({ id: "me", name: myName, rank, rating: myRating, ratingDelta: myDelta, provisional: myProvisional, finished: true, finishMs: 42000, progress: 1, avatar: "anon", country: "SE" });
 		else {
 			const finished = rank <= Math.max(2, totalPlayers - 2); // a couple of trailing ranks still racing
-			entries.push({ id: "preview-p" + rank, name: RESULT_PREVIEW_NAMES[nameIdx++ % RESULT_PREVIEW_NAMES.length], rank, rating: 500 + (totalPlayers - rank) * 15, ratingDelta: rank <= 2 ? 8 : -6, provisional: false, finished, finishMs: finished ? 18000 + rank * 6000 : undefined, progress: finished ? 1 : 0.4 + rank * 0.05 });
+			const idx = nameIdx++;
+			entries.push({ id: "preview-p" + rank, name: RESULT_PREVIEW_NAMES[idx % RESULT_PREVIEW_NAMES.length], avatar: "anon", country: RESULT_PREVIEW_FLAGS[idx % RESULT_PREVIEW_FLAGS.length], rank, rating: 500 + (totalPlayers - rank) * 15, ratingDelta: rank <= 2 ? 8 : -6, provisional: false, finished, finishMs: finished ? 18000 + rank * 6000 : undefined, progress: finished ? 1 : 0.4 + rank * 0.05 });
 		}
 	}
 	return entries;
@@ -183,7 +185,7 @@ function buildPreviewStandings(totalPlayers: number, myRank: number, myRating: n
 
 function ResultPreviewLab() {
 	const { account, update } = useAuth();
-	const [preview, setPreview] = useState<{ result: SeriesResult; from: number; saved: { ratingSprint: number; provisional: boolean } } | null>(null);
+	const [preview, setPreview] = useState<{ result: SeriesResult; from: number; saved: { ratingSprint: number; provisional: boolean; played: number; playedSprint: number } } | null>(null);
 	const [armed, setArmed] = useState(false); // the modal mounts once the account shows the "before" rating
 	useEffect(() => { if (preview && !armed && account && account.ratingSprint === preview.from) setArmed(true); }, [preview, armed, account]);
 
@@ -193,10 +195,23 @@ function ResultPreviewLab() {
 		const pair = pairFor(up), isDuo = totalPlayers === 2, myRank = up ? 1 : (isDuo ? 2 : 5);
 		const standings = buildPreviewStandings(totalPlayers, myRank, pair.to, pair.to - pair.from, account.name || "You");
 		const winner = standings.find(s => s.rank === 1)!;
-		setPreview({ result: { ranked: true, mode: isDuo ? "sprint_duo" : "sprint_six", winnerId: winner.id, winnerName: winner.name, standings, scores: [] }, from: pair.from, saved: { ratingSprint: account.ratingSprint, provisional: account.provisional } });
-		update({ ratingSprint: pair.from });
+		setPreview({ result: { ranked: true, mode: isDuo ? "sprint_duo" : "sprint_six", winnerId: winner.id, winnerName: winner.name, standings, scores: [] }, from: pair.from, saved: savedNow() });
+		update({ ratingSprint: pair.from, provisional: false });
 	};
-	const close = () => { const saved = preview?.saved; setArmed(false); setPreview(null); if (saved) update(saved); };
+	const savedNow = () => ({ ratingSprint: account!.ratingSprint, provisional: account!.provisional, played: account!.played, playedSprint: account!.playedSprint });
+	// A placement match: the panel shows the rings instead of the rating bar. `matchNo` is which of the
+	// five this match is, so the account starts one short of it.
+	const openPlacement = (totalPlayers: number, matchNo: number) => {
+		if (!account) return;
+		unlockAudio();
+		const isDuo = totalPlayers === 2, myRank = isDuo ? 1 : 3, need = account.placementGames || 5;
+		const done = matchNo >= need;
+		const standings = buildPreviewStandings(totalPlayers, myRank, account.ratingSprint, 34, account.name || "You", !done);
+		const winner = standings.find(s => s.rank === 1)!;
+		setPreview({ result: { ranked: true, mode: isDuo ? "sprint_duo" : "sprint_six", winnerId: winner.id, winnerName: winner.name, standings, scores: [] }, from: account.ratingSprint, saved: savedNow() });
+		update({ playedSprint: matchNo - 1, provisional: !done });
+	};
+	const close = () => { const saved = preview?.saved; setArmed(false); setPreview(null); if (saved) update(saved); };   // the panel patches the account for real; put it back
 
 	return (
 		<LabSection title="Post-game rank-up/down modal (in context)" sub={<>Opens the real post-game result modal with a fake tier-crossing match, instead of having to actually climb or drop a tier in a real ranked match to see it. This is the exact production modal (SeriesResultModal), not a mockup. "Close preview" stands in for Play another / Leave, which would otherwise try to act on a real match that doesn't exist here.</>}>
@@ -207,6 +222,8 @@ function ResultPreviewLab() {
 						<div className={labStyles.actions}>
 							<button type="button" className="btn" disabled={!account} onClick={() => open(true, g.players)}>▲ Rank up</button>
 							<button type="button" className="btn" disabled={!account} onClick={() => open(false, g.players)}>▼ Rank down</button>
+							<button type="button" className="btn" disabled={!account} onClick={() => openPlacement(g.players, 3)}>Placement 3/5</button>
+							<button type="button" className="btn" disabled={!account} onClick={() => openPlacement(g.players, 5)}>Placement done</button>
 						</div>
 					</div>
 				))}

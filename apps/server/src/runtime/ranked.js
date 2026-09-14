@@ -29,6 +29,13 @@ var roomMapping = appState.roomMapping, games = appState.games, rooms = appState
 // Ranked mode catalogue + timings (moved here from the server). Each playstyle carries its
 // own Elo ladder.
 // The "_six" modes: six players (you and five others), so the desktop view tiles every board three by two.
+// Local testing only: RANKED_ROUND_SECONDS=10 in .env shortens every ranked round (see minesweeperServer.js).
+var ROUND_SECONDS_OVERRIDE = parseInt(process.env.RANKED_ROUND_SECONDS || "", 10);
+function modeRoundSeconds(modeDef) {
+	if (ROUND_SECONDS_OVERRIDE > 0) return ROUND_SECONDS_OVERRIDE;
+	return (typeof modeDef.roundSeconds === "number") ? modeDef.roundSeconds : RANKED_RULES.roundSeconds;
+}
+
 var RANKED_MODES = {
 	sprint_duo: { size: 2, label: "1v1 Sprint", style: "sprint", mineDensity: 0.10, boardSize: "medium" },
 	sprint_six: { size: 6, label: "6P Sprint",  style: "sprint", mineDensity: 0.10, boardSize: "medium" },
@@ -133,7 +140,7 @@ function broadcastRankedQueue(mode) {
 			size: modeSize(mode),
 			members: rankedSearchMembers(pid, mode),
 			// the round length this mode will play, so the client's clock can show it while the search runs
-			roundSeconds: (typeof RANKED_MODES[mode].roundSeconds === "number") ? RANKED_MODES[mode].roundSeconds : RANKED_RULES.roundSeconds
+			roundSeconds: modeRoundSeconds(RANKED_MODES[mode])
 		});
 	}
 }
@@ -275,7 +282,7 @@ function formRankedMatch(mode) {
 		boardSize: modeDef.boardSize,
 		rules: {
 			mineDensity: modeDef.mineDensity,
-			roundSeconds: (typeof modeDef.roundSeconds === "number") ? modeDef.roundSeconds : RANKED_RULES.roundSeconds,
+			roundSeconds: modeRoundSeconds(modeDef),
 			deathPenalty: RANKED_RULES.deathPenalty,
 			gameCount: RANKED_RULES.gameCount,
 			modifier: null
@@ -344,7 +351,7 @@ function allocateMatchToGameServer(mode, modeDef, matchSize, humans, botSpecs) {
 		ranked: true, mode: mode, style: style, gameMode: modeDef.gameMode || "race", boardSize: modeDef.boardSize,
 		rules: {
 			mineDensity: modeDef.mineDensity,
-			roundSeconds: (typeof modeDef.roundSeconds === "number") ? modeDef.roundSeconds : RANKED_RULES.roundSeconds,
+			roundSeconds: modeRoundSeconds(modeDef),
 			deathPenalty: RANKED_RULES.deathPenalty, gameCount: RANKED_RULES.gameCount, modifier: null
 		},
 		humanRoster: humanRoster,

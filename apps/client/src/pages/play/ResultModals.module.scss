@@ -1,13 +1,20 @@
-// The ranked result (legacy "Focus" layout): roomier, left-aligned, the rating change is the hero and
-// the opponent or standings context sits under a divider. No coloured panel border.
-.ranked { width: min(94vw, 560px); padding: 2rem 2.1rem; gap: 1.35rem; align-items: flex-start; text-align: left; border-color: var(--border); }
+// The ranked result panel: roomy and left-aligned, the rating (or the placement run) as the hero block and
+// the field underneath. No coloured panel border; the outcome lives in the type, not in a frame.
+.ranked { width: min(94vw, 560px); padding: 1.8rem 2rem; gap: 1.1rem; align-items: flex-start; text-align: left; border-color: var(--border); }
 .hero { display: flex; align-items: center; gap: 1.1rem; }
 .heroBadge { flex: 0 0 auto; }
+.heroText { min-width: 0; }
 .heading { font-family: var(--font-display); font-size: 1.85rem; font-weight: 800; letter-spacing: -0.01em; line-height: 1; }
 .rankedLose .heading { color: var(--muted); }
 .rankedWin .heading, .headingWin { color: var(--energy-gold); text-shadow: 0 0 24px rgba(252, 211, 51, 0.45); }
+// A podium finish keeps its colour even when it is not a win (2nd and 3rd of six is worth something).
+.heading.p2 { color: #e2e8f0; text-shadow: none; }
+.heading.p3 { color: #f0b486; text-shadow: none; }
 .sub { color: var(--muted); font-size: 0.85rem; margin-top: 0.3rem; }
+
+// ---- the rating block ----
 .ratingCard { align-self: stretch; padding: 1.1rem 1.2rem; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 0.65rem; }
+.revealLine { font-size: 0.85rem; color: var(--muted); b { font-weight: 800; } }
 .cols { display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; gap: 0.5rem; }
 .col { display: flex; flex-direction: column; gap: 0.1rem; }
 .center { align-items: center; padding-bottom: 0.2rem; .colNum { font-size: 1.4rem; } }
@@ -18,52 +25,106 @@
 .gain { color: var(--energy-win); }
 .loss { color: var(--danger); }
 .flat { color: var(--muted); }
-.track { position: relative; height: 0.5rem; border-radius: 999px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
-.trackFill { position: absolute; inset: 0 auto 0 0; border-radius: 999px; background: linear-gradient(90deg, var(--accent), var(--accent-hover)); transition: width 0.9s cubic-bezier(0.22, 1, 0.36, 1); }
+// The tier bar: square, and thick enough to read as a gauge rather than a hairline.
+.track { position: relative; height: 0.75rem; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+.trackFill { position: absolute; inset: 0 auto 0 0; background: linear-gradient(90deg, var(--accent), var(--accent-hover)); transition: width 0.9s cubic-bezier(0.22, 1, 0.36, 1); }
 .rankedWin .trackFill { background: linear-gradient(90deg, var(--energy-win), #86efac); }
 .progLabels { display: flex; justify-content: space-between; align-items: baseline; font-size: 0.78rem; span:first-child { font-weight: 700; } span:last-child { color: var(--muted); } }
-.divider { height: 1px; background: var(--border); align-self: stretch; }
+
+// ---- placement run: one ring per match instead of a rating bar ----
+.placementCard { gap: 0.7rem; }
+.placeHead { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+.placeTitle { font-family: var(--font-display); font-size: 0.72rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.placeCount { font-family: var(--font-display); font-weight: 800; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.rings { display: flex; align-items: center; gap: 0.6rem; }
+.ring {
+	position: relative; flex: 1 1 0; aspect-ratio: 1; max-width: 2.6rem; border-radius: 50%;
+	border: 2px solid var(--border); background: rgba(255, 255, 255, 0.03);
+	transition: border-color 0.3s ease, background 0.3s ease;
+}
+// A ring earned in an earlier match: filled, quiet. The one this match earned lands with a pop and a pulse.
+.ringOn { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 45%, transparent); }
+.ringOn::after { content: ""; position: absolute; inset: 22%; border-radius: 50%; background: var(--accent-hover); animation: ringDot 0.3s ease-out calc(0.1s + var(--i) * 0.06s) both; }
+.ringNew { animation: ringLand 0.5s cubic-bezier(0.2, 1.6, 0.4, 1) 0.35s both; }
+.ringNew::before { content: ""; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--accent-hover); animation: ringPulse 0.9s ease-out 0.5s both; }
+.placeFoot { font-size: 0.85rem; font-weight: 600; }
+@keyframes ringLand { from { transform: scale(0.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes ringPulse { from { transform: scale(0.8); opacity: 0.9; } to { transform: scale(1.7); opacity: 0; } }
+@keyframes ringDot { from { transform: scale(0); } to { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .ringNew, .ringNew::before, .ringOn::after { animation: none; } }
+
+// ---- the field ----
 .context { display: flex; flex-direction: column; gap: 0.6rem; align-self: stretch; }
-.oppLine { display: flex; align-items: center; gap: 0.7rem; flex-wrap: wrap; }
-.oppName { font-size: 0.98rem; font-weight: 700; }
-.oppTier { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.8rem; font-weight: 700; }
-.tierDot { width: 7px; height: 7px; border-radius: 50%; flex: 0 0 auto; display: inline-block; }
-.times { display: flex; gap: 1.4rem; flex-wrap: wrap; }
-.timeChip { display: flex; flex-direction: column; gap: 0.15rem; }
-.timeLabel { font-size: 0.64rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
-.timeVal { font-family: var(--font-display); font-weight: 700; font-size: 1rem; font-variant-numeric: tabular-nums; }
+.savatar :global(canvas) { border-radius: 50%; display: block; }
+.snameText { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+// 1v1: the two duellists, yours picked out by the accent rail and a filled ground.
+.duel { display: flex; flex-direction: column; gap: 0.4rem; }
+.pline { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0.75rem; border-radius: 6px; border: 1px solid var(--border); border-left: 4px solid var(--border); background: rgba(255, 255, 255, 0.02); min-width: 0; }
+.plineMe { border-color: var(--accent); border-left-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.pinfo { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; }
+.pname { display: flex; align-items: center; gap: 0.35rem; font-weight: 700; font-size: 0.98rem; min-width: 0; }
+.ptier { font-size: 0.78rem; font-weight: 700; }
+.ptime { flex: 0 0 auto; text-align: right; }
+.ptimeVal { font-family: var(--font-display); font-weight: 800; font-size: 1.1rem; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.ptimeLabel { font-size: 0.66rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
 .you { color: var(--energy-win); }
-.oppc { color: var(--muted); }
+.oppc { color: var(--text); }
 .dnf { color: var(--danger); }
-.eyebrow { font-size: 0.66rem; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
-.standings { display: flex; flex-direction: column; gap: 2px; }
-.srow { display: grid; grid-template-columns: 1.4rem 1fr auto auto; gap: 0.5rem; align-items: center; padding: 0.35rem 0.45rem; border-radius: 4px; font-size: 0.85rem; }
-.srowMe { background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.2); font-weight: 700; }
-.srank { font-weight: 800; color: var(--muted); text-align: center; font-size: 0.78rem; }
-.g1 { color: var(--energy-gold); } .g2 { color: #cbd5e1; } .g3 { color: #d08b5b; }
-.sname { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.stime { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 0.78rem; }
+
+// The free-for-all field: one row per player, yours unmistakable (accent rail, filled ground, brighter text).
+.standings { display: flex; flex-direction: column; gap: 0.25rem; }
+.srow {
+	display: grid; grid-template-columns: 1.5rem auto minmax(0, 1fr) auto 3rem; gap: 0.6rem; align-items: center;
+	padding: 0.35rem 0.6rem; border-radius: 5px; font-size: 0.9rem; min-width: 0;
+	border: 1px solid transparent; border-left: 4px solid transparent; background: rgba(255, 255, 255, 0.03);
+}
+.srowMe { border-color: var(--accent); border-left-color: var(--accent); background: color-mix(in srgb, var(--accent) 18%, transparent); font-weight: 700; color: #fff; }
+.srank { font-family: var(--font-display); font-weight: 800; color: var(--muted); text-align: center; font-size: 0.95rem; font-variant-numeric: tabular-nums; }
+.p1 { color: var(--energy-gold); } .p2 { color: #e2e8f0; } .p3 { color: #f0b486; }
+.sname { min-width: 0; display: flex; align-items: center; gap: 0.35rem; }
+.stime { color: var(--muted); font-variant-numeric: tabular-nums; font-size: 0.8rem; }
+.srowMe .stime { color: var(--text); }
+.sdelta { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; font-size: 0.85rem; }
+
 // Actions stretch across the panel; Play another grows, Leave keeps its size.
 .ranked :global(.kbd-btn-group), .ranked > div:last-child { align-self: stretch; }
 .again { flex: 1 1 auto; }
 .casualHeader { text-align: center; font-size: 1.4rem; font-weight: 800; font-family: var(--font-display); }
 
-// Landscape phones (compact): the hero and the opponent context on the left, the rating card on the right,
-// the actions across the bottom; smaller type and tighter padding so it fits a 360px-tall viewport without
-// scrolling. Sizes are percentages of the containing block (the viewport, or the force-rotated layout), never vh/vw.
+// Landscape phones (compact): the hero and the field on the left, the rating or placement block on the
+// right, the actions across the bottom; smaller type and tighter padding so it fits a 360px-tall viewport
+// without scrolling. Sizes are percentages of the containing block (the viewport, or the force-rotated
+// layout), never vh/vw.
 .compact {
-	display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); grid-template-areas: "hero card" "context card" "actions actions";
-	align-items: start; align-content: start; gap: 0.7rem 1.1rem;
-	width: min(92%, 660px); max-height: calc(100% - 1rem); padding: 1rem 1.2rem 0.9rem;
-	.hero { grid-area: hero; gap: 0.8rem; }
-	.heading { font-size: 1.45rem; }
-	.sub { margin-top: 0.2rem; font-size: 0.8rem; }
-	.ratingCard { grid-area: card; padding: 0.8rem 0.9rem; gap: 0.5rem; }
-	.colNum { font-size: 1.6rem; }
-	.center .colNum { font-size: 1.15rem; }
-	.old { font-size: 1rem; }
-	.divider { display: none; }
-	.context { grid-area: context; gap: 0.45rem; }
-	.times { gap: 1.1rem; }
+	display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); grid-template-areas: "hero card" "context card" "actions actions";
+	align-items: start; align-content: start; gap: 0.55rem 1.1rem;
+	width: min(94%, 700px); max-height: calc(100% - 1rem); padding: 0.9rem 1.1rem 0.8rem;
+	.hero { grid-area: hero; gap: 0.7rem; }
+	.heading { font-size: 1.35rem; }
+	.sub { margin-top: 0.15rem; font-size: 0.74rem; }
+	.ratingCard { grid-area: card; align-self: start; padding: 0.7rem 0.8rem; gap: 0.45rem; }
+	.colNum { font-size: 1.5rem; }
+	.center .colNum { font-size: 1.1rem; }
+	.old { font-size: 0.95rem; }
+	.colLabel { font-size: 0.6rem; }
+	.track { height: 0.6rem; }
+	.progLabels { font-size: 0.7rem; }
+	.revealLine { font-size: 0.74rem; }
+	.rings { gap: 0.4rem; }
+	.ring { max-width: 1.9rem; border-width: 2px; }
+	.placeCount { font-size: 0.9rem; }
+	.placeFoot { font-size: 0.74rem; }
+	.context { grid-area: context; gap: 0.35rem; min-width: 0; }
+	.standings { gap: 0.2rem; }
+	.srow { grid-template-columns: 1.1rem auto minmax(0, 1fr) auto 2.5rem; gap: 0.4rem; padding: 0.2rem 0.4rem; font-size: 0.78rem; }
+	.srank { font-size: 0.8rem; }
+	.stime { font-size: 0.72rem; }
+	.sdelta { font-size: 0.75rem; }
+	.pline { padding: 0.35rem 0.55rem; gap: 0.55rem; }
+	.pname { font-size: 0.85rem; }
+	.ptier { font-size: 0.7rem; }
+	.ptimeVal { font-size: 0.95rem; }
+	.ptimeLabel { font-size: 0.58rem; }
 	> :last-child { grid-area: actions; margin-top: 0; }
 }

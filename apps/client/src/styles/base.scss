@@ -30,6 +30,9 @@ canvas { display: block; }
 .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; &:hover { background: var(--accent-hover); border-color: var(--accent-hover); } }
 .btn-ghost { background: transparent; }
 
+// The navbar's burger panel is open: the page behind it does not scroll (NavBar.tsx adds the class).
+body.menu-open { overflow: hidden; }
+
 // In-game on phones: the navbar and footer give the board their space back.
 body.in-game #root > div > footer { display: none; }
 body.game-live #root > div > header { display: none; }

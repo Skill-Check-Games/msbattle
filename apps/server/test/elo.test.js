@@ -38,15 +38,21 @@ test("margin-of-victory scales a positive swing but not a loss", () => {
 	assert.strictEqual(parts[1].delta, -20); // loss unaffected by margin
 });
 
-test("bots and non-persisted players get no delta", () => {
+// Bots are rated for display only (nothing is persisted for them): a result card with a blank rating
+// change on some rows would say which players are bots, which the game never reveals.
+test("bots get a display delta at the settled K; unidentified players get none", () => {
 	const parts = [
 		{ rank: 1, rating: 1200, bot: true, userId: null, played: 0 },
-		{ rank: 2, rating: 1000, bot: false, userId: 7, played: 3 }
+		{ rank: 2, rating: 1000, bot: false, userId: 7, played: 3 },
+		{ rank: 3, rating: 1000, bot: false, userId: null, played: 0 }
 	];
 	elo.computeRankedElo(parts, "sprint");
-	assert.strictEqual(parts[0].delta, null, "bot has no delta");
+	assert.notStrictEqual(parts[0].delta, null, "bot is rated for display");
+	assert.strictEqual(parts[0].provisional, false, "a bot is never in placement");
+	assert.ok(Math.abs(parts[0].delta) <= 60, "a bot swings by the settled K, not the placement one");
 	assert.notStrictEqual(parts[1].delta, null, "human is rated");
 	assert.strictEqual(parts[1].provisional, true); // played+1=4 < 5
+	assert.strictEqual(parts[2].delta, null, "a player with no identity at all is not rated");
 });
 
 test("a rating can't fall below 0 (Bronze I floor)", () => {

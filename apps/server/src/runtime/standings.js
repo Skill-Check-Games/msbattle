@@ -9,6 +9,7 @@ var gameUtil = require("./gameUtil");
 
 var roundStarts = appState.roundStarts, games = appState.games, accounts = appState.accounts;
 var names = appState.names, botRating = appState.botRating;
+var avatars = appState.avatars, countries = appState.countries;
 var isBot = gameUtil.isBot, accountRating = gameUtil.accountRating;
 
 var RANKED_BOT_RATING, PROVISIONAL_GAMES;
@@ -62,6 +63,8 @@ function buildStandings(room) {
 		return {
 			id: pid,
 			name: names[pid] || "Anonymous",
+			avatar: avatars[pid] || null,
+			country: countries[pid] || null,
 			safeCount: safeCount,
 			// Fraction of safe cells cleared this round (1 = finished) — feeds the margin-of-victory bonus.
 			progress: finished ? 1 : (g && g.progress ? g.progress() : (totalSafe > 0 ? safeCount / totalSafe : 0)),
@@ -106,7 +109,10 @@ function buildSeriesStandings(room) {
 		var rating = bot ? (botRating[pid] || RANKED_BOT_RATING) : accountRating(accounts[pid], style);
 		var provisional = bot ? false : (accounts[pid] ? accounts[pid].played < PROVISIONAL_GAMES : false);
 		// Average per-round progress across the series — the margin-of-victory signal at series end.
+		// avatar/country: the result card shows each player as they appeared in the match (already public
+		// in every room broadcast, so nothing new is exposed).
 		return { id: pid, name: names[pid] || "Anonymous", score: room.scores[pid] || 0,
+			avatar: avatars[pid] || null, country: countries[pid] || null,
 			progress: rounds > 0 ? (sums[pid] || 0) / rounds : 0,
 			finished: finished,
 			finishMs: (finished && roundStart && finishedAt) ? (finishedAt - roundStart) : null,

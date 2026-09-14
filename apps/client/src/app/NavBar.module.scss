@@ -37,6 +37,11 @@
 .popoverLink { display: block; width: 100%; text-align: left; padding: 0.45rem 0.5rem; border-radius: 4px; border: 0; background: none; color: var(--text); font: inherit; font-size: 0.88rem; text-decoration: none; cursor: pointer; &:hover { background: var(--surface-2); } }
 .popoverSignOut { color: var(--danger); }
 
+// Phones: the fullscreen button and the burger sit together at the right end of the bar.
+.mobileBar { display: none; align-items: center; gap: 0.35rem; justify-content: flex-end; position: relative; z-index: 60; @include below($bp-lg) { display: flex; } }   // above the scrim: the close button stays crisp and tappable
+// The page behind the open panel: dimmed and inert (base.scss stops it scrolling), a tap closes the menu.
+.scrim { position: fixed; inset: 0; z-index: 40; background: rgba(7, 11, 22, 0.72); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); animation: scrimIn 0.18s ease-out both; }
+@keyframes scrimIn { from { opacity: 0; } }
 // Burger: a fixed 40px square so the icon swap never shifts the row.
 .burger {
 	display: none; width: 40px; height: 40px; padding: 0; border-radius: 6px;
@@ -44,6 +49,7 @@
 	@include below($bp-lg) { display: flex; }
 	&:hover { border-color: var(--muted); }
 }
+.mobileBar .burger { display: flex; }
 .iconMenu, .iconClose { display: block; width: 18px; height: 14px; position: relative; }
 .iconMenu {
 	background: linear-gradient(var(--text), var(--text)) center / 100% 2px no-repeat;

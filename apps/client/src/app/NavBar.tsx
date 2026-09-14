@@ -21,6 +21,14 @@ export default function NavBar() {
 	const [open, setOpen] = useState(false);
 	const location = useLocation();
 	useEffect(() => { setOpen(false); }, [location.pathname]);
+	// The panel covers the page: the page behind it must not scroll under the finger, and Escape closes it.
+	useEffect(() => {
+		if (!open) return;
+		document.body.classList.add("menu-open");
+		const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
+		document.addEventListener("keydown", onKey);
+		return () => { document.body.classList.remove("menu-open"); document.removeEventListener("keydown", onKey); };
+	}, [open]);
 
 	const signedIn = !!account && !account.guest;
 	const links = account && account.isAdmin ? [...LINKS, ["/admin", "Admin"] as [string, string]] : LINKS;
@@ -41,9 +49,14 @@ export default function NavBar() {
 				<FullscreenButton />
 				{signedIn ? <AccountMenu account={account!} onSignOut={signOut} /> : signInBtn}
 			</div>
-			<button className={styles.burger} aria-label={open ? "Close menu" : "Open menu"} aria-expanded={open} onClick={() => setOpen(o => !o)}>
-				<span className={open ? styles.iconClose : styles.iconMenu} aria-hidden="true" />
-			</button>
+			{/* Phones: fullscreen sits beside the burger, not inside the panel — it is a control you reach for mid-session. */}
+			<div className={styles.mobileBar}>
+				<FullscreenButton />
+				<button className={styles.burger} aria-label={open ? "Close menu" : "Open menu"} aria-expanded={open} onClick={() => setOpen(o => !o)}>
+					<span className={open ? styles.iconClose : styles.iconMenu} aria-hidden="true" />
+				</button>
+			</div>
+			{open && <div className={styles.scrim} onClick={() => setOpen(false)} aria-hidden="true" />}
 			{open && (
 				<div className={styles.panel}>
 					{links.map(([to, label]) => (
@@ -52,7 +65,6 @@ export default function NavBar() {
 					<div className={styles.menuAccount}>
 						{signedIn && <MenuAccountRow account={account!} />}
 						<div className={styles.menuActions}>
-							<FullscreenButton />
 							{signedIn ? <button className={`btn btn-ghost ${styles.menuBtn}`} onClick={signOut}>Sign out</button> : signInBtn}
 						</div>
 					</div>

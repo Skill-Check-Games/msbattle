@@ -22,7 +22,7 @@ export interface RoomState {
 	botCount: number; maxBots: number; maxPlayers: number; players: RoomPlayer[];
 }
 export interface GameFrame { id: string; playerName: string; skin: string | null; revealEffect?: string | null; avatar: string | null; country: string | null; state: number[][]; finished: boolean; finishedAt: number; safeCount: number; totalSafe: number; progress: number; frozenUntil: number; playing: boolean; }
-export interface Standing { id: string; name: string; rank?: number; score?: number; finished?: boolean; finishMs?: number; progress?: number; rating?: number; ratingDelta?: number; provisional?: boolean; }
+export interface Standing { id: string; name: string; avatar?: string | null; country?: string | null; rank?: number; score?: number; finished?: boolean; finishMs?: number; progress?: number; rating?: number; ratingDelta?: number; provisional?: boolean; }
 export interface RankedSearch { mode: string; size: number; members: RoomPlayer[]; roundSeconds?: number; }
 export interface SeriesResult { winnerId: string | null; winnerName: string | null; ranked: boolean; mode: string | null; standings: Standing[]; scores: Array<{ id: string; name: string; score: number }>; }
 

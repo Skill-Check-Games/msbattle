@@ -1,18 +1,25 @@
-// End-of-series dialogs: the ranked result (rating before/after, tier progress, opponent or full
-// standings) and the casual one (winner, rematch or leave).
-import { useEffect, useRef, useState } from "react";
+// End-of-series dialogs: the ranked result (how you placed, what it did to your rating or your placement
+// run, and how the field finished) and the casual one (winner, rematch or leave). One panel serves the 1v1
+// and the 6-player free-for-all: the hero and the rating block are shared, only the context block differs
+// (the two duellists with their times, or the whole field as a list).
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ResultPanel, ResultActions } from "../../game/ResultPanel";
-import { RankBadge } from "../../shared/RankBadge";
+import { RankBadge, PlacementBadge } from "../../shared/RankBadge";
+import { AvatarChip, FlagChip } from "../../shared/Avatar";
 import { tierFor, tierProgress, ordinal, formatClearTime } from "../../shared/ranking";
 import { sound } from "../../audio/sound";
 import { match, MODE_LABELS, SeriesResult, Standing } from "../../game/match-store";
 import { useAuth } from "../../shared/auth";
+import type { Account } from "../../shared/types";
 import { useMediaQuery, LANDSCAPE_PHONE_MQ } from "./mobile";
 import styles from "./ResultModals.module.scss";
 
 const deltaText = (d: number) => (d > 0 ? "+" : d < 0 ? "−" : "±") + Math.abs(d);
 const deltaCls = (d: number) => d > 0 ? styles.gain : d < 0 ? styles.loss : styles.flat;
 const styleField = (mode: string | null): "ratingSprint" | "ratingStandard" | null => !mode ? null : mode.indexOf("sprint") === 0 ? "ratingSprint" : mode.indexOf("standard") === 0 ? "ratingStandard" : null;
+const playedField = (mode: string | null): "playedSprint" | "playedStandard" | null => !mode ? null : mode.indexOf("sprint") === 0 ? "playedSprint" : mode.indexOf("standard") === 0 ? "playedStandard" : null;
+// A player's line in the standings: their clear time, or how far they got if they never cleared.
+const resultOf = (s: Standing) => s.finished && typeof s.finishMs === "number" ? formatClearTime(s.finishMs) : Math.round((s.progress || 0) * 100) + "%";
 
 // compact: the landscape-phone layout (two columns side by side, sized to a short viewport).
 export function SeriesResultModal({ result, myId, compact }: { result: SeriesResult; myId: string | null; compact?: boolean }) {
@@ -20,25 +27,63 @@ export function SeriesResultModal({ result, myId, compact }: { result: SeriesRes
 	return result.ranked ? <RankedResult result={result} myId={myId} compact={compact || landscapePhone} /> : <CasualResult result={result} myId={myId} />;
 }
 
+// Each result is applied to the local account exactly once, however often this panel is mounted (a phone
+// rotating between the two play layouts remounts it with the same result object).
+const applied = new WeakSet<object>();
+
 function RankedResult({ result, myId, compact }: { result: SeriesResult; myId: string | null; compact?: boolean }) {
 	const { account, update } = useAuth();
 	const standings = result.standings || [];
-	const mine: Standing = standings.find(s => s.id === myId) || ({} as Standing);
+	// Who am I in this list? By id, and failing that by name (an id can change under a reconnect or a
+	// hand-off to a game server). Never guessed: an unidentified player is shown no place at all, rather
+	// than the first one, which is where "1st place" used to come from after finishing fifth.
+	const mine = useMemo<Standing | null>(() => {
+		const byId = standings.find(s => s.id === myId);
+		if (byId) return byId;
+		const name = account && account.name;
+		const byName = name ? standings.filter(s => s.name === name) : [];
+		return byName.length === 1 ? byName[0] : null;
+	}, [standings, myId, account && account.name]);
+
 	const isDuo = standings.length === 2;
-	const won = isDuo ? result.winnerId === myId : mine.rank === 1;
-	const field = styleField(result.mode);
-	const oldRef = useRef<number | null>(account && field && typeof account[field] === "number" ? account[field] : null);
-	const oldRating = oldRef.current;
-	const newRating = typeof mine.rating === "number" ? mine.rating : (oldRating ?? 0);
+	const rank = mine && typeof mine.rank === "number" ? mine.rank : null;
+	// A 1v1 with no winner is a draw (both share rank 1), which is neither a victory nor a defeat.
+	const drew = isDuo && !result.winnerId;
+	const won = drew ? false : isDuo ? (mine ? rank === 1 : result.winnerId === myId) : rank === 1;
+	const field = styleField(result.mode), playedKey = playedField(result.mode);
+
+	// Everything about "before" is captured at mount, ahead of the account patch below.
+	const beforeRef = useRef<{ rating: number | null; played: number | null }>({
+		rating: account && field && typeof account[field] === "number" ? account[field] : null,
+		played: account && playedKey && typeof account[playedKey] === "number" ? account[playedKey] : null
+	});
+	const oldRating = beforeRef.current.rating;
+	const newRating = typeof mine?.rating === "number" ? mine.rating : (oldRating ?? 0);
+	const need = (account && account.placementGames) || 5;
+	const playedAfter = beforeRef.current.played == null ? null : beforeRef.current.played + 1;
+	// Still in placement after this match (the server decides); the rating stays hidden until the run ends.
+	const placing = !!mine?.provisional;
+	const revealed = !placing && playedAfter != null && playedAfter === need;   // this match completed the run
+
 	const [shown, setShown] = useState(oldRating ?? newRating);
 	const [fill, setFill] = useState(tierProgress(oldRating ?? newRating).fill);
-	const crossed = oldRating != null && tierFor(oldRating, mine.provisional).name !== tierFor(newRating, mine.provisional).name;
-	const tier = tierFor(newRating, mine.provisional);
+	const crossed = oldRating != null && tierFor(oldRating).name !== tierFor(newRating).name;
+	const tier = tierFor(newRating);
 	const prog = tierProgress(newRating);
 
 	useEffect(() => {
-		// Apply the new rating to the account once, then animate the number and the bar toward it.
-		if (field && typeof mine.rating === "number") update({ [field]: mine.rating, provisional: mine.provisional ?? account?.provisional } as any);
+		// The account carries this match: the new rating, whether placement is over, and one more game
+		// played in this style — so the home page's rank chip is right without a reload.
+		if (!applied.has(result)) {
+			applied.add(result);
+			const patch: Partial<Account> = {};
+			if (field && typeof mine?.rating === "number") patch[field] = mine.rating;
+			if (typeof mine?.provisional === "boolean") patch.provisional = mine.provisional;
+			if (playedKey && beforeRef.current.played != null) patch[playedKey] = beforeRef.current.played + 1;
+			if (account && typeof account.played === "number") patch.played = account.played + 1;
+			if (Object.keys(patch).length) update(patch);
+		}
+		if (placing) return;   // no rating animation during a placement run: the rings tell that story
 		const from = oldRating ?? newRating, to = newRating, start = Date.now(), dur = 950;
 		const t1 = setTimeout(() => {
 			const frame = () => { const t = Math.min(1, (Date.now() - start) / dur), e = 1 - Math.pow(1 - t, 3); setShown(Math.round(from + (to - from) * e)); if (t < 1) requestAnimationFrame(frame); };
@@ -46,48 +91,66 @@ function RankedResult({ result, myId, compact }: { result: SeriesResult; myId: s
 			setFill(crossed ? (newRating > from ? 1 : 0) : prog.fill);
 		}, 400);
 		const t2 = setTimeout(() => { if (crossed) setFill(prog.fill); }, 1300);
-		const t3 = setTimeout(() => { if (crossed) (newRating > (oldRating ?? 0) ? sound.rankUp : sound.rankDown)(); }, 1700);
+		const t3 = setTimeout(() => { if (crossed || revealed) (newRating > (oldRating ?? 0) || revealed ? sound.rankUp : sound.rankDown)(); }, 1700);
 		return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
 	}, []);
 
-	const opp = isDuo ? standings.find(s => s.id !== myId) : null;
+	// The panel's frame: green for a win, red only for a finish in the bottom half of the field (a podium
+	// place in a six-player free-for-all is not a defeat), neutral in between.
+	const kind: "win" | "lose" | "neutral" = won ? "win" : drew || !rank ? "neutral" : isDuo ? "lose" : rank <= Math.ceil(standings.length / 2) ? "neutral" : "lose";
+	const opp = isDuo && mine ? standings.find(s => s !== mine) || null : null;
+	const heading = drew ? "Draw" : !mine ? "Match complete" : isDuo ? (rank === 1 ? "Victory" : "Defeat") : rank ? ordinal(rank) + " place" : "Match complete";
+	const placeCls = rank === 1 ? styles.p1 : rank === 2 ? styles.p2 : rank === 3 ? styles.p3 : "";
+
 	return (
-		<ResultPanel slow kind={won ? "win" : "lose"} className={`${styles.ranked} ${won ? styles.rankedWin : styles.rankedLose} ${compact ? styles.compact : ""}`}>
+		<ResultPanel slow kind={kind} className={`${styles.ranked} ${won ? styles.rankedWin : styles.rankedLose} ${compact ? styles.compact : ""}`}>
 			<div className={styles.hero}>
-				<div className={styles.heroBadge}><RankBadge rating={newRating} size={13} /></div>
-				<div>
-					<div className={`${styles.heading} ${won ? styles.headingWin : ""}`}>{isDuo ? (won ? "Victory" : "Defeat") : ordinal(mine.rank || 1) + " Place"}</div>
-					<div className={styles.sub}>{MODE_LABELS[result.mode || ""] || "Ranked match"}</div>
+				<div className={styles.heroBadge}>{placing ? <PlacementBadge size={compact ? 10 : 13} /> : <RankBadge rating={newRating} size={compact ? 10 : 13} />}</div>
+				<div className={styles.heroText}>
+					<div className={`${styles.heading} ${won ? styles.headingWin : ""} ${placeCls}`}>{heading}</div>
+					<div className={styles.sub}>{MODE_LABELS[result.mode || ""] || "Ranked match"}{!isDuo && rank ? " · " + standings.length + " players" : ""}</div>
 				</div>
 			</div>
-			<div className={styles.ratingCard}>
-				<div className={styles.cols}>
-					<div className={styles.col}><div className={styles.colLabel}>Before</div><div className={`${styles.colNum} ${styles.old}`}>{oldRating ?? newRating}</div></div>
-					<div className={`${styles.col} ${styles.center}`}>{typeof mine.ratingDelta === "number" && <div className={`${styles.colNum} ${deltaCls(mine.ratingDelta)}`}>{deltaText(mine.ratingDelta)}</div>}</div>
-					<div className={`${styles.col} ${styles.right}`}><div className={styles.colLabel}>After</div><div className={styles.colNum}>{shown}</div></div>
-				</div>
-				<div className={styles.track}><span className={styles.trackFill} style={{ width: Math.round(fill * 100) + "%" }} /></div>
-				<div className={styles.progLabels}><span style={{ color: tier.color }}>{tier.name}</span><span>{prog.atMax ? "Top tier reached" : prog.pointsToNext + " to " + prog.nextName}</span></div>
-			</div>
-			<div className={styles.divider} />
-			{opp ? (
+
+			{placing
+				? <PlacementCard played={playedAfter} need={need} />
+				: (
+					<div className={styles.ratingCard}>
+						{revealed && <div className={styles.revealLine}>Placement complete · your rank is <b style={{ color: tier.color }}>{tier.name}</b></div>}
+						<div className={styles.cols}>
+							<div className={styles.col}><div className={styles.colLabel}>Before</div><div className={`${styles.colNum} ${styles.old}`}>{oldRating ?? newRating}</div></div>
+							<div className={`${styles.col} ${styles.center}`}>{typeof mine?.ratingDelta === "number" && <div className={`${styles.colNum} ${deltaCls(mine.ratingDelta)}`}>{deltaText(mine.ratingDelta)}</div>}</div>
+							<div className={`${styles.col} ${styles.right}`}><div className={styles.colLabel}>After</div><div className={styles.colNum}>{shown}</div></div>
+						</div>
+						<div className={styles.track}><span className={styles.trackFill} style={{ width: Math.round(fill * 100) + "%" }} /></div>
+						<div className={styles.progLabels}><span style={{ color: tier.color }}>{tier.name}</span><span>{prog.atMax ? "Top tier reached" : prog.pointsToNext + " to " + prog.nextName}</span></div>
+					</div>
+				)}
+
+			{opp && mine ? (
 				<div className={styles.context}>
-					<div className={styles.oppLine}><span className={styles.oppName}>{opp.name}</span>{typeof opp.rating === "number" && <span className={styles.oppTier} style={{ color: tierFor(opp.rating, opp.provisional).color }}><span className={styles.tierDot} style={{ background: tierFor(opp.rating, opp.provisional).color }} />{tierFor(opp.rating, opp.provisional).name}</span>}</div>
-					<div className={styles.times}><TimeChip label="Your time" s={mine} you /><TimeChip label="Their time" s={opp} /></div>
+					<div className={styles.duel}>
+						<PlayerLine s={mine} me compact={compact} />
+						<PlayerLine s={opp} compact={compact} />
+					</div>
 				</div>
 			) : (
 				<div className={styles.context}>
-					<div className={styles.eyebrow}>All players</div>
-					<div className={styles.standings}>{standings.map(s => (
-						<div key={s.id} className={`${styles.srow} ${s.id === myId ? styles.srowMe : ""}`}>
-							<div className={`${styles.srank} ${s.rank === 1 ? styles.g1 : s.rank === 2 ? styles.g2 : s.rank === 3 ? styles.g3 : ""}`}>{s.rank}</div>
-							<div className={styles.sname}>{s.name}</div>
-							<div className={`${styles.stime} ${s.finished ? "" : styles.dnf}`}>{s.finished && typeof s.finishMs === "number" ? formatClearTime(s.finishMs) : Math.round((s.progress || 0) * 100) + "% cleared"}</div>
-							<div className={typeof s.ratingDelta === "number" ? deltaCls(s.ratingDelta) : styles.flat}>{typeof s.ratingDelta === "number" ? deltaText(s.ratingDelta) : "—"}</div>
-						</div>
-					))}</div>
+					<div className={styles.standings}>{standings.map(s => {
+						const isMe = !!mine && s === mine;
+						return (
+							<div key={s.id} className={`${styles.srow} ${isMe ? styles.srowMe : ""}`}>
+								<div className={`${styles.srank} ${s.rank === 1 ? styles.p1 : s.rank === 2 ? styles.p2 : s.rank === 3 ? styles.p3 : ""}`}>{s.rank}</div>
+								<AvatarChip avatar={s.avatar || "anon"} country={s.country} px={compact ? 20 : 26} className={styles.savatar} />
+								<div className={styles.sname}><span className={styles.snameText}>{s.name}</span>{s.country && <FlagChip country={s.country} px={compact ? 11 : 13} />}</div>
+								<div className={`${styles.stime} ${s.finished ? "" : styles.dnf}`}>{resultOf(s)}</div>
+								<div className={`${styles.sdelta} ${typeof s.ratingDelta === "number" ? deltaCls(s.ratingDelta) : styles.flat}`}>{typeof s.ratingDelta === "number" ? deltaText(s.ratingDelta) : "—"}</div>
+							</div>
+						);
+					})}</div>
 				</div>
 			)}
+
 			<ResultActions>
 				<button className={`btn btn-primary ${styles.again}`} onClick={() => match.playAnother()}>Play another</button>
 				<button className="btn" onClick={() => match.leaveRoom()}>Leave</button>
@@ -96,9 +159,47 @@ function RankedResult({ result, myId, compact }: { result: SeriesResult; myId: s
 	);
 }
 
-function TimeChip({ label, s, you }: { label: string; s: Standing; you?: boolean }) {
+// A placement run, in place of the rating bar: one ring per match, filled for the ones played. The ring
+// this match just earned lands with a soft pop and a pulse. No tier bar and no rating total: the number is
+// still swinging wildly at this K, and the run's progress is the thing worth reading.
+function PlacementCard({ played, need }: { played: number | null; need: number }) {
+	const done = played == null ? null : Math.max(0, Math.min(need, played));
+	const left = done == null ? null : Math.max(0, need - done);
+	return (
+		<div className={`${styles.ratingCard} ${styles.placementCard}`}>
+			<div className={styles.placeHead}>
+				<span className={styles.placeTitle}>Placement</span>
+				{done != null && <span className={styles.placeCount}>{done} of {need}</span>}
+			</div>
+			<div className={styles.rings} role="img" aria-label={done == null ? "Placement match played" : `${done} of ${need} placement matches played`}>
+				{Array.from({ length: need }, (_, i) => {
+					const filled = done != null && i < done;
+					const isNew = done != null && i === done - 1;
+					return <span key={i} className={`${styles.ring} ${filled ? styles.ringOn : ""} ${isNew ? styles.ringNew : ""}`} style={{ ["--i" as any]: i }} />;
+				})}
+			</div>
+			<div className={styles.placeFoot}>{left == null ? "Your rank appears once placement is done" : left > 0 ? `${left} more ${left === 1 ? "match" : "matches"} to your rank` : "Your rank is being revealed"}</div>
+		</div>
+	);
+}
+
+// One duellist in the 1v1 context: avatar, name and tier on the left, the clear time on the right.
+function PlayerLine({ s, me, compact }: { s: Standing; me?: boolean; compact?: boolean }) {
+	const tier = typeof s.rating === "number" ? tierFor(s.rating, s.provisional) : null;
 	const finished = s.finished && typeof s.finishMs === "number";
-	return <div className={styles.timeChip}><div className={styles.timeLabel}>{label}</div><div className={`${styles.timeVal} ${finished ? (you ? styles.you : styles.oppc) : styles.dnf}`}>{finished ? formatClearTime(s.finishMs!) : Math.round((s.progress || 0) * 100) + "% cleared"}</div></div>;
+	return (
+		<div className={`${styles.pline} ${me ? styles.plineMe : ""}`}>
+			<AvatarChip avatar={s.avatar || "anon"} country={s.country} px={compact ? 28 : 36} className={styles.savatar} />
+			<div className={styles.pinfo}>
+				<div className={styles.pname}><span className={styles.snameText}>{s.name}</span>{s.country && <FlagChip country={s.country} px={compact ? 11 : 14} />}</div>
+				{tier && <div className={styles.ptier} style={{ color: tier.color }}>{tier.name}</div>}
+			</div>
+			<div className={styles.ptime}>
+				<div className={`${styles.ptimeVal} ${finished ? (me ? styles.you : styles.oppc) : styles.dnf}`}>{resultOf(s)}</div>
+				<div className={styles.ptimeLabel}>cleared</div>
+			</div>
+		</div>
+	);
 }
 
 function CasualResult({ result, myId }: { result: SeriesResult; myId: string | null }) {

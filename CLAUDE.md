@@ -117,7 +117,8 @@ Other docs: `ARCHITECTURE_PLAN.md` (target architecture; read before any service
 `PORT` (1337 local, 8080 prod), `DEV_AUTH=1` (never in prod), `OAUTH_REDIRECT_BASE`,
 Google/Discord OAuth ids + secrets, `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET` (absent → shop
 routes return `503 shop_unconfigured`), `RANKED_DB` (SQLite path; default `ranked.db`),
-`GUEST_TTL_DAYS`, `ROLE` (`both` | `main` | `game`).
+`GUEST_TTL_DAYS`, `ROLE` (`both` | `main` | `game`), `RANKED_ROUND_SECONDS` (local testing only: shortens
+every ranked round, e.g. `10`, so the end-of-match panel is quick to reach; never set in prod).
 
 ## Deployment
 

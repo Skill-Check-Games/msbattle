@@ -159,6 +159,13 @@ var MAX_BOTS_PER_ROOM = 15;
 //   sprint_*   → cascade-y races, 10% mines, fewer forced deductions.
 //   standard_* → dense boards (20%), favouring deduction over click speed.
 var RANKED_RULES = { gameCount: 1, roundSeconds: 300, deathPenalty: 5 };
+// Local testing only: RANKED_ROUND_SECONDS=10 in .env shortens every ranked round so the end-of-match
+// panel is reachable in seconds. Never set in production (the deploy has no such variable).
+var RANKED_ROUND_SECONDS_OVERRIDE = parseInt(process.env.RANKED_ROUND_SECONDS || "", 10);
+if (RANKED_ROUND_SECONDS_OVERRIDE > 0) {
+	RANKED_RULES.roundSeconds = RANKED_ROUND_SECONDS_OVERRIDE;
+	console.log("[dev] RANKED_ROUND_SECONDS=" + RANKED_ROUND_SECONDS_OVERRIDE + " — ranked rounds are shortened");
+}
 var RANKED_BOT_RATING = 1000;
 
 // The Elo math lives in elo.js; give it the rating constants (shared predicates come from gameUtil).
