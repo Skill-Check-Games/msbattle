@@ -9,7 +9,7 @@ import { AvatarChip, FlagChip } from "../../shared/Avatar";
 import { ordinal } from "../../shared/ranking";
 import OpponentBoard from "./OpponentBoard";
 import type { RoomState, GameFrame, RoomPlayer } from "../../game/match-store";
-import { rankPlayers } from "./Standings";
+import { rankPlayers, seatOrder } from "./Standings";
 import { FindingEnemy } from "./MatchFound";
 import { useFlip } from "../../shared/use-flip";
 import styles from "./OpponentCards.module.scss";
@@ -27,10 +27,10 @@ export default function OpponentCards({ room, search, searchSince, frames, myId,
 	const [fitPx, setFitPx] = useState(8);
 	const cellPx = givenPx || fitPx;
 	// Seats: every player ranked once the room exists; the search's found members, then empty seats, before.
-	const ranked = room ? rankPlayers(room, frames) : null;
+	const ranked = room ? rankPlayers(room, frames, myId) : null;
 	const seats: Array<{ p: RoomPlayer; rank: number } | null> = ranked
 		? ranked.sorted.map(p => ({ p, rank: ranked.rankOf[p.id] }))
-		: search ? Array.from({ length: search.size }, (_, i) => { const p = search.members[i]; return p ? { p, rank: i + 1 } : null; }) : [];
+		: search ? Array.from({ length: search.size }, (_, i) => { const p = seatOrder(search.members, myId)[i]; return p ? { p, rank: i + 1 } : null; }) : [];
 	const count = Math.max(1, seats.length), columns = 2, cardRows = Math.ceil(count / columns);
 	useEffect(() => {
 		const grid = gridRef.current; if (!grid || givenPx) return;

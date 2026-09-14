@@ -23,7 +23,13 @@ export const LIVE_RANK_ORDER = false;
 // The live ranking every battle view shares: during a round by progress (finishers first, in finish
 // order), otherwise by series score then rating. `sorted` is the display order (rank order, or the join
 // order when LIVE_RANK_ORDER is off); `rankOf` is always the rank.
-export function rankPlayers(room: RoomState, frames: GameFrame[] | null): { sorted: RoomPlayer[]; live: Record<string, GameFrame>; rankOf: Record<string, number> } {
+// The display order when seats are fixed: you first, then the others in the order they joined.
+export function seatOrder(players: RoomPlayer[], myId: string | null): RoomPlayer[] {
+	const mine = players.filter(p => p.id === myId || p.isYou), rest = players.filter(p => !(p.id === myId || p.isYou));
+	return mine.concat(rest);
+}
+
+export function rankPlayers(room: RoomState, frames: GameFrame[] | null, myId: string | null = null): { sorted: RoomPlayer[]; live: Record<string, GameFrame>; rankOf: Record<string, number> } {
 	const playing = room.phase === "playing";
 	const live: Record<string, GameFrame> = {};
 	for (const f of frames || []) if (f && f.id) live[f.id] = f;
@@ -40,7 +46,7 @@ export function rankPlayers(room: RoomState, frames: GameFrame[] | null): { sort
 	});
 	const rankOf: Record<string, number> = {};
 	sorted.forEach((p, i) => { rankOf[p.id] = i + 1; });
-	return { sorted: LIVE_RANK_ORDER ? sorted : room.players.slice(), live, rankOf };
+	return { sorted: LIVE_RANK_ORDER ? sorted : seatOrder(room.players, myId), live, rankOf };
 }
 
 export default function Standings({ room, search, frames, myId, placeOf, compact, skipId }: Props) {
@@ -52,14 +58,14 @@ export default function Standings({ room, search, frames, myId, placeOf, compact
 		return (
 			<ul ref={listRef} className={cls} aria-label="Players">
 				{Array.from({ length: search.size }, (_, i) => {
-					const p = search.members[i];
+					const p = seatOrder(search.members, myId)[i];
 					return p ? <Row key={"seat" + i} seat={"seat" + i} p={p} rank={i + 1} me={!!p.isYou || p.id === myId} frame={null} playing={false} place={null} /> : <li key={"seat" + i} data-flip-id={"seat" + i} className={`${styles.row} ${styles.waiting}`} aria-label="Finding enemy"><span className={styles.radarSlot}><Radar size={compact ? 20 : 36} /></span><span className={styles.searching}>Finding enemy<span className={styles.dots}><i /><i /><i /></span></span><span className={styles.bar} /></li>;
 				})}
 			</ul>
 		);
 	}
 	const playing = room.phase === "playing";
-	const { sorted, live, rankOf } = rankPlayers(room, frames);
+	const { sorted, live, rankOf } = rankPlayers(room, frames, myId);
 	return (
 		<ul ref={listRef} className={cls} aria-label="Standings">
 			{/* Rows are keyed by seat, not player id: the search's pending seats become the room's players (bots get their real
