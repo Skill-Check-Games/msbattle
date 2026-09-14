@@ -26,7 +26,7 @@ export default function HelpPage() {
 				<figure className={styles.example}><div className={styles.board}><LearnBoard spec={NUMBERS} cellPx={21} /></div><figcaption className={styles.cap}>Each number = mines in the 8 tiles around it</figcaption></figure>
 				<figure className={styles.example}><div className={styles.board}><LearnBoard spec={FLAGS} cellPx={21} /></div><figcaption className={styles.cap}>Flag the mines, clear the rest to win</figcaption></figure>
 			</div>
-			<p className={styles.foot}>Want a guided walkthrough? Try the <Link to="/learn">Learn</Link> lessons.</p>
+			{/* The Learn lessons are soft-hidden while they are reworked; the link comes back with them. */}
 			<h3 className={styles.sectionTitle}>Controls</h3>
 			<div className={styles.controls}>
 				<div className={styles.ctrl}><span className={styles.act}>Reveal a tile</span><span className={styles.keys}>Left-click <i>or</i> <kbd>{key("reveal")}</kbd></span></div>

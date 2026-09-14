@@ -7,8 +7,9 @@ import type { Account } from "../shared/types";
 import FullscreenButton from "../shared/FullscreenButton";
 import styles from "./NavBar.module.scss";
 
+// Learn is soft-hidden while it is being reworked: the page and its route stay (/learn), only the link is gone.
 const LINKS: Array<[string, string]> = [
-	["/", "Play"], ["/learn", "Learn"], ["/leaderboard", "Leaderboard"], ["/profile", "Profile"], ["/shop", "Shop"], ["/settings", "Settings"], ["/help", "Help"]
+	["/", "Play"], ["/leaderboard", "Leaderboard"], ["/profile", "Profile"], ["/shop", "Shop"], ["/settings", "Settings"], ["/help", "Help"]
 ];
 
 // Desktop: brand, centred links, fullscreen + identity. Below the portrait breakpoint the links and the
