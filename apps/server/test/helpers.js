@@ -24,7 +24,8 @@ async function startServer(opts) {
 	}
 	var child = spawn("node", ["src/minesweeperServer.js"], {
 		cwd: ROOT,
-		env: Object.assign({}, process.env, { PORT: String(port), RANKED_DB: dbPath, DEV_AUTH: "1" }, opts.env || {}),
+		// PUZZLE_POOL_FILE: never import the repo's puzzle-pool.json into a test DB — tests seed exactly what they expect.
+		env: Object.assign({}, process.env, { PORT: String(port), RANKED_DB: dbPath, DEV_AUTH: "1", PUZZLE_POOL_FILE: "/nonexistent/puzzle-pool.json" }, opts.env || {}),
 		stdio: "ignore"
 	});
 	var base = "http://localhost:" + port;
