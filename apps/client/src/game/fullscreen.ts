@@ -12,7 +12,7 @@ export const fullscreenSupported = () => { const el = document.documentElement a
 export function enterGameFullscreen(force = false, lockLandscape = force) {
 	try {
 		if (isMobileViewport() && !force) return;
-		if (isInFullscreen()) return;
+		if (isInFullscreen()) { if (lockLandscape) tryLockLandscape(); return; }   // already fullscreen (phones keep it between games): the lock still has to be renewed
 		const el = document.documentElement as any;
 		const req = el.requestFullscreen || el.webkitRequestFullscreen;
 		if (!req) return;
@@ -23,6 +23,10 @@ export function enterGameFullscreen(force = false, lockLandscape = force) {
 }
 export function tryLockLandscape() {
 	try { const o = (screen as any).orientation; if (o && typeof o.lock === "function") { const p = o.lock("landscape"); if (p && p.catch) p.catch(() => {}); } } catch { /* unsupported */ }
+}
+// Landscape is only held while a game is on screen; the site's own pages read in whatever orientation the phone is in.
+export function unlockOrientation() {
+	try { const o = (screen as any).orientation; if (o && typeof o.unlock === "function") o.unlock(); } catch { /* unsupported */ }
 }
 export function exitGameFullscreen() {
 	try {

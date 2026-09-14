@@ -164,11 +164,12 @@ export default function PlayPage() {
 	const portraitOrientation = useMediaQuery("(orientation: portrait)");
 	useInGameBody();
 	const oppFrozenUntil = (s.frames || []).slice(1).reduce((m, f) => Math.max(m, (f && f.frozenUntil) || 0), 0);
-	// An opponent's mine is heard in every battle view (the boards, the list): a frame whose penalty is new since the
-	// last one plays the distant blast. The 1v1's mirror boards play it themselves, so this covers the rest.
+	// An opponent's mine is heard in every battle (the 1v1, the six-player boards and list alike): a frame whose
+	// penalty is new since the last one plays the distant blast. One path, from the frames, so it never depends on
+	// which view is showing or on a mirror board being mounted.
 	const heardFrozen = useRef<Record<string, number>>({});
 	useEffect(() => {
-		if (!match.isMulti()) return;
+		if (!match.isBattle()) return;
 		for (const f of (s.frames || []).slice(1)) {
 			if (!f || !f.id) continue;
 			const until = f.frozenUntil || 0, last = heardFrozen.current[f.id] || 0;
@@ -470,7 +471,7 @@ export default function PlayPage() {
 						<>
 							{/* The panel is laid out in full from the start (skeleton identity, board slot), so nothing moves when the opponent arrives. */}
 							<DuelIdentity player={opp || null} side="opp" vertical ring noTier skeleton={!opp} avatarPx={lsShort ? 48 : 64} />
-							<div className={styles.lsOppBoard}>{opp ? <OpponentBoard playerId={opp.id} skin={opp.skin || "classic"} frame={frameOf(opp)} rows={rows} cols={cols} cellPx={miniPx} className={styles.oppCanvas} covered sound /> : <span className={`skel-shimmer ${styles.lsOppSkel}`} />}{hitCount(oppFrozenUntil, oppHit)}</div>
+							<div className={styles.lsOppBoard}>{opp ? <OpponentBoard playerId={opp.id} skin={opp.skin || "classic"} frame={frameOf(opp)} rows={rows} cols={cols} cellPx={miniPx} className={styles.oppCanvas} covered /> : <span className={`skel-shimmer ${styles.lsOppSkel}`} />}{hitCount(oppFrozenUntil, oppHit)}</div>
 							<span className={styles.lsLeft}>{(opp && cellsLeftOf(frameOf(opp))) || "\u00a0"}</span>
 							<span className={styles.lsSpacer} />
 							{searchSince != null && !s.roundLive && ((!opp && s.search) || foundPhase === "card" || foundPhase === "cardOut") && <FindingEnemy since={searchSince} found={foundPhase === "card" || foundPhase === "cardOut"} leaving={foundPhase === "cardOut"} compact />}
@@ -529,7 +530,7 @@ export default function PlayPage() {
 								<ArenaStat frame={opps[0] ? frameOf(opps[0]) : null} side="opp" hit={oppHit === "on"} />
 							</div>
 							<div className={styles.boardWrap}>
-								<OpponentBoard playerId={opps[0] ? opps[0].id : "slot1"} skin={opps[0] ? opps[0].skin || "classic" : "classic"} frame={opps[0] ? frameOf(opps[0]) : null} rows={rows} cols={cols} cellPx={cellPx} covered sound />
+								<OpponentBoard playerId={opps[0] ? opps[0].id : "slot1"} skin={opps[0] ? opps[0].skin || "classic" : "classic"} frame={opps[0] ? frameOf(opps[0]) : null} rows={rows} cols={cols} cellPx={cellPx} covered />
 								{searchSince != null && !s.roundLive && ((!opps[0] && s.search) || foundPhase === "card" || foundPhase === "cardOut") && <FindingEnemy since={searchSince} found={foundPhase === "card" || foundPhase === "cardOut"} leaving={foundPhase === "cardOut"} />}
 							</div>
 							{hitCount(oppFrozenUntil, oppHit)}

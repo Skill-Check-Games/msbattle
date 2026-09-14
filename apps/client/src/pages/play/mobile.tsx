@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { BoardSession } from "../../game/board-session";
 import { UNKNOWN, KNOWN } from "../../game/board-render";
 import { music } from "../../audio/music";
-import { exitGameFullscreen, phoneSizedDevice } from "../../game/fullscreen";
+import { exitGameFullscreen, unlockOrientation, phoneSizedDevice } from "../../game/fullscreen";
 import styles from "./PlayPage.module.scss";
 
 export const PORTRAIT_MQ = "(max-width: 700px)";
@@ -18,11 +18,12 @@ export function useMediaQuery(q: string): boolean {
 
 // body.in-game while a game screen is mounted: global CSS hides the navbar/footer on phones. The
 // soundtrack runs only on game screens, and leaving drops fullscreen (phones keep it: re-entering
-// needs a gesture, and the next match wants it back).
+// needs a gesture, and the next match wants it back) but always releases the landscape lock: the
+// site's own pages are not held sideways.
 export function useInGameBody() {
 	useEffect(() => {
 		document.body.classList.add("in-game"); music.resume();
-		return () => { document.body.classList.remove("in-game"); music.pause(); if (!phoneSizedDevice()) exitGameFullscreen(); };
+		return () => { document.body.classList.remove("in-game"); music.pause(); unlockOrientation(); if (!phoneSizedDevice()) exitGameFullscreen(); };
 	}, []);
 }
 

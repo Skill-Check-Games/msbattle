@@ -95,3 +95,6 @@ export const sound = {
 document.addEventListener("click", () => { sound.unlock(); music.unlock(); }, { once: true });
 document.addEventListener("keydown", () => sound.unlock(), { once: true });
 sound.setMusicSource(music);
+
+// Dev builds expose the sound module for probes (never in production).
+if (import.meta.env.DEV) (window as any).__sound = sound;
