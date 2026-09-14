@@ -49,7 +49,7 @@ export interface MatchState {
 	message: string | null;            // a lobby/join error to flash
 }
 
-const rankedModeSize = (mode: string) => /_six$/.test(mode) ? 7 : 2;
+const rankedModeSize = (mode: string) => /_six$/.test(mode) ? 6 : 2;
 
 class MatchStore {
 	state: MatchState = { inRoom: false, rooms: null, room: null, search: null, mode: null, roundLive: false, countdownDigitsAt: null, roundResultShown: false, roundDeadline: null, gameProgress: "", frames: null, seriesResult: null, roundResult: null, frozenUntil: 0, waitingCleared: false, roundEndLeft: null, message: null };
@@ -117,7 +117,9 @@ class MatchStore {
 			startMatchSocket(d.gameUrl, d.token, (id) => { this.myId = id; this.set({});  });
 		});
 		socket.on("joined_room", (d) => {
-			this.set({ inRoom: true, mode: d && d.mode ? d.mode : this.state.mode, search: null, seriesResult: null, roundResult: null, gameProgress: "", roundDeadline: null, waitingCleared: false });
+			// The search's roster stays until the room's first state replaces it (below): a moment with neither would
+			// empty every seat in the players' views and rebuild them, a blink, as the sixth player arrived.
+			this.set({ inRoom: true, mode: d && d.mode ? d.mode : this.state.mode, seriesResult: null, roundResult: null, gameProgress: "", roundDeadline: null, waitingCleared: false });
 			this.resetRound();
 		});
 		socket.on("ranked_searching", (info) => {
@@ -139,7 +141,7 @@ class MatchStore {
 			room.players.forEach(p => { this.lastFinished[p.id] = !!p.finished; });
 			const me = room.players.find(p => p.id === this.myId);
 			const planning = room.phase === "planning";
-			this.set({ room, roundDeadline: room.phase === "playing" ? room.roundDeadline : null, waitingCleared: room.phase === "playing" && !!(me && me.finished) && !this.state.roundResultShown });
+			this.set({ room, search: null, roundDeadline: room.phase === "playing" ? room.roundDeadline : null, waitingCleared: room.phase === "playing" && !!(me && me.finished) && !this.state.roundResultShown });
 			if (planning && !this.state.roundResultShown) { this.session.setIdle(!this.state.search); if (this.isBattle()) this.setCoveredBoard(); }
 		});
 		socket.on("start_game", (d) => {
@@ -304,9 +306,11 @@ export function formatGameProgress(gameNumber: number, gameCount: number, scoreT
 	if (scoreTarget) return "Game " + gameNumber + " · first to " + scoreTarget;
 	return "Game " + gameNumber + " of " + gameCount;
 }
-export const MODE_LABELS: Record<string, string> = { sprint_duo: "1v1 Sprint", sprint_six: "7-player Sprint", standard_duo: "1v1 Standard", standard_six: "7-player Standard" };
+export const MODE_LABELS: Record<string, string> = { sprint_duo: "1v1 Sprint", sprint_six: "6-player Sprint", standard_duo: "1v1 Standard", standard_six: "6-player Standard" };
 export const STYLE_LABELS: Record<string, string> = { sprint: "Sprint", standard: "Standard" };
 
 export const match = new MatchStore();
+// Dev builds expose the store for probes and debugging (never in production).
+if (import.meta.env.DEV) (window as any).__match = match;
 if (import.meta.env.DEV) (window as any).__match = match;
 export function useMatch(): MatchState { return useSyncExternalStore(match.subscribe, match.getSnapshot); }

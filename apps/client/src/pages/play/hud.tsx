@@ -1,6 +1,6 @@
 // HUD pieces shared by the duel and 6-player layouts: identity panels, progress bars, the round
 // timer, and the finish-place stamp.
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AvatarChip, FlagChip } from "../../shared/Avatar";
 import { RankBadge } from "../../shared/RankBadge";
 import { tierFor, ordinal } from "../../shared/ranking";
@@ -50,6 +50,12 @@ export function ProgressBar({ frame, side, showLeft = true, pct: pctPos = "after
 			{showLeft && <span className={styles.cellsLeft}>{left == null ? "\u00a0" : left + (left === 1 ? " cell left" : " cells left")}</span>}
 		</div>
 	);
+}
+// A flat strip in the side colour whose fill is the player's progress: the landscape phone's top edge over
+// the board in a 6-player battle (where the 1v1 has the lead bar).
+export function ProgressStrip({ frame, side }: { frame: GameFrame | null; side: "you" | "opp" }) {
+	const pct = Math.round(((frame && frame.progress) || 0) * 100);
+	return <div className={`${styles.strip} ${styles[side]}`} role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}><span className={styles.stripFill} style={{ width: pct + "%" }} /></div>;
 }
 // The desktop 1v1 bar: square, thick, filling from the arena's outer edge toward the centre of the
 // screen in a gradient of the side colour. Percentage and cells left sit inside the bar at the centre
@@ -110,6 +116,28 @@ export function useRoundTimer(deadline: number | null): { text: string; cls: str
 	return { text: formatRoundTime(remaining), cls, remaining };
 }
 export function formatRoundTime(s: number): string { const m = Math.floor(s / 60), r = s % 60; return m + ":" + (r < 10 ? "0" : "") + r; }
+
+// Your board is cleared, the round is not: a dial in your colour drains for the time the round has left (the
+// six-second tail once the first player clears), around your place ("Winner" in gold, else the ordinal) and the
+// seconds. Driven by the real deadline, so it agrees with the clock.
+export function ClearedDial({ place, deadline }: { place: number; deadline: number | null }) {
+	const total = useRef<number | null>(null);
+	const [now, setNow] = useState(Date.now());
+	useEffect(() => { let raf = 0; const tick = () => { setNow(Date.now()); raf = requestAnimationFrame(tick); }; raf = requestAnimationFrame(tick); return () => cancelAnimationFrame(raf); }, []);
+	const left = deadline ? Math.max(0, deadline - now) : 0;
+	if (total.current == null || left > total.current) total.current = Math.max(1000, left);
+	const frac = total.current ? left / total.current : 0, r = 46, circ = 2 * Math.PI * r;
+	return (
+		<div className={styles.dial} role="status" aria-live="polite">
+			<svg viewBox="0 0 100 100" aria-hidden="true"><circle className={styles.dialTrack} cx="50" cy="50" r={r} /><circle className={styles.dialFill} cx="50" cy="50" r={r} style={{ strokeDasharray: circ, strokeDashoffset: circ * (1 - frac) }} /></svg>
+			<div className={styles.dialText}>
+				<b className={place === 1 ? styles.dialWin : ""}>{place === 1 ? "Winner" : place ? ordinal(place) : "Cleared"}</b>
+				<span>Round ends in</span>
+				<span className={styles.dialSec}>{Math.ceil(left / 1000)}</span>
+			</div>
+		</div>
+	);
+}
 
 export function PlaceStamp({ place }: { place: number | null | undefined }) {
 	if (!place) return null;

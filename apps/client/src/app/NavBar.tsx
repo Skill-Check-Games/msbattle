@@ -16,14 +16,14 @@ const LINKS: Array<[string, string]> = [
 // A signed-in account is a round avatar (the provider photo, else a letter) opening a small popover;
 // the same for every provider, dev login included, so localhost looks like production.
 export default function NavBar() {
-	const { account, signIn, signOut, providers } = useAuth();
+	const { account, openSignIn, signOut } = useAuth();
 	const [open, setOpen] = useState(false);
 	const location = useLocation();
 	useEffect(() => { setOpen(false); }, [location.pathname]);
 
 	const signedIn = !!account && !account.guest;
 	const links = account && account.isAdmin ? [...LINKS, ["/admin", "Admin"] as [string, string]] : LINKS;
-	const signInBtn = <button className="btn btn-primary" onClick={() => signIn(providers.google ? "google" : providers.discord ? "discord" : "dev")}>Sign in</button>;
+	const signInBtn = <button className="btn btn-primary" onClick={openSignIn}>Sign in</button>;
 
 	return (
 		<header className={styles.topbar}>

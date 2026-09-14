@@ -53,6 +53,7 @@ function buildAccountPayload(user) {
 		dailyAttempt: dailyAttempt ? { solved: !!dailyAttempt.solved, at: dailyAttempt.attempted_at } : null,
 		isAdmin: !!user.is_admin,
 		guest: !!user.is_guest,
+		prefs: db.userPrefs(user),
 		soloBests: db.getSoloBests(user.id),
 		provider: user.last_provider || user.provider,
 		// Shop: purchased cosmetic ids (e.g. "img:teddy", "tactical"). Ships here so the client has
@@ -280,6 +281,16 @@ function registerSocketHandlers(socket, playerID) {
 	});
 
 	// Country (ISO-3166 alpha-2). Persisted on the account + mirrored to opponents.
+	// UI preferences that follow the account: an allowlist of keys and values, nothing else is stored.
+	var PREFS = { playersView: ["boards", "list"] };
+	socket.on("set_pref", function(data) {
+		var acc = accounts[playerID];
+		if (!acc || !data || typeof data.key !== "string" || !PREFS[data.key]) return;
+		var value = data.value === null ? null : (typeof data.value === "string" && PREFS[data.key].indexOf(data.value) >= 0 ? data.value : undefined);
+		if (value === undefined) return;
+		db.setUserPref(acc.userId, data.key, value);
+	});
+
 	socket.on("set_country", function(data) {
 		var acc = accounts[playerID];
 		if (!acc) return;

@@ -1,0 +1,54 @@
+// The grid takes the column's box and the cards stretch to share it in equal rows, the board centred in each;
+// each card wears its player's colour (--side) like a standings row.
+.grid { display: grid; gap: 10px; width: 100%; height: 100%; min-height: 0; min-width: 0; }
+// A card is a small arena. Quiet by default (the grey border of a standings row: the red lives in the bar and
+// the percentage); the border takes the colour only where it says something: your card, a finished one, a mine hit.
+.card {
+	--side: var(--duel-opp, #fb7185);
+	position: relative; display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; min-height: 0;
+	padding: 0.45rem 0.55rem 0.55rem; border-radius: 7px; border: 1px solid var(--border); background: rgba(255, 255, 255, 0.025);
+	transition: border-color 0.25s ease, background 0.25s ease;
+}
+.me, .finished, .hit { border-color: var(--side); }
+.finished, .hit { background: linear-gradient(180deg, color-mix(in srgb, var(--side) 10%, var(--surface)), var(--surface) 70%); }   // your card keeps the plain ground: the blue border is enough
+.me { --side: var(--duel-you, #3b82f6); }
+.finished { --side: var(--energy-win, #22c55e); }
+.hit { --side: var(--danger); }
+.waiting { border-color: var(--border); }
+.head { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; grid-template-areas: "avatar name pct" "avatar bar bar"; column-gap: 0.5rem; row-gap: 0.3rem; align-items: center; min-width: 0; }
+// A finished player's place, in the percentage's slot, wears the podium colours.
+.place1 { color: var(--energy-gold); }
+.place2 { color: #e2e8f0; }
+.place3 { color: #f0b486; }
+.avatar { grid-area: avatar; :global(canvas) { border-radius: 50%; } }
+.skelAvatar { grid-area: avatar; display: block; width: 36px; height: 36px; border-radius: 50%; }
+.skelName { grid-area: name; display: block; width: 4.5rem; height: 0.75rem; border-radius: 4px; }
+// An empty seat's board slot: the shimmer the board's size, with the radar centred on it.
+.boardSlot { position: relative; display: block; max-width: 100%; border-radius: 4px; }
+.skelBoard { position: absolute; inset: 0; display: block; border-radius: 4px; }
+.name { grid-area: name; align-self: end; min-width: 0; display: inline-flex; align-items: center; font-weight: 700; font-size: 0.8rem; line-height: 1.2; }
+.nameText { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pct { grid-area: pct; align-self: end; font-family: var(--font-display); font-weight: 700; font-size: 0.9rem; font-variant-numeric: tabular-nums; color: var(--side); transition: color 0.25s ease; line-height: 1.2; }
+.bar { grid-area: bar; align-self: start; position: relative; height: 6px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+.fill { position: absolute; inset: 0 auto 0 0; background: var(--side); transition: width 0.3s ease, background 0.25s ease; }
+.boardWrap { position: relative; flex: 1 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center; }
+.board { display: block; max-width: 100%; height: auto !important; width: auto !important; border-radius: 4px; }
+// The mine penalty over the mini board: the same dark tint and count as the big boards, sized to the card.
+.penalty { position: absolute; inset: 0; z-index: 4; border-radius: 4px; display: flex; align-items: center; justify-content: center; background: rgba(5, 8, 18, 0.5); pointer-events: none; }
+.penaltyCount { font-family: var(--font-display); font-weight: 700; font-size: 2rem; color: #fff; line-height: 1; font-variant-numeric: tabular-nums; }
+// The phone's leader card: tighter, the head in the compact standings' sizes, the board edge to edge.
+.compact { padding: 0.3rem 0.4rem 0.4rem; gap: 0.25rem; border-radius: 5px;
+	.head { grid-template-columns: 26px minmax(0, 1fr) auto; column-gap: 0.35rem; row-gap: 0.2rem; }
+	.skelAvatar { width: 26px; height: 26px; }
+	.name { font-size: 0.72rem; }
+	.pct { font-size: 0.8rem; }
+	.penaltyCount { font-size: 1.5rem; } }
+// The seat's two layers: the player's content (in flow) and the search layer (in flow while the seat is empty,
+// laid over the arriving content while it fades out).
+.seatPlayer, .seatFinding { display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; min-height: 0; flex: 1 1 auto; }
+.arriving { animation: fadeIn 0.45s ease both; }
+.leaving { position: absolute; inset: 0; padding: 0.45rem 0.55rem 0.55rem; animation: fadeOut 0.45s ease both; pointer-events: none; }
+.waiting .seatFinding { .head, .skelBoard { opacity: 0.55; } }
+@keyframes fadeIn { from { opacity: 0; } }
+@keyframes fadeOut { to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .arriving, .leaving { animation: none; } .leaving { display: none; } }

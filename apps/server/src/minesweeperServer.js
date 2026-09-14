@@ -59,6 +59,12 @@ var ROUND_START_DELAY_MS = 5000;
 // anchors the banner's end to this delay, so the slack here is what absorbs a roster that arrived late
 // relative to start_game (phones on a flaky connection).
 var FIRST_ROUND_START_DELAY_MS = 8300;
+// The 6-player field's presentation (the starting grid: MATCH_FOUND_SIX_MS 4.9s, a 1.1s breath after the room forms)
+// ends 6.0s after the room forms; the 3-2-1 begins at this delay minus 3.3s of digits, 2.8s (MATCH_REVEAL_MS) after
+// the room forms, so 8200 leaves about 1.7s of quiet between the presentation ending and the first digit.
+var FIRST_ROUND_START_DELAY_SIX_MS = 8200;
+// Once the first player clears in a 6-player battle, the round has this long left (if it had more): time for others to finish.
+var MULTI_FINISH_TAIL_S = 6;
 var BETWEEN_GAMES_DELAY = 3000;
 var SERIES_END_DELAY = 6000;
 var PROVISIONAL_GAMES = 5;
@@ -441,11 +447,9 @@ function gameWin(playerID) {
 	game.playing = false;
 
 	// First finish in this round? Pull the remaining time down so the round closes soon after the
-	// winner — the multiplayer battle (3-7 players) gets a snappy 2s sprint; other modes keep the
-	// longer 10s tail. n<=7 (not 6) to match the 7-player mode (isMultiRacing, MobileLayout.js) — this
-	// cap used to lag one player behind that bump, so a real 7-player match fell through to the 10s
-	// tail instead of the intended snappy one.
-	// NB 2s, not 1s: every OTHER still-playing player's game.playing flips false the instant this
+	// winner — the multiplayer battle (3-7 players) gets 6s for the rest of the field to finish their
+	// boards (a no-op when less than that was left); other modes keep the longer 10s tail.
+	// NB at least 2s: every OTHER still-playing player's game.playing flips false the instant this
 	// deadline fires (endIndividualGame, below) — and the move-sync heal (move_sync/resync_moves
 	// handlers) refuses to run once game.playing is false, so a trailing player's dropped final click
 	// only gets a real chance to heal (via the 1s — now 300ms, see Main.js — heartbeat) if the round
@@ -459,7 +463,7 @@ function gameWin(playerID) {
 	if (finishedNow === 1) {
 		var n = room.players.length;
 		var multiRace = (room.gameMode || "race") === "race" && n >= 3 && n <= 7;
-		reduceRoundDeadline(room, multiRace ? 2 : 10);
+		reduceRoundDeadline(room, multiRace ? MULTI_FINISH_TAIL_S : 10);
 	}
 
 	if (isBot(playerID)) {
@@ -523,7 +527,7 @@ function startGame(room) {
 	// zero by construction). Paired with clock sync (see time_sync above) so each client converts
 	// it to a local delay against ITS OWN clock rather than trusting startDelayMs against whenever
 	// its own copy of this event happened to arrive over the network.
-	var startDelay = (room.ranked && room.gamesPlayed === 0) ? FIRST_ROUND_START_DELAY_MS : ROUND_START_DELAY_MS;
+	var startDelay = (room.ranked && room.gamesPlayed === 0) ? (room.players.length > 2 ? FIRST_ROUND_START_DELAY_SIX_MS : FIRST_ROUND_START_DELAY_MS) : ROUND_START_DELAY_MS;
 	var startAt = Date.now() + startDelay;
 	var startPayload = {
 		time: COUNT_DOWN_TIME,

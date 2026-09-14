@@ -201,7 +201,7 @@ function ResultPreviewLab() {
 	return (
 		<LabSection title="Post-game rank-up/down modal (in context)" sub={<>Opens the real post-game result modal with a fake tier-crossing match, instead of having to actually climb or drop a tier in a real ranked match to see it. This is the exact production modal (SeriesResultModal), not a mockup. "Close preview" stands in for Play another / Leave, which would otherwise try to act on a real match that doesn't exist here.</>}>
 			<div className={labStyles.card}>
-				{[{ label: "1v1 result", players: 2 }, { label: "7-player result", players: 7 }].map(g => (
+				{[{ label: "1v1 result", players: 2 }, { label: "6-player result", players: 6 }].map(g => (
 					<div key={g.players} className={styles.previewRow}>
 						<span className={styles.previewRowLabel}>{g.label}</span>
 						<div className={labStyles.actions}>

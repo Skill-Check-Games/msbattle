@@ -13,6 +13,8 @@
 .ringA, .ringB { position: absolute; left: 50%; top: 50%; border-radius: 50%; border: 1px solid color-mix(in srgb, var(--duel-opp, #fb7185) 55%, transparent); transform: translate(-50%, -50%); }
 .ringA { width: 62px; height: 62px; } .ringB { width: 34px; height: 34px; }
 .dot { position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; border-radius: 50%; background: var(--duel-opp, #fb7185); transform: translate(-50%, -50%); }
+// A radar at any size (Radar, the list's empty rows): rings in the 1v1's proportions.
+.radarSmall { flex: 0 0 auto; .ringA { width: 96%; height: 96%; } .ringB { width: 54%; height: 54%; } .dot { width: 4px; height: 4px; } }
 @keyframes spin { to { transform: rotate(360deg); } }
 .findText { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
 .findTitle { font-family: var(--font-display); font-weight: 700; font-size: 1.35rem; letter-spacing: -0.01em; display: inline-flex; align-items: baseline; }
@@ -22,6 +24,14 @@
 .findClock { margin-left: auto; font-family: var(--font-display); font-weight: 700; font-size: 1.5rem; font-variant-numeric: tabular-nums; color: var(--duel-opp, #fb7185); padding-left: 1rem; }
 // The phone landscape opponent panel is 158px wide: the card stacks radar, text and clock in a column.
 // It covers the opponent panel exactly: the panel's own border is its frame, so the card draws none.
+// mini: fills an empty seat's board slot in the 6-player grid; the radar and the title, nothing else.
+.cardMini { position: absolute; inset: 0; width: auto; max-width: none; border: 0; border-radius: inherit; background: transparent; flex-direction: column; justify-content: center; gap: 0.4rem; padding: 0.4rem; text-align: center;
+	// The radar at 52px with the 1v1's proportions: outer ring at the edge (where the cone ends), inner ring at half, centre dot.
+	.radar { width: 52px; height: 52px; }
+	.ringA { width: 96%; height: 96%; } .ringB { width: 54%; height: 54%; } .dot { width: 5px; height: 5px; } .blip { width: 6px; height: 6px; }
+	.textStack { flex: 0 0 auto; }   // content-sized, so the radar and title sit centred in the slot rather than at the top of a stretched box
+	.findTitle { font-size: 0.82rem; justify-content: center; }
+	.findSub, .findClock { display: none; } }
 .cardCompact { position: absolute; inset: 0; width: auto; border: 0; border-radius: inherit; flex-direction: column; justify-content: center; gap: 0.55rem; padding: 0.9rem 0.6rem; text-align: center;
 	.textStack { width: 100%; align-content: center; }   // radar at the top, text in the middle, clock at the bottom
 	.findText { align-items: center; }
@@ -50,7 +60,8 @@
 // ---- found: the dimmed stage and the banner over both cards ----
 $hold: 2400ms;
 .stage { position: absolute; inset: 0; z-index: 20; pointer-events: none; }
-.dim { position: absolute; inset: -60px; background: rgba(5, 8, 18, 0.8); animation: fadeIn 0.5s ease-out both, fadeOut 0.5s ease-in ($hold + 50ms) both; }
+// The dim covers the whole screen (fixed to the viewport; inside the force-rotated phone layout, to that layout), not just the stack.
+.dim { position: fixed; inset: 0; background: rgba(5, 8, 18, 0.8); animation: fadeIn 0.5s ease-out both, fadeOut 0.5s ease-in ($hold + 50ms) both; }
 .row { position: absolute; left: 0; right: 0; top: 50%; height: 104px; transform: translateY(-50%); display: flex; align-items: stretch; }
 // every piece is a parallelogram with the same slant; neighbours overlap by the slant width so they butt flush
 .pg { clip-path: polygon(34px 0, 100% 0, calc(100% - 34px) 100%, 0 100%); }
@@ -67,6 +78,24 @@ $hold: 2400ms;
 .avatar :global(canvas) { border-radius: 10px; box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.6); }
 .mid { flex: 0 0 132px; margin-left: -34px; background: #05080f; display: grid; place-items: center; font-family: var(--font-display); font-weight: 800; font-size: 2.8rem; color: #fff; position: relative; z-index: 3; animation: punch 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.5s both, fadeOut 0.3s ease-in $hold both; }
 .mid + .group { margin-left: -34px; }
+// ---- 6 players: the starting grid (MatchFoundSix). Six slots, two by three, staggered like a race grid: odd
+// slots sit left and fly in from the left, even ones sit right and fly in from the right. Sizes follow the
+// viewport width, so the landscape phone and the desktop share one layout. $gridHold: when the grid fades. ----
+$gridHold: 4300ms;
+.gridDim { animation: fadeIn 0.5s ease-out both, fadeOut 0.5s ease-in ($gridHold + 50ms) both; }
+.grid6 { position: absolute; left: 6%; right: 6%; top: 50%; transform: translateY(-50%); display: grid; grid-template-columns: repeat(2, 1fr); gap: clamp(6px, 1.2vw, 16px) clamp(14px, 3vw, 40px); }
+// All six slots glide in together (the left column from the left, the right from the right) and leave the same
+// way, together, back out to their sides.
+.slot { display: flex; align-items: center; gap: clamp(6px, 1.1vw, 16px); padding: clamp(5px, 0.8vw, 11px) clamp(10px, 1.4vw, 20px); background: var(--surface); border: 1px solid var(--border); border-left: clamp(3px, 0.4vw, 6px) solid var(--duel-opp, #fb7185); border-radius: clamp(4px, 0.5vw, 8px); color: #fff; min-width: 0; animation: slotIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.3s both, slotOut 0.55s cubic-bezier(0.55, 0, 1, 0.45) $gridHold both; }
+.slot:nth-child(odd) { --from: -60%; margin-right: 6%; }
+.slot:nth-child(even) { --from: 60%; margin-left: 6%; }
+.slotYou { border-left-color: var(--duel-you, #3b82f6); }
+.slotAvatar { flex: 0 0 auto; :global(canvas) { border-radius: 22%; } }
+.slotName { flex: 1 1 auto; min-width: 0; display: inline-flex; align-items: center; font-family: var(--font-display); font-weight: 700; font-size: clamp(0.85rem, 1.55vw, 1.4rem); line-height: 1.2; }
+.slotName .name { min-width: 0; }
+.slotRank { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 0.35em; font-family: var(--font-display); font-weight: 700; font-size: clamp(0.62rem, 1.05vw, 0.95rem); white-space: nowrap; }
+@keyframes slotIn { from { transform: translateX(var(--from)); opacity: 0; } }
+@keyframes slotOut { to { transform: translateX(var(--from)); opacity: 0; } }
 @keyframes inL { from { transform: translateX(-110%); } to { transform: translateX(0); } }
 @keyframes inR { from { transform: translateX(110%); } to { transform: translateX(0); } }
 @keyframes upOut { to { transform: translateY(-160%); opacity: 0; } }

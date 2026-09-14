@@ -29,7 +29,7 @@ export const ACHIEVEMENTS: AchDef[] = [
 	{ icon: "⚡", name: "Surge", value: m => m.bestDayGain || 0, tiers: [150, 300, 500], desc: t => "Climb +" + t + " rating in one day" },
 	{ icon: "💥", name: "Big Swing", value: m => m.bigSwing || 0, tiers: [40, 80, 120], desc: t => "Gain +" + t + " from a single match" },
 	{ icon: "🤺", name: "Duelist", value: m => m.wins1v1 || 0, tiers: [10, 50, 200, 1000], desc: t => "Win " + t + " 1v1 matches" },
-	{ icon: "👑", name: "Free-for-all King", value: m => m.wins6p || 0, tiers: [1, 10, 50], desc: t => t === 1 ? "Win a 7-player free-for-all" : "Win " + t + " 7-player free-for-alls" },
+	{ icon: "👑", name: "Free-for-all King", value: m => m.wins6p || 0, tiers: [1, 10, 50], desc: t => t === 1 ? "Win a 6-player free-for-all" : "Win " + t + " 6-player free-for-alls" },
 	{ icon: "🧠", name: "No Flags", value: m => m.noFlagClears || 0, tiers: [1, 10, 50], desc: t => t === 1 ? "Clear a board without placing a flag" : "Clear " + t + " boards without a flag" },
 	{ icon: "🎹", name: "Chord Master", value: m => m.noRevealClears || 0, tiers: [1, 10, 50], desc: t => t === 1 ? "Clear a board without a left-click (chords only)" : "Clear " + t + " boards chord-only" },
 	{ icon: "🎖️", name: "Sharpshooter", bool: m => (m.played || 0) >= 20 && (m.wins || 0) / (m.played || 1) >= 0.6, progress: m => { const p = m.played || 0; return p >= 20 ? Math.round((m.wins || 0) / p * 100) + "% win rate" : p + " / 20 matches"; }, desc: () => "60%+ win rate over 20+ matches" },

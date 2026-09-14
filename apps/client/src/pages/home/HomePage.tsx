@@ -59,7 +59,7 @@ export default function HomePage({ openPuzzles = false, customize = false }: { o
 
 // ---- identity row ----
 function IdentityRow({ account, matches, customize }: { account: Account | null; matches: ReturnType<typeof useMatchHistory>; customize: boolean }) {
-	const { signIn, update } = useAuth();
+	const { openSignIn, update } = useAuth();
 	const navigate = useNavigate();
 	const { tab: slug } = useParams();
 	// The customize modal is addressable: /customize/<tab> opens it, closing returns to /.
@@ -81,7 +81,7 @@ function IdentityRow({ account, matches, customize }: { account: Account | null;
 			<div className={`${styles.youBox} ${styles.youMain}`}>
 				<div className={styles.youText}>
 					<NameRow account={account} onRenamed={(name) => update({ name })} />
-					{account && account.guest && <a href="#" className={styles.signin} onClick={(e) => { e.preventDefault(); signIn("google"); }}>Sign in to save your stats</a>}
+					{account && account.guest && <a href="#" className={styles.signin} onClick={(e) => { e.preventDefault(); openSignIn(); }}>Sign in to save your stats</a>}
 				</div>
 				<div className={`${styles.stats} ${stats && !stats.isToday ? styles.statsPast : ""}`}>
 					{stats ? (

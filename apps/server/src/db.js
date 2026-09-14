@@ -81,6 +81,7 @@ function addColumnIfMissing(table, column, definition) {
 	catch (e) { if (!/duplicate column/i.test(e.message)) throw e; }
 }
 addColumnIfMissing("users", "puzzle_rating", "INTEGER NOT NULL DEFAULT 0");
+addColumnIfMissing("users", "prefs", "TEXT");   // a JSON object of small UI preferences that follow the account (see userPrefs / setUserPref)
 // Puzzle Ladder points — a monotonic progression currency (never decreases) that drives the puzzle
 // tier/level. Separate from puzzle_rating, which stays two-way and only sets puzzle difficulty.
 addColumnIfMissing("users", "puzzle_points", "INTEGER NOT NULL DEFAULT 0");
@@ -716,6 +717,16 @@ function topPlayers(limit, mode) {
 // Cosmetic identity setters (avatar cloth colour + country code). Null clears.
 function setAvatarColor(userId, color) { db.prepare("UPDATE users SET avatar_color = ? WHERE id = ?").run(color || null, userId); }
 function setCountry(userId, country) { db.prepare("UPDATE users SET country = ? WHERE id = ?").run(country || null, userId); }
+// UI preferences that follow the account across devices (which players' view a 6-player battle opens with, say):
+// one JSON object in users.prefs, read as a plain object, written one key at a time.
+function userPrefs(user) { if (!user || !user.prefs) return {}; try { var v = JSON.parse(user.prefs); return v && typeof v === "object" ? v : {}; } catch (e) { return {}; } }
+function setUserPref(userId, key, value) {
+	var row = db.prepare("SELECT prefs FROM users WHERE id = ?").get(userId);
+	var prefs = userPrefs(row);
+	if (value === null || value === undefined) delete prefs[key]; else prefs[key] = value;
+	db.prepare("UPDATE users SET prefs = ? WHERE id = ?").run(JSON.stringify(prefs), userId);
+	return prefs;
+}
 
 // --- Shop: purchased-item ownership ----------------------------------------------------------------
 function listOwnedItemIds(userId) {
@@ -1662,6 +1673,8 @@ module.exports = {
 	topPlayers: topPlayers,
 	setAvatarColor: setAvatarColor,
 	setCountry: setCountry,
+	userPrefs: userPrefs,
+	setUserPref: setUserPref,
 	listOwnedItemIds: listOwnedItemIds,
 	ownsItem: ownsItem,
 	grantItem: grantItem,

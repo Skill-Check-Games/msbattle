@@ -28,15 +28,12 @@ var roomMapping = appState.roomMapping, games = appState.games, rooms = appState
 
 // Ranked mode catalogue + timings (moved here from the server). Each playstyle carries its
 // own Elo ladder.
-// The "_six" mode ids are kept as-is (not renamed to "_seven") even though `size` is now 7 —
-// they're a wire/DB identifier (match_history, replays, the ranked queue) with real historical
-// data behind them; renaming would orphan that history. `label` is display metadata only (grep
-// confirms nothing reads it) — updated for anyone skimming this table, not load-bearing.
+// The "_six" modes: six players (you and five others), so the desktop view tiles every board three by two.
 var RANKED_MODES = {
 	sprint_duo: { size: 2, label: "1v1 Sprint", style: "sprint", mineDensity: 0.10, boardSize: "medium" },
-	sprint_six: { size: 7, label: "7P Sprint",  style: "sprint", mineDensity: 0.10, boardSize: "medium" },
+	sprint_six: { size: 6, label: "6P Sprint",  style: "sprint", mineDensity: 0.10, boardSize: "medium" },
 	standard_duo: { size: 2, label: "1v1 Standard", style: "standard", mineDensity: 0.20, boardSize: "medium", roundSeconds: 360 }, // denser board → longer round
-	standard_six: { size: 7, label: "7P Standard", style: "standard", mineDensity: 0.20, boardSize: "medium", roundSeconds: 360 }
+	standard_six: { size: 6, label: "6P Standard", style: "standard", mineDensity: 0.20, boardSize: "medium", roundSeconds: 360 }
 };
 // Short pause between forming a match and starting game 1 — just long enough to land in the
 // game layout (covered board) before the countdown. There's no roster modal to read anymore
@@ -114,6 +111,8 @@ function rankedSearchMembers(viewerID, mode) {
 		members.push({
 			id: "pending_bot_" + mode + "_" + j,
 			name: b.name,
+			country: b.country || null,
+			avatar: b.avatar || null,
 			rating: b.config.rating,
 			provisional: false,
 			isYou: false,
@@ -166,6 +165,8 @@ function scheduleBotArrival(mode) {
 			var taken = pendingBotsLists[mode].map(function(p) { return p.name; });
 			pendingBotsLists[mode].push({
 				name: botPlayer.pickBotName(taken),
+				country: botPlayer.pickBotCountry(),
+				avatar: botPlayer.pickBotAvatar(),
 				config: botPlayer.pickBotFromPool(rankedTargetElo(mode), 0, RANKED_MODES[mode].ratingKey)
 			});
 		}
@@ -234,7 +235,7 @@ function formRankedMatch(mode) {
 	var seats = matchSize - humans.length;
 	var botSpecs = [];
 	for (var b = 0; b < queuedBots.length && botSpecs.length < seats && botSpecs.length < MAX_BOTS_PER_ROOM; b++) {
-		botSpecs.push({ config: queuedBots[b].config, name: queuedBots[b].name });
+		botSpecs.push({ config: queuedBots[b].config, name: queuedBots[b].name, country: queuedBots[b].country || null, avatar: queuedBots[b].avatar || null });
 	}
 	if (!modeDef.noBots && botSpecs.length < seats) {
 		var sumElo = 0, eloCount = 0;

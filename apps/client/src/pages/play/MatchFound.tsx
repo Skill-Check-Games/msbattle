@@ -3,8 +3,9 @@
 // your black badge end and blue slab from the left, the opponent's red slab and black badge end from the
 // right, a black VS block between them. It holds a beat, splits apart and the countdown takes over.
 import { useEffect, useState } from "react";
-import { AvatarChip } from "../../shared/Avatar";
+import { AvatarChip, FlagChip } from "../../shared/Avatar";
 import { RankBadge, PlacementBadge } from "../../shared/RankBadge";
+import { tierFor } from "../../shared/ranking";
 import type { RoomPlayer } from "../../game/match-store";
 import styles from "./MatchFound.module.scss";
 
@@ -14,14 +15,15 @@ export const MATCH_FOUND_MS = 3300;
 export const CARD_LEAVE_MS = 600;   // the card slides out to the right while the banner flies in
 
 // compact: the column version for the narrow opponent panel of the phone landscape layout.
-export function FindingEnemy({ since, found, leaving, compact }: { since: number; found?: boolean; leaving?: boolean; compact?: boolean }) {
+// compact: the landscape phone's panel. mini: an empty seat's card in the 6-player grid (radar and title only).
+export function FindingEnemy({ since, found, leaving, compact, mini }: { since: number; found?: boolean; leaving?: boolean; compact?: boolean; mini?: boolean }) {
 	const [now, setNow] = useState(Date.now());
 	useEffect(() => { const h = setInterval(() => setNow(Date.now()), 250); return () => clearInterval(h); }, []);
 	const s = Math.max(0, Math.floor((now - since) / 1000));
 	const clock = Math.floor(s / 60) + ":" + (s % 60 < 10 ? "0" : "") + (s % 60);
 	return (
 		<div className={`${styles.finding} ${leaving ? styles.findingLeaving : ""}`} aria-live="polite">
-			<div className={`${styles.card} ${compact ? styles.cardCompact : ""} ${found ? styles.cardFound : ""} ${leaving ? styles.cardLeaving : ""}`}>
+			<div className={`${styles.card} ${compact ? styles.cardCompact : ""} ${mini ? styles.cardMini : ""} ${found ? styles.cardFound : ""} ${leaving ? styles.cardLeaving : ""}`}>
 				<div className={styles.radar} aria-hidden="true"><span className={styles.sweep} /><span className={styles.ringA} /><span className={styles.ringB} /><span className={styles.dot} /><span className={styles.blip} /></div>
 				<div className={styles.textStack}>
 					<div className={`${styles.findText} ${styles.textFinding}`}>
@@ -37,6 +39,35 @@ export function FindingEnemy({ since, found, leaving, compact }: { since: number
 			</div>
 		</div>
 	);
+}
+
+// The 6-player match found: the starting grid. Six slots glide in together, the left column from the left and
+// the right column from the right, into a staggered two-by-three grid like a race start, each with avatar,
+// name, flag and rank; the grid holds, then all six glide back out the way they came as the countdown is due. compact: the phone (sizes follow the viewport, only the type steps down).
+export const MATCH_FOUND_SIX_MS = 4900;   // $gridHold (4.3s) + the exit
+export function MatchFoundSix({ players, myId, compact }: { players: RoomPlayer[]; myId: string | null; compact?: boolean }) {
+	return (
+		<div className={`${styles.stage} ${compact ? styles.stageCompact : ""}`} role="status" aria-label="Match found">
+			<div className={`${styles.dim} ${styles.gridDim}`} />
+			<div className={styles.grid6}>
+				{players.slice(0, 6).map((p, i) => {
+					const tier = typeof p.rating === "number" ? tierFor(p.rating, p.provisional) : null;
+					return (
+						<div key={p.id} className={`${styles.slot} ${p.id === myId || p.isYou ? styles.slotYou : ""}`} >
+							<AvatarChip avatar={p.avatar} country={p.country} px={compact ? 30 : 46} className={styles.slotAvatar} />
+							<span className={styles.slotName}><span className={styles.name}>{p.name}</span><FlagChip country={p.country} px={compact ? 12 : 16} /></span>
+							<span className={styles.slotRank} style={tier ? { color: tier.color } : undefined}><Badge player={p} size={compact ? 9 : 12} />{tier ? tier.name : "Placement"}</span>
+						</div>
+					);
+				})}
+			</div>
+		</div>
+	);
+}
+
+// The radar on its own (the list view's empty rows): the sweep, two rings and the centre dot at any size.
+export function Radar({ size }: { size: number }) {
+	return <div className={`${styles.radar} ${styles.radarSmall}`} style={{ width: size, height: size }} aria-hidden="true"><span className={styles.sweep} /><span className={styles.ringA} /><span className={styles.ringB} /><span className={styles.dot} /></div>;
 }
 
 function Badge({ player, size = 14 }: { player: RoomPlayer | null; size?: number }) {

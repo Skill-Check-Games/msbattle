@@ -66,7 +66,7 @@ SCSS modules, react-router, no state library). Root scripts run the server from 
     `fullscreen.ts`.
   - `audio/` — `sound.ts` (synth effects), `music.js` (procedural soundtrack).
   - `pages/` — one folder per page: `home`, `play` (+ `mobile.tsx` phone layouts, `hud`, `Scoreboard`,
-    `RoomLobby`, `ResultModals`), `solo`, `puzzles`, `learn`, `custom`, `replay`, `profile`,
+    `RoomLobby`, `ResultModals`, `Standings` and `OpponentCards` for 3 to 6 players), `solo`, `puzzles`, `learn`, `custom`, `replay`, `profile`,
     `leaderboard`, `shop` (+ `CustomizeLab`), `settings`, `legal`, `admin/*` (dev tools, admin accounts only).
   - `styles/` — `tokens.scss` (design tokens), `base.scss`, `variables.scss` (breakpoints, `below()` mixin).
   - `public/` — static assets served as-is: `flags/`, `flags-square/`, `avatars/`, `skins/`, logo, manifest.

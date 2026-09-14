@@ -1,20 +1,24 @@
 // The live game view: ranked search and play share this screen. 1v1 gets two equal boards facing
-// off across a VS column; 3 to 7 players get a big own board with every opponent tiled on the right;
+// off across a VS column; 3 to 6 players get a big own board with every opponent tiled on the right;
 // custom rooms get the waiting-room lobby while planning and the classic board-plus-scoreboard while
 // playing. The match store drives it; this file only lays it out.
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
+import { getSocket } from "../../online/socket";
+import { sound } from "../../audio/sound";
 import { match, useMatch, MODE_LABELS, STYLE_LABELS, GameFrame, RoomPlayer } from "../../game/match-store";
 import GameBoard, { SHAKE_PAD_X, SHAKE_PAD_Y } from "../../game/GameBoard";
 import { useCellPx, fitCellPx, CellPxOptions, DESKTOP_CELL_MIN } from "../../game/use-cell-px";
 import { animateZoom, measureZoomStart, attachPanAnywhere, attachPinchZoom, clearZoomTransform, ZOOMED_IN_CELL_PX, ZoomAnchor, PinchCommit } from "../../game/duel-zoom";
 import type { InputOptions } from "../../game/board-input";
-import { DuelIdentity, ProgressBar, LeadBar, ArenaStat, PlaceStamp, useRoundTimer, formatRoundTime, cellsLeftOf } from "./hud";
+import { DuelIdentity, ProgressStrip, LeadBar, ArenaStat, PlaceStamp, ClearedDial, useRoundTimer, formatRoundTime, cellsLeftOf } from "./hud";
 import { phoneSizedDevice } from "../../game/fullscreen";
 import FullscreenButton from "../../shared/FullscreenButton";
-import { FindingEnemy, MatchFoundBanner, RoundEndBanner, MATCH_FOUND_MS, FOUND_CARD_MS, CARD_LEAVE_MS, WIN_BANNER_MS, WIN_LEAVE_MS } from "./MatchFound";
+import { FindingEnemy, MatchFoundBanner, MatchFoundSix, RoundEndBanner, MATCH_FOUND_MS, MATCH_FOUND_SIX_MS, FOUND_CARD_MS, CARD_LEAVE_MS, WIN_BANNER_MS, WIN_LEAVE_MS } from "./MatchFound";
 import OpponentBoard from "./OpponentBoard";
 import Scoreboard from "./Scoreboard";
+import Standings from "./Standings";
+import OpponentCards from "./OpponentCards";
 import RoomLobby from "./RoomLobby";
 import { SeriesResultModal } from "./ResultModals";
 import { AvatarChip, FlagChip } from "../../shared/Avatar";
@@ -26,6 +30,7 @@ import styles from "./PlayPage.module.scss";
 const DUEL_GAP_PX = 16;  // .duelGrid's gap between the two cards (PlayPage.module.scss)
 const LS_PANEL_W = 158;  // the landscape side panels' width (matches .landscape's grid columns in PlayPage.module.scss)
 const FOUND_GAP_MS = 300;        // the match-found banner is gone at least this long before the 3-2-1 begins
+const FOUND_FIELD_BREATH_MS = 1100;  // 6 players: the pause between the last seat filling and the field's presentation (a breath, so it does not feel rushed)
 const FOUND_WAIT_MAX_MS = 4000;  // how long the found card waits for start_game beyond its natural length before giving up
 const LS_SHORT_MAX_H = 370;   // landscape layouts this short (small phones) use the compact side panels (.lsShort)
 // Everything on your side panel other than the mode box, top to bottom, in px (page padding, panel padding, the
@@ -42,17 +47,34 @@ const DUO_CARD_CHROME_W = 50;   // an arena's padding + border + the shake gutte
 const DUO_CARD_CHROME_H = 120;  // an arena's padding, head row, gap and border above and below its board
 const DUO_STACK_CHROME_H = 330; // header, clock, lead bar, gaps and page padding around the stacked cards
 const MAIN_GUTTER_PX = 56;      // main's side padding while live (1.75rem each side, base.scss)
-const DESKTOP_FIT_MIN_CELL = 14;   // a desktop board may shrink to this to fit the window (1v1 side by side, 7-player)
-const MULTI_BOTTOM_GAP = 200;   // 7-player: below your board sit the card's padding, the progress bar, the tools row and the page padding
-const OPP_CARD_CHROME_H = 61;   // a 7-player opponent card's padding, head row and border above and below its mini board
-const OPP_GRID_GAP = 11;        // .oppGrid's gap (0.7rem)
+const DESKTOP_FIT_MIN_CELL = 14;   // a desktop board may shrink to this to fit the window (1v1 side by side, 6-player)
+const MULTI_BOTTOM_GAP = 72;    // desktop 6-player: below your board sit the arena's padding and the page padding (as in the 1v1)
+const MULTI_STACK_MAX_W = 960;  // desktop 6-player windows narrower than this stack (your arena over the compact list)
+const MULTI_STACK_LIST_H = 6 * 30 + 5 * 5 + 16;   // the compact list under your arena when stacked (.compact rows in Standings.module.scss) plus the gap
+// Desktop 6-player, the players' column: six cards two by three that together are exactly as tall as your arena.
+// The card size follows from the height your arena will have (your board at its cap or the window's height
+// budget), and the column's width follows from the card size; your board then takes the width that is left.
+// Two passes: a narrow window may shrink your board by width, which lowers the arena and so the cards.
+const MULTI_ARENA_CHROME_H = 110;   // your arena's head row, paddings, gap and border above and below the board
+const MULTI_CARD_CHROME_H = 78, MULTI_CARD_CHROME_W = 18, MULTI_CARD_GAP = 10;   // a card's head, bar, paddings, border (OpponentCards.module.scss)
+function multiLayout(vw: number, vh: number, rows: number, cols: number): { cardPx: number; columnW: number } {
+	if (!rows || !cols) return { cardPx: 6, columnW: 300 };
+	let myPx = Math.min(54, Math.floor((vh - 250 - MULTI_BOTTOM_GAP) / rows)), cardPx = 4, columnW = 300;
+	for (let pass = 0; pass < 2; pass++) {
+		const arenaH = myPx * rows + MULTI_ARENA_CHROME_H;
+		cardPx = Math.max(4, Math.floor(((arenaH - 2 * MULTI_CARD_GAP) / 3 - MULTI_CARD_CHROME_H) / rows));
+		columnW = 2 * (cols * cardPx + MULTI_CARD_CHROME_W) + MULTI_CARD_GAP;
+		myPx = Math.max(DESKTOP_FIT_MIN_CELL, Math.min(myPx, Math.floor((vw - MAIN_GUTTER_PX - columnW - DUEL_GAP_PX - DUO_CARD_CHROME_W) / cols)));
+	}
+	return { cardPx, columnW };
+}
 // Safe cells still to open; with no frame yet (before the round) everyone has the whole board left.
 const cellsLeftNum = (f: GameFrame | null) => f ? Math.max(0, (f.totalSafe || 0) - (f.safeCount || 0)) : 1;
 
 export default function PlayPage() {
 	const s = useMatch();
 	const navigate = useNavigate();
-	const { account } = useAuth();
+	const { account, update } = useAuth();
 	const [flagMode, setFlagMode] = useState(false);
 	const flagRef = useRef(flagMode); flagRef.current = flagMode;
 	const session = match.session;
@@ -77,40 +99,60 @@ export default function PlayPage() {
 	const oppId = (match.opponents()[0] || {}).id || null;
 	const lastOppRef = useRef<string | null>(null);
 	useEffect(() => { if (s.search && searchSince == null) setSearchSince(Date.now()); if (!s.search && !s.inRoom) setSearchSince(null); }, [s.search, s.inRoom]);
-	const foundAt = useRef(0);
+	const foundAt = useRef(0), foundCardMs = useRef(FOUND_CARD_MS), foundBannerMs = useRef(MATCH_FOUND_MS);   // the 1v1's card and slabs, or the 6-player breath and grid
+	const foundWaitsForStart = useRef(true);   // 1v1: the card can wait for start_game before giving way; 6 players: nothing is on screen meanwhile, so no waiting
 	useEffect(() => {
 		// Only the seat filling during a search plays it, never a roster refresh mid-round.
 		if (oppId && !lastOppRef.current && searchSince != null && match.isDuo() && !s.roundLive) {
 			lastOppRef.current = oppId;
-			foundAt.current = Date.now();
+			foundAt.current = Date.now(); foundCardMs.current = FOUND_CARD_MS; foundBannerMs.current = MATCH_FOUND_MS; foundWaitsForStart.current = true;
 			setFoundPhase("card");
 		}
 		if (!oppId && !s.inRoom) lastOppRef.current = null;   // a new search starts fresh; a roster blip inside a room does not
 	}, [oppId]);
+	// 6 players: the field's banner plays once the room has formed (every seat filled). The seats' own radars
+	// were the search, so there is no card beat, only a short breath before the slabs glide in.
+	const fieldFormed = !!(s.room && s.room.ranked && match.isMulti() && s.room.players.length >= match.battleSize());
+	const lastFieldRef = useRef<string | null>(null);
+	useEffect(() => {
+		const key = fieldFormed && s.room ? String(s.room.id) : null;
+		if (key && lastFieldRef.current !== key && searchSince != null && !s.roundLive) {
+			lastFieldRef.current = key;
+			foundAt.current = Date.now(); foundCardMs.current = FOUND_FIELD_BREATH_MS; foundBannerMs.current = MATCH_FOUND_SIX_MS; foundWaitsForStart.current = false;
+			setFoundPhase("card");
+		}
+		if (!key && !s.inRoom) lastFieldRef.current = null;
+	}, [fieldFormed]);
 	// The card gives way to the banner after FOUND_CARD_MS, or sooner when the round's 3-2-1 is due sooner: the
 	// banner (MATCH_FOUND_MS from the card's leave to its exit) must be gone FOUND_GAP_MS before the first digit,
 	// whatever the gap between the roster's arrival and start_game turned out to be (on phones it varies).
 	// Until start_game has said when the digits begin, the card waits (with a cap, in case it never comes).
 	useEffect(() => {
 		if (foundPhase !== "card") return;
-		const natural = foundAt.current + FOUND_CARD_MS, digitsAt = s.countdownDigitsAt;
-		const at = digitsAt == null ? natural + FOUND_WAIT_MAX_MS : Math.min(natural, digitsAt - FOUND_GAP_MS - MATCH_FOUND_MS);
+		const natural = foundAt.current + foundCardMs.current, digitsAt = s.countdownDigitsAt;
+		const at = digitsAt == null ? (foundWaitsForStart.current ? natural + FOUND_WAIT_MAX_MS : natural) : Math.min(natural, digitsAt - FOUND_GAP_MS - foundBannerMs.current);
 		const t = setTimeout(() => setFoundPhase("cardOut"), Math.max(0, at - Date.now()));
 		return () => clearTimeout(t);
 	}, [foundPhase, s.countdownDigitsAt]);
 	useEffect(() => {
 		if (foundPhase !== "cardOut") return;
-		const t1 = setTimeout(() => setFoundPhase("banner"), CARD_LEAVE_MS), t2 = setTimeout(() => setFoundPhase(null), MATCH_FOUND_MS);
+		const t1 = setTimeout(() => setFoundPhase("banner"), CARD_LEAVE_MS);
 		// Once the slabs have landed, the board's idle twinkle dissolves and stays off for the countdown.
 		const t3 = setTimeout(() => match.session.fadeIdleOut(900), 700);
-		return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+		return () => { clearTimeout(t1); clearTimeout(t3); };
+	}, [foundPhase]);
+	// The banner's own end is timed from its phase (the cardOut effect's cleanup would cancel a timer set there).
+	useEffect(() => {
+		if (foundPhase !== "banner") return;
+		const t = setTimeout(() => setFoundPhase(null), Math.max(0, foundBannerMs.current - CARD_LEAVE_MS));
+		return () => clearTimeout(t);
 	}, [foundPhase]);
 	// The round's end (1v1): the winner's banner slides in over the cards, holds for WIN_BANNER_MS, then slides
 	// back out; the series result modal, when there is one, waits for that moment and arrives as it leaves.
 	const [winPhase, setWinPhase] = useState<"in" | "out" | null>(null);
 	const roundWinnerId = s.roundResultShown && s.roundResult ? s.roundResult.winnerId : null;
 	useEffect(() => {
-		if (!roundWinnerId || !match.isDuo()) { setWinPhase(null); return; }
+		if (!roundWinnerId || !match.isBattle()) { setWinPhase(null); return; }   // the 1v1's winner slab, and the same one for the 6-player field
 		setWinPhase("in");
 		const t = setTimeout(() => setWinPhase(p => (p === "in" ? "out" : p)), WIN_BANNER_MS);
 		return () => clearTimeout(t);
@@ -122,6 +164,17 @@ export default function PlayPage() {
 	const portraitOrientation = useMediaQuery("(orientation: portrait)");
 	useInGameBody();
 	const oppFrozenUntil = (s.frames || []).slice(1).reduce((m, f) => Math.max(m, (f && f.frozenUntil) || 0), 0);
+	// An opponent's mine is heard in every battle view (the boards, the list): a frame whose penalty is new since the
+	// last one plays the distant blast. The 1v1's mirror boards play it themselves, so this covers the rest.
+	const heardFrozen = useRef<Record<string, number>>({});
+	useEffect(() => {
+		if (!match.isMulti()) return;
+		for (const f of (s.frames || []).slice(1)) {
+			if (!f || !f.id) continue;
+			const until = f.frozenUntil || 0, last = heardFrozen.current[f.id] || 0;
+			if (until > last) { heardFrozen.current[f.id] = until; if (until > Date.now()) sound.opponentMine(); }
+		}
+	}, [s.frames]);
 	useEffect(() => { if (!s.frozenUntil && !oppFrozenUntil) return; const h = setInterval(() => tick(n => n + 1), 100); return () => clearInterval(h); }, [s.frozenUntil, oppFrozenUntil]);
 
 	const duo = match.isDuo(), multi = match.isMulti(), battle = match.battleActive() && (duo || multi);
@@ -156,14 +209,19 @@ export default function PlayPage() {
 	// Desktop 1v1: the two cards shrink-wrap their boards and sit side by side under the lead bar, so
 	// the cell size comes from the view's width split in two; the height budget is fixed chrome (header,
 	// lead bar, card head, paddings) since the stack is centred in the viewport.
-	const desktopDuo = duo && !phoneLandscape && !portrait;
+	const desktopDuo = duo && !phoneLandscape && !portrait, desktopMulti = multi && !phoneLandscape && !portrait;
+	// A narrow desktop window (a tall browser window, a small tablet) stacks the 6-player view: your arena on top,
+	// the compact standings list beneath, no boards. The side-by-side needs room for two columns of cards.
+	const multiStacked = desktopMulti && viewport.w < MULTI_STACK_MAX_W;
+	const multiCols = multiLayout(viewport.w, viewport.h, rows, cols);
+	const desktopArena = desktopDuo || desktopMulti;   // the arena-card layouts, sized from the view's width (share of it after the other column)
 	const sideBySideNeeds = 2 * (cols * DESKTOP_CELL_MIN + DUO_CARD_CHROME_W) + DUEL_GAP_PX, stackFits = viewport.h >= 2 * (rows * DESKTOP_CELL_MIN + DUO_CARD_CHROME_H) + DUO_STACK_CHROME_H;
 	const duoStacked = portrait || (!!cols && viewport.w - MAIN_GUTTER_PX < sideBySideNeeds && stackFits);   // the two cards one above the other
 	// Landscape phones: the overview is the whole board fitted to the scroller box (lsOverview); a zoom level
 	// pins the cell size exactly (min = max).
 	const lsOverview: CellPxOptions = { rows, cols, minCell: 1, maxCell: ZOOMED_IN_CELL_PX, chrome: 0, fitBox: "[data-board-scroll]", bottomGap: 64, desktopFit: true };
 	const lsBranch = phoneLandscape && battle && !planningLobby;   // the landscape branch is what is rendered (the search still shows the desktop branch)
-	const cellPx = useCellPx(desktopDuo ? viewRef : boardHostRef, phoneLandscape ? { ...lsOverview, minCell: zoomCellPx ?? 1, maxCell: zoomCellPx ?? ZOOMED_IN_CELL_PX, key: lsBranch } : { rows, cols, maxCell: duo ? 100 : 54, minCell: (desktopDuo && !duoStacked) || multi ? DESKTOP_FIT_MIN_CELL : undefined, chrome: duo ? 38 : 42, gutterX: portrait ? PORTRAIT_GUTTER_X : undefined, bottomGap: duo ? 72 : multi ? MULTI_BOTTOM_GAP : undefined, desktopFit: false, topOffset: desktopDuo ? 250 : undefined, reserve: desktopDuo && !duoStacked ? DUEL_GAP_PX : undefined, share: desktopDuo && !duoStacked ? 2 : undefined });
+	const cellPx = useCellPx(desktopArena ? viewRef : boardHostRef, phoneLandscape ? { ...lsOverview, minCell: zoomCellPx ?? 1, maxCell: zoomCellPx ?? ZOOMED_IN_CELL_PX, key: lsBranch } : { rows, cols, maxCell: duo ? 100 : 54, minCell: (desktopDuo && !duoStacked) || multi ? DESKTOP_FIT_MIN_CELL : undefined, chrome: duo || multi ? 38 : 42, gutterX: portrait ? PORTRAIT_GUTTER_X : undefined, bottomGap: duo ? 72 : multi ? (multiStacked ? MULTI_BOTTOM_GAP + MULTI_STACK_LIST_H : MULTI_BOTTOM_GAP) : undefined, desktopFit: false, topOffset: desktopArena ? 250 : undefined, reserve: desktopDuo && !duoStacked ? DUEL_GAP_PX : desktopMulti && !multiStacked ? multiCols.columnW + DUEL_GAP_PX : undefined, share: desktopDuo && !duoStacked ? 2 : undefined });
 	cellPxRef.current = cellPx;
 
 	phoneLandscapeRef.current = phoneLandscape;
@@ -300,6 +358,17 @@ export default function PlayPage() {
 		},
 	}), [session]);
 	const me = match.me(), opps = match.opponents();
+	// Desktop 6-player: the players' column shows every board (cards, you included) or the plain standings list.
+	// Remembered on the account (set_pref, so it follows you between devices) and in this browser as the fallback.
+	const [oppView, setOppView] = useState<"boards" | "list">(() => { const p = account && account.prefs && account.prefs.playersView; if (p) return p; try { return localStorage.getItem("ms_opp_view") === "list" ? "list" : "boards"; } catch { return "boards"; } });
+	const pickedView = useRef(false);
+	useEffect(() => { const p = account && account.prefs && account.prefs.playersView; if (p && !pickedView.current) setOppView(p); }, [account && account.prefs && account.prefs.playersView]);   // the account may arrive after the page
+	const pickOppView = (v: "boards" | "list") => {
+		pickedView.current = true; setOppView(v);
+		try { localStorage.setItem("ms_opp_view", v); } catch { /* storage blocked */ }
+		if (account) { update({ prefs: { ...(account.prefs || {}), playersView: v } }); getSocket().emit("set_pref", { key: "playersView", value: v }); }
+	};
+	const overlayUp = foundPhase !== null || winPhase !== null || !!s.seriesResult;
 	const frames = s.frames || [];
 	const myFrame = frames[0] || null;
 	const frameOf = (p: RoomPlayer) => frames.find(f => f && f.id === p.id) || null;
@@ -340,7 +409,8 @@ export default function PlayPage() {
 	const boardOverlays = (
 		<>
 			{hitCount(s.frozenUntil, myHit)}
-			{s.waitingCleared && !s.roundResultShown && <div className={`${styles.overlay} ${styles.cleared}`}>Cleared, waiting for others</div>}
+			{/* Cleared: the dial drains for the time the round has left, around your place ("Winner" for first). */}
+			{s.waitingCleared && !s.roundResultShown && <div className={`${styles.overlay} ${styles.cleared}`}><ClearedDial place={me ? placeOf[me.id] || 0 : 0} deadline={s.roundDeadline} /></div>}
 		</>
 	);
 	// The overlays (mine-hit freeze tint, "cleared" notice) cover the whole board card, not just the canvas.
@@ -385,15 +455,17 @@ export default function PlayPage() {
 				</div>
 				{/* Two boxes: the outer one (no visible edges) holds the bar and the board card; the board card below the bar
 				    carries the border, square at the top where it meets the bar and rounded at the bottom. */}
-				<div className={`${styles.lsCenter} ${duo ? styles.lsCenterBar : ""} ${hitClass(myHit)}`} ref={boardHostRef} data-shake-host="">
-					{duo && <div className={styles.lsBar}><LeadBar myLeft={cellsLeftNum(myFrame)} opLeft={cellsLeftNum(opp ? frameOf(opp) : null)} flat /></div>}
+				<div className={`${styles.lsCenter} ${styles.lsCenterBar} ${hitClass(myHit)}`} ref={boardHostRef} data-shake-host="">
+					{/* Along the card's top edge: the 1v1 lead bar, or your own progress in a 6-player battle. */}
+					<div className={styles.lsBar}>{duo ? <LeadBar myLeft={cellsLeftNum(myFrame)} opLeft={cellsLeftNum(opp ? frameOf(opp) : null)} flat /> : <ProgressStrip frame={myFrame} side="you" />}</div>
 					<div className={styles.lsBoardCard}>
 						<div className={`${styles.boardWrap} ${styles.lsBoardWrap}`}>{board}{!duo && <PlaceStamp place={me ? placeOf[me.id] : null} />}</div>
 						{boardOverlays}
 					</div>
 				</div>
-				{/* The opponent's mine hit reads like your own: the panel turns red and the penalty count sits over their mini board. */}
-				<div className={`${styles.lsPanel} ${styles.lsOpp} ${hitClass(oppHit)}`}>
+				{/* 1v1: the opponent's mine hit reads like your own, the panel turns red with the penalty count over their mini
+				    board. 6 players: the standings, every player ranked live (their mine hits show on their rows). */}
+				<div className={`${styles.lsPanel} ${styles.lsOpp} ${duo ? hitClass(oppHit) : ""}`}>
 					{duo ? (
 						<>
 							{/* The panel is laid out in full from the start (skeleton identity, board slot), so nothing moves when the opponent arrives. */}
@@ -403,9 +475,14 @@ export default function PlayPage() {
 							<span className={styles.lsSpacer} />
 							{searchSince != null && !s.roundLive && ((!opp && s.search) || foundPhase === "card" || foundPhase === "cardOut") && <FindingEnemy since={searchSince} found={foundPhase === "card" || foundPhase === "cardOut"} leaving={foundPhase === "cardOut"} compact />}
 						</>
-					) : <Scoreboard room={room} search={s.search} frames={s.frames} myId={match.myId} />}
+					) : (
+						<>
+							{/* The six players as the compact standings list, in their seats (no re-sorting, as on the desktop). */}
+							<div className={styles.lsStandings}><Standings room={room} search={s.search} frames={s.frames} myId={match.myId} placeOf={placeOf} compact /></div>
+						</>
+					)}
 				</div>
-				{(foundPhase === "banner" || foundPhase === "cardOut") && <MatchFoundBanner me={me} opp={opp} compact />}
+				{(foundPhase === "banner" || foundPhase === "cardOut") && (duo ? <MatchFoundBanner me={me} opp={opp} compact /> : <MatchFoundSix players={match.roster()} myId={match.myId} compact />)}
 				{winBanner(true)}
 				{s.seriesResult && winPhase !== "in" && <SeriesResultModal result={s.seriesResult} myId={match.myId} compact />}
 			</section>
@@ -417,10 +494,11 @@ export default function PlayPage() {
 			<div className={styles.header}>
 				<button className="btn btn-ghost" onClick={exit}>← Exit game</button>
 				<div className={styles.headerRight}>
-					{s.search && !duo && <span className={styles.searchStatus}><span className={styles.spinner} />Finding match · {s.search.members.length}/{s.search.size}</span>}
-					{!duo && s.mode && !s.search && <span className={styles.rankedTag}>RANKED</span>}
-					{!duo && <span className={styles.progressText}>{s.gameProgress}</span>}
-					{!duo && timer.text && <span className={`${styles.roundTimer} ${timer.cls}`}>⏱ {timer.text}</span>}
+					{/* Battles say nothing here: the search shows on every empty seat, the mode on the clock; only custom rooms keep the readouts. */}
+					{s.search && !duo && !multi && <span className={styles.searchStatus}><span className={styles.spinner} />Finding match · {s.search.members.length}/{s.search.size}</span>}
+					{!duo && !multi && s.mode && !s.search && <span className={styles.rankedTag}>RANKED</span>}
+					{!duo && !multi && <span className={styles.progressText}>{s.gameProgress}</span>}
+					{!duo && !multi && timer.text && <span className={`${styles.roundTimer} ${timer.cls}`}>⏱ {timer.text}</span>}
 					<FullscreenButton className={styles.fsBtn} />
 				</div>
 			</div>
@@ -459,26 +537,54 @@ export default function PlayPage() {
 					</div>
 					{portrait && !planningLobby && actionBar}
 				</div>
+			) : multi ? (
+				<div className={`${styles.duelStack} ${styles.multiStack}`}>
+					{(foundPhase === "banner" || foundPhase === "cardOut") && <MatchFoundSix players={match.roster()} myId={match.myId} />}
+					{winBanner(false, portrait)}
+					{/* Two columns with matching head rows: the clock centred over your arena, the Boards / List switch at the
+					    right over the cards, so the cards start level with your arena. */}
+					<div className={`${styles.duelGrid} ${styles.multiGrid} ${multiStacked ? styles.multiGridStacked : ""}`} style={{ "--players-w": multiCols.columnW + "px" } as React.CSSProperties}>
+						<div className={styles.multiCol}>
+							<div className={styles.multiHead}><div className={`${styles.timerBadge} ${!timer.text ? styles.clockIdle : ""}`}><div className={`${styles.duelTimer} ${timer.cls}`}>{clockText}</div></div></div>
+							<div className={`${styles.arena} ${styles.arenaYou} ${hitClass(myHit)}`} ref={boardHostRef} data-shake-host="">
+								<div className={styles.arenaHead}>
+									<DuelIdentity player={me || (account ? { id: "", name: account.name, avatar: account.avatarColor, country: account.country, rating: undefined } as any : null)} side="you" plain />
+									<ArenaStat frame={myFrame} side="you" hit={myHit === "on"} />
+								</div>
+								<div className={styles.boardWrap}>{board}<PlaceStamp place={me ? placeOf[me.id] : null} /></div>
+								{boardOverlays}
+							</div>
+						</div>
+						{/* Every player, you included: a grid of cards, each a standings row over that player's live board, ranked
+						    live. No container around them: the cards are the arenas. */}
+						{multiStacked ? (
+							<aside className={styles.playersColumn} aria-label="Players"><div className={styles.stackedList}><Standings room={room} search={s.search} frames={s.frames} myId={match.myId} placeOf={placeOf} compact /></div></aside>
+						) : (
+						<aside className={styles.playersColumn} aria-label="Players">
+							<div className={`${styles.multiHead} ${styles.multiHeadRight}`}>
+								{/* Not while something is presented over the dimmed page (the field, the winner, the result): the page is not the thing on screen then. */}
+								<div className={styles.viewSwitch} role="group" aria-label="Players view">
+									<button type="button" className={oppView === "boards" ? styles.viewOn : ""} aria-pressed={oppView === "boards"} disabled={overlayUp} onClick={() => pickOppView("boards")}>Boards</button>
+									<button type="button" className={oppView === "list" ? styles.viewOn : ""} aria-pressed={oppView === "list"} disabled={overlayUp} onClick={() => pickOppView("list")}>List</button>
+								</div>
+							</div>
+							<div className={styles.standingsList}>
+								{oppView === "boards" ? <OpponentCards room={room} search={s.search} searchSince={searchSince} frames={s.frames} myId={match.myId} rows={rows} cols={cols} cellPx={multiCols.cardPx} placeOf={placeOf} /> : <div className={styles.standingsScroll}><Standings room={room} search={s.search} frames={s.frames} myId={match.myId} placeOf={placeOf} /></div>}
+							</div>
+						</aside>
+						)}
+					</div>
+				</div>
 			) : (
-				<div className={`${styles.grid} ${multi ? styles.gridMulti : ""}`}>
+				<div className={styles.grid}>
 					<div className={styles.left} ref={boardHostRef}>
-						{multi && <DuelIdentity player={me} side="you" />}
 						<div className={`${styles.boardCard} ${hitClass(myHit)}`} data-shake-host="">{board}<PlaceStamp place={me ? placeOf[me.id] : null} />{boardOverlays}</div>
-						{multi && <ProgressBar frame={myFrame} side="you" />}
 						<div className={styles.tools}>
 							<button className={`btn ${flagMode ? styles.toolActive : ""}`} onClick={() => setFlagMode(f => !f)} aria-pressed={flagMode}>🚩 Flag mode</button>
 						</div>
 					</div>
 					<aside className={styles.side}>
-						{multi ? (
-							<div className={styles.oppGrid}>
-								{(s.search ? Array.from({ length: Math.max(0, match.battleSize() - 1) }, (_, i) => opps[i] || null) : opps).map((p, i) => (
-									<OpponentCard key={p ? p.id : "slot" + i} player={p} frame={p ? frameOf(p) : null} rows={rows} cols={cols} place={p ? placeOf[p.id] : null} />
-								))}
-							</div>
-						) : (
-							<div className={styles.card}><h3 className={styles.sideTitle}>Scoreboard</h3><Scoreboard room={room} search={s.search} frames={s.frames} myId={match.myId} /></div>
-						)}
+						<div className={styles.card}><h3 className={styles.sideTitle}>Scoreboard</h3><Scoreboard room={room} search={s.search} frames={s.frames} myId={match.myId} /></div>
 					</aside>
 				</div>
 			)}
@@ -487,39 +593,3 @@ export default function PlayPage() {
 	);
 }
 
-function OpponentCard({ player, frame, rows, cols, place }: { player: RoomPlayer | null; frame: GameFrame | null; rows: number; cols: number; place: number | null }) {
-	const ref = useRef<HTMLDivElement>(null);
-	const [cellPx, setCellPx] = useState(13);
-	useEffect(() => {
-		// Cells fit the card's width, and no taller than the card's share of the height under the header: the
-		// grid's rows of cards (two cards per row) must all fit on screen, since a live desktop page never scrolls.
-		const compute = () => {
-			const el = ref.current, w = el ? el.clientWidth - 24 : 0;
-			let px = w > 0 && cols ? Math.floor(w / cols) : 13;
-			const grid = el && el.parentElement;
-			if (grid && rows) {
-				const cardRows = Math.max(1, Math.ceil(grid.children.length / 2));
-				const avail = (window.innerHeight - grid.getBoundingClientRect().top - 24 - (cardRows - 1) * OPP_GRID_GAP) / cardRows - OPP_CARD_CHROME_H;
-				if (avail > 0) px = Math.min(px, Math.floor(avail / rows));
-			}
-			setCellPx(Math.max(6, Math.min(26, px)));
-		};
-		compute(); window.addEventListener("resize", compute); return () => window.removeEventListener("resize", compute);
-	}, [cols, rows]);
-	const tier = player && typeof player.rating === "number" ? tierFor(player.rating, player.provisional) : null;
-	const pct = Math.round(((frame && frame.progress) || 0) * 100);
-	return (
-		<div ref={ref} className={`${styles.oppCard} ${frame && frame.finished ? styles.oppFinished : ""} ${!player ? styles.searching : ""}`}>
-			<div className={styles.oppHead}>
-				<AvatarChip avatar={player ? player.avatar : "anon"} country={player ? player.country : null} px={32} />
-				<span className={styles.oppName}>{player ? player.name : "Searching…"}{player && <FlagChip country={player.country} px={14} />}</span>
-				{tier && <span className={styles.oppTier} style={{ color: tier.color }}>{tier.name}</span>}
-				<span className={styles.oppPct}>{player ? pct + "%" : ""}</span>
-			</div>
-			<div className={styles.oppBoardWrap}>
-				<OpponentBoard playerId={player ? player.id : "empty"} skin={player ? player.skin || "classic" : "classic"} frame={frame} rows={rows} cols={cols} cellPx={cellPx} className={styles.oppCanvas} covered />
-				<PlaceStamp place={place} />
-			</div>
-		</div>
-	);
-}

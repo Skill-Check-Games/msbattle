@@ -4,6 +4,8 @@
 // There is no login wall: a visitor with no token becomes a guest, and Sign in upgrades that guest in
 // place through the OAuth redirect (/auth/<provider>?upgrade=<token>), which lands back on /#token=...
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import SignInModal from "../app/SignInModal";
+import signStyles from "../app/SignInModal.module.scss";
 import { getSocket, onSocket } from "../online/socket";
 import type { Account, ProviderFlags } from "./types";
 import { announceCosmetics } from "./cosmetics";
@@ -33,6 +35,8 @@ interface AuthState {
 	account: Account | null;
 	socketId: string | null;
 	providers: ProviderFlags;
+	signingIn: string | null;       // the provider the browser is being handed off to (a spinner shows until it leaves)
+	openSignIn(): void;             // the sign-in chooser (SignInModal)
 	signIn(provider: "google" | "discord" | "dev"): void;
 	signOut(): void;
 	update(patch: Partial<Account>): void;
@@ -44,6 +48,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	const [account, setAccount] = useState<Account | null>(null);
 	const [socketId, setSocketId] = useState<string | null>(null);
 	const [providers, setProviders] = useState<ProviderFlags>({});
+	const [signingIn, setSigningIn] = useState<string | null>(null);
+	const [chooserOpen, setChooserOpen] = useState(false);
 
 	useEffect(() => {
 		takeTokenFromHash();
@@ -68,11 +74,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 	}, []);
 
 	const value: AuthState = {
-		account, socketId, providers,
+		account, socketId, providers, signingIn,
+		openSignIn() { setChooserOpen(true); },
+		// The provider's login route is /auth/<provider>/login (oauth.js); the dev login is /auth/dev. A guest's
+		// session token rides along as ?upgrade= so the account keeps the guest's stats.
 		signIn(provider) {
 			const token = readToken();
 			const upgrade = token ? `?upgrade=${encodeURIComponent(token)}` : "";
-			location.href = provider === "dev" ? `/auth/dev${upgrade}` : `/auth/${provider}${upgrade}`;
+			setSigningIn(provider);
+			// a beat so the veil paints before the browser leaves (a redirect can otherwise sit on a frozen page)
+			setTimeout(() => { location.href = provider === "dev" ? `/auth/dev${upgrade}` : `/auth/${provider}/login${upgrade}`; }, 60);
 		},
 		signOut() {
 			getSocket().emit("sign_out");
@@ -82,7 +93,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		},
 		update(patch) { setAccount(a => (a ? { ...a, ...patch } : a)); }
 	};
-	return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+	const providerName = signingIn === "google" ? "Google" : signingIn === "discord" ? "Discord" : "the dev login";
+	return (
+		<AuthContext.Provider value={value}>
+			{children}
+			<SignInModal open={chooserOpen} onClose={() => setChooserOpen(false)} />
+			{signingIn && <div className={signStyles.veil} role="status" aria-live="polite"><div className={signStyles.veilBox}><span className={signStyles.spinner} />Signing in<small>Taking you to {providerName}…</small></div></div>}
+		</AuthContext.Provider>
+	);
 }
 
 export function useAuth(): AuthState { return useContext(AuthContext); }

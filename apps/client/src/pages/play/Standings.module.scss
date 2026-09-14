@@ -1,0 +1,65 @@
+// Standings rows wear the arena treatment: a border in the row's colour (--side), a faint tint, matte.
+.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.45rem; width: 100%; min-width: 0; }
+// A row arrives softly (a seat filling during the search, a view switched on).
+.row {
+	--side: var(--duel-opp, #fb7185);
+	animation: seatIn 0.4s ease-out both;
+	display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; grid-template-areas: "avatar name stat" "avatar bar stat";
+	column-gap: 0.65rem; row-gap: 0.4rem; align-items: center; min-width: 0;
+	height: 56px; padding: 0 0.75rem 0 0.65rem; border-radius: 7px;   // a fixed height: a row never changes size with its content
+	border: 1px solid var(--border); background: rgba(255, 255, 255, 0.025);
+	transition: border-color 0.25s ease, background 0.25s ease;
+}
+// The border takes the row's colour where it says something: your row, a finished one, a mine hit (as the cards do).
+.me, .finished, .hit { border-color: var(--side); }
+.finished, .hit { background: color-mix(in srgb, var(--side) 12%, transparent); }   // your row keeps the plain ground: the blue border is enough
+.me { --side: var(--duel-you, #3b82f6); }
+.finished { --side: var(--energy-win, #22c55e); }
+// The row jolts as the mine goes off, like the board it stands for. seatIn stays first in the list: an animation is
+// tracked by its name and position, so adding and removing the shake never restarts the fade-in.
+.hit { --side: var(--danger); animation: seatIn 0.4s ease-out both, rowShake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both; }
+@keyframes rowShake { 10%, 90% { transform: translateX(-1px); } 20%, 80% { transform: translateX(2px); } 30%, 50%, 70% { transform: translateX(-4px); } 40%, 60% { transform: translateX(4px); } }
+// An empty seat during the search: the radar sits where the avatar will land, "Finding enemy" where the name will,
+// the bar's empty track beneath, so the row is already the shape it takes when the player arrives.
+.waiting { .bar { opacity: 0.55; } }
+.radarSlot { grid-area: avatar; display: grid; place-items: center; }
+@keyframes seatIn { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .row, .hit { animation: none; } .burst { display: none; } }
+.searching { grid-area: name; align-self: end; font-size: 0.8rem; font-weight: 700; color: var(--muted); white-space: nowrap; display: inline-flex; align-items: center; line-height: 1.2; }
+.dots { display: inline-flex; gap: 3px; margin-left: 4px; i { width: 3px; height: 3px; border-radius: 50%; background: var(--muted); animation: blink 1.2s ease-in-out infinite; &:nth-child(2) { animation-delay: 0.2s; } &:nth-child(3) { animation-delay: 0.4s; } } }
+@keyframes blink { 0%, 80%, 100% { opacity: 0.25; } 40% { opacity: 1; } }
+// A finished player's place, in the percentage's slot, wears the podium colours.
+.place1 { color: var(--energy-gold); }
+.place2 { color: #e2e8f0; }
+.place3 { color: #f0b486; }
+.avatarSlot { grid-area: avatar; position: relative; display: grid; place-items: center; }
+.avatar :global(canvas) { border-radius: 50%; }
+// The mine going off, over the avatar: a flash ring and six sparks flying out (mounted with the hit, so it plays once per hit).
+.burst { position: absolute; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; }
+.burst::before { content: ""; position: absolute; left: -30px; top: -30px; width: 60px; height: 60px; border-radius: 50%; border: 2px solid rgba(251, 146, 60, 0.9); animation: burstRing 0.6s ease-out both; }
+.burst i { position: absolute; left: -3.5px; top: -3.5px; width: 7px; height: 7px; border-radius: 50%; background: var(--energy-gold); animation: spark 0.7s ease-out both; }
+.burst i:nth-child(1) { --a: 0deg; } .burst i:nth-child(2) { --a: 60deg; } .burst i:nth-child(3) { --a: 120deg; } .burst i:nth-child(4) { --a: 180deg; } .burst i:nth-child(5) { --a: 240deg; } .burst i:nth-child(6) { --a: 300deg; }
+.burst i:nth-child(odd) { background: var(--danger); }
+@keyframes burstRing { from { transform: scale(0.25); opacity: 1; } to { transform: scale(1.6); opacity: 0; } }
+@keyframes spark { from { transform: rotate(var(--a)) translateY(0); opacity: 1; } to { transform: rotate(var(--a)) translateY(-40px); opacity: 0; } }
+.name { grid-area: name; align-self: end; font-weight: 700; font-size: 0.92rem; min-width: 0; display: inline-flex; align-items: center; line-height: 1.2; }
+.nameText { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bar { grid-area: bar; align-self: start; position: relative; height: 8px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+.fill { position: absolute; inset: 0 auto 0 0; background: var(--side); transition: width 0.3s ease, background 0.25s ease; }
+.stat { grid-area: stat; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; line-height: 1; }
+.pct { font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; font-variant-numeric: tabular-nums; color: var(--side); transition: color 0.25s ease; }
+// The landscape phone's 158px panel: one line per player, the bar under the name, rank and avatar small.
+.compact {
+	gap: 0.3rem;
+	.searching { font-size: 0.7rem; }
+	.row, .waiting { grid-template-columns: 20px minmax(0, 1fr) auto; column-gap: 0.35rem; row-gap: 0.2rem; height: 30px; padding: 0 0.4rem; border-radius: 5px; }   // 30px rows (LS_MULTI_FIXED_H in PlayPage.tsx)
+	.avatar :global(canvas) { width: 20px !important; height: 20px !important; }
+	.burst::before { left: -18px; top: -18px; width: 36px; height: 36px; }
+	.burst i { width: 4px; height: 4px; left: -2px; top: -2px; animation-name: sparkSmall; }
+	@keyframes sparkSmall { from { transform: rotate(var(--a)) translateY(0); opacity: 1; } to { transform: rotate(var(--a)) translateY(-22px); opacity: 0; } }
+	.name { font-size: 0.72rem; }
+	.bar { height: 4px; }
+	.pct { font-size: 0.78rem; }
+	.left { display: none; }
+	.stat { gap: 0; }
+}

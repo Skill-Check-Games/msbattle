@@ -9,6 +9,7 @@ export interface Account {
 	avatarUrl?: string | null;
 	avatarColor: string | null;   // "#rrggbb" flag colour, "anon", "mine", or "img:<id>"
 	country: string | null;       // ISO-3166 alpha-2
+	prefs?: { playersView?: "boards" | "list" };   // small UI preferences that follow the account (set_pref)
 	wins: number;
 	played: number;
 	playedSprint: number;

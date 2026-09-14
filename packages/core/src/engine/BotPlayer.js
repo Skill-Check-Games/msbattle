@@ -2,6 +2,7 @@ var fs = require("fs");
 var gameCreator = require("./GameCreator");
 var BoardLogic = require("../common/BoardLogic");
 var cspSolver = require("./CSPSolver");
+var Cosmetics = require("../common/Cosmetics");
 // Bots reason with the CSP analyzer but never at/above the case-split threshold (CASE_BASE = 8): a
 // human-skill bot shouldn't crack case-analysis boards. Their actual skill ceiling is the per-cell
 // difficulty gate (maxDifficulty) applied to whatever safe move this surfaces.
@@ -167,6 +168,17 @@ function generateName() {
 		return randOf(NAME_WORDS) + cap(randOf(NAME_WORDS));
 	}
 	return randOf(NAME_FIRST) + "_" + randOf(NAME_WORDS);
+}
+
+// Bots fly a flag like everyone else: a western country, picked at random when the bot is created (once
+// per bot, so the flag it shows in the search list is the one it plays under).
+var BOT_COUNTRIES = ["US", "CA", "GB", "IE", "FR", "DE", "NL", "BE", "SE", "NO", "DK", "FI", "IS", "ES", "PT", "IT", "CH", "AT", "AU", "NZ", "PL", "CZ"];
+function pickBotCountry() { return BOT_COUNTRIES[Math.floor(Math.random() * BOT_COUNTRIES.length)]; }
+// A bot's avatar: "anon", "mine" or any image preset, purchasable ones included (a bot has no account to gate
+// against). Picked with the name and country, once per bot, so the search list already shows the face it plays with.
+function pickBotAvatar() {
+	var values = ["anon", "mine"].concat(Object.keys(Cosmetics.AVATAR_IMAGES).map(function(id) { return "img:" + id; }));
+	return values[Math.floor(Math.random() * values.length)];
 }
 
 function pickBotName(taken) {
@@ -460,6 +472,8 @@ function computeMoveDelay(game, lastClick, move) {
 exports.decideMove = decideMove;
 exports.computeMoveDelay = computeMoveDelay;
 exports.pickBotName = pickBotName;
+exports.pickBotCountry = pickBotCountry;
+exports.pickBotAvatar = pickBotAvatar;
 exports.DIFFICULTIES = DIFFICULTIES;
 exports.DEFAULT_DIFFICULTY = DEFAULT_DIFFICULTY;
 exports.configForDifficulty = configForDifficulty;

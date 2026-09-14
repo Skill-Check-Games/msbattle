@@ -1,4 +1,4 @@
-// Sprint / Standard picker: 1v1 or 7-player. Picking starts the ranked search and opens the play view.
+// Sprint / Standard picker: 1v1 or 6-player. Picking starts the ranked search and opens the play view.
 import { useNavigate } from "react-router-dom";
 import Modal from "../../app/Modal";
 import { useAuth } from "../../shared/auth";
@@ -31,7 +31,7 @@ export default function RankedPicker({ style, onClose }: { style: RankedStyle | 
 			<p className={styles.pitch}>{meta.pitch}</p>
 			<div className={styles.options}>
 				<button className={`${styles.option} ${styles.optionBig}`} type="button" onClick={() => pick(style + "_duo")}><span className={styles.optionTitle}>1v1</span><span className={styles.optionSub}>{meta.duoSub}</span></button>
-				<button className={`${styles.option} ${styles.optionBig}`} type="button" onClick={() => pick(style + "_six")}><span className={styles.optionTitle}>7-player</span><span className={styles.optionSub}>{meta.sixSub}</span></button>
+				<button className={`${styles.option} ${styles.optionBig}`} type="button" onClick={() => pick(style + "_six")}><span className={styles.optionTitle}>6-player</span><span className={styles.optionSub}>{meta.sixSub}</span></button>
 			</div>
 		</Modal>
 	);
