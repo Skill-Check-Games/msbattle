@@ -24,7 +24,7 @@ const TITLES: Record<PuzzleMode, string> = { rated: "Puzzle Ladder", streak: "St
 
 interface Run { mode: PuzzleMode; solves?: number; targetRating?: number; endsAt?: number; streak?: number; date?: string; bestStreak?: number; }
 interface Puzzle { puzzleId: number; difficulty: number; totalSafe: number; totalMines: number; playerRating: number; mode: PuzzleMode; run: Run | null; finished: boolean; hintUsed: boolean; }
-interface RatedResult { solved: boolean; hintUsed: boolean; playerAfter?: number; pointsEarned?: number; puzzlePoints?: number; noRating?: boolean; }
+interface RatedResult { solved: boolean; hintUsed: boolean; playerAfter?: number; pointsEarned?: number; streakBonus?: number; streak?: number; puzzlePoints?: number; noRating?: boolean; }
 interface RunEnd { mode: "streak" | "storm"; solves: number; score: number; bestBefore: number; best: number; }
 interface DailyResult { date: string; solved: boolean; streak: number; bestStreak?: number; }
 
@@ -48,11 +48,40 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 	const [done, setDone] = useState<"solved" | "fail" | null>(null);
 	const [runEnd, setRunEnd] = useState<RunEnd | null>(null);
 	const [daily, setDaily] = useState<DailyResult | null>(null);
-	const [streak, setStreak] = useState(0);
+	// Consecutive rated solves — server-owned (survives sessions); the result event carries the new value.
+	const [streak, setStreak] = useState(account?.puzzleStreak || 0);
+	const [streakBonus, setStreakBonus] = useState(0);
+	useEffect(() => { if (account && typeof account.puzzleStreak === "number") setStreak(account.puzzleStreak); }, [account?.puzzleStreak]);
 	const [pendingFlash, setPendingFlash] = useState<"solved" | "fail" | null>(null);
 	const [boardFlash, setBoardFlash] = useState<"solved" | "fail" | null>(null);
 	const [tick, setTick] = useState(0);
 	const boardHostRef = useRef<HTMLDivElement>(null);
+	// Rated result: "Next" is the default action — focused as soon as the result is in, so Enter takes it
+	// even when focus is elsewhere on the page; arrows move between the two buttons.
+	const nextBtnRef = useRef<HTMLButtonElement>(null);
+	useEffect(() => {
+		if (!done) return;
+		nextBtnRef.current?.focus();
+		const onKey = (e: KeyboardEvent) => {
+			if (e.key !== "Enter" || e.repeat) return;
+			const t = e.target as HTMLElement | null;
+			const tag = t?.tagName || "";
+			if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+			if (t?.closest?.(".kbd-btn-group")) return; // a focused button handles its own Enter
+			e.preventDefault(); nextBtnRef.current?.click();
+		};
+		document.addEventListener("keydown", onKey);
+		return () => document.removeEventListener("keydown", onKey);
+	}, [done]);
+	const onActionsKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
+		if (e.key !== "ArrowLeft" && e.key !== "ArrowRight" && e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+		const list = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>("button"));
+		const i = list.indexOf(document.activeElement as HTMLButtonElement);
+		if (!list.length) return;
+		e.preventDefault();
+		const step = (e.key === "ArrowRight" || e.key === "ArrowDown") ? 1 : -1;
+		list[(i + step + list.length) % list.length].focus();
+	};
 	const gridRef = useRef<HTMLDivElement>(null);
 	const [desktopBox, setDesktopBox] = useState(PUZZLE_BOX_PX);
 	const [phoneW, setPhoneW] = useState(PUZZLE_BOX_PX_MOBILE);
@@ -96,7 +125,8 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 				finish();
 				if (!d.noRating) {
 					p.playerRating = d.playerAfter;
-					setStreak(s => d.solved ? s + 1 : 0);
+					if (typeof d.streak === "number") setStreak(d.streak); else setStreak(s => d.solved ? s + 1 : 0);
+					setStreakBonus(d.streakBonus || 0);
 					if (account) update({ puzzleRating: d.playerAfter, puzzlesAttempted: (account.puzzlesAttempted || 0) + 1, puzzlesSolved: (account.puzzlesSolved || 0) + (d.solved ? 1 : 0), ...(typeof d.puzzlePoints === "number" ? { puzzlePoints: d.puzzlePoints } : {}) });
 				}
 				if (d.solved) { sound.win(); setFlash({ solved: true, points: d.pointsEarned }); setTimeout(() => { setFlash(null); setDone("solved"); }, 1200); }
@@ -181,16 +211,15 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 									<PuzzleRankBadge points={account.puzzlePoints || 0} size={7} />
 									<span className={styles.ladderTier} style={{ color: ladder.tierColor }}>{ladder.atMax ? ladder.tierName + " · Max" : ladder.tierName + " · Lvl " + ladder.level}</span>
 									{flash && flash.points ? <span className={`${styles.delta} ${styles.gain}`}>+{flash.points}</span> : null}
-									{streak >= 2 && <span className={styles.streakChip}>🔥 {streak}</span>}
+									{streak >= 2 && <span className={styles.streakChip}>🔥 {streak}{flash && streakBonus ? " · +" + streakBonus : ""}</span>}
 								</div>
 								<div className={styles.rankBar}><div className={styles.rankFill} style={{ width: ladder.levelPct + "%", background: ladder.tierColor }} /></div>
 								<div className={styles.rankFoot}><span>{ladder.atMax ? "Maxed" : ladder.pointsIntoLevel + " / " + ladder.pointsPerLevel + " pts"}</span><span>{ladder.atMax ? "" : "→ Lvl " + (ladder.level + 1)}</span></div>
-								{!done ? (
-									<button className={`btn ${styles.hint} ${p?.hintUsed ? styles.hintUsed : ""}`} disabled={!p || p.finished} onClick={() => getSocket().emit("puzzle_hint")}>💡 Hint</button>
-								) : (
-									<div className={`${styles.actions} kbd-btn-group`}>
-										<button className="btn btn-primary" onClick={() => { if (p) getSocket().emit("puzzle_retry", { puzzleId: p.puzzleId }); }}>{done === "solved" ? "Restart" : "Try again"}</button>
-										<button className="btn" onClick={() => getSocket().emit("puzzle_next")}>{done === "solved" ? "Next" : "Next puzzle"}</button>
+								{/* Hint button removed for now (2026-09-14); the server-side puzzle_hint path is still there. */}
+								{done && (
+									<div className={`${styles.actions} kbd-btn-group`} onKeyDown={onActionsKey}>
+										<button ref={nextBtnRef} className={`btn btn-primary ${styles.primaryAction}`} onClick={() => getSocket().emit("puzzle_next")}>{done === "solved" ? "Next" : "Next puzzle"}</button>
+										<button className="btn" onClick={() => { if (p) getSocket().emit("puzzle_retry", { puzzleId: p.puzzleId }); }}>{done === "solved" ? "Restart" : "Try again"}</button>
 									</div>
 								)}
 							</>
