@@ -1033,13 +1033,17 @@ var scoreToRating = BoardLogic.scoreToRating;
 var PUZZLE_RATING_FLOOR = 400;
 var PUZZLE_START_RATING = 450;
 function poolRating(score) { return Math.max(PUZZLE_RATING_FLOOR, scoreToRating(score)); }
-// One-off, idempotent migration to the floored scale (2026-09-14): lift pre-floor pool rows to the floor
-// and move players who were still climbing through the trivial band to the new start. Players already
-// above the floor keep their rating. Cheap (two indexed-scan UPDATEs, no-ops once applied).
+// Idempotent startup migration (2026-09-14): pin every pool row's rating to the scoring function (play
+// used to move puzzle ratings by Elo; it no longer does), and move players who were still climbing
+// through the trivial band to the new start. Players already above the floor keep their rating. Cheap
+// (two full scans of small tables, no-ops once applied).
 try {
-	var flooredPuzzles = db.prepare("UPDATE puzzles SET rating = ? WHERE rating < ?").run(PUZZLE_RATING_FLOOR, PUZZLE_RATING_FLOOR).changes;
+	var flooredPuzzles = db.prepare(
+		"UPDATE puzzles SET rating = MAX(?, CAST(ROUND(240 * (score - 0.5)) AS INTEGER)) " +
+		"WHERE rating != MAX(?, CAST(ROUND(240 * (score - 0.5)) AS INTEGER))"
+	).run(PUZZLE_RATING_FLOOR, PUZZLE_RATING_FLOOR).changes;
 	var startedUsers = db.prepare("UPDATE users SET puzzle_rating = ? WHERE puzzle_rating < ?").run(PUZZLE_START_RATING, PUZZLE_RATING_FLOOR).changes;
-	if (flooredPuzzles || startedUsers) console.log("puzzle rating floor migration: " + flooredPuzzles + " puzzle(s) lifted to " + PUZZLE_RATING_FLOOR + ", " + startedUsers + " player(s) moved to " + PUZZLE_START_RATING);
+	if (flooredPuzzles || startedUsers) console.log("puzzle rating migration: " + flooredPuzzles + " puzzle(s) re-pinned to the scoring function (floor " + PUZZLE_RATING_FLOOR + "), " + startedUsers + " player(s) moved to " + PUZZLE_START_RATING);
 } catch (e) { console.error("puzzle rating floor migration failed", e); }
 
 function insertPuzzle(p) {
@@ -1453,10 +1457,9 @@ function deletePuzzleById(id) {
 	db.prepare("DELETE FROM puzzles WHERE id = ?").run(id);
 }
 
-function updatePuzzleRating(puzzleId, newRating, solved) {
-	db.prepare(
-		"UPDATE puzzles SET rating = ?, attempts = attempts + 1, solves = solves + ? WHERE id = ?"
-	).run(newRating, solved ? 1 : 0, puzzleId);
+// Play only moves a puzzle's counters; its rating is the scoring function's, fixed at insert (poolRating).
+function recordPuzzleAttempt(puzzleId, solved) {
+	db.prepare("UPDATE puzzles SET attempts = attempts + 1, solves = solves + ? WHERE id = ?").run(solved ? 1 : 0, puzzleId);
 }
 
 function updateUserPuzzleRating(userId, newRating, solved) {
@@ -1732,7 +1735,7 @@ module.exports = {
 	clearPuzzles: clearPuzzles,
 	getPuzzleById: getPuzzleById,
 	deletePuzzleById: deletePuzzleById,
-	updatePuzzleRating: updatePuzzleRating,
+	recordPuzzleAttempt: recordPuzzleAttempt,
 	updateUserPuzzleRating: updateUserPuzzleRating,
 	resetPuzzleProgress: resetPuzzleProgress,
 	setCurrentPuzzle: setCurrentPuzzle,

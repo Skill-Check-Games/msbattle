@@ -318,11 +318,12 @@ function finalizePuzzle(socket, playerID, solved) {
 	var streak = !solved ? 0 : pp.hintUsed ? streakBefore : streakBefore + 1;
 	if (streak !== streakBefore) db.setPuzzleStreak(pp.userId, streak);
 	var streakBonus = (solved && !pp.hintUsed) ? puzzleStreakBonus(streak) : 0;
-	var playerAfter = db.eloUpdate(pp.playerBefore, pp.puzzleBefore, 20, playerActual) + streakBonus;
-	// Pool floor (db.js): a much-solved trivial puzzle must not drift back down out of new players' window.
-	var puzzleAfter = Math.max(db.PUZZLE_RATING_FLOOR, db.eloUpdate(pp.puzzleBefore, pp.playerBefore, 10, puzzleActual));
+	var playerAfter = db.eloUpdate(pp.playerBefore, pp.puzzleBefore, PLAYER_K, playerActual) + streakBonus;
+	// Puzzles are NOT re-rated by play: their rating is the scoring function's (db.poolRating), fixed at
+	// insert. Only the attempt/solve counters move.
+	var puzzleAfter = pp.puzzleBefore;
 	db.updateUserPuzzleRating(pp.userId, playerAfter, solved);
-	db.updatePuzzleRating(pp.puzzleId, puzzleAfter, solved);
+	db.recordPuzzleAttempt(pp.puzzleId, solved);
 	db.setCurrentPuzzle(pp.userId, null);
 	db.recordAttempt({
 		userId: pp.userId, puzzleId: pp.puzzleId, solved: solved,
@@ -343,10 +344,13 @@ function finalizePuzzle(socket, playerID, solved) {
 	});
 }
 
+// Player K-factor against a puzzle: a solve of an equal-rated puzzle is worth +K/2 (≈ +15), so a
+// 100-rating level is about seven net solves.
+var PLAYER_K = 30;
 // Streak bonus in RATING points on top of the Elo gain, by the streak length INCLUDING this solve:
-// 3-4 → +2, 5-9 → +4, 10+ → +6. Capped so a long run is a nudge, not a second rating engine.
+// 3-4 → +3, 5-9 → +6, 10+ → +10. Capped so a long run is a nudge, not a second rating engine.
 function puzzleStreakBonus(streak) {
-	return streak >= 10 ? 6 : streak >= 5 ? 4 : streak >= 3 ? 2 : 0;
+	return streak >= 10 ? 10 : streak >= 5 ? 6 : streak >= 3 ? 3 : 0;
 }
 
 // The puzzle branch of the server's left/right click handlers delegates here.
