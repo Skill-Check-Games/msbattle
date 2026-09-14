@@ -77,7 +77,12 @@ console.log("start —", summary());
 while (Date.now() - t0 < BUDGET_MS) {
 	var live = CONFIGS.filter(function(c) { return anyNeedIn(c.lo, c.hi); });
 	if (!live.length) { console.log("all bands full"); break; }
-	var cfg = live[i++ % live.length];
+	// Weighted pick: a config's weight is the total deficit across the bands it covers, so the generators
+	// that reach the emptiest bands run most often instead of a flat round-robin.
+	var weights = live.map(function(c) { var w = 0; for (var x = c.lo; x <= c.hi; x += 100) if (need(x)) w += TARGET[x] - have[x]; return w; });
+	var total = weights.reduce(function(a, b) { return a + b; }, 0), r = Math.random() * total, cfg = live[live.length - 1];
+	for (var wi = 0; wi < live.length; wi++) { r -= weights[wi]; if (r <= 0) { cfg = live[wi]; break; } }
+	i++;
 	var batch = cfg.gen();
 	batch.forEach(function(p) {
 		if (seen[p.key]) return;
