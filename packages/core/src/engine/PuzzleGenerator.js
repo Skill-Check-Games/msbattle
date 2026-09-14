@@ -70,9 +70,12 @@ function generatePuzzles(opts) {
 // it produces. A "distinct cascade" is one starting cell per connected
 // zero-region — clicking any cell within a region produces the identical
 // reveal set, so we only emit one puzzle per region.
+var MAX_SIDE = 7;
 function tryGenerateLayout(opts) {
-	var rows = opts.rows || randInt(4, 8);
-	var cols = opts.cols || randInt(4, 8);
+	// Sides 4..7: 8-wide boards were dropped from the pool (too large for the puzzle view, and they
+	// added nothing the 7s don't) — keep MAX_SIDE the single place that decides.
+	var rows = opts.rows || randInt(4, MAX_SIDE);
+	var cols = opts.cols || randInt(4, MAX_SIDE);
 	// Vary mine density across attempts — sparse boards generate easy diff-1
 	// puzzles; denser boards (more constraints linking each frontier cell)
 	// are where the harder case-analysis puzzles live. A caller-supplied
