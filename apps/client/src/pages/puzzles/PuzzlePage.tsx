@@ -16,7 +16,7 @@ import { puzzleLadder, PUZZLE_TIERS, LEVELS_PER_TIER, ratingForTierLevel } from 
 import { ResultPanel, ResultHeader, ResultDetail, ResultFoot, ResultActions } from "../../game/ResultPanel";
 import { formatDailyDate } from "../home/home-data";
 import BoardLogic from "core/src/common/BoardLogic.js";
-import { useInGameBody, useMediaQuery, PORTRAIT_MQ } from "../play/mobile";
+import { useInGameBody, useMediaQuery, PORTRAIT_MQ, LANDSCAPE_PHONE_MQ } from "../play/mobile";
 import styles from "./PuzzlePage.module.scss";
 
 export type PuzzleMode = "rated" | "streak" | "storm" | "daily";
@@ -36,7 +36,7 @@ interface DailyResult { date: string; solved: boolean; streak: number; bestStrea
 const PUZZLE_BOX_PX = 548, PUZZLE_CELL_MAX = 80, PUZZLE_BOX_PX_MOBILE = 320, PUZZLE_CELL_MAX_MOBILE = 56, PHONE_BOX_PAD = 14;
 // Desktop: ladder rail | board | dossier card (design R3·01). The rail and card widths + gaps are what the
 // board box has to leave free beside it.
-const CARD_PX = 260, RAIL_PX = 200, GRID_GAP_PX = 24;
+const GRID_GAP_PX = 24; // fallback when the grid's gap can't be read
 
 export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 	useInGameBody();
@@ -103,6 +103,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 	const [desktopBox, setDesktopBox] = useState(PUZZLE_BOX_PX);
 	const [phoneW, setPhoneW] = useState(PUZZLE_BOX_PX_MOBILE);
 	const mobile = useMediaQuery(PORTRAIT_MQ);
+	const landscape = useMediaQuery(LANDSCAPE_PHONE_MQ);
 
 	const session = useMemo(() => new BoardSession({
 		mode: () => { const p = puzzleRef.current; return p && !p.finished ? "puzzle" : null; },
@@ -203,8 +204,14 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 			const grid = gridRef.current, host = boardHostRef.current; if (!grid || !host) return;
 			const stacked = getComputedStyle(grid).flexDirection === "column";
 			if (stacked) { setPhoneW(Math.max(1, grid.clientWidth - PHONE_BOX_PAD * 2 - SHAKE_PAD_X * 2)); return; }
-			const availH = window.innerHeight - host.getBoundingClientRect().top - 32;
-			const availW = grid.clientWidth - (CARD_PX + GRID_GAP_PX) - (isRun ? 0 : RAIL_PX + GRID_GAP_PX);
+			const landscape = window.matchMedia(LANDSCAPE_PHONE_MQ).matches;
+			const availH = window.innerHeight - host.getBoundingClientRect().top - (landscape ? 12 : 32);
+			// Width left beside the rail and the dossier: read their real widths (they differ per breakpoint)
+			// rather than the desktop constants.
+			const gapPx = parseFloat(getComputedStyle(grid).columnGap) || GRID_GAP_PX;
+			let side = 0, others = 0;
+			for (const el of Array.from(grid.children)) { if (el !== host && (el as HTMLElement).offsetWidth > 0) { side += (el as HTMLElement).getBoundingClientRect().width; others++; } }
+			const availW = grid.clientWidth - side - others * gapPx;
 			const box = Math.min(availH, availW);
 			if (box > 0) setDesktopBox(Math.max(240, Math.min(900, Math.floor(box))));
 		};
@@ -241,7 +248,13 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 			</div>
 			{!account ? <p className={styles.empty}>Sign in to play. Your score is tied to your account.</p> : !p && status ? <p className={styles.empty}>{status}</p> : (
 				<div className={styles.grid} ref={gridRef}>
-					{!isRun && <LadderRail rating={account.puzzleRating || 0} />}
+					{/* Landscape phones: the back arrow + title sit in a left column above the rail (design L·02). */}
+					{!isRun && (landscape ? (
+						<div className={styles.leftCol}>
+							<div className={styles.cardHead}><button type="button" className={styles.back} onClick={exit} aria-label="Back to lobby">←</button><span className={styles.cardTitle}>{TITLES[mode]}</span></div>
+							<LadderRail rating={account.puzzleRating || 0} />
+						</div>
+					) : <LadderRail rating={account.puzzleRating || 0} />)}
 					<div className={styles.boardCol} ref={boardHostRef}>
 						<div className={`${styles.boardWrap} ${boardFlash === "solved" || done === "solved" ? styles.flashSolved : boardFlash === "fail" ? styles.flashFail : ""}`} style={mobile ? { width: "100%", padding: PHONE_BOX_PAD } : { width: box, height: box }} data-shake-host="">
 							<GameBoard session={session} cellPx={cellPx} className={styles.board}>
