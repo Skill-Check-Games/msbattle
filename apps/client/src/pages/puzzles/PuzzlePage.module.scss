@@ -26,7 +26,7 @@
 .cardTitle { font-size: 0.8rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
 .ladderHead { display: flex; align-items: center; gap: 0.7rem; }
 .ladderText { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
-.underBoard { width: 100%; display: flex; justify-content: space-between; align-items: center; }
+.underBoard { width: 100%; min-height: 1.2rem; display: flex; justify-content: flex-end; align-items: center; }
 // Dossier: 2x2 stats and the last-ten strip, then the actions pinned to the board's bottom edge.
 .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.2rem; }
 .stat { display: flex; flex-direction: column; gap: 0.1rem; padding: 0.6rem 0.75rem; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border); border-radius: 6px; }

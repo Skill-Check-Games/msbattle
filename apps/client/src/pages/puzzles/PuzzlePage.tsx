@@ -37,7 +37,6 @@ const PUZZLE_BOX_PX = 548, PUZZLE_CELL_MAX = 80, PUZZLE_BOX_PX_MOBILE = 320, PUZ
 // Desktop: ladder rail | board | dossier card (design R3·01). The rail and card widths + gaps are what the
 // board box has to leave free beside it.
 const CARD_PX = 260, RAIL_PX = 200, GRID_GAP_PX = 24;
-const difficultyLabel = (tier: number) => tier <= 2 ? "Easy" : tier <= 4 ? "Medium" : "Hard";
 
 export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 	useInGameBody();
@@ -250,7 +249,6 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 						</div>
 						{p && !isRun && p.puzzleId != null && (
 							<div className={styles.underBoard}>
-								<div className={styles.info}>Puzzle #{p.puzzleId}<span className={styles.sep}>·</span><span style={{ color: difficultyLabel(p.difficulty) === "Easy" ? "var(--success)" : difficultyLabel(p.difficulty) === "Medium" ? "var(--energy-streak)" : "var(--danger)" }}>{difficultyLabel(p.difficulty)}</span></div>
 								{streak >= 2 && <span className={styles.streakChip}><FlameIcon /> {streak}{flash && streakBonus ? " · +" + streakBonus : ""}</span>}
 							</div>
 						)}
