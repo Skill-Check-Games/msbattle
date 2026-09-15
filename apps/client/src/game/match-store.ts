@@ -11,6 +11,7 @@ import { makeBoardDecoder } from "./board-decoder";
 import { countDown, cancelCountdown } from "./countdown";
 import { sound } from "../audio/sound";
 import BoardLogic from "core/src/common/BoardLogic.js";
+import { track } from "../analytics";
 
 export interface RoomPlayer { id: string; name: string; avatar: string | null; country: string | null; ready: boolean; score: number; isOwner: boolean; isBot: boolean; difficulty?: string; rating?: number; provisional?: boolean; finished?: boolean; skin?: string | null; isYou?: boolean; }
 export interface RoomState {
@@ -161,6 +162,15 @@ class MatchStore {
 			room.players.forEach(p => { this.lastFinished[p.id] = !!p.finished; });
 			const me = room.players.find(p => p.id === this.myId);
 			const planning = room.phase === "planning";
+			// Once per series: room_state is pushed constantly, and a series runs
+			// several games, so this needs both the phase transition and game zero.
+			if (prev?.phase !== "playing" && room.phase === "playing" && room.gamesPlayed === 0) {
+				track("Game Started", {
+					mode: room.ranked ? "ranked" : "multiplayer",
+					gameMode: room.rankedMode || room.gameMode || "unknown",
+					players: room.players.length,
+				});
+			}
 			this.set({ room, search: null, roundDeadline: room.phase === "playing" ? room.roundDeadline : null, waitingCleared: room.phase === "playing" && !!(me && me.finished) && !this.state.roundResultShown });
 			if (planning && !this.state.roundResultShown) { this.session.setIdle(!this.state.search); if (this.isBattle()) this.setCoveredBoard(); }
 		});
@@ -211,6 +221,10 @@ class MatchStore {
 		socket.on("series_ended", (d: SeriesResult) => {
 			this.set({ gameProgress: "", roundDeadline: null });
 			(d.winnerId === this.myId ? sound.seriesWin : sound.lose)();
+			track("Match Finished", {
+				mode: d && d.ranked ? "ranked" : "multiplayer",
+				gameMode: (d && d.mode) || this.state.room?.gameMode || "unknown",
+			});
 			setTimeout(() => { if (this.state.inRoom) this.set({ seriesResult: d }); }, 1200);
 			getSocket().emit("get_match_history");
 		});
