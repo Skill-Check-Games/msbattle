@@ -150,6 +150,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 	// bottom-right margin, off the cells.
 	const [panel, setPanel] = useState({ w: PUZZLE_BOX_PX, h: PUZZLE_BOX_PX });
 	const [flagMode, setFlagMode] = useState(false);
+	const flagRef = useRef(false); flagRef.current = flagMode; // the board input is wired once: it must read the CURRENT mode
 	const LS_MARGIN = 16, LS_PILL_ROW = 48; // landscape: board margin, and the height the pill overlays at the bottom
 	const [phoneW, setPhoneW] = useState(PUZZLE_BOX_PX_MOBILE);
 	const landscape = useMediaQuery(LANDSCAPE_MQ);
@@ -391,7 +392,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 					) : <LadderRail rating={account.puzzleRating || 0} />)}
 					<div className={styles.boardCol} ref={boardHostRef}>
 						<div ref={boardWrapRef} className={`${styles.boardWrap} ${boardFlash === "solved" || done === "solved" ? styles.flashSolved : boardFlash === "fail" ? styles.flashFail : ""} ${phoneLandscape ? styles.panZoom : ""}`} style={mobile ? { width: "100%", padding: PHONE_BOX_PAD } : phoneLandscape ? { height: panel.h } : { width: box, height: box }} data-shake-host="">
-							<GameBoard session={session} cellPx={cellPx} className={styles.board} flagMode={() => flagMode}>
+							<GameBoard session={session} cellPx={cellPx} className={styles.board} flagMode={() => flagRef.current}>
 							</GameBoard>
 							{phoneLandscape && (
 								<FlagToggle on={flagMode} onToggle={() => setFlagMode(f => !f)} />
