@@ -7,7 +7,7 @@
 .empty { color: var(--muted); }
 // Board column and card sit side by side at equal height: the card stretches to the board box's height
 // and pins its footer + Hint to the bottom (legacy: .game-side align-self: stretch, flex: 0 0 320px).
-.grid { position: relative; display: flex; gap: 1.25rem; align-items: stretch; flex-wrap: wrap; justify-content: center; }
+.grid { position: relative; display: flex; gap: 24px; align-items: stretch; flex-wrap: wrap; justify-content: center; }
 .boardCol { display: flex; flex-direction: column; align-items: center; gap: 0.6rem; }
 .boardWrap {
 	position: relative; display: flex; align-items: center; justify-content: center; max-width: 100%;
@@ -19,19 +19,18 @@
 .board { vertical-align: top; }
 .info { font-size: 0.82rem; color: var(--muted); display: inline-flex; gap: 0.4rem; align-items: center; }
 .sep { opacity: 0.6; }
-.card { width: 260px; flex: 0 0 260px; max-width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 1.1rem 1.2rem; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 0.75rem; }
+.card { width: 260px; flex: 0 0 260px; box-sizing: border-box; max-width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 1.1rem 1.2rem; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 0.75rem; }
 .cardHead { display: flex; align-items: center; gap: 0.5rem; }
 .cardHeadRated { display: none; } // desktop rated: the rank block carries its own "Puzzle Ladder" kicker (shown again on phones below)
 .back { display: none; border: 0; background: none; padding: 0; width: 2.2rem; font-size: 1.7rem; line-height: 1; color: var(--muted); cursor: pointer; &:hover { color: var(--text); } }
 .cardTitle { font-size: 0.8rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
 .ladderHead { display: flex; align-items: center; gap: 0.7rem; }
 .ladderText { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
-.underBoard { width: 100%; min-height: 1.2rem; display: flex; justify-content: flex-end; align-items: center; }
 // Dossier: 2x2 stats and the last-ten strip, then the actions pinned to the board's bottom edge.
 .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.2rem; }
 .stat { display: flex; flex-direction: column; gap: 0.1rem; padding: 0.6rem 0.75rem; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border); border-radius: 6px; }
 .statLabel { font-size: 0.65rem; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700; color: var(--muted); }
-.statValue { font-family: var(--font-display); font-weight: 800; font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+.statValue { font-family: var(--font-display); font-weight: 800; font-size: 1.25rem; font-variant-numeric: tabular-nums; display: inline-flex; align-items: center; gap: 0.25rem; }
 .history { display: flex; flex-direction: column; gap: 0.45rem; padding: 0.7rem 0.8rem; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border); border-radius: 6px; }
 .historyDots { display: flex; gap: 4px; min-height: 22px; }
 .historyDot { width: 22px; height: 22px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; }
