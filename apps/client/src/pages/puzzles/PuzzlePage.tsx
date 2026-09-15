@@ -344,7 +344,7 @@ function LadderRail({ rating }: { rating: number }) {
 			{tiers.map(t => {
 				const current = t.i === me.tierIndex, reached = t.i < me.tierIndex;
 				return (
-					<div key={t.name} className={`${styles.railRow} ${current ? styles.railCurrent : ""} ${reached || current ? "" : styles.railLocked}`} style={current ? { borderColor: t.color } : undefined}>
+					<div key={t.name} className={`${styles.railRow} ${current ? styles.railCurrent : ""} ${reached || current ? "" : styles.railLocked}`}>
 						<PuzzleRankBadge rating={ratingForTierLevel(t.i, 1)} size={5} />
 						<div className={styles.railText}>
 							<span className={styles.railName} style={{ color: reached || current ? t.color : undefined }}>{t.name}{current ? " " + me.levelLabel : ""}</span>
