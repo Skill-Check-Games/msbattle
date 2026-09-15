@@ -275,7 +275,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 								</div>
 								<div className={styles.stats}>
 									<div className={styles.stat}><span className={styles.statLabel}>Rating</span><span className={styles.statValue}>{ladder.rating}</span></div>
-									<div className={styles.stat}><span className={styles.statLabel}>Streak</span><span className={styles.statValue} style={{ color: "var(--energy-streak)" }}><FlameIcon /> {streak}{flash && streakBonus ? <span className={`${styles.delta} ${styles.gain}`}> +{streakBonus}</span> : null}</span></div>
+									<div className={styles.stat}><span className={styles.statLabel}>Streak</span><span className={styles.statValue} style={{ color: "var(--energy-streak)" }}>{streak}{flash && streakBonus ? <span className={`${styles.delta} ${styles.gain}`}> +{streakBonus}</span> : null}</span></div>
 									<div className={styles.stat}><span className={styles.statLabel}>Solved</span><span className={styles.statValue}>{account.puzzlesSolved || 0} / {account.puzzlesAttempted || 0}</span></div>
 									<div className={styles.stat}><span className={styles.statLabel}>Best streak</span><span className={styles.statValue}>{Math.max(account.puzzleStreakBest || 0, streak)}</span></div>
 								</div>
@@ -358,6 +358,5 @@ function LadderRail({ rating }: { rating: number }) {
 		</aside>
 	);
 }
-function FlameIcon() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 22c4 0 7-3 7-7 0-3-2-5-3-7-1 2-2 3-3 3 0-3-1-6-4-8 0 3-1 5-3 7-2 2-3 4-3 6 0 4 3 6 6 6z" /></svg>; }
 function CheckIcon() { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>; }
 function CrossIcon() { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17" /></svg>; }
