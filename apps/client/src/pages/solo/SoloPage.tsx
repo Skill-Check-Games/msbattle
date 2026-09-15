@@ -17,6 +17,7 @@ import { autoEnterGameFullscreen } from "../../game/fullscreen";
 import { useInGameBody } from "../play/mobile";
 import styles from "./SoloPage.module.scss";
 import { useAdminClearBoard } from "../../game/admin-clear";
+import { track } from "../../analytics";
 
 type Size = "small" | "medium" | "large";
 const SIZES: Size[] = ["small", "medium", "large"];
@@ -58,7 +59,9 @@ export default function SoloPage() {
 
 	function startTimerOnce() {
 		const s = soloRef.current; if (!s || s.finished) return;
-		if (!s.startTime) { s.startTime = Date.now(); rerender(); }
+		// The !startTime guard makes this once per run: opening the page is not
+		// starting a game, the first real move is.
+		if (!s.startTime) { s.startTime = Date.now(); track("Game Started", { mode: "solo", size: s.size }); rerender(); }
 	}
 	function countSafeRevealed(): number {
 		let n = 0;
@@ -70,6 +73,7 @@ export default function SoloPage() {
 		if (result.anyChange || result.hitMine) startTimerOnce();
 		if (result.hitMine) {
 			s.finished = true; s.finishTime = Date.now();
+			track("Match Finished", { mode: "solo", size: s.size, won: false });
 			setOutcome({ won: false, ms: s.finishTime - (s.startTime || s.finishTime), safe: countSafeRevealed(), total: s.totalSafe, best: null });
 			return;
 		}
@@ -80,6 +84,7 @@ export default function SoloPage() {
 			getSocket().emit("solo_result", { size: s.size, density: s.density, ms });
 			getSocket().emit("record_clear", { noFlag: session.clearNoFlag, noReveal: session.clearNoReveal });
 			const bests = account?.soloBests || {};
+			track("Match Finished", { mode: "solo", size: s.size, won: true });
 			setOutcome({ won: true, ms, safe: s.totalSafe, total: s.totalSafe, best: bests[soloKey(s.size, s.density)] || null });
 		}
 	}

@@ -25,6 +25,7 @@ import { phoneSizedDevice } from "../../game/fullscreen";
 // breakpoint — and must still get the side-by-side layout, or the stacked page overflows 375px of height).
 const LANDSCAPE_MQ = "(orientation: landscape) and (max-height: 500px)";
 import styles from "./PuzzlePage.module.scss";
+import { track } from "../../analytics";
 
 export type PuzzleMode = "rated" | "streak" | "storm" | "daily";
 const TITLES: Record<PuzzleMode, string> = { rated: "Puzzle Ladder", streak: "Streak", storm: "Time Trial", daily: "Daily puzzle" };
@@ -250,7 +251,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 	}, [mode]);
 	// Start only once the socket has authenticated (a fresh page load races the handshake otherwise).
 	const started = useRef<string | null>(null);
-	useEffect(() => { if (!account || started.current === mode) return; started.current = mode; start(mode); }, [mode, !!account]);
+	useEffect(() => { if (!account || started.current === mode) return; started.current = mode; track("Game Started", { mode: "puzzle", puzzleMode: mode }); start(mode); }, [mode, !!account]);
 
 	// Fit the board box to the viewport: the height left under the header, or the width left beside the
 	// card, whichever is smaller; clamped so odd windows stay usable and huge ones don't blow cells up.
