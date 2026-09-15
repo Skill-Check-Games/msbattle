@@ -46,6 +46,10 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 	useInGameBody();
 	const navigate = useNavigate();
 	const { account, update } = useAuth();
+	// The socket handlers below are registered once per mode, so they must read the CURRENT account through a
+	// ref — a closure over `account` would keep the value from when they were registered, and every result
+	// would then be added onto a stale copy (the Last 10 strip and the solved counts drifted because of this).
+	const accountRef = useRef(account); accountRef.current = account;
 	const puzzleRef = useRef<Puzzle | null>(null);
 	const [, bump] = useState(0);
 	const rerender = () => bump(n => n + 1);
@@ -165,11 +169,12 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 					p.playerRating = d.playerAfter;
 					if (typeof d.streak === "number") setStreak(d.streak); else setStreak(s => d.solved ? s + 1 : 0);
 					setStreakBonus(d.streakBonus || 0);
-					if (account) update({
-						puzzleRating: d.playerAfter, puzzlesAttempted: (account.puzzlesAttempted || 0) + 1, puzzlesSolved: (account.puzzlesSolved || 0) + (d.solved ? 1 : 0),
-						puzzleStreak: typeof d.streak === "number" ? d.streak : account.puzzleStreak,
-						puzzleStreakBest: typeof d.puzzleStreakBest === "number" ? d.puzzleStreakBest : account.puzzleStreakBest,
-						puzzleRecent: [...(account.puzzleRecent || []), d.solved].slice(-10)
+					const acc = accountRef.current;
+					if (acc) update({
+						puzzleRating: d.playerAfter, puzzlesAttempted: (acc.puzzlesAttempted || 0) + 1, puzzlesSolved: (acc.puzzlesSolved || 0) + (d.solved ? 1 : 0),
+						puzzleStreak: typeof d.streak === "number" ? d.streak : acc.puzzleStreak,
+						puzzleStreakBest: typeof d.puzzleStreakBest === "number" ? d.puzzleStreakBest : acc.puzzleStreakBest,
+						puzzleRecent: [...(acc.puzzleRecent || []), d.solved].slice(-10)
 					});
 				}
 				// Solved: the board's border turns green (stays while solved) and the rating delta pops in the dossier; no overlay.
@@ -178,8 +183,8 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 				if (!d.noRating && typeof d.playerBefore === "number" && typeof d.playerAfter === "number") showRankChange(d.playerBefore, d.playerAfter, d.solved ? 1250 : 150);
 				getSocket().emit("get_match_history");
 			}),
-			onSocket("puzzle_run_end", (d: RunEnd) => withFlash(() => { finish(); if (account) update(d.mode === "streak" ? { streakBest: d.best } : { stormBest: d.best }); setRunEnd(d); })),
-			onSocket("puzzle_daily_result", (d: DailyResult) => { finish(); if (account) update({ dailyStreak: d.streak, dailyAttempt: { solved: d.solved, at: new Date().toISOString() } }); withFlash(() => setDaily(d)); }),
+			onSocket("puzzle_run_end", (d: RunEnd) => withFlash(() => { finish(); if (accountRef.current) update(d.mode === "streak" ? { streakBest: d.best } : { stormBest: d.best }); setRunEnd(d); })),
+			onSocket("puzzle_daily_result", (d: DailyResult) => { finish(); if (accountRef.current) update({ dailyStreak: d.streak, dailyAttempt: { solved: d.solved, at: new Date().toISOString() } }); withFlash(() => setDaily(d)); }),
 			onSocket("puzzle_daily_status", (d) => {
 				if (mode !== "daily") return;
 				if (d.attempt && d.attempt.solved) { puzzleRef.current = { puzzleId: 0, difficulty: 0, totalSafe: 0, totalMines: 0, playerRating: 0, mode: "daily", run: { mode: "daily", date: d.date, streak: d.streak, bestStreak: d.bestStreak }, finished: true, hintUsed: false }; setDaily({ date: d.date, solved: true, streak: d.streak, bestStreak: d.bestStreak }); rerender(); }
