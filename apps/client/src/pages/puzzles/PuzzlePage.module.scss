@@ -28,7 +28,6 @@
 .modeRow { position: absolute; right: 8px; bottom: 8px; z-index: 3; pointer-events: none; }
 .modePill { pointer-events: auto; }
 .modePill { display: inline-flex; border-radius: 8px; overflow: hidden; background: rgba(19, 26, 46, 0.92); border: 1px solid var(--border); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45); }
-.modePillFlag { border-color: var(--danger); }
 .modeHalf { display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px; border: 0; background: none; color: var(--muted); font: inherit; font-weight: 700; font-size: 0.82rem; cursor: pointer; }
 .modeOn { color: var(--text); background: rgba(99, 102, 241, 0.14); }
 .modeOnFlag { background: rgba(239, 68, 68, 0.16); }

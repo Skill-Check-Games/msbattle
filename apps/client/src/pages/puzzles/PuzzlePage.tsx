@@ -394,7 +394,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 							</GameBoard>
 							{phoneLandscape && (
 								<div className={styles.modeRow}>
-									<div className={`${styles.modePill} ${flagMode ? styles.modePillFlag : ""}`} role="group" aria-label="Tap tool">
+									<div className={styles.modePill} role="group" aria-label="Tap tool">
 										<button type="button" className={`${styles.modeHalf} ${!flagMode ? styles.modeOn : ""}`} onClick={() => setFlagMode(false)}><TapIcon /> Reveal</button>
 										<button type="button" className={`${styles.modeHalf} ${flagMode ? `${styles.modeOn} ${styles.modeOnFlag}` : ""}`} onClick={() => setFlagMode(true)}><FlagIcon lit={flagMode} /> Flag</button>
 									</div>
