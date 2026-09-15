@@ -30,11 +30,13 @@ import DesignAdmin from "../pages/admin/DesignAdmin";
 import CountdownLab from "../pages/admin/CountdownLab";
 import SoundLab from "../pages/admin/SoundLab";
 import { Toasts, useAchievementUnlocks } from "./Toasts";
+import { useDocumentHead } from "./useDocumentHead";
 import Placeholder from "../pages/Placeholder";
 import styles from "./App.module.scss";
 
 export default function App() {
 	useAchievementUnlocks();
+	useDocumentHead();
 	return (
 		<div className={styles.shell}>
 			<NavBar />
