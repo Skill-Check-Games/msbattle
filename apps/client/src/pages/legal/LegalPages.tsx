@@ -5,8 +5,8 @@ export function PrivacyPage() {
 	return (
 		<article className={styles.legal}>
 			<h1>Privacy Policy</h1>
-			<p className={styles.updated}>Last updated: 11 June 2026</p>
-			<p>MSBattle is a free online multiplayer Minesweeper game. In short: we collect as little as possible, never sell your data, and run no ads, analytics, or tracking cookies. Here's what the game touches.</p>
+			<p className={styles.updated}>Last updated: 15 September 2026</p>
+			<p>MSBattle is a free online multiplayer Minesweeper game. In short: we collect as little as possible, never sell your data, and use privacy-friendly analytics that set no tracking cookies. Here's what the game touches.</p>
 			<h2>What we collect</h2>
 			<ul>
 				<li><strong>Only if you sign in:</strong> your account ID, display name, email, and avatar from Google or Discord. We use OAuth and never see your password.</li>
@@ -15,7 +15,7 @@ export function PrivacyPage() {
 				<li><strong>Standard logs:</strong> our hosting and auth providers may log routine request data (such as your IP address) to keep the service running and secure.</li>
 			</ul>
 			<h2>Who processes it</h2>
-			<p>We use <strong>Google</strong> and <strong>Discord</strong> for sign-in and <strong>Fly.io</strong> for hosting and our database. Signing in with Google or Discord is also covered by that provider's own privacy policy. Your display name, avatar, and ranked standing are visible to other players and on the public leaderboard.</p>
+			<p>We use <strong>Google</strong> and <strong>Discord</strong> for sign-in, <strong>Fly.io</strong> for hosting and our database, and <strong>Plausible</strong> for analytics. Plausible is cookieless and EU-hosted: it records aggregate visits and a few gameplay events, builds no profile of you, and cannot follow you to other sites. Signing in with Google or Discord is also covered by that provider's own privacy policy. Your display name, avatar, and ranked standing are visible to other players and on the public leaderboard.</p>
 			<h2>Your choices</h2>
 			<p>You can clear your browser data for this site to remove the local session, or email us to access or delete your account data. You can also revoke MSBattle's access from your <a href="https://myaccount.google.com/permissions">Google permissions</a> page. We keep your data only while your account exists.</p>
 			<h2>Children</h2>
