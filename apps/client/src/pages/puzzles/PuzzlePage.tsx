@@ -288,7 +288,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 								{done && (
 									<div className={`${styles.actions} kbd-btn-group`} onKeyDown={onActionsKey}>
 										<button ref={nextBtnRef} className={`btn btn-primary ${styles.primaryAction}`} onClick={() => getSocket().emit("puzzle_next")}>{done === "solved" ? "Next" : "Next puzzle"}</button>
-										<button className="btn" onClick={() => { if (p) getSocket().emit("puzzle_retry", { puzzleId: p.puzzleId }); }}>{done === "solved" ? "Restart" : "Try again"}</button>
+										{done !== "solved" && <button className="btn" onClick={() => { if (p) getSocket().emit("puzzle_retry", { puzzleId: p.puzzleId }); }}>Try again</button>}
 									</div>
 								)}
 							</>
