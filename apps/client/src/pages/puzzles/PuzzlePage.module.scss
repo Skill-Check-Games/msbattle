@@ -38,7 +38,7 @@
 .historyMiss { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
 .cardSpacer { flex: 1 1 auto; }
 // Ladder rail: all eight tiers, compact, stretched to the board's height.
-.rail { width: 200px; flex: 0 0 200px; box-sizing: border-box; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 1.1rem 0.75rem; box-shadow: var(--shadow); display: flex; flex-direction: column; justify-content: center; gap: 0.75rem; }
+.rail { width: 200px; flex: 0 0 200px; box-sizing: border-box; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; box-shadow: var(--shadow); display: flex; flex-direction: column; justify-content: center; gap: 0.75rem; }
 .railRow { display: flex; align-items: center; gap: 0.6rem; padding: 0.35rem 0.5rem; border-radius: 6px; border: 1px solid transparent; }
 .railCurrent { background: rgba(255, 255, 255, 0.06); }
 .railLocked { opacity: 0.45; }
