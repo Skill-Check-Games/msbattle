@@ -1,6 +1,12 @@
-# MS Battle - allow everything except the admin surface; point crawlers at the sitemap.
+# MS Battle. Everything is allowed except screens that are personal, transient,
+# or internal: crawling them wastes crawl budget and indexes nothing useful.
+# These are also absent from sitemap.xml and carry a noindex tag at runtime.
 User-agent: *
 Allow: /
 Disallow: /admin
+Disallow: /profile
+Disallow: /settings
+Disallow: /replay
+Disallow: /customize
 
 Sitemap: https://msbattle.net/sitemap.xml

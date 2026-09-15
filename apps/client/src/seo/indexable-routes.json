@@ -1,0 +1,66 @@
+{
+  "_comment": "Single source of truth for SEO. useDocumentHead.ts reads this to set per-route head tags, and scripts/generate-sitemap.mjs reads it to write public/sitemap.xml at build time. Add a route here and both stay in step. Any route NOT listed here is treated as non-indexable: it gets noindex and is kept out of the sitemap. Match-flow, profile, shop, settings and admin screens are non-indexable on purpose.",
+  "site": "https://msbattle.net",
+  "routes": [
+    {
+      "path": "/",
+      "priority": "1.0",
+      "title": "MS Battle - Play multiplayer Minesweeper online",
+      "description": "Real-time competitive Minesweeper. Race real opponents in ranked matches, sharpen up on daily puzzles, and climb the rating ladder. Free in your browser, no ads, no download."
+    },
+    {
+      "path": "/learn",
+      "priority": "0.8",
+      "title": "Learn Minesweeper - patterns and strategy | MS Battle",
+      "description": "Learn to read a Minesweeper board properly: the common deduction patterns, when a guess is actually forced, and how to get faster. Then put it into practice against real opponents."
+    },
+    {
+      "path": "/solo",
+      "priority": "0.8",
+      "title": "Play Minesweeper solo, free online | MS Battle",
+      "description": "Classic single-player Minesweeper in your browser. No ads, no download, no signup. Pick a size and start clearing."
+    },
+    {
+      "path": "/puzzles",
+      "priority": "0.7",
+      "title": "Minesweeper puzzles and daily challenge | MS Battle",
+      "description": "Hand-picked Minesweeper positions to solve: rated puzzles, streak and storm modes, and a new daily challenge. Train the deductions that decide real games."
+    },
+    {
+      "path": "/puzzles/daily",
+      "priority": "0.7",
+      "title": "Daily Minesweeper puzzle | MS Battle",
+      "description": "A new hand-picked Minesweeper position every day. One puzzle, one attempt, see how your deduction holds up against everyone else's."
+    },
+    {
+      "path": "/help",
+      "priority": "0.6",
+      "title": "How to play - rules and controls | MS Battle",
+      "description": "The rules of Minesweeper, the controls, and how ranked matches and ratings work in MS Battle."
+    },
+    {
+      "path": "/leaderboard",
+      "priority": "0.5",
+      "title": "Leaderboard | MS Battle",
+      "description": "The current MS Battle rankings: top rated players and where you sit among them."
+    },
+    {
+      "path": "/custom",
+      "priority": "0.4",
+      "title": "Custom Minesweeper games | MS Battle",
+      "description": "Build a Minesweeper board to your own size and mine count, then play it or share it."
+    },
+    {
+      "path": "/terms",
+      "priority": "0.3",
+      "title": "Terms | MS Battle",
+      "description": "Terms of use for MS Battle."
+    },
+    {
+      "path": "/privacy",
+      "priority": "0.3",
+      "title": "Privacy | MS Battle",
+      "description": "How MS Battle handles your data."
+    }
+  ]
+}
