@@ -334,7 +334,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 								<div className={styles.rankFoot}><span>{shownRating ?? ladder.rating}</span><span>{ladder.nextLevelAt == null ? "" : ladder.nextLevelAt + " · " + puzzleLadder(ladder.nextLevelAt).tierName + " " + puzzleLadder(ladder.nextLevelAt).levelLabel}</span></div>
 								</div>
 								<div className={styles.stats}>
-									<div className={styles.stat}><span className={styles.statLabel}>Rating</span><span className={styles.statValue}>{ladder.rating}</span></div>
+									<div className={styles.stat}><span className={styles.statLabel}>Rating</span><span className={styles.statValue}>{shownRating ?? ladder.rating}</span></div>
 									<div className={styles.stat}><span className={styles.statLabel}>Streak</span><span className={styles.statValue} style={{ color: "var(--energy-streak)" }}>{streak}{flash && streakBonus ? <span className={`${styles.delta} ${styles.gain}`}> +{streakBonus}</span> : null}</span></div>
 									<div className={styles.stat}><span className={styles.statLabel}>Solved</span><span className={styles.statValue}>{account.puzzlesSolved || 0} / {account.puzzlesAttempted || 0}</span></div>
 									<div className={styles.stat}><span className={styles.statLabel}>Best streak</span><span className={styles.statValue}>{Math.max(account.puzzleStreakBest || 0, streak)}</span></div>
