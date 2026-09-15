@@ -156,7 +156,8 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 						puzzleRecent: [...(account.puzzleRecent || []), d.solved].slice(-10)
 					});
 				}
-				if (d.solved) { sound.win(); setFlash({ solved: true, delta: d.playerDelta }); setTimeout(() => { setFlash(null); setDone("solved"); }, 1200); }
+				// Solved: the board's border turns green (stays while solved) and the rating delta pops in the dossier; no overlay.
+				if (d.solved) { sound.win(); setFlash({ solved: true, delta: d.playerDelta }); setDone("solved"); setTimeout(() => setFlash(null), 1200); }
 				else setDone("fail");
 				if (!d.noRating && typeof d.playerBefore === "number" && typeof d.playerAfter === "number") showRankChange(d.playerBefore, d.playerAfter, d.solved ? 1250 : 150);
 				getSocket().emit("get_match_history");
@@ -242,9 +243,8 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 				<div className={styles.grid} ref={gridRef}>
 					{!isRun && <LadderRail rating={account.puzzleRating || 0} />}
 					<div className={styles.boardCol} ref={boardHostRef}>
-						<div className={`${styles.boardWrap} ${boardFlash === "solved" ? styles.flashSolved : boardFlash === "fail" ? styles.flashFail : ""}`} style={mobile ? { width: "100%", padding: PHONE_BOX_PAD } : { width: box, height: box }} data-shake-host="">
+						<div className={`${styles.boardWrap} ${boardFlash === "solved" || done === "solved" ? styles.flashSolved : boardFlash === "fail" ? styles.flashFail : ""}`} style={mobile ? { width: "100%", padding: PHONE_BOX_PAD } : { width: box, height: box }} data-shake-host="">
 							<GameBoard session={session} cellPx={cellPx} className={styles.board}>
-								{flash && <div className={`${styles.flash} ${flash.solved ? styles.flashOk : styles.flashBad}`}><div className={styles.flashIcon}>{flash.solved ? "✓" : "✗"}</div><div className={styles.flashLabel}>{flash.solved ? "Solved" : "Mine hit"}</div></div>}
 							</GameBoard>
 						</div>
 
