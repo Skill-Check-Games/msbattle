@@ -213,7 +213,15 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 			// rather than the desktop constants.
 			const gapPx = parseFloat(getComputedStyle(grid).columnGap) || GRID_GAP_PX;
 			let side = 0, others = 0;
-			for (const el of Array.from(grid.children)) { if (el !== host && (el as HTMLElement).offsetWidth > 0) { side += (el as HTMLElement).getBoundingClientRect().width; others++; } }
+			// Use each column's BASE width (its flex-basis): the side columns grow into whatever the board leaves
+			// (a height-limited board on a wide screen), and measuring their grown width would shrink the board
+			// again on the next pass.
+			for (const el of Array.from(grid.children)) {
+				if (el === host || (el as HTMLElement).offsetWidth === 0) continue;
+				const basis = parseFloat(getComputedStyle(el).flexBasis);
+				side += Number.isFinite(basis) && basis > 0 ? basis : (el as HTMLElement).getBoundingClientRect().width;
+				others++;
+			}
 			const availW = grid.clientWidth - side - others * gapPx;
 			const box = Math.min(availH, availW);
 			if (box > 0) setDesktopBox(Math.max(240, Math.min(900, Math.floor(box))));
