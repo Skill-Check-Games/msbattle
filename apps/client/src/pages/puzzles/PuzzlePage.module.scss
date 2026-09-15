@@ -14,6 +14,14 @@
 	background: var(--surface); border: 1px solid var(--border); border-radius: 6px; box-shadow: var(--shadow);
 	transition: box-shadow 0.25s;
 }
+// Phone landscape: the board box is a pan/zoom viewport (duel-zoom.ts moves the board by script). The
+// GameBoard wrap fills the box, its scroller clips (overflow hidden, never browser-scrolled) and every touch
+// in the box is the game's (touch-action none), so the browser never pans or page-zooms instead.
+.panZoom { touch-action: none; overflow: hidden;
+	> :first-child { display: flex; flex-direction: column; width: 100%; height: 100%; min-width: 0; min-height: 0; max-width: 100%; }
+	[data-board-scroll] { flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; touch-action: none; }
+	canvas { flex: 0 0 auto; touch-action: none; }
+}
 .flashSolved { box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.6), var(--shadow); }
 .flashFail { box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.6), var(--shadow); }
 .board { vertical-align: top; }

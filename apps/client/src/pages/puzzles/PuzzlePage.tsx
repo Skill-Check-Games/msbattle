@@ -9,6 +9,7 @@ import { useAuth } from "../../shared/auth";
 import { BoardSession, ActionResult } from "../../game/board-session";
 import { KNOWN, UNKNOWN } from "../../game/board-render";
 import { useAdminClearBoard } from "../../game/admin-clear";
+import { attachPanAnywhere, attachPinchZoom, clearZoomTransform, ZOOMED_IN_CELL_PX, PinchCommit } from "../../game/duel-zoom";
 import { RankBadgeSwap, RANK_BADGE_SWAP_MS } from "../../game/RankBadgeSwap";
 import { makeBoardDecoder } from "../../game/board-decoder";
 import { sound } from "../../audio/sound";
@@ -103,6 +104,16 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 	const [boardFlash, setBoardFlash] = useState<"solved" | "fail" | null>(null);
 	const [tick, setTick] = useState(0);
 	const boardHostRef = useRef<HTMLDivElement>(null);
+	const boardWrapRef = useRef<HTMLDivElement>(null);
+	// Phone landscape (real or rotated): the board pans and pinch-zooms like a battle board (duel-zoom.ts). It
+	// opens at the overview (zoomCellPx null: the whole board fitted to the box), one finger anywhere in the box
+	// pans it, two fingers pinch between the overview and ZOOMED_IN_CELL_PX; taps always play (no first-tap
+	// zoom — a puzzle has no GO). A new board returns to the overview.
+	const [zoomCellPx, setZoomCellPx] = useState<number | null>(null);
+	const zoomRef = useRef<number | null>(null); zoomRef.current = zoomCellPx;
+	const cellPxRef = useRef(0);
+	const pendingPinch = useRef<(PinchCommit & { fromCellPx: number }) | null>(null);
+	const padKey = useRef("");
 	// Rated result: "Next" is the default action — focused as soon as the result is in, so Enter takes it
 	// even when focus is elsewhere on the page; arrows move between the two buttons.
 	const nextBtnRef = useRef<HTMLButtonElement>(null);
@@ -167,6 +178,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 				const apply = () => {
 					puzzleRef.current = { puzzleId: d.puzzleId, difficulty: d.difficulty, totalSafe: d.totalSafe, totalMines: d.mines, playerRating: d.playerRating, mode: d.mode || "rated", run: d.run || null, finished: false, hintUsed: false, noRating: !!d.noRating };
 					movesRef.current = [];
+					pendingPinch.current = null; padKey.current = ""; if (session.canvas) clearZoomTransform(session.canvas); setZoomCellPx(null); // a new board opens at the overview
 					const decoder = makeBoardDecoder(d.boardData, d.boardMask, d.cols);
 					const state: number[][] = []; for (let r = 0; r < d.rows; r++) state.push(new Array(d.cols).fill(UNKNOWN));
 					for (const rc of d.knownCells || []) state[rc[0]][rc[1]] = KNOWN;
@@ -292,7 +304,59 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 	const p = puzzleRef.current;
 	const isRun = !!p && (p.mode === "streak" || p.mode === "storm" || p.mode === "daily");
 	const box = desktopBox;
-	const cellPx = !session.rows ? 32 : mobile ? Math.min(PUZZLE_CELL_MAX_MOBILE, Math.floor(phoneW / session.cols)) : Math.min(PUZZLE_CELL_MAX, Math.floor((box - SHAKE_PAD_X * 2) / session.cols), Math.floor((box - SHAKE_PAD_Y * 2) / session.rows));
+	const fitCell = !session.rows ? 32 : Math.max(1, Math.min(PUZZLE_CELL_MAX, Math.floor((box - SHAKE_PAD_X * 2) / session.cols), Math.floor((box - SHAKE_PAD_Y * 2) / session.rows))); // the whole board in the box
+	const cellPx = !session.rows ? 32 : mobile ? Math.min(PUZZLE_CELL_MAX_MOBILE, Math.floor(phoneW / session.cols)) : phoneLandscape && zoomCellPx != null ? zoomCellPx : fitCell;
+	cellPxRef.current = cellPx;
+	// Phone landscape: the canvas floats in the scroller with margins of half the box on every side, so at any
+	// zoom it can be pushed until its edge reaches the box's centre, and it stays where a gesture left it; only
+	// the overview (a new board, a resize) is centred. Runs every commit but only acts when the sizes changed.
+	useLayoutEffect(() => {
+		const canvas = session.canvas, sc = canvas && canvas.parentElement; if (!canvas || !sc) return;
+		if (!phoneLandscape) { if (padKey.current) { canvas.style.margin = ""; padKey.current = ""; } return; }
+		const key = [canvas.offsetWidth, canvas.offsetHeight, sc.clientWidth, sc.clientHeight, zoomCellPx].join(",");
+		if (padKey.current === key) return;
+		padKey.current = key;
+		const mx = Math.max(0, Math.round(sc.clientWidth / 2) - SHAKE_PAD_X), my = Math.max(0, Math.round(sc.clientHeight / 2) - SHAKE_PAD_Y);
+		canvas.style.margin = `${my}px ${mx}px`;
+		if (zoomRef.current === null && !pendingPinch.current) {
+			sc.scrollLeft = canvas.offsetLeft - (sc.clientWidth - canvas.offsetWidth) / 2;
+			sc.scrollTop = canvas.offsetTop - (sc.clientHeight - canvas.offsetHeight) / 2;
+		}
+	});
+	// A pinch has ended: once the board is laid out at the new size, scroll so the anchored board point sits
+	// where the fingers left it, then drop the gesture's transform (the picture never jumps, it only turns crisp).
+	const applyPinch = (c: PinchCommit) => {
+		const canvas = session.canvas, sc = canvas && canvas.parentElement; if (!canvas || !sc) return;
+		sc.scrollLeft = c.fx * canvas.offsetWidth + canvas.offsetLeft - c.mx;
+		sc.scrollTop = c.fy * canvas.offsetHeight + canvas.offsetTop - c.my;
+		clearZoomTransform(canvas);
+	};
+	useLayoutEffect(() => {
+		const a = pendingPinch.current, canvas = session.canvas;
+		if (!a || !canvas) return;
+		if (Math.abs(canvas.offsetWidth / session.cols - a.fromCellPx) < 0.05) return; // the resize has not landed yet
+		pendingPinch.current = null;
+		applyPinch(a);
+	}, [cellPx, zoomCellPx]);
+	// One finger anywhere in the board box pans, two fingers pinch — attached only on phone landscape.
+	useEffect(() => {
+		const host = boardWrapRef.current; if (!host || !phoneLandscape) return;
+		const scroller = () => host.querySelector<HTMLElement>("[data-board-scroll]");
+		const never = () => false; // looking around is always allowed, before and after the solve
+		const detachPan = attachPanAnywhere(host, scroller, never);
+		const detachPinch = attachPinchZoom(host, {
+			canvas: () => session.canvas, maxPx: ZOOMED_IN_CELL_PX, blocked: never,
+			cellPxNow: canvas => canvas.offsetWidth / Math.max(1, session.cols),
+			overviewPx: () => fitCell,
+			onStart: () => { pendingPinch.current = null; if (session.canvas) clearZoomTransform(session.canvas); },
+			onCommit: c => {
+				if (Math.abs(cellPxRef.current - c.cellPx) < 0.25) { applyPinch(c); return; } // no relayout coming: settle the scroll now
+				pendingPinch.current = { ...c, fromCellPx: cellPxRef.current };
+				setZoomCellPx(c.cellPx);
+			},
+		});
+		return () => { detachPan(); detachPinch(); };
+	}, [phoneLandscape, session, fitCell]);
 	const ladder = puzzleLadder(heldRating ?? (account?.puzzleRating || 0)); // badge, tier label and bar colour
 	void tick;
 
@@ -312,7 +376,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 						</div>
 					) : <LadderRail rating={account.puzzleRating || 0} />)}
 					<div className={styles.boardCol} ref={boardHostRef}>
-						<div className={`${styles.boardWrap} ${boardFlash === "solved" || done === "solved" ? styles.flashSolved : boardFlash === "fail" ? styles.flashFail : ""}`} style={mobile ? { width: "100%", padding: PHONE_BOX_PAD } : { width: box, height: box }} data-shake-host="">
+						<div ref={boardWrapRef} className={`${styles.boardWrap} ${boardFlash === "solved" || done === "solved" ? styles.flashSolved : boardFlash === "fail" ? styles.flashFail : ""} ${phoneLandscape ? styles.panZoom : ""}`} style={mobile ? { width: "100%", padding: PHONE_BOX_PAD } : { width: box, height: box }} data-shake-host="">
 							<GameBoard session={session} cellPx={cellPx} className={styles.board}>
 							</GameBoard>
 						</div>
