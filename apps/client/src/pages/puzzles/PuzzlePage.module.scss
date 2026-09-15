@@ -113,30 +113,48 @@
 	.hint, .actions { order: 1; margin-top: 0; width: 100%; }
 }
 
-// Landscape phones (design L·02): named tier rail left · board · a slim dossier right (title with the back
-// arrow, rank block, streak + solved, Next). Everything trims to fit ~390px of height.
-@media (orientation: landscape) and (max-height: 500px) and (min-width: 701px) {
-	.page { padding: 10px 14px; }
+// Landscape phones, ANY width (design L·02): named tier rail left under the back arrow + title · board · a
+// slim dossier right (rank block, streak + solved, Next). Comes AFTER the portrait block on purpose: a phone
+// narrower than the portrait breakpoint but turned sideways (iPhone SE: 667×375) matches both, and these
+// rules must win — the stacked layout does not fit 375px of height.
+@media (orientation: landscape) and (max-height: 500px) {
+	.page { min-height: 0; display: block; padding: 8px 12px; }
 	.header { display: none; }
-	.grid { gap: 12px; }
+	.grid { flex-direction: row; flex-wrap: nowrap; align-items: stretch; justify-content: center; gap: 12px; }
+	.boardCol { flex: 0 0 auto; width: auto; justify-content: flex-start; }
+	.boardWrap { width: auto; height: auto; box-sizing: content-box; }
 	.leftCol { width: 150px; flex: 0 0 150px; display: flex; flex-direction: column; gap: 8px; }
-	.leftCol .cardHead { display: flex; gap: 0.35rem; padding: 0 2px; }
+	.leftCol .cardHead { display: flex; gap: 0.35rem; padding: 0 2px; order: 0; margin: 0; }
 	.leftCol .cardTitle { font-size: 0.9rem; font-weight: 700; color: var(--text); text-transform: none; letter-spacing: 0; }
-	.back { display: block; width: 1.5rem; font-size: 1.35rem; }
-	.rail { width: 100%; flex: 1 1 auto; padding: 4px; }
-	.railRow { padding: 2px 6px; gap: 6px; }
-	.railName { font-size: 0.72rem; }
-	.pips { gap: 3px; i { height: 4px; } }
-	.card { width: 200px; flex: 0 0 200px; gap: 8px; }
-	.rankCard { padding: 0.6rem 0.7rem; gap: 0.4rem; }
+	.back { display: block; width: 1.5rem; font-size: 1.35rem; text-align: left; }
+	.rail { display: flex; flex-direction: column; justify-content: space-evenly; width: 100%; flex: 1 1 auto; padding: 4px; margin: 0; order: 0; }
+	.railRow { flex-direction: row; padding: 2px 6px; gap: 6px; }
+	.railText { flex: 1; align-items: flex-start; }
+	.railName { display: block; font-size: 0.72rem; }
+	.pips { width: auto; gap: 3px; i { height: 4px; } }
+	.card { display: flex; flex-direction: column; width: 200px; flex: 0 0 200px; gap: 8px; }
+	.cardHeadRated { display: none; }
+	.rankCard { display: flex; padding: 0.6rem 0.7rem; gap: 0.4rem; }
+	.ladderHead, .rankBar, .rankFoot, .actions { order: 0; margin: 0; width: auto; }
 	.ladderHead { gap: 0.5rem; }
 	.ladderHead .cardTitle { display: none; }
 	.ladderTier { font-size: 0.95rem; }
 	.rankFoot { font-size: 0.68rem; }
-	.stats { gap: 8px; }
+	.stats { display: grid; gap: 8px; }
 	.stat:nth-child(1), .stat:nth-child(4) { display: none; } // rating is on the rank card; best streak waits for desktop
 	.stat { padding: 0.5rem 0.65rem; }
 	.statValue { font-size: 1.05rem; }
 	.history { display: none; }
+	.cardSpacer { display: block; }
+	.actions { margin-top: auto; }
 	.primaryAction { padding: 0.6rem 0.8rem; font-size: 0.95rem; }
+}
+// Narrow landscape phones (iPhone SE/8: 667 wide): slimmer side columns so the board gets the height.
+@media (orientation: landscape) and (max-height: 500px) and (max-width: 700px) {
+	.leftCol { width: 124px; flex-basis: 124px; }
+	.card { width: 176px; flex-basis: 176px; }
+	.railRow { padding: 1px 4px; gap: 5px; }
+	.railName { font-size: 0.66rem; }
+	.rankCard { padding: 0.5rem 0.6rem; }
+	.stat { padding: 0.4rem 0.55rem; }
 }
