@@ -246,6 +246,15 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 						<div className={`${styles.boardWrap} ${boardFlash === "solved" || done === "solved" ? styles.flashSolved : boardFlash === "fail" ? styles.flashFail : ""}`} style={mobile ? { width: "100%", padding: PHONE_BOX_PAD } : { width: box, height: box }} data-shake-host="">
 							<GameBoard session={session} cellPx={cellPx} className={styles.board}>
 							</GameBoard>
+							{/* Rank boundary crossed: a held card over the board box. */}
+							{rankChange && (
+								<div className={`${styles.rankFlash} ${rankChange.up ? styles.rankUp : styles.rankDown}`} style={{ borderColor: rankChange.color }}>
+									<div className={styles.rankFlashKicker}>{rankChange.up ? "Rank up!" : "Rank down"}</div>
+									<PuzzleRankBadge rating={rankChange.rating} size={12} />
+									<div className={styles.rankFlashLabel} style={{ color: rankChange.color }}>{rankChange.label}</div>
+									<div className={styles.rankFlashRating}>{rankChange.rating} rating</div>
+								</div>
+							)}
 						</div>
 
 					</div>
@@ -292,15 +301,6 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 							</>
 						) : null}
 					</aside>
-					{/* Rank boundary crossed: covers the WHOLE puzzle area (board + side card), not just the canvas. */}
-					{rankChange && (
-						<div className={`${styles.rankFlash} ${rankChange.up ? styles.rankUp : styles.rankDown}`} style={{ borderColor: rankChange.color }}>
-							<div className={styles.rankFlashKicker}>{rankChange.up ? "Rank up!" : "Rank down"}</div>
-							<PuzzleRankBadge rating={rankChange.rating} size={14} />
-							<div className={styles.rankFlashLabel} style={{ color: rankChange.color }}>{rankChange.label}</div>
-							<div className={styles.rankFlashRating}>{rankChange.rating} rating</div>
-						</div>
-					)}
 				</div>
 			)}
 			{runEnd && (
