@@ -198,10 +198,8 @@ function PuzzleChip({ account }: { account: Account | null }) {
 	return (
 		<>
 			<PuzzleRankBadge rating={account.puzzleRating} size={9} />
-			<span className={styles.statText}>
-				<span className={styles.tier} style={{ color: pl.tierColor }}>{pl.tierName}</span>
-				<span className={styles.tierSub}>{pl.levelLabel} · {pl.rating}</span>
-			</span>
+			{/* Same shape as the ranked chips: "Specialist III", tier only, never the exact rating. */}
+			<span className={styles.statText}><span className={styles.tier} style={{ color: pl.tierColor }}>{pl.tierName} {pl.levelLabel}</span></span>
 		</>
 	);
 }

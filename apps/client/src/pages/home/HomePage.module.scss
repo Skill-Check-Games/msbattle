@@ -78,7 +78,6 @@
 .statText { display: flex; flex-direction: column; align-items: flex-start; text-align: left; }
 .tier { font-weight: 700; }
 .tierPlacing { color: var(--muted); }
-.tierSub { font-size: 0.72rem; font-weight: 600; color: var(--muted); margin-top: 2px; line-height: 1.2; margin-bottom: calc(-0.72rem * 1.2 - 2px); }
 .dots { display: inline-flex; gap: 3px; margin-top: 3px; margin-bottom: -10px; }
 .dots i { width: 7px; height: 7px; border-radius: 50%; background: #2b3459; }
 .dots i.on { background: var(--accent); }
@@ -157,7 +156,6 @@
 	.tier { font-size: 0.8rem; }
 	.dots i { width: 6px; height: 6px; }
 	.dots { margin-bottom: -9px; }
-	.tierSub { font-size: 0.66rem; margin-bottom: calc(-0.66rem * 1.2 - 2px); }
 }
 @media (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
 	.dash { --gap-group: 0.8rem; padding-top: 0; }
