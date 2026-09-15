@@ -394,10 +394,8 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 							</GameBoard>
 							{phoneLandscape && (
 								<div className={styles.modeRow}>
-									<div className={styles.modePill} role="group" aria-label="Tap tool">
-										<button type="button" className={`${styles.modeHalf} ${!flagMode ? styles.modeOn : ""}`} onClick={() => setFlagMode(false)}><TapIcon /> Reveal</button>
-										<button type="button" className={`${styles.modeHalf} ${flagMode ? `${styles.modeOn} ${styles.modeOnFlag}` : ""}`} onClick={() => setFlagMode(true)}><FlagIcon lit={flagMode} /> Flag</button>
-									</div>
+									{/* Flag-mode toggle (design G·09): the same flag in both states — grey off, red on a red-tinted, red-bordered button when armed. */}
+									<button type="button" className={`${styles.flagToggle} ${flagMode ? styles.flagToggleOn : ""}`} aria-pressed={flagMode} aria-label="Flag mode" onClick={() => setFlagMode(f => !f)}><FlagIcon lit={flagMode} /></button>
 								</div>
 							)}
 						</div>
@@ -507,5 +505,5 @@ function LadderRail({ rating }: { rating: number }) {
 }
 function CheckIcon() { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>; }
 function CrossIcon() { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17" /></svg>; }
-function TapIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 11V5.5a1.5 1.5 0 0 1 3 0V11" /><path d="M12 10.5a1.5 1.5 0 0 1 3 0V13" /><path d="M15 12a1.5 1.5 0 0 1 3 0v4.5c0 3-2 5-5.5 5S7 19 6 16.5L4.4 12.8a1.4 1.4 0 0 1 2.5-1.3L9 14" /></svg>; }
-function FlagIcon({ lit }: { lit: boolean }) { return <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" /><path d="M7 4l11 3.5L7 11.5z" fill={lit ? "var(--danger)" : "currentColor"} /></svg>; }
+// The flag of the toggle: one silhouette, grey when off, red cloth on a light pole when on.
+function FlagIcon({ lit }: { lit: boolean }) { return <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v18" stroke={lit ? "#e2e8f0" : "var(--muted)"} strokeWidth="2.2" strokeLinecap="round" /><path d="M7 4l11 3.5L7 11.5z" fill={lit ? "var(--danger)" : "var(--muted)"} /></svg>; }
