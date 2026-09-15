@@ -8,6 +8,17 @@
 	<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=optional">
 	<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 	<meta name="theme-color" content="#6366f1">
+	<!-- Privacy-friendly analytics by Plausible. No cookies, so no consent banner,
+	     and ~2.5KB over the wire. The site is identified by the script id, so this
+	     file is specific to msbattle.net. The script hooks pushState and popstate,
+	     so react-router navigations are captured without extra config. The stub
+	     queues plausible() calls made before the async script has loaded, so early
+	     custom events are not dropped. Inert on localhost. -->
+	<script async src="https://plausible.io/js/pa-lRy_o6Te34kEo37DOKHyJ.js"></script>
+	<script>
+		window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
+		plausible.init()
+	</script>
 	<title>MSBattle</title>
 </head>
 <body>
