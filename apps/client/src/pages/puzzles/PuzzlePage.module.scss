@@ -87,12 +87,25 @@
 	.page { min-height: calc(100dvh - 2.5rem); display: flex; flex-direction: column; padding: 0 0 env(safe-area-inset-bottom, 0px); }
 	.header { display: none; }
 	.grid { flex: 1 1 auto; flex-direction: column; align-items: stretch; flex-wrap: nowrap; gap: 0.9rem; }
-	.boardCol { flex: 1 1 auto; justify-content: center; width: 100%; }
+	.boardCol { flex: 1 1 auto; justify-content: flex-start; width: 100%; }
 	.boardWrap { width: 100%; height: auto; box-sizing: border-box; }
 	.card, .rankCard { display: contents; }
-	.rail, .stats, .history, .cardSpacer { display: none; }
+	.stats, .history, .cardSpacer { display: none; }
 	.cardHeadRated { display: flex; }
-	.cardHead, .ladderHead, .rankBar, .rankFoot, .runRow, .runFoot { order: -1; }
+	// Stack order (design M·05): title · tier rail · rank row + bar · board · Next.
+	.cardHead { order: -3; }
+	.rail { order: -2; }
+	.ladderHead, .rankBar, .rankFoot, .runRow, .runFoot { order: -1; }
+	// The tier rail turns into a horizontal strip of badges: names hidden, the current tier keeps its pips.
+	.rail { width: 100%; flex: 0 0 auto; flex-direction: row; justify-content: space-between; padding: 6px 8px; margin-bottom: 0.2rem; }
+	.railRow { flex-direction: column; gap: 4px; padding: 4px 4px 2px; }
+	.railText { flex: 0 0 auto; align-items: center; }
+	.railName { display: none; }
+	.pips { width: 28px; }
+	.ladderHead .cardTitle { display: none; } // the page title already says Puzzle Ladder
+	.ladderHead { gap: 0.6rem; }
+	.rankBar { margin-top: -0.45rem; }
+	.rankFoot { margin-top: -0.55rem; margin-bottom: 0.1rem; }
 	.cardHead { gap: 0.8rem; margin-bottom: 0.3rem; }
 	.back { display: block; text-align: center; }
 	.cardTitle { font-size: 1.25rem; font-weight: 700; color: var(--text); text-transform: none; letter-spacing: 0; }
