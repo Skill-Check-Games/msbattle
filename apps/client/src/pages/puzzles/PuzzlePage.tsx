@@ -149,6 +149,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 	// bottom-right margin, off the cells.
 	const [panel, setPanel] = useState({ w: PUZZLE_BOX_PX, h: PUZZLE_BOX_PX });
 	const [flagMode, setFlagMode] = useState(false);
+	const LS_MARGIN = 16, LS_PILL_ROW = 48; // landscape: board margin, and the height the pill overlays at the bottom
 	const [phoneW, setPhoneW] = useState(PUZZLE_BOX_PX_MOBILE);
 	const landscape = useMediaQuery(LANDSCAPE_MQ);
 	const portraitOrientation = useMediaQuery("(orientation: portrait)");
@@ -313,7 +314,6 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 	const box = desktopBox;
 	// The whole board in its box: the square desktop box, or (phone landscape) the wide panel — minus the pill's
 	// own row at the bottom (LS_PILL_ROW) and a margin all round, so the board never meets the panel's edge.
-	const LS_MARGIN = 16, LS_PILL_ROW = 48;
 	const fitCell = !session.rows ? 32 : phoneLandscape
 		? Math.max(1, Math.min(PUZZLE_CELL_MAX, Math.floor((panel.w - LS_MARGIN * 2 - SHAKE_PAD_X * 2) / session.cols), Math.floor((panel.h - LS_PILL_ROW - LS_MARGIN * 2 - SHAKE_PAD_Y * 2) / session.rows)))
 		: Math.max(1, Math.min(PUZZLE_CELL_MAX, Math.floor((box - SHAKE_PAD_X * 2) / session.cols), Math.floor((box - SHAKE_PAD_Y * 2) / session.rows)));
@@ -332,7 +332,8 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 		canvas.style.margin = `${my}px ${mx}px`;
 		if (zoomRef.current === null && !pendingPinch.current) {
 			sc.scrollLeft = canvas.offsetLeft - (sc.clientWidth - canvas.offsetWidth) / 2;
-			sc.scrollTop = canvas.offsetTop - (sc.clientHeight - canvas.offsetHeight) / 2;
+			// Rest a little above centre: the Reveal | Flag pill overlays the panel's bottom edge (LS_PILL_ROW).
+			sc.scrollTop = canvas.offsetTop - (sc.clientHeight - canvas.offsetHeight) / 2 + LS_PILL_ROW / 2;
 		}
 	});
 	// A pinch has ended: once the board is laid out at the new size, scroll so the anchored board point sits

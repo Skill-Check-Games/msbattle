@@ -17,13 +17,16 @@
 // Phone landscape: the board box is a pan/zoom viewport (duel-zoom.ts moves the board by script). The
 // GameBoard wrap fills the box, its scroller clips (overflow hidden, never browser-scrolled) and every touch
 // in the box is the game's (touch-action none), so the browser never pans or page-zooms instead.
-.panZoom { touch-action: none; overflow: hidden; display: flex; flex-direction: column; align-items: stretch;
-	> :first-child { display: flex; flex-direction: column; width: 100%; flex: 1 1 auto; height: auto; min-width: 0; min-height: 0; max-width: 100%; }
+.panZoom { touch-action: none; overflow: hidden;
+	> :first-child { display: flex; flex-direction: column; width: 100%; height: 100%; min-width: 0; min-height: 0; max-width: 100%; }
 	[data-board-scroll] { flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; touch-action: none; }
 	canvas { flex: 0 0 auto; touch-action: none; }
 }
 // Reveal | Flag pill (phone landscape): square corners like the app's buttons, in the panel's bottom-right margin.
-.modeRow { flex: 0 0 48px; display: flex; justify-content: flex-end; align-items: flex-end; padding: 0 8px 8px; } // the pill's own row under the board
+// The pill overlays the panel's bottom-right corner; the pan viewport runs on underneath it (the board can be
+// dragged under the pill), and the overview rests a little above centre so it clears the pill (PuzzlePage.tsx).
+.modeRow { position: absolute; right: 8px; bottom: 8px; z-index: 3; pointer-events: none; }
+.modePill { pointer-events: auto; }
 .modePill { display: inline-flex; border-radius: 8px; overflow: hidden; background: rgba(19, 26, 46, 0.92); border: 1px solid var(--border); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45); }
 .modePillFlag { border-color: var(--danger); }
 .modeHalf { display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px; border: 0; background: none; color: var(--muted); font: inherit; font-weight: 700; font-size: 0.82rem; cursor: pointer; }
