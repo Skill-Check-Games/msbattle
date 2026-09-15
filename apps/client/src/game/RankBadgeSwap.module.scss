@@ -1,0 +1,17 @@
+// Rank badge change (shipped from the Design Lab's candidates): Shatter & Reform on a rank UP, Climb / Drop
+// on a rank DOWN. The box is sized like a badge (font-size = badge px, 1em square); both faces stack in it.
+.box { position: relative; width: 1em; height: 1em; flex: 0 0 auto; }
+.face { position: absolute; inset: 0; :global(.rank-badge) { width: 100%; height: 100%; font-size: inherit; } }
+// Shatter: the old badge cracks into shards that fly outward while the new one bursts in with an overshoot.
+.shard { position: absolute; top: 43%; left: 43%; width: 14%; height: 14%; background: var(--shard-color, #fff); clip-path: polygon(50% 0%, 0% 100%, 100% 100%); opacity: 0.95; pointer-events: none; animation: shard-fly 0.6s ease-out forwards; }
+@keyframes shard-fly { to { transform: translate(var(--sx), var(--sy)) rotate(var(--srot)); opacity: 0; } }
+.shatterOld { animation: shatter-out 0.28s ease-in forwards; }
+@keyframes shatter-out { to { opacity: 0; transform: scale(0.85); } }
+.shatterNew { opacity: 0; transform: scale(0); animation: reform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.32s forwards; }
+@keyframes reform { 0% { opacity: 0; transform: scale(0); } 60% { opacity: 1; transform: scale(1.18); } 100% { opacity: 1; transform: scale(1); } }
+// Drop: the old badge travels off the top, motion-blurred; the new one arrives from below.
+.dropOld { animation: exit-up 1.2s cubic-bezier(0.5, 0, 0.75, 0) forwards; }
+.dropNew { opacity: 0; animation: enter-from-below 1.2s cubic-bezier(0.25, 1, 0.5, 1) 0.65s forwards; }
+@keyframes exit-up { to { transform: translateY(-1.1em); opacity: 0; filter: blur(2px); } }
+@keyframes enter-from-below { 0% { transform: translateY(1.1em); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .shard { display: none; } .shatterOld, .dropOld { animation: none; opacity: 0; } .shatterNew, .dropNew { animation: none; opacity: 1; transform: none; } }

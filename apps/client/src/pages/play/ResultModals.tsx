@@ -13,6 +13,7 @@ import { useAuth } from "../../shared/auth";
 import type { Account } from "../../shared/types";
 import { useMediaQuery, LANDSCAPE_PHONE_MQ } from "./mobile";
 import styles from "./ResultModals.module.scss";
+import { RankBadgeSwap, RANK_BADGE_SWAP_MS } from "../../game/RankBadgeSwap";
 
 const deltaText = (d: number) => (d > 0 ? "+" : d < 0 ? "−" : "±") + Math.abs(d);
 const deltaCls = (d: number) => d > 0 ? styles.gain : d < 0 ? styles.loss : styles.flat;
@@ -68,6 +69,9 @@ function RankedResult({ result, myId, compact }: { result: SeriesResult; myId: s
 	const [shown, setShown] = useState(oldRating ?? newRating);
 	const [fill, setFill] = useState(tierProgress(oldRating ?? newRating).fill);
 	const crossed = oldRating != null && tierFor(oldRating).name !== tierFor(newRating).name;
+	// The badge's icon / colour changed (a base tier, not just a sub-tier): swap it with the shipped animation.
+	const tierChanged = oldRating != null && tierFor(oldRating).color !== tierFor(newRating).color;
+	const [badgeSwap, setBadgeSwap] = useState(false);
 	const tier = tierFor(newRating);
 	const prog = tierProgress(newRating);
 
@@ -92,7 +96,9 @@ function RankedResult({ result, myId, compact }: { result: SeriesResult; myId: s
 		}, 400);
 		const t2 = setTimeout(() => { if (crossed) setFill(prog.fill); }, 1300);
 		const t3 = setTimeout(() => { if (crossed || revealed) (newRating > (oldRating ?? 0) || revealed ? sound.rankUp : sound.rankDown)(); }, 1700);
-		return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
+		const t4 = setTimeout(() => { if (tierChanged) setBadgeSwap(true); }, 1300);
+		const t5 = setTimeout(() => setBadgeSwap(false), 1300 + RANK_BADGE_SWAP_MS);
+		return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); clearTimeout(t5); };
 	}, []);
 
 	// The panel's frame: green for a win, red only for a finish in the bottom half of the field (a podium
@@ -105,7 +111,7 @@ function RankedResult({ result, myId, compact }: { result: SeriesResult; myId: s
 	return (
 		<ResultPanel slow kind={kind} className={`${styles.ranked} ${won ? styles.rankedWin : styles.rankedLose} ${compact ? styles.compact : ""}`}>
 			<div className={styles.hero}>
-				<div className={styles.heroBadge}>{placing ? <PlacementBadge size={compact ? 10 : 13} /> : <RankBadge rating={newRating} size={compact ? 10 : 13} />}</div>
+				<div className={styles.heroBadge}>{placing ? <PlacementBadge size={compact ? 10 : 13} /> : badgeSwap && oldRating != null ? <RankBadgeSwap kind="rank" from={oldRating} to={newRating} size={compact ? 10 : 13} /> : <RankBadge rating={newRating} size={compact ? 10 : 13} />}</div>
 				<div className={styles.heroText}>
 					<div className={`${styles.heading} ${won ? styles.headingWin : ""} ${placeCls}`}>{heading}</div>
 					<div className={styles.sub}>{MODE_LABELS[result.mode || ""] || "Ranked match"}{!isDuo && rank ? " · " + standings.length + " players" : ""}</div>

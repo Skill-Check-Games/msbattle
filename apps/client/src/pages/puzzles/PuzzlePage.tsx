@@ -9,6 +9,7 @@ import { useAuth } from "../../shared/auth";
 import { BoardSession, ActionResult } from "../../game/board-session";
 import { KNOWN, UNKNOWN } from "../../game/board-render";
 import { useAdminClearBoard } from "../../game/admin-clear";
+import { RankBadgeSwap, RANK_BADGE_SWAP_MS } from "../../game/RankBadgeSwap";
 import { makeBoardDecoder } from "../../game/board-decoder";
 import { sound } from "../../audio/sound";
 import GameBoard, { SHAKE_PAD_X, SHAKE_PAD_Y } from "../../game/GameBoard";
@@ -67,6 +68,8 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 	// label switch to the new rank at once, as in the modal.
 	const [shownRating, setShownRating] = useState<number | null>(null);
 	const [fillOverride, setFillOverride] = useState<number | null>(null);
+	// A TIER change (new icon / colour) also swaps the badge with the shipped animation: shatter up, drop down.
+	const [badgeSwap, setBadgeSwap] = useState<{ from: number; to: number; seq: number } | null>(null);
 	const ratingTimers = useRef<number[]>([]);
 	const animateRating = (before: number, after: number) => {
 		ratingTimers.current.forEach(clearTimeout); ratingTimers.current = [];
@@ -84,6 +87,10 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 			setFillOverride(crossed ? (up ? 100 : 0) : null);
 		}, 400);
 		T(() => { if (crossed) setFillOverride(null); }, 1300);
+		if (a.tierIndex !== b.tierIndex) {
+			T(() => setBadgeSwap(prev => ({ from: before, to: after, seq: (prev?.seq || 0) + 1 })), 1300);
+			T(() => setBadgeSwap(null), 1300 + RANK_BADGE_SWAP_MS);
+		}
 		T(() => { if (crossed) (up ? sound.rankUp : sound.rankDown)(); }, 1700);
 	};
 	useEffect(() => () => ratingTimers.current.forEach(clearTimeout), []);
@@ -313,7 +320,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 							<>
 								<div className={styles.rankCard}>
 								<div className={styles.ladderHead}>
-									<PuzzleRankBadge rating={account.puzzleRating || 0} size={9} />
+									{badgeSwap ? <RankBadgeSwap key={badgeSwap.seq} kind="puzzle" from={badgeSwap.from} to={badgeSwap.to} size={9} /> : <PuzzleRankBadge rating={account.puzzleRating || 0} size={9} />}
 									<div className={styles.ladderText}>
 										<span className={styles.cardTitle}>Puzzle Ladder</span>
 										<span className={styles.ladderTier} style={{ color: ladder.tierColor }}>{ladder.tierName + " " + ladder.levelLabel}{flash && typeof flash.delta === "number" && flash.delta !== 0 ? <span className={`${styles.delta} ${flash.delta > 0 ? styles.gain : styles.loss}`}>{flash.delta > 0 ? "+" : ""}{flash.delta}</span> : null}</span>
