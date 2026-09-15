@@ -258,10 +258,11 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 						</div>
 
 					</div>
-					<aside className={styles.card}>
+					<aside className={`${styles.card} ${!isRun ? styles.dossier : ""}`}>
 						<div className={`${styles.cardHead} ${!isRun ? styles.cardHeadRated : ""}`}><button type="button" className={styles.back} onClick={exit} aria-label="Back to lobby">←</button><span className={styles.cardTitle}>{TITLES[mode]}</span></div>
 						{!isRun ? (
 							<>
+								<div className={styles.rankCard}>
 								<div className={styles.ladderHead}>
 									<PuzzleRankBadge rating={account.puzzleRating || 0} size={9} />
 									<div className={styles.ladderText}>
@@ -271,6 +272,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 								</div>
 								<div className={styles.rankBar}><div className={styles.rankFill} style={{ width: ladder.levelPct + "%", background: ladder.tierColor }} /></div>
 								<div className={styles.rankFoot}><span>{ladder.rating}</span><span>{ladder.nextLevelAt == null ? "" : ladder.nextLevelAt + " · " + puzzleLadder(ladder.nextLevelAt).tierName + " " + puzzleLadder(ladder.nextLevelAt).levelLabel}</span></div>
+								</div>
 								<div className={styles.stats}>
 									<div className={styles.stat}><span className={styles.statLabel}>Rating</span><span className={styles.statValue}>{ladder.rating}</span></div>
 									<div className={styles.stat}><span className={styles.statLabel}>Streak</span><span className={styles.statValue} style={{ color: "var(--energy-streak)" }}><FlameIcon /> {streak}{flash && streakBonus ? <span className={`${styles.delta} ${styles.gain}`}> +{streakBonus}</span> : null}</span></div>
