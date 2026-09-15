@@ -6,7 +6,7 @@
       "path": "/",
       "priority": "1.0",
       "title": "MS Battle - Play multiplayer Minesweeper online",
-      "description": "Real-time competitive Minesweeper. Race real opponents in ranked matches, sharpen up on daily puzzles, and climb the rating ladder. Free in your browser, no ads, no download."
+      "description": "Real-time competitive Minesweeper. Race real opponents in ranked matches, sharpen up on daily puzzles, and climb the rating ladder. Free to play in your browser, and never pay-to-win."
     },
     {
       "path": "/learn",
@@ -18,7 +18,7 @@
       "path": "/solo",
       "priority": "0.8",
       "title": "Play Minesweeper solo, free online | MS Battle",
-      "description": "Classic single-player Minesweeper in your browser. No ads, no download, no signup. Pick a size and start clearing."
+      "description": "Classic single-player Minesweeper in your browser. Free to play, no download, no signup. Pick a size and start clearing."
     },
     {
       "path": "/puzzles",
