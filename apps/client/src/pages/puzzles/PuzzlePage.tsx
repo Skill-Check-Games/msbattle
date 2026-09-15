@@ -17,6 +17,7 @@ import { ResultPanel, ResultHeader, ResultDetail, ResultFoot, ResultActions } fr
 import { formatDailyDate } from "../home/home-data";
 import BoardLogic from "core/src/common/BoardLogic.js";
 import { useInGameBody, useMediaQuery, PORTRAIT_MQ } from "../play/mobile";
+import { phoneSizedDevice } from "../../game/fullscreen";
 // Any landscape phone, whatever its width (an iPhone SE is 667 wide in landscape — narrower than the portrait
 // breakpoint — and must still get the side-by-side layout, or the stacked page overflows 375px of height).
 const LANDSCAPE_MQ = "(orientation: landscape) and (max-height: 500px)";
@@ -103,10 +104,23 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 		list[(i + step + list.length) % list.length].focus();
 	};
 	const gridRef = useRef<HTMLDivElement>(null);
+	const pageRef = useRef<HTMLElement>(null);
 	const [desktopBox, setDesktopBox] = useState(PUZZLE_BOX_PX);
 	const [phoneW, setPhoneW] = useState(PUZZLE_BOX_PX_MOBILE);
 	const landscape = useMediaQuery(LANDSCAPE_MQ);
-	const mobile = useMediaQuery(PORTRAIT_MQ) && !landscape; // the stacked phone layout: portrait only
+	const portraitOrientation = useMediaQuery("(orientation: portrait)");
+	// The Puzzle Ladder plays in landscape on phones, like battles: a phone-sized device held in portrait gets the
+	// landscape layout rotated 90 degrees by CSS (body.duel-force-rotate). Runs (streak/storm/daily) keep portrait.
+	const pRef = puzzleRef.current;
+	const ratedMode = !pRef || !(pRef.mode === "streak" || pRef.mode === "storm" || pRef.mode === "daily");
+	const forceRotate = ratedMode && !landscape && portraitOrientation && phoneSizedDevice();
+	useEffect(() => {
+		document.body.classList.toggle("duel-force-rotate", forceRotate);
+		const raf = requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
+		return () => { cancelAnimationFrame(raf); document.body.classList.remove("duel-force-rotate"); };
+	}, [forceRotate]);
+	const phoneLandscape = landscape || forceRotate; // the side-by-side phone layout, real or rotated
+	const mobile = useMediaQuery(PORTRAIT_MQ) && !phoneLandscape; // the stacked phone layout: portrait only
 
 	const session = useMemo(() => new BoardSession({
 		mode: () => { const p = puzzleRef.current; return p && !p.finished ? "puzzle" : null; },
@@ -207,8 +221,13 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 			const grid = gridRef.current, host = boardHostRef.current; if (!grid || !host) return;
 			const stacked = getComputedStyle(grid).flexDirection === "column";
 			if (stacked) { setPhoneW(Math.max(1, grid.clientWidth - PHONE_BOX_PAD * 2 - SHAKE_PAD_X * 2)); return; }
-			const landscape = window.matchMedia(LANDSCAPE_MQ).matches;
-			const availH = window.innerHeight - host.getBoundingClientRect().top - (landscape ? 12 : 32);
+			const rotated = document.body.classList.contains("duel-force-rotate");
+			const landscape = window.matchMedia(LANDSCAPE_MQ).matches || rotated;
+			// Rotated: the page's own height is the viewport's WIDTH, and bounding rects are post-transform, so the
+			// board's offset from the page top is summed through offsetParents instead.
+			let hostTop = host.getBoundingClientRect().top;
+			if (rotated) { hostTop = 0; for (let el: HTMLElement | null = host; el && el !== pageRef.current; el = el.offsetParent as HTMLElement | null) hostTop += el.offsetTop; }
+			const availH = (rotated ? window.innerWidth : window.innerHeight) - hostTop - (landscape ? 12 : 32);
 			// Width left beside the rail and the dossier: read their real widths (they differ per breakpoint)
 			// rather than the desktop constants.
 			const gapPx = parseFloat(getComputedStyle(grid).columnGap) || GRID_GAP_PX;
@@ -219,7 +238,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 			for (const el of Array.from(grid.children)) {
 				if (el === host || (el as HTMLElement).offsetWidth === 0) continue;
 				const basis = parseFloat(getComputedStyle(el).flexBasis);
-				side += Number.isFinite(basis) && basis > 0 ? basis : (el as HTMLElement).getBoundingClientRect().width;
+				side += Number.isFinite(basis) && basis > 0 ? basis : (el as HTMLElement).offsetWidth; // offsetWidth: rotation-safe (bounding boxes swap axes)
 				others++;
 			}
 			const availW = grid.clientWidth - side - others * gapPx;
@@ -252,7 +271,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 	void tick;
 
 	return (
-		<section className={styles.page}>
+		<section ref={pageRef} className={`${styles.page} ${forceRotate ? styles.rotated : ""} ${forceRotate && window.innerHeight <= 700 ? styles.rotatedNarrow : ""}`}>
 			<div className={styles.header}>
 				<button className="btn btn-ghost" onClick={exit}>← Exit game</button>
 				<span className={styles.title}>{TITLES[mode]}</span>
@@ -260,7 +279,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 			{!account ? <p className={styles.empty}>Sign in to play. Your score is tied to your account.</p> : !p && status ? <p className={styles.empty}>{status}</p> : (
 				<div className={styles.grid} ref={gridRef}>
 					{/* Landscape phones: the back arrow + title sit in a left column above the rail (design L·02). */}
-					{!isRun && (landscape ? (
+					{!isRun && (phoneLandscape ? (
 						<div className={styles.leftCol}>
 							<div className={styles.cardHead}><button type="button" className={styles.back} onClick={exit} aria-label="Back to lobby">←</button><span className={styles.cardTitle}>{TITLES[mode]}</span></div>
 							<LadderRail rating={account.puzzleRating || 0} />

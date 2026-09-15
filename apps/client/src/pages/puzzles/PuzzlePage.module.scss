@@ -121,18 +121,20 @@
 // slim dossier right (rank block, streak + solved, Next). Comes AFTER the portrait block on purpose: a phone
 // narrower than the portrait breakpoint but turned sideways (iPhone SE: 667×375) matches both, and these
 // rules must win — the stacked layout does not fit 375px of height.
-@media (orientation: landscape) and (max-height: 500px) {
+// The landscape layout, as a mixin: applied by the landscape media query below AND to a phone held in
+// portrait that the page force-rotates (body.duel-force-rotate, same mechanism as the play page).
+@mixin puzzle-landscape {
 	.page { min-height: 0; display: block; padding: 8px 12px; }
 	.header { display: none; }
 	.grid { flex-direction: row; flex-wrap: nowrap; align-items: stretch; justify-content: center; gap: 12px; }
 	.boardCol { flex: 0 0 auto; width: auto; justify-content: flex-start; }
 	.boardWrap { width: auto; height: auto; box-sizing: content-box; }
-	.leftCol { width: auto; flex: 1 1 150px; min-width: 0; max-width: 220px; display: flex; flex-direction: column; gap: 8px; }
-	.leftCol .cardHead { display: flex; gap: 0.35rem; padding: 0 2px; order: 0; margin: 0; }
+	.leftCol { width: auto; flex: 1 1 150px; min-width: 0; max-width: 220px; display: flex; flex-direction: column; gap: 6px; }
+	.leftCol .cardHead { display: flex; gap: 0.35rem; padding: 0 2px; order: 0; margin: 0; line-height: 1.1; }
 	.leftCol .cardTitle { font-size: 0.9rem; font-weight: 700; color: var(--text); text-transform: none; letter-spacing: 0; }
 	.back { display: block; width: 1.5rem; font-size: 1.35rem; text-align: left; }
-	.rail { display: flex; flex-direction: column; justify-content: space-evenly; width: 100%; flex: 1 1 auto; padding: 4px; margin: 0; order: 0; }
-	.railRow { flex-direction: row; padding: 2px 6px; gap: 6px; }
+	.rail { display: flex; flex-direction: column; justify-content: space-evenly; width: 100%; flex: 1 1 auto; padding: 2px; margin: 0; order: 0; }
+	.railRow { flex-direction: row; padding: 1px 6px; gap: 6px; }
 	.railText { flex: 1; align-items: flex-start; }
 	.railName { display: block; font-size: 0.72rem; }
 	.pips { width: auto; gap: 3px; i { height: 4px; } }
@@ -153,8 +155,8 @@
 	.actions { margin-top: auto; }
 	.primaryAction { padding: 0.6rem 0.8rem; font-size: 0.95rem; }
 }
-// Narrow landscape phones (iPhone SE/8: 667 wide): slimmer side columns so the board gets the height.
-@media (orientation: landscape) and (max-height: 500px) and (max-width: 700px) {
+// Slimmer side columns when the landscape width is under 700px (iPhone SE/8 sideways).
+@mixin puzzle-landscape-narrow {
 	.leftCol { flex-basis: 124px; max-width: 170px; }
 	.card { flex-basis: 176px; max-width: 230px; }
 	.railRow { padding: 1px 4px; gap: 5px; }
@@ -162,3 +164,14 @@
 	.rankCard { padding: 0.5rem 0.6rem; }
 	.stat { padding: 0.4rem 0.55rem; }
 }
+@media (orientation: landscape) and (max-height: 500px) { @include puzzle-landscape; }
+@media (orientation: landscape) and (max-height: 500px) and (max-width: 700px) { @include puzzle-landscape-narrow; }
+// A phone-sized device held in portrait: the page is laid out at the viewport's height x width and rotated
+// 90 degrees from its top-left corner (pulled back up by its own height) to fill the screen — the same
+// force-rotate the play page uses; board-session.ts undoes the rotation for hit-testing.
+:global(body.duel-force-rotate) { @include puzzle-landscape; }
+:global(body.duel-force-rotate) .rotated {
+	position: fixed; top: 0; left: 0; width: 100vh; height: 100vw; box-sizing: border-box; z-index: 40; background: var(--bg); overflow: hidden;
+	transform-origin: top left; transform: rotate(90deg) translateY(-100%);
+}
+:global(body.duel-force-rotate) .rotatedNarrow { @include puzzle-landscape-narrow; }
