@@ -89,6 +89,7 @@ addColumnIfMissing("users", "puzzles_solved", "INTEGER NOT NULL DEFAULT 0");
 // Consecutive rated solves (a miss resets it, a hinted solve neither extends nor breaks it) — drives the
 // streak bonus on ladder points (puzzlePlay.js puzzleStreakBonus). Persisted so it survives sessions.
 addColumnIfMissing("users", "puzzle_streak", "INTEGER NOT NULL DEFAULT 0");
+addColumnIfMissing("users", "puzzle_streak_best", "INTEGER NOT NULL DEFAULT 0"); // longest rated streak ever (the puzzle page's dossier)
 addColumnIfMissing("users", "puzzles_attempted", "INTEGER NOT NULL DEFAULT 0");
 addColumnIfMissing("users", "current_puzzle_id", "INTEGER");
 addColumnIfMissing("users", "streak_best", "INTEGER NOT NULL DEFAULT 0");
@@ -1478,13 +1479,19 @@ function setPuzzleProgress(userId, rating) {
 }
 
 function setPuzzleStreak(userId, streak) {
-	db.prepare("UPDATE users SET puzzle_streak = ? WHERE id = ?").run(streak, userId);
+	db.prepare("UPDATE users SET puzzle_streak = ?, puzzle_streak_best = MAX(puzzle_streak_best, ?) WHERE id = ?").run(streak, streak, userId);
+}
+
+// The outcome of the user's last N rated attempts, oldest first (the puzzle page's "Last 10").
+function recentPuzzleResults(userId, n) {
+	var rows = db.prepare("SELECT solved FROM puzzle_attempts WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT ?").all(userId, n || 10);
+	return rows.reverse().map(function(r) { return !!r.solved; });
 }
 
 // Admin/testing: wipe a user's puzzle progress back to a fresh account — rating to 0 (the new-player
 // baseline), Ladder points to 0, no current puzzle, and clear the peak-rating achievement metric.
 function resetPuzzleProgress(userId) {
-	db.prepare("UPDATE users SET puzzle_rating = ?, puzzle_points = 0, puzzle_streak = 0, current_puzzle_id = NULL WHERE id = ?").run(PUZZLE_START_RATING, userId);
+	db.prepare("UPDATE users SET puzzle_rating = ?, puzzle_points = 0, puzzle_streak = 0, puzzle_streak_best = 0, current_puzzle_id = NULL WHERE id = ?").run(PUZZLE_START_RATING, userId);
 	try { db.prepare("UPDATE player_stats SET peak_puzzle_rating = 0 WHERE user_id = ?").run(userId); } catch (e) {}
 }
 
@@ -1722,6 +1729,7 @@ module.exports = {
 	scoreToRating: scoreToRating,
 	poolRating: poolRating,
 	setPuzzleStreak: setPuzzleStreak,
+	recentPuzzleResults: recentPuzzleResults,
 	setPuzzleProgress: setPuzzleProgress,
 	PUZZLE_RATING_FLOOR: PUZZLE_RATING_FLOOR,
 	PUZZLE_START_RATING: PUZZLE_START_RATING,

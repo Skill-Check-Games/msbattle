@@ -19,17 +19,39 @@
 .board { vertical-align: top; }
 .info { font-size: 0.82rem; color: var(--muted); display: inline-flex; gap: 0.4rem; align-items: center; }
 .sep { opacity: 0.6; }
-.card { width: 320px; flex: 0 0 320px; max-width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 1.1rem 1.2rem; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 0.75rem; }
+.card { width: 260px; flex: 0 0 260px; max-width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 1.1rem 1.2rem; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 0.75rem; }
 .cardHead { display: flex; align-items: center; gap: 0.5rem; }
+.cardHeadRated { display: none; } // desktop rated: the rank block carries its own "Puzzle Ladder" kicker (shown again on phones below)
 .back { display: none; border: 0; background: none; padding: 0; width: 2.2rem; font-size: 1.7rem; line-height: 1; color: var(--muted); cursor: pointer; &:hover { color: var(--text); } }
 .cardTitle { font-size: 0.8rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
-.ladderHead { display: flex; align-items: center; gap: 0.5rem; }
+.ladderHead { display: flex; align-items: center; gap: 0.7rem; }
+.ladderText { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+.underBoard { width: 100%; display: flex; justify-content: space-between; align-items: center; }
+// Dossier: 2x2 stats and the last-ten strip, then the actions pinned to the board's bottom edge.
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.2rem; }
+.stat { display: flex; flex-direction: column; gap: 0.1rem; padding: 0.6rem 0.75rem; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border); border-radius: 6px; }
+.statLabel { font-size: 0.65rem; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700; color: var(--muted); }
+.statValue { font-family: var(--font-display); font-weight: 800; font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+.history { display: flex; flex-direction: column; gap: 0.45rem; padding: 0.7rem 0.8rem; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border); border-radius: 6px; }
+.historyDots { display: flex; gap: 4px; min-height: 22px; }
+.historyDot { width: 22px; height: 22px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; }
+.historyOk { background: rgba(34, 197, 94, 0.15); color: var(--success); }
+.historyMiss { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+.cardSpacer { flex: 1 1 auto; }
+// Ladder rail: all eight tiers, compact, stretched to the board's height.
+.rail { width: 200px; flex: 0 0 200px; box-sizing: border-box; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; box-shadow: var(--shadow); display: flex; flex-direction: column; justify-content: space-between; gap: 2px; }
+.railRow { display: flex; align-items: center; gap: 0.6rem; padding: 0.35rem 0.5rem; border-radius: 6px; border: 1px solid transparent; }
+.railCurrent { background: rgba(255, 255, 255, 0.06); }
+.railLocked { opacity: 0.45; }
+.railText { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+.railName { font-family: var(--font-display); font-weight: 700; font-size: 0.82rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pips { display: flex; gap: 4px; i { flex: 1; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.1); } }
 .ladderTier { font-family: var(--font-display); font-weight: 800; font-size: 1.05rem; }
 .delta { font-weight: 800; animation: delta-pop 1s ease both; }
 .gain { color: var(--success); }
 .loss { color: var(--danger); }
 @keyframes delta-pop { 0% { opacity: 0; transform: translateY(6px); } 20% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; } }
-.streakChip { margin-left: auto; font-size: 0.8rem; font-weight: 700; color: var(--energy-streak); }
+.streakChip { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.82rem; font-weight: 700; color: var(--energy-streak); }
 .rankBar { height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
 .rankFill { height: 100%; border-radius: 4px; transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
 .rankFoot { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--muted); font-variant-numeric: tabular-nums; }
@@ -70,6 +92,8 @@
 	.boardCol { flex: 1 1 auto; justify-content: center; width: 100%; }
 	.boardWrap { width: 100%; height: auto; box-sizing: border-box; }
 	.card { display: contents; }
+	.rail, .stats, .history, .cardSpacer { display: none; }
+	.cardHeadRated { display: flex; }
 	.cardHead, .ladderHead, .rankBar, .rankFoot, .runRow, .runFoot { order: -1; }
 	.cardHead { gap: 0.8rem; margin-bottom: 0.3rem; }
 	.back { display: block; text-align: center; }

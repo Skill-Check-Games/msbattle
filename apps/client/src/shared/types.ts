@@ -19,6 +19,8 @@ export interface Account {
 	provisional: boolean;
 	puzzleRating: number;
 	puzzleStreak: number;
+	puzzleStreakBest: number;
+	puzzleRecent: boolean[];   // outcome of the last 10 rated attempts, oldest first
 	puzzlesSolved: number;
 	puzzlesAttempted: number;
 	streakBest: number;

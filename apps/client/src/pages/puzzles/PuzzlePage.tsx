@@ -12,7 +12,7 @@ import { makeBoardDecoder } from "../../game/board-decoder";
 import { sound } from "../../audio/sound";
 import GameBoard, { SHAKE_PAD_X, SHAKE_PAD_Y } from "../../game/GameBoard";
 import { PuzzleRankBadge } from "../../shared/RankBadge";
-import { puzzleLadder } from "../../shared/puzzle-ladder";
+import { puzzleLadder, PUZZLE_TIERS, LEVELS_PER_TIER, ratingForTierLevel } from "../../shared/puzzle-ladder";
 import { ResultPanel, ResultHeader, ResultDetail, ResultFoot, ResultActions } from "../../game/ResultPanel";
 import { formatDailyDate } from "../home/home-data";
 import BoardLogic from "core/src/common/BoardLogic.js";
@@ -24,7 +24,7 @@ const TITLES: Record<PuzzleMode, string> = { rated: "Puzzle Ladder", streak: "St
 
 interface Run { mode: PuzzleMode; solves?: number; targetRating?: number; endsAt?: number; streak?: number; date?: string; bestStreak?: number; }
 interface Puzzle { puzzleId: number; difficulty: number; totalSafe: number; totalMines: number; playerRating: number; mode: PuzzleMode; run: Run | null; finished: boolean; hintUsed: boolean; noRating?: boolean; }
-interface RatedResult { solved: boolean; hintUsed: boolean; playerBefore?: number; playerAfter?: number; playerDelta?: number; streakBonus?: number; streak?: number; noRating?: boolean; }
+interface RatedResult { solved: boolean; hintUsed: boolean; playerBefore?: number; playerAfter?: number; playerDelta?: number; streakBonus?: number; streak?: number; puzzleStreakBest?: number; noRating?: boolean; }
 interface RankChange { up: boolean; label: string; color: string; rating: number; }
 interface RunEnd { mode: "streak" | "storm"; solves: number; score: number; bestBefore: number; best: number; }
 interface DailyResult { date: string; solved: boolean; streak: number; bestStreak?: number; }
@@ -33,8 +33,10 @@ interface DailyResult { date: string; solved: boolean; streak: number; bestStrea
 // card), like the legacy client did; 480 is only the pre-measure fallback. Phones use a fixed box.
 // Phones stack everything in one column: the board box spans the width and its cells fit that width
 // (minus the box padding), capped so a tiny puzzle does not become huge.
-const PUZZLE_BOX_PX = 480, PUZZLE_CELL_MAX = 75, PUZZLE_BOX_PX_MOBILE = 320, PUZZLE_CELL_MAX_MOBILE = 56, PHONE_BOX_PAD = 14;
-const CARD_PX = 320, GRID_GAP_PX = 20;
+const PUZZLE_BOX_PX = 548, PUZZLE_CELL_MAX = 80, PUZZLE_BOX_PX_MOBILE = 320, PUZZLE_CELL_MAX_MOBILE = 56, PHONE_BOX_PAD = 14;
+// Desktop: ladder rail | board | dossier card (design R3·01). The rail and card widths + gaps are what the
+// board box has to leave free beside it.
+const CARD_PX = 260, RAIL_PX = 200, GRID_GAP_PX = 24;
 const difficultyLabel = (tier: number) => tier <= 2 ? "Easy" : tier <= 4 ? "Medium" : "Hard";
 
 export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
@@ -148,7 +150,12 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 					p.playerRating = d.playerAfter;
 					if (typeof d.streak === "number") setStreak(d.streak); else setStreak(s => d.solved ? s + 1 : 0);
 					setStreakBonus(d.streakBonus || 0);
-					if (account) update({ puzzleRating: d.playerAfter, puzzlesAttempted: (account.puzzlesAttempted || 0) + 1, puzzlesSolved: (account.puzzlesSolved || 0) + (d.solved ? 1 : 0) });
+					if (account) update({
+						puzzleRating: d.playerAfter, puzzlesAttempted: (account.puzzlesAttempted || 0) + 1, puzzlesSolved: (account.puzzlesSolved || 0) + (d.solved ? 1 : 0),
+						puzzleStreak: typeof d.streak === "number" ? d.streak : account.puzzleStreak,
+						puzzleStreakBest: typeof d.puzzleStreakBest === "number" ? d.puzzleStreakBest : account.puzzleStreakBest,
+						puzzleRecent: [...(account.puzzleRecent || []), d.solved].slice(-10)
+					});
 				}
 				if (d.solved) { sound.win(); setFlash({ solved: true, delta: d.playerDelta }); setTimeout(() => { setFlash(null); setDone("solved"); }, 1200); }
 				else setDone("fail");
@@ -197,7 +204,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 			const stacked = getComputedStyle(grid).flexDirection === "column";
 			if (stacked) { setPhoneW(Math.max(1, grid.clientWidth - PHONE_BOX_PAD * 2 - SHAKE_PAD_X * 2)); return; }
 			const availH = window.innerHeight - host.getBoundingClientRect().top - 32;
-			const availW = grid.clientWidth - (CARD_PX + GRID_GAP_PX);
+			const availW = grid.clientWidth - (CARD_PX + GRID_GAP_PX) - (isRun ? 0 : RAIL_PX + GRID_GAP_PX);
 			const box = Math.min(availH, availW);
 			if (box > 0) setDesktopBox(Math.max(240, Math.min(900, Math.floor(box))));
 		};
@@ -234,26 +241,44 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 			</div>
 			{!account ? <p className={styles.empty}>Sign in to play. Your score is tied to your account.</p> : !p && status ? <p className={styles.empty}>{status}</p> : (
 				<div className={styles.grid} ref={gridRef}>
+					{!isRun && <LadderRail rating={account.puzzleRating || 0} />}
 					<div className={styles.boardCol} ref={boardHostRef}>
 						<div className={`${styles.boardWrap} ${boardFlash === "solved" ? styles.flashSolved : boardFlash === "fail" ? styles.flashFail : ""}`} style={mobile ? { width: "100%", padding: PHONE_BOX_PAD } : { width: box, height: box }} data-shake-host="">
 							<GameBoard session={session} cellPx={cellPx} className={styles.board}>
 								{flash && <div className={`${styles.flash} ${flash.solved ? styles.flashOk : styles.flashBad}`}><div className={styles.flashIcon}>{flash.solved ? "✓" : "✗"}</div><div className={styles.flashLabel}>{flash.solved ? "Solved" : "Mine hit"}</div></div>}
 							</GameBoard>
 						</div>
-						{p && !isRun && p.puzzleId != null && <div className={styles.info}>Puzzle #{p.puzzleId}<span className={styles.sep}>·</span><span style={{ color: difficultyLabel(p.difficulty) === "Easy" ? "var(--success)" : difficultyLabel(p.difficulty) === "Medium" ? "var(--energy-streak)" : "var(--danger)" }}>{difficultyLabel(p.difficulty)}</span></div>}
+						{p && !isRun && p.puzzleId != null && (
+							<div className={styles.underBoard}>
+								<div className={styles.info}>Puzzle #{p.puzzleId}<span className={styles.sep}>·</span><span style={{ color: difficultyLabel(p.difficulty) === "Easy" ? "var(--success)" : difficultyLabel(p.difficulty) === "Medium" ? "var(--energy-streak)" : "var(--danger)" }}>{difficultyLabel(p.difficulty)}</span></div>
+								{streak >= 2 && <span className={styles.streakChip}><FlameIcon /> {streak}{flash && streakBonus ? " · +" + streakBonus : ""}</span>}
+							</div>
+						)}
 					</div>
 					<aside className={styles.card}>
-						<div className={styles.cardHead}><button type="button" className={styles.back} onClick={exit} aria-label="Back to lobby">←</button><span className={styles.cardTitle}>{TITLES[mode]}</span></div>
+						<div className={`${styles.cardHead} ${!isRun ? styles.cardHeadRated : ""}`}><button type="button" className={styles.back} onClick={exit} aria-label="Back to lobby">←</button><span className={styles.cardTitle}>{TITLES[mode]}</span></div>
 						{!isRun ? (
 							<>
 								<div className={styles.ladderHead}>
-									<PuzzleRankBadge rating={account.puzzleRating || 0} size={7} />
-									<span className={styles.ladderTier} style={{ color: ladder.tierColor }}>{ladder.tierName + " " + ladder.levelLabel}</span>
-									{flash && typeof flash.delta === "number" && flash.delta !== 0 ? <span className={`${styles.delta} ${flash.delta > 0 ? styles.gain : styles.loss}`}>{flash.delta > 0 ? "+" : ""}{flash.delta}</span> : null}
-									{streak >= 2 && <span className={styles.streakChip}>🔥 {streak}{flash && streakBonus ? " · +" + streakBonus : ""}</span>}
+									<PuzzleRankBadge rating={account.puzzleRating || 0} size={9} />
+									<div className={styles.ladderText}>
+										<span className={styles.cardTitle}>Puzzle Ladder</span>
+										<span className={styles.ladderTier} style={{ color: ladder.tierColor }}>{ladder.tierName + " " + ladder.levelLabel}{flash && typeof flash.delta === "number" && flash.delta !== 0 ? <span className={`${styles.delta} ${flash.delta > 0 ? styles.gain : styles.loss}`}>{flash.delta > 0 ? "+" : ""}{flash.delta}</span> : null}</span>
+									</div>
 								</div>
 								<div className={styles.rankBar}><div className={styles.rankFill} style={{ width: ladder.levelPct + "%", background: ladder.tierColor }} /></div>
-								<div className={styles.rankFoot}><span>{ladder.rating} rating</span><span>{ladder.nextLevelAt == null ? "" : "→ " + puzzleLadder(ladder.nextLevelAt).tierName + " " + puzzleLadder(ladder.nextLevelAt).levelLabel + " at " + ladder.nextLevelAt}</span></div>
+								<div className={styles.rankFoot}><span>{ladder.rating}</span><span>{ladder.nextLevelAt == null ? "" : ladder.nextLevelAt + " · " + puzzleLadder(ladder.nextLevelAt).tierName + " " + puzzleLadder(ladder.nextLevelAt).levelLabel}</span></div>
+								<div className={styles.stats}>
+									<div className={styles.stat}><span className={styles.statLabel}>Rating</span><span className={styles.statValue}>{ladder.rating}</span></div>
+									<div className={styles.stat}><span className={styles.statLabel}>Streak</span><span className={styles.statValue} style={{ color: "var(--energy-streak)" }}>{streak}</span></div>
+									<div className={styles.stat}><span className={styles.statLabel}>Solved</span><span className={styles.statValue}>{account.puzzlesSolved || 0} / {account.puzzlesAttempted || 0}</span></div>
+									<div className={styles.stat}><span className={styles.statLabel}>Best streak</span><span className={styles.statValue}>{Math.max(account.puzzleStreakBest || 0, streak)}</span></div>
+								</div>
+								<div className={styles.history}>
+									<span className={styles.cardTitle}>Last 10</span>
+									<div className={styles.historyDots}>{(account.puzzleRecent || []).map((ok, i) => <span key={i} className={`${styles.historyDot} ${ok ? styles.historyOk : styles.historyMiss}`}>{ok ? <CheckIcon /> : <CrossIcon />}</span>)}</div>
+								</div>
+								<div className={styles.cardSpacer} />
 								{/* Hint button removed for now (2026-09-14); the server-side puzzle_hint path is still there. */}
 								{done && (
 									<div className={`${styles.actions} kbd-btn-group`} onKeyDown={onActionsKey}>
@@ -315,3 +340,29 @@ function stormClock(endsAt: number): string {
 	const sec = Math.ceil(Math.max(0, endsAt - Date.now()) / 1000), m = Math.floor(sec / 60), s = sec % 60;
 	return m + ":" + (s < 10 ? "0" : "") + s;
 }
+
+// The ladder rail (desktop): every tier, top to bottom, the player's tier highlighted with its level pips.
+function LadderRail({ rating }: { rating: number }) {
+	const me = puzzleLadder(rating);
+	const tiers = PUZZLE_TIERS.map((t, i) => ({ ...t, i })).reverse();
+	return (
+		<aside className={styles.rail} aria-label="Puzzle Ladder tiers">
+			<span className={styles.cardTitle}>Ladder</span>
+			{tiers.map(t => {
+				const current = t.i === me.tierIndex, reached = t.i < me.tierIndex;
+				return (
+					<div key={t.name} className={`${styles.railRow} ${current ? styles.railCurrent : ""} ${reached || current ? "" : styles.railLocked}`} style={current ? { borderColor: t.color } : undefined}>
+						<PuzzleRankBadge rating={ratingForTierLevel(t.i, 1)} size={5} />
+						<div className={styles.railText}>
+							<span className={styles.railName} style={{ color: reached || current ? t.color : undefined }}>{t.name}{current ? " " + me.levelLabel : ""}</span>
+							{current && <div className={styles.pips}>{Array.from({ length: LEVELS_PER_TIER }, (_, k) => <i key={k} style={k < me.level ? { background: t.color } : undefined} />)}</div>}
+						</div>
+					</div>
+				);
+			})}
+		</aside>
+	);
+}
+function FlameIcon() { return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 22c4 0 7-3 7-7 0-3-2-5-3-7-1 2-2 3-3 3 0-3-1-6-4-8 0 3-1 5-3 7-2 2-3 4-3 6 0 4 3 6 6 6z" /></svg>; }
+function CheckIcon() { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>; }
+function CrossIcon() { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17" /></svg>; }

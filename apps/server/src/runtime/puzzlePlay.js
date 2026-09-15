@@ -341,7 +341,8 @@ function finalizePuzzle(socket, playerID, solved) {
 		puzzleBefore: pp.puzzleBefore,
 		puzzleAfter: puzzleAfter,
 		streakBonus: streakBonus,
-		streak: streak
+		streak: streak,
+		puzzleStreakBest: Math.max(userNow.puzzle_streak_best || 0, streak)
 	});
 }
 
