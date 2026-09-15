@@ -964,7 +964,16 @@ function attachGameClient(socket, playerID) {
 	if (seat.country) countries[playerID] = seat.country;
 	if (seat.skin) skins[playerID] = seat.skin;
 	if (seat.revealEffect) revealEffects[playerID] = seat.revealEffect;
-	if (seat.userId != null) accounts[playerID] = { userId: seat.userId };
+	// The seat carries the player's rating (for this match's style) and games played, captured by main at
+	// allocation: put them on the in-memory account exactly as a login would, since room_state / standings /
+	// the rank-tier logic read the rating and the placement status from there (an account with no rating
+	// made every game-server client show "Placement" before and after the match).
+	if (seat.userId != null) {
+		var acc = { userId: seat.userId, played: typeof seat.played === "number" ? seat.played : 0 };
+		if (entry.room.rankedStyle === "sprint") acc.ratingSprint = seat.rating;
+		else if (entry.room.rankedStyle === "standard") acc.ratingStandard = seat.rating;
+		accounts[playerID] = acc;
+	}
 	games[playerID] = createPlayerGame(playerID, entry.room.rows, entry.room.cols);
 	roomMapping[playerID] = entry.room;
 	entry.room.addPlayer(playerID);

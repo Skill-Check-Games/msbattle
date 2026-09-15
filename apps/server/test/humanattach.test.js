@@ -53,8 +53,15 @@ test("a human attaches to a game server with a token and plays a reported match"
 		const token = matchToken.issueMatchToken({ matchId: "hm:1", playerKey: "u:5", userId: 5 });
 		client = io(game.base, { transports: ["websocket"], forceNew: true, auth: { token } });
 
+		const roomStateP = once(client, "room_state", 8000);
 		const joined = await once(client, "joined_room", 8000);
 		assert.strictEqual(joined.roomId, 90100, "client attached to its match");
+		// The seat's rating + games played reach the room payload (the client shows a rank, not "Placement").
+		const rs = await roomStateP;
+		const me = (rs.players || []).find(p => p.name === "Tester");
+		assert.ok(me, "the human is in the room state");
+		assert.strictEqual(me.rating, 1000, "rating comes from the seat roster");
+		assert.strictEqual(me.provisional, false, "10 games played is past placement");
 		// The series starts once the human is present — the client should start receiving board frames.
 		await once(client, "draw_board", 10000);
 
