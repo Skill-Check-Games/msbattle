@@ -1,0 +1,6 @@
+# MS Battle - allow everything except the admin surface; point crawlers at the sitemap.
+User-agent: *
+Allow: /
+Disallow: /admin
+
+Sitemap: https://msbattle.net/sitemap.xml

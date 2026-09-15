@@ -7,6 +7,11 @@
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 	<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=optional">
 	<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+	<!-- Raster fallback. Modern browsers prefer the SVG, but crawlers and
+	     dashboards that render favicons (Google mobile results, Plausible)
+	     only pick up a PNG. -->
+	<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+	<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 	<meta name="theme-color" content="#6366f1">
 	<!-- Privacy-friendly analytics by Plausible. No cookies, so no consent banner,
 	     and ~2.5KB over the wire. The site is identified by the script id, so this
@@ -19,7 +24,39 @@
 		window.plausible=window.plausible||function(){(plausible.q=plausible.q||[]).push(arguments)},plausible.init=plausible.init||function(i){plausible.o=i||{}};
 		plausible.init()
 	</script>
-	<title>MSBattle</title>
+	<title>MS Battle - Play multiplayer Minesweeper online</title>
+	<meta name="description" content="Real-time competitive Minesweeper. Race real opponents in ranked matches, sharpen up on daily puzzles, and climb the rating ladder. Free in your browser, no ads, no download.">
+	<link rel="canonical" href="https://msbattle.net/">
+
+	<meta property="og:type" content="website">
+	<meta property="og:site_name" content="MS Battle">
+	<meta property="og:url" content="https://msbattle.net/">
+	<meta property="og:title" content="MS Battle - Play multiplayer Minesweeper online">
+	<meta property="og:description" content="Real-time competitive Minesweeper. Race real opponents, solve daily puzzles, climb the ladder. Free in your browser.">
+	<meta property="og:image" content="https://msbattle.net/logo-512.png">
+	<meta name="twitter:card" content="summary">
+	<meta name="twitter:title" content="MS Battle - Play multiplayer Minesweeper online">
+	<meta name="twitter:description" content="Real-time competitive Minesweeper. Race real opponents, solve daily puzzles, climb the ladder. Free in your browser.">
+	<meta name="twitter:image" content="https://msbattle.net/logo-512.png">
+
+	<script type="application/ld+json">
+	{
+	  "@context": "https://schema.org",
+	  "@type": "VideoGame",
+	  "name": "MS Battle",
+	  "alternateName": ["Minesweeper Battle", "Multiplayer Minesweeper"],
+	  "url": "https://msbattle.net/",
+	  "description": "Real-time competitive Minesweeper. Race real opponents in ranked matches, solve daily puzzles, and climb the rating ladder. Free in your browser.",
+	  "image": "https://msbattle.net/logo-512.png",
+	  "applicationCategory": "Game",
+	  "operatingSystem": "Web browser",
+	  "genre": ["Puzzle", "Strategy", "Multiplayer"],
+	  "playMode": ["SinglePlayer", "MultiPlayer"],
+	  "inLanguage": "en",
+	  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+	  "publisher": { "@type": "Organization", "name": "Skill Check Games", "url": "https://skillcheckgames.com/" }
+	}
+	</script>
 </head>
 <body>
 	<div id="root"></div>
