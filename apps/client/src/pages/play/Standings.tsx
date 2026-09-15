@@ -5,6 +5,7 @@
 // bar under the name). During a ranked search the seats fill in one
 // by one; an empty seat shows the radar where the avatar will land and "Finding enemy" where the name will.
 import { useRef } from "react";
+import { useFitText } from "../../shared/use-fit-text";
 import { AvatarChip, FlagChip } from "../../shared/Avatar";
 import { useFlip } from "../../shared/use-flip";
 import { Radar } from "./MatchFound";
@@ -13,7 +14,10 @@ import type { RoomState, GameFrame, RoomPlayer } from "../../game/match-store";
 import styles from "./Standings.module.scss";
 
 // skipId: a player shown elsewhere (the phone's leader card) is left out of the list; the ranks still count them.
-interface Props { room: RoomState | null; search?: { members: RoomPlayer[]; size: number } | null; frames: GameFrame[] | null; myId: string | null; placeOf?: Record<string, number>; compact?: boolean; skipId?: string | null; }
+// roomy: the landscape phone's 6-player panel. The row has no bar of its own: it IS the bar, filling from the
+// left in the player's colour, so the whole width is the track and the flag sits over the name rather than
+// beside it. The row height and avatar size come in as --row-h / --av on an ancestor.
+interface Props { room: RoomState | null; search?: { members: RoomPlayer[]; size: number } | null; frames: GameFrame[] | null; myId: string | null; placeOf?: Record<string, number>; compact?: boolean; roomy?: boolean; skipId?: string | null; }
 
 // Whether the cards and rows re-sort live as ranks change (sliding into place, use-flip.ts). Off: every
 // player keeps the seat they joined in and only their rank number moves. A trial switch: both feels are
@@ -49,8 +53,8 @@ export function rankPlayers(room: RoomState, frames: GameFrame[] | null, myId: s
 	return { sorted: LIVE_RANK_ORDER ? sorted : seatOrder(room.players, myId), live, rankOf };
 }
 
-export default function Standings({ room, search, frames, myId, placeOf, compact, skipId }: Props) {
-	const cls = `${styles.list} ${compact ? styles.compact : ""}`;
+export default function Standings({ room, search, frames, myId, placeOf, compact, roomy, skipId }: Props) {
+	const cls = `${styles.list} ${compact ? styles.compact : ""} ${roomy ? styles.roomy : ""}`;
 	const listRef = useRef<HTMLUListElement>(null);
 	useFlip(listRef);   // a rank change slides the rows to their new places
 	if (!room) {
@@ -59,7 +63,7 @@ export default function Standings({ room, search, frames, myId, placeOf, compact
 			<ul ref={listRef} className={cls} aria-label="Players">
 				{Array.from({ length: search.size }, (_, i) => {
 					const p = seatOrder(search.members, myId)[i];
-					return p ? <Row key={"seat" + i} seat={"seat" + i} p={p} rank={i + 1} me={!!p.isYou || p.id === myId} frame={null} playing={false} place={null} /> : <li key={"seat" + i} data-flip-id={"seat" + i} className={`${styles.row} ${styles.waiting}`} aria-label="Finding enemy"><span className={styles.radarSlot}><Radar size={compact ? 20 : 36} /></span><span className={styles.searching}>Finding enemy<span className={styles.dots}><i /><i /><i /></span></span><span className={styles.bar} /></li>;
+					return p ? <Row key={"seat" + i} seat={"seat" + i} p={p} rank={i + 1} me={!!p.isYou || p.id === myId} frame={null} playing={false} place={null} roomy={roomy} /> : <li key={"seat" + i} data-flip-id={"seat" + i} className={`${styles.row} ${styles.waiting}`} aria-label="Finding enemy"><span className={styles.radarSlot}><Radar size={compact ? 20 : 36} /></span><span className={styles.searching}>Finding enemy<span className={styles.dots}><i /><i /><i /></span></span><span className={styles.bar} /></li>;
 				})}
 			</ul>
 		);
@@ -70,23 +74,40 @@ export default function Standings({ room, search, frames, myId, placeOf, compact
 		<ul ref={listRef} className={cls} aria-label="Standings">
 			{/* Rows are keyed by seat, not player id: the search's pending seats become the room's players (bots get their real
 			    ids then), and a row that keeps its element does not fade in again when that happens. */}
-			{sorted.map((p, i) => p.id === skipId ? null : <Row key={"seat" + i} seat={"seat" + i} p={p} rank={rankOf[p.id]} me={p.id === myId} frame={live[p.id] || null} playing={playing} place={(placeOf && placeOf[p.id]) || null} />)}
+			{sorted.map((p, i) => p.id === skipId ? null : <Row key={"seat" + i} seat={"seat" + i} p={p} rank={rankOf[p.id]} me={p.id === myId || !!p.isYou} frame={live[p.id] || null} playing={playing} place={(placeOf && placeOf[p.id]) || null} roomy={roomy} />)}
 		</ul>
 	);
 }
 
-function Row({ p, seat, rank, me, frame, playing, place }: { p: RoomPlayer; seat: string; rank: number; me: boolean; frame: GameFrame | null; playing: boolean; place: number | null }) {
+function Row({ p, seat, rank, me, frame, playing, place, roomy }: { p: RoomPlayer; seat: string; rank: number; me: boolean; frame: GameFrame | null; playing: boolean; place: number | null; roomy?: boolean }) {
+	const nameRef = useRef<HTMLSpanElement>(null);
+	useFitText(nameRef, p.name, !!roomy);   // roomy sets the name large: it shrinks to fit before it ever shows dots
 	const finished = !!(frame && frame.finished);
 	const hit = !!(frame && frame.frozenUntil && frame.frozenUntil > Date.now());
 	const pct = finished ? 100 : Math.round(((frame && frame.progress) || 0) * 100);
 	const placeCls = finished && place === 1 ? styles.place1 : finished && place === 2 ? styles.place2 : finished && place === 3 ? styles.place3 : "";
+	const pctText = <span className={`${styles.pct} ${placeCls}`}>{finished && place ? ordinal(place) : pct + "%"}</span>;
+	// --seat-fill is how far the row has filled: roomy draws the tint, the leading edge and the coloured part
+	// of the ring from it, so the three can never disagree about where the front is.
+	// The fill is not tied to the round being live: when a round ends every bar stays where it finished, and it
+	// is the frames being cleared for the next round that empties them.
 	return (
-		<li data-flip-id={seat} className={`${styles.row} ${me ? styles.me : ""} ${finished ? styles.finished : ""} ${hit ? styles.hit : ""}`}>
+		<li data-flip-id={seat} className={`${styles.row} ${me ? styles.me : ""} ${finished ? styles.finished : ""} ${hit ? styles.hit : ""}`} style={roomy ? { "--seat-fill": pct + "%" } as React.CSSProperties : undefined}>
 			<span className={styles.avatarSlot}><AvatarChip avatar={p.avatar} country={p.country} px={36} className={styles.avatar} />{hit && <span className={styles.burst} aria-hidden="true"><i /><i /><i /><i /><i /><i /></span>}</span>
-			<span className={styles.name}><span className={styles.nameText}>{p.name}</span><FlagChip country={p.country} px={14} /></span>
+			{/* roomy gives the name a line of its own and puts the flag and the percentage together on the one below,
+			    so the name has the row's whole width to grow into. Everywhere else they sit on one line, the
+			    percentage in its own column at the right. */}
+			{roomy ? (
+				<span className={styles.who}>
+					<span ref={nameRef} className={styles.nameText}>{p.name}</span>
+					<span className={styles.meta}><FlagChip country={p.country} px={13} />{pctText}</span>
+				</span>
+			) : (
+				<span className={styles.name}><span ref={nameRef} className={styles.nameText}>{p.name}</span><FlagChip country={p.country} px={14} /></span>
+			)}
 			{/* The bar and the percentage are there from the moment the player joins (0% before the round), so the row is complete at once. */}
-			<span className={styles.bar}><span className={styles.fill} style={{ width: (playing ? pct : 0) + "%" }} /></span>
-			<span className={styles.stat}><span className={`${styles.pct} ${placeCls}`}>{finished && place ? ordinal(place) : pct + "%"}</span></span>
+			<span className={styles.bar}><span className={styles.fill} style={{ width: pct + "%" }} /></span>
+			{!roomy && <span className={styles.stat}>{pctText}</span>}
 		</li>
 	);
 }

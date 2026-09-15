@@ -82,7 +82,7 @@ function Seat({ seat, myId, live, playing, placeOf, rows, cols, cellPx, searchSi
 						<AvatarChip avatar={p.avatar} country={p.country} px={36} className={styles.avatar} />
 						<span className={styles.name}><span className={styles.nameText}>{p.name}</span><FlagChip country={p.country} px={13} /></span>
 						<span className={`${styles.pct} ${placeCls}`}>{finished && place ? ordinal(place) : pct + "%"}</span>
-						<span className={styles.bar}><span className={styles.fill} style={{ width: (playing ? pct : 0) + "%" }} /></span>
+						<span className={styles.bar}><span className={styles.fill} style={{ width: pct + "%" }} /></span>
 					</div>
 					<div className={styles.boardWrap}>
 						<OpponentBoard playerId={p.id} skin={p.skin || "classic"} frame={frame} rows={rows} cols={cols} cellPx={cellPx} className={styles.board} covered />
@@ -113,7 +113,7 @@ export function OpponentCard({ p, rank, me, frame, playing, place, rows, cols, c
 				<AvatarChip avatar={p.avatar} country={p.country} px={compact ? 26 : 36} className={styles.avatar} />
 				<span className={styles.name}><span className={styles.nameText}>{p.name}</span><FlagChip country={p.country} px={13} /></span>
 				<span className={`${styles.pct} ${placeCls}`}>{playing ? (finished && place ? ordinal(place) : pct + "%") : "\u00a0"}</span>
-				<span className={styles.bar}><span className={styles.fill} style={{ width: (playing ? pct : 0) + "%" }} /></span>
+				<span className={styles.bar}><span className={styles.fill} style={{ width: pct + "%" }} /></span>
 			</div>
 			<div className={styles.boardWrap}>
 				<OpponentBoard playerId={p.id} skin={p.skin || "classic"} frame={frame} rows={rows} cols={cols} cellPx={cellPx} className={styles.board} covered />

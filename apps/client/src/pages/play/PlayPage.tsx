@@ -11,7 +11,7 @@ import GameBoard, { SHAKE_PAD_X, SHAKE_PAD_Y } from "../../game/GameBoard";
 import { useCellPx, fitCellPx, CellPxOptions, DESKTOP_CELL_MIN } from "../../game/use-cell-px";
 import { animateZoom, measureZoomStart, attachPanAnywhere, attachPinchZoom, clearZoomTransform, ZOOMED_IN_CELL_PX, ZoomAnchor, PinchCommit } from "../../game/duel-zoom";
 import type { InputOptions } from "../../game/board-input";
-import { DuelIdentity, ProgressStrip, LeadBar, ArenaStat, PlaceStamp, ClearedDial, useRoundTimer, formatRoundTime, cellsLeftOf } from "./hud";
+import { DuelIdentity, LeadBar, ArenaStat, PlaceStamp, ClearedDial, useRoundTimer, formatRoundTime, cellsLeftOf } from "./hud";
 import { phoneSizedDevice } from "../../game/fullscreen";
 import FullscreenButton from "../../shared/FullscreenButton";
 import { FindingEnemy, MatchFoundBanner, MatchFoundSix, RoundEndBanner, MATCH_FOUND_MS, MATCH_FOUND_SIX_MS, FOUND_CARD_MS, CARD_LEAVE_MS, WIN_BANNER_MS, WIN_LEAVE_MS } from "./MatchFound";
@@ -37,6 +37,18 @@ const LS_SHORT_MAX_H = 370;   // landscape layouts this short (small phones) use
 // identity block, the gaps, the arrows, the clock, the cells-left line), for the normal and the short (lsShort)
 // panels. Must follow the sizes in .landscape / .lsShort in PlayPage.module.scss; a few px of slack included.
 const LS_FIXED_H = 262, LS_FIXED_H_SHORT = 224;
+// 6 players: the standings column has no panel around it, so the only thing above and below the list is the
+// page's own padding. What is left is the list's, and the rows share it: a 30px row (the compact floor) up to
+// LS_ROW_MAX, the desktop row's height. Follows .landscape in PlayPage.module.scss.
+const LS_LIST_CHROME = 16, LS_ROW_GAP = 6, LS_ROW_MIN = 30, LS_ROW_MAX = 56;
+// 6 players: the standings panel also takes whatever width the board does not want. The landscape board is
+// normally limited by its height (16 rows in a phone's short side), so the centre column has width to spare;
+// the panel grows into it up to LS_OPP_W_MAX and never past what the board needs, so a narrow phone or a wide
+// board (16x30) keeps the panel at LS_PANEL_W. The 1v1 panel is always LS_PANEL_W (its mini board follows it).
+const LS_OPP_W_MAX = 196;
+const LS_BOARD_CHROME_W = 2 + 2 * 9.6 + 2 * 6;    // the board card's border, its side padding (0.6rem) and the board's shake gutter
+const LS_BOARD_CHROME_H = 16 + 2 + 2 * 9.6 + 2 * 3;   // the page's padding, the card's border and padding, and the shake gutter (no bar above the board in a 6-player battle)
+const LS_GRID_CHROME_W = 16 + 2 * 9.6;   // the page's side padding and the two column gaps (0.5rem / 0.6rem)
 const PORTRAIT_GUTTER_X = 3;  // the board scroller's side padding in the narrow layout (matches .portrait .board in PlayPage.module.scss)
 const FORCE_LANDSCAPE = true;   // phones play battles in landscape; a portrait-held phone gets the layout rotated (body.duel-force-rotate)
 // Desktop 1v1 (DESKTOP_CELL_MIN cells): the cards sit side by side when the window is wide enough for two
@@ -200,6 +212,7 @@ export default function PlayPage() {
 	const [viewport, setViewport] = useState(() => ({ w: window.innerWidth, h: window.innerHeight }));
 	useEffect(() => { const on = () => setViewport({ w: window.innerWidth, h: window.innerHeight }); window.addEventListener("resize", on); return () => window.removeEventListener("resize", on); }, []);
 	const lsHeight = forceRotate ? viewport.w : viewport.h;
+	const lsWidth = forceRotate ? viewport.h : viewport.w;   // force-rotated, the layout is laid out at 100vh x 100vw
 	const lsShort = phoneLandscape && lsHeight <= LS_SHORT_MAX_H;
 	useEffect(() => { document.body.classList.toggle("duel-force-rotate", forceRotate); return () => { document.body.classList.remove("duel-force-rotate"); }; }, [forceRotate]);
 	const rows = session.rows, cols = session.cols;
@@ -427,8 +440,17 @@ export default function PlayPage() {
 		// than what the panel's height leaves for the box, so a short screen never pushes the name under the box.
 		const boxMaxH = Math.max(40, lsHeight - (lsShort ? LS_FIXED_H_SHORT : LS_FIXED_H));
 		const miniPx = cols && rows ? Math.min((LS_PANEL_W - 2 - 16) / cols, boxMaxH / rows) : 6, miniH = rows ? Math.round(rows * miniPx) : 0;
+		// 6 players: the standings rows split the right panel's height between them instead of huddling at its top,
+		// and the avatar, name, bar and percentage grow with the row (Standings.module.scss reads these two vars).
+		const lsBoardNeedW = rows && cols ? ((lsHeight - LS_BOARD_CHROME_H) / rows) * cols + LS_BOARD_CHROME_W : 0;
+		const lsSpareW = lsWidth - LS_GRID_CHROME_W - 2 * LS_PANEL_W - lsBoardNeedW;
+		const lsOppW = duo ? LS_PANEL_W : Math.round(Math.min(LS_OPP_W_MAX, LS_PANEL_W + Math.max(0, lsSpareW)));
+		const seatCount = Math.max(1, room ? room.players.length : s.search ? s.search.size : 6);
+		const lsListH = lsHeight - LS_LIST_CHROME;
+		const lsRowH = Math.max(LS_ROW_MIN, Math.min(LS_ROW_MAX, Math.floor((lsListH - (seatCount - 1) * LS_ROW_GAP) / seatCount)));
+		const lsAvatarPx = Math.max(20, Math.min(36, Math.round(lsRowH * 0.58)));
 		return (
-			<section className={`${styles.view} ${styles.landscape} ${lsShort ? styles.lsShort : ""} ${duo ? styles.duo : styles.multi}`} style={{ "--ls-mini-h": miniH + "px" } as React.CSSProperties}>
+			<section className={`${styles.view} ${styles.landscape} ${lsShort ? styles.lsShort : ""} ${duo ? styles.duo : styles.multi}`} style={{ "--ls-mini-h": miniH + "px", "--ls-opp-w": lsOppW + "px" } as React.CSSProperties}>
 				<div className={`${styles.lsPanel} ${styles.lsYou}`}>
 					<button className={styles.lsBack} onClick={exit} aria-label="Exit game" title="Exit game">
 						<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l-5-5 5-5M5 12h11" /></svg>
@@ -454,11 +476,12 @@ export default function PlayPage() {
 					<span className={styles.lsLeft}>{cellsLeftOf(myFrame) || "\u00a0"}</span>
 					<span className={styles.lsSpacer} />
 				</div>
-				{/* Two boxes: the outer one (no visible edges) holds the bar and the board card; the board card below the bar
-				    carries the border, square at the top where it meets the bar and rounded at the bottom. */}
-				<div className={`${styles.lsCenter} ${styles.lsCenterBar} ${hitClass(myHit)}`} ref={boardHostRef} data-shake-host="">
-					{/* Along the card's top edge: the 1v1 lead bar, or your own progress in a 6-player battle. */}
-					<div className={styles.lsBar}>{duo ? <LeadBar myLeft={cellsLeftNum(myFrame)} opLeft={cellsLeftNum(opp ? frameOf(opp) : null)} flat /> : <ProgressStrip frame={myFrame} side="you" />}</div>
+				{/* 1v1: two boxes, the outer one (no visible edges) holding the lead bar and the board card; the card below
+				    the bar carries the border, square at the top where it meets the bar and rounded at the bottom.
+				    6 players: no bar (your own progress is the first row of the standings panel), so the card is a
+				    plain box on its own, bordered and rounded all the way round with even padding. */}
+				<div className={`${styles.lsCenter} ${duo ? styles.lsCenterBar : ""} ${hitClass(myHit)}`} ref={boardHostRef} data-shake-host="">
+					{duo && <div className={styles.lsBar}><LeadBar myLeft={cellsLeftNum(myFrame)} opLeft={cellsLeftNum(opp ? frameOf(opp) : null)} flat /></div>}
 					<div className={styles.lsBoardCard}>
 						<div className={`${styles.boardWrap} ${styles.lsBoardWrap}`}>{board}{!duo && <PlaceStamp place={me ? placeOf[me.id] : null} />}</div>
 						{boardOverlays}
@@ -479,7 +502,7 @@ export default function PlayPage() {
 					) : (
 						<>
 							{/* The six players as the compact standings list, in their seats (no re-sorting, as on the desktop). */}
-							<div className={styles.lsStandings}><Standings room={room} search={s.search} frames={s.frames} myId={match.myId} placeOf={placeOf} compact /></div>
+							<div className={styles.lsStandings} style={{ "--row-h": lsRowH + "px", "--av": lsAvatarPx + "px" } as React.CSSProperties}><Standings room={room} search={s.search} frames={s.frames} myId={match.myId} placeOf={placeOf} compact roomy /></div>
 						</>
 					)}
 				</div>

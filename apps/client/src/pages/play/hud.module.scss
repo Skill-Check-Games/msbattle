@@ -26,9 +26,6 @@
 .barPct { flex: 0 0 auto; font-weight: 800; font-size: 1rem; font-variant-numeric: tabular-nums; color: var(--side); }
 .cellsLeft { font-size: 0.78rem; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; text-align: center; }
 
-// The flat strip (ProgressStrip): the phone landscape 6-player top edge, square, no glow.
-.strip { position: relative; width: 100%; height: 16px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
-.stripFill { position: absolute; inset: 0 auto 0 0; background: var(--side); transition: width 0.3s ease; }
 // Desktop 1v1 bar (DuelBar): --bar-bg is the track colour the dark text copy uses.
 .duelBar { --bar-bg: #0e1526; position: relative; width: 100%; height: 26px; background: var(--bar-bg); border: 1px solid var(--border); overflow: hidden; }
 .duelFill { position: absolute; top: 0; bottom: 0; transition: width 0.3s ease; }

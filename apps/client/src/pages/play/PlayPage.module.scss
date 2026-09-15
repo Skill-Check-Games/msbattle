@@ -143,7 +143,9 @@
 	// Three columns (LS_PANEL_W in PlayPage.tsx matches the side column width). In a 1v1 the lead bar sits
 	// inside the board card along its top edge, and the card's border wears the bar's colours where it
 	// touches them: the top edge is blue up to the seam and red past it, the sides take the colour they meet.
-	position: relative; display: grid; grid-template-columns: 158px minmax(0, 1fr) 158px; grid-template-rows: minmax(0, 1fr); column-gap: 0.6rem;
+	// The right column is 158px too unless the page widens it (--ls-opp-w: the 6-player standings panel takes
+	// the width the board does not need; LS_OPP_W_MAX in PlayPage.tsx).
+	position: relative; display: grid; grid-template-columns: 158px minmax(0, 1fr) var(--ls-opp-w, 158px); grid-template-rows: minmax(0, 1fr); column-gap: 0.6rem;
 	height: 100dvh; padding: 0.5rem calc(0.5rem + env(safe-area-inset-right, 0px)) 0.5rem calc(0.5rem + env(safe-area-inset-left, 0px)); overflow: hidden; animation: none;
 	// Side panels and the board card all wear the arena look: a border in the side colour, a faint tint
 	// fading into the surface, and a soft outer glow.
@@ -192,6 +194,8 @@
 	.lsBar { border-radius: 7px 7px 0 0; overflow: hidden; }
 	.lsBoardCard { display: grid; grid-template-rows: minmax(0, 1fr); min-width: 0; padding: 0.55rem 0.6rem 0.6rem; }
 	.lsCenterBar .lsBoardCard { border-top: 0; border-radius: 0 0 7px 7px; }
+	// 6 players: no bar above the board, so the card stands on its own and its padding is even on all four sides.
+	&.multi .lsBoardCard { padding: 0.6rem; }
 	// The game area is a fixed box regardless of zoom level: the wrap fills it, the scroller fills the wrap,
 	// and the canvas pans or zooms inside. A canvas narrower than the box (the overview) is centred by its
 	// own margin, which resolves to 0 once it overflows, so scrollLeft 0 always means the board's left edge.
@@ -217,8 +221,11 @@
 		.frozenCount { font-size: 2rem; } }   // the penalty count over the mini board, sized to it
 	.lsOppSkel { display: block; width: 100%; height: var(--ls-mini-h, 96px); border-radius: 5px; }
 	.searchStatus { font-size: 0.8rem; }
-	// 6 players: the compact standings list fills the right panel.
-	.lsStandings { width: 100%; flex: 1 1 auto; min-height: 0; }   // no clipping: a row's mine burst grows past its edges
+	// 6 players: the standings fill the right column, and the column is not a panel. Every player already
+	// wears their own card, so a card around the cards is one box too many: no border, no ground, no padding,
+	// and the rows start at the very top of the column, level with the board card beside them.
+	&.multi .lsOpp { border: 0; background: none; box-shadow: none; padding: 0; }
+	.lsStandings { display: flex; width: 100%; flex: 1 1 auto; min-height: 0; }   // flex, so the list takes the column's full height; no clipping, a row's mine burst grows past its edges
 }
 // Short screens (LS_SHORT_MAX_H in PlayPage.tsx: 370px and under): tighter panels, a smaller avatar (48px, set
 // by the page), smaller arrows and clock. LS_FIXED_H_SHORT in PlayPage.tsx follows these sizes.

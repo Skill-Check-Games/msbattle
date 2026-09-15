@@ -1,3 +1,9 @@
+// How far a roomy row has filled, 0% to 100%. Registered so it can be transitioned: the tint and the ring are
+// drawn from it, and without this they would jump while the leading edge glides. It must inherit: the ring is
+// a pseudo-element, and a pseudo-element inherits from the element it hangs off, so a non-inheriting property
+// would hand it the initial 0% and clip the whole ring away.
+@property --seat-fill { syntax: "<percentage>"; inherits: true; initial-value: 0%; }
+
 // Standings rows wear the arena treatment: a border in the row's colour (--side), a faint tint, matte.
 .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.45rem; width: 100%; min-width: 0; }
 // A row arrives softly (a seat filling during the search, a view switched on).
@@ -62,4 +68,69 @@
 	.pct { font-size: 0.78rem; }
 	.left { display: none; }
 	.stat { gap: 0; }
+}
+// The landscape phone's 6-player panel. The row IS the bar: its fill is the card's own ground, clipped to
+// the card's radius, so the whole width is the track and no widget competes with the name for it. The name
+// sits over the flag with the gap between them on the row's centre line, and it is set large and shrinks a
+// step at a time before it ever ellipsizes (use-fit-text). The page hands down --row-h and --av.
+.compact.roomy {
+	// The rows fill the column exactly: the gap is a floor and whatever the row cap leaves over is shared
+	// between them, so the first row's top and the last row's bottom sit level with the board card beside them.
+	flex: 1 1 auto; justify-content: space-between; gap: 6px;   // LS_ROW_GAP in PlayPage.tsx
+	.row, .waiting { flex: 0 0 auto; }
+	.row, .waiting {
+		position: relative;   // the fill anchors to the row, not to the column
+		display: flex; align-items: center; gap: 0.45rem;
+		height: var(--row-h, 30px); padding: 0 0.5rem; border-radius: 6px;
+		// The neutral ring is painted inside the box instead of being a border. With no border, the row's padding
+		// box and its border box are the same width, and that is the one box the tint, the ring and the leading
+		// edge all measure against, so the three cannot disagree about where the front of the fill is.
+		border: 0; box-shadow: inset 0 0 0 1px var(--border);
+		// The tint is the row's own background, so the rounded corners clip it for free.
+		background-image: linear-gradient(to right,
+			color-mix(in srgb, var(--side) 22%, transparent) var(--seat-fill, 0%), transparent var(--seat-fill, 0%));
+		transition: background 0.25s ease, --seat-fill 0.3s ease;
+	}
+	// The ring in the row's colour, clipped to how far the player has got, laid exactly over the neutral one.
+	// Inset, like the neutral ring: clip-path cuts at the element's edges, so a ring drawn outside them would
+	// be clipped away entirely.
+	.row::before {
+		content: ""; position: absolute; inset: 0; border-radius: 6px; box-shadow: inset 0 0 0 1px var(--side);
+		clip-path: inset(0 calc(100% - var(--seat-fill, 0%)) 0 0); pointer-events: none; z-index: 2;
+	}
+	// The leading edge rides over the face of the card: it crosses the avatar and the name, which is what makes
+	// it read as the front of the fill rather than part of the background. It is drawn as the fill's right edge
+	// inside this rounded, clipping box, so at either end of the row the card's own corners cut it back instead
+	// of letting a straight line stand proud of the curve. The box clips rather than the row, so the row stays
+	// unclipped and a mine burst can still spill past its edges. height 100%, not auto: the row it came from
+	// aligns it to the top (align-self: start), and an absolutely positioned child of a flex box that is not
+	// stretched takes its content's height, which here is nothing.
+	.bar { position: absolute; inset: 0; height: 100%; border-radius: 6px; background: none; overflow: hidden; z-index: 3; pointer-events: none; }
+	.fill { background: none; border-right: 2px solid var(--side); }
+	.avatarSlot, .radarSlot, .who, .searching { position: relative; z-index: 1; align-self: center; }   // align-self: the desktop row hangs the name and the bar off their own edges
+	.avatarSlot, .radarSlot { flex: 0 0 auto; }
+	.avatar :global(canvas) { width: var(--av, 20px) !important; height: var(--av, 20px) !important; }
+	.radarSlot > div { width: var(--av, 20px) !important; height: var(--av, 20px) !important; }   // the search's radar takes the avatar's size (it carries an inline one)
+	.burst::before { left: calc(var(--av, 20px) * -0.9); top: calc(var(--av, 20px) * -0.9); width: calc(var(--av, 20px) * 1.8); height: calc(var(--av, 20px) * 1.8); }
+	.who, .searching { flex: 1 1 auto; min-width: 0; }
+	// The name takes a line to itself with the row's whole width to grow into; the flag and the percentage
+	// share the line below it. The two halves of the row's height are a track each, the name sitting on the
+	// bottom of the upper one and the flag on the top of the lower one, so the gap between the lines is what
+	// the avatar's middle lines up with.
+	.who {
+		align-self: stretch; display: grid; grid-template-rows: 1fr 1fr; row-gap: 4px; justify-items: start;
+		font-weight: 700; line-height: 1.2; font-size: clamp(0.78rem, calc(var(--row-h, 30px) * 0.3), 1rem);
+	}
+	.nameText { align-self: end; max-width: 100%; }
+	// The lower line runs the full width of the row: the flag holds the left end and the percentage the right,
+	// as far apart as the card allows.
+	.meta { align-self: start; justify-self: stretch; display: flex; align-items: center; gap: 6px; }
+	.meta .pct { margin-left: auto; }
+	.meta :global(.flag-chip) { margin-left: 0; }   // the global chip's left margin is for a flag that follows a name; here it leads the line
+	// The fill already says how far along the player is, so the number is plain text rather than a second
+	// helping of the row's colour. A finished player's place keeps the podium colours (these rules follow).
+	.pct { font-size: clamp(0.72rem, calc(var(--row-h, 30px) * 0.26), 0.95rem); color: var(--text); }
+	.place1 { color: var(--energy-gold); }
+	.place2 { color: #e2e8f0; }
+	.place3 { color: #f0b486; }
 }

@@ -51,12 +51,6 @@ export function ProgressBar({ frame, side, showLeft = true, pct: pctPos = "after
 		</div>
 	);
 }
-// A flat strip in the side colour whose fill is the player's progress: the landscape phone's top edge over
-// the board in a 6-player battle (where the 1v1 has the lead bar).
-export function ProgressStrip({ frame, side }: { frame: GameFrame | null; side: "you" | "opp" }) {
-	const pct = Math.round(((frame && frame.progress) || 0) * 100);
-	return <div className={`${styles.strip} ${styles[side]}`} role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}><span className={styles.stripFill} style={{ width: pct + "%" }} /></div>;
-}
 // The desktop 1v1 bar: square, thick, filling from the arena's outer edge toward the centre of the
 // screen in a gradient of the side colour. Percentage and cells left sit inside the bar at the centre
 // end; a second copy in the bar's background colour is clipped to the fill, so the text flips colour

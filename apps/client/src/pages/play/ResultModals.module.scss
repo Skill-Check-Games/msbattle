@@ -92,12 +92,14 @@
 .again { flex: 1 1 auto; }
 .casualHeader { text-align: center; font-size: 1.4rem; font-weight: 800; font-family: var(--font-display); }
 
-// Landscape phones (compact): the hero and the field on the left, the rating or placement block on the
-// right, the actions across the bottom; smaller type and tighter padding so it fits a 360px-tall viewport
+// Landscape phones (compact): the hero across the top, the field and the rating (or placement) block side
+// by side under it, the actions across the bottom; smaller type and tighter padding so it fits a 360px-tall viewport
 // without scrolling. Sizes are percentages of the containing block (the viewport, or the force-rotated
 // layout), never vh/vw.
 .compact {
-	display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); grid-template-areas: "hero card" "context card" "actions actions";
+	// The card starts where the field starts: its top edge lines up with the first player's row, not with the
+	// heading above it. The hero takes the full width of the row it sits on.
+	display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); grid-template-areas: "hero hero" "context card" "actions actions";
 	align-items: start; align-content: start; gap: 0.55rem 1.1rem;
 	width: min(94%, 700px); max-height: calc(100% - 1rem); padding: 0.9rem 1.1rem 0.8rem;
 	.hero { grid-area: hero; gap: 0.7rem; }
