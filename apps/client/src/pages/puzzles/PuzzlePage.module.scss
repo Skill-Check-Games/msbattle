@@ -57,7 +57,7 @@
 @keyframes delta-pop { 0% { opacity: 0; transform: translateY(6px); } 20% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; } }
 .streakChip { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.82rem; font-weight: 700; color: var(--energy-streak); }
 .rankBar { height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
-.rankFill { height: 100%; border-radius: 4px; transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
+.rankFill { height: 100%; border-radius: 4px; transition: width 0.9s cubic-bezier(0.22, 1, 0.36, 1); }
 .rankFoot { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .hint { width: 100%; margin-top: auto; }
 .hintUsed { opacity: 0.6; }
@@ -73,14 +73,6 @@
 .bestLine { text-align: center; font-weight: 700; color: var(--muted); }
 .flash { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.2rem; border-radius: 6px; pointer-events: none; animation: flash-in 1.2s ease both; z-index: 4; }
 @keyframes flash-in { 0% { opacity: 0; transform: scale(0.9); } 15% { opacity: 1; transform: scale(1); } 80% { opacity: 1; } 100% { opacity: 0; } }
-// Rank boundary crossed: a card over the board, held longer than the solve flash, framed in the new tier's colour.
-.rankFlash { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.6rem; border-radius: 6px; pointer-events: none; background: rgba(8, 12, 20, 0.9); border: 3px solid; animation: rank-in 2.6s ease both; z-index: 6; }
-.rankUp { box-shadow: 0 0 40px rgba(255, 255, 255, 0.18) inset; }
-.rankDown { filter: saturate(0.7); }
-.rankFlashKicker { font-size: 0.8rem; letter-spacing: 0.22em; text-transform: uppercase; font-weight: 800; color: var(--text); opacity: 0.85; }
-.rankFlashLabel { font-family: var(--font-display); font-size: 2rem; font-weight: 800; line-height: 1.1; text-align: center; }
-.rankFlashRating { font-size: 0.95rem; color: var(--muted); font-variant-numeric: tabular-nums; }
-@keyframes rank-in { 0% { opacity: 0; transform: scale(0.85); } 12% { opacity: 1; transform: scale(1.04); } 20% { transform: scale(1); } 85% { opacity: 1; } 100% { opacity: 0; } }
 // Phones (legacy portrait layout): the page header goes, the card flattens into the column so its head
 // and stats sit above the board and Hint lands at the bottom of the screen; the board box spans the
 // width at its natural height. The page fills the viewport so the bottom button really is at the bottom.

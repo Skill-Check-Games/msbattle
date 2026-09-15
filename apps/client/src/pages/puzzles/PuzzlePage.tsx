@@ -29,7 +29,6 @@ const TITLES: Record<PuzzleMode, string> = { rated: "Puzzle Ladder", streak: "St
 interface Run { mode: PuzzleMode; solves?: number; targetRating?: number; endsAt?: number; streak?: number; date?: string; bestStreak?: number; }
 interface Puzzle { puzzleId: number; difficulty: number; totalSafe: number; totalMines: number; playerRating: number; mode: PuzzleMode; run: Run | null; finished: boolean; hintUsed: boolean; noRating?: boolean; }
 interface RatedResult { solved: boolean; hintUsed: boolean; playerBefore?: number; playerAfter?: number; playerDelta?: number; streakBonus?: number; streak?: number; puzzleStreakBest?: number; noRating?: boolean; }
-interface RankChange { up: boolean; label: string; color: string; rating: number; }
 interface RunEnd { mode: "streak" | "storm"; solves: number; score: number; bestBefore: number; best: number; }
 interface DailyResult { date: string; solved: boolean; streak: number; bestStreak?: number; }
 
@@ -61,21 +60,29 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 	// Consecutive rated solves — server-owned (survives sessions); the result event carries the new value.
 	const [streak, setStreak] = useState(account?.puzzleStreak || 0);
 	const [streakBonus, setStreakBonus] = useState(0);
-	// A rated result that crossed a rank boundary: a full-board card ("Rank up! Scout II") shown after the
-	// solve flash (or at once on a miss), with the rank-up/down jingle, so the moment is unmissable.
-	const [rankChange, setRankChange] = useState<RankChange | null>(null);
-	const rankChangeTimer = useRef<number | null>(null);
-	const showRankChange = (before: number, after: number, delayMs: number) => {
+	// Rating animation on the rank card — the same sequence the ranked result modal plays: the number counts
+	// from before to after over ~1s, and on a level/tier crossing the bar first fills to the end (or drains
+	// on a drop) before snapping to the new level's fill, with the rank-up/down sound. The badge and tier
+	// label switch to the new rank at once, as in the modal.
+	const [shownRating, setShownRating] = useState<number | null>(null);
+	const [fillOverride, setFillOverride] = useState<number | null>(null);
+	const ratingTimers = useRef<number[]>([]);
+	const animateRating = (before: number, after: number) => {
+		ratingTimers.current.forEach(clearTimeout); ratingTimers.current = [];
 		const a = puzzleLadder(before), b = puzzleLadder(after);
-		if (a.tierIndex === b.tierIndex && a.level === b.level) return;
-		const up = after > before;
-		window.setTimeout(() => {
-			(up ? sound.rankUp : sound.rankDown)();
-			setRankChange({ up, label: b.tierName + " " + b.levelLabel, color: b.tierColor, rating: after });
-			if (rankChangeTimer.current) window.clearTimeout(rankChangeTimer.current);
-			rankChangeTimer.current = window.setTimeout(() => setRankChange(null), 2600);
-		}, delayMs);
+		const crossed = a.tierIndex !== b.tierIndex || a.level !== b.level, up = after > before;
+		setShownRating(before);
+		const T = (fn: () => void, ms: number) => ratingTimers.current.push(window.setTimeout(fn, ms));
+		T(() => {
+			const start = Date.now(), dur = 950;
+			const frame = () => { const t = Math.min(1, (Date.now() - start) / dur), e = 1 - Math.pow(1 - t, 3); setShownRating(Math.round(before + (after - before) * e)); if (t < 1) requestAnimationFrame(frame); else setShownRating(null); };
+			requestAnimationFrame(frame);
+			if (crossed) setFillOverride(up ? 100 : 0);
+		}, 400);
+		T(() => { if (crossed) setFillOverride(null); }, 1300);
+		T(() => { if (crossed) (up ? sound.rankUp : sound.rankDown)(); }, 1700);
 	};
+	useEffect(() => () => ratingTimers.current.forEach(clearTimeout), []);
 	useEffect(() => { if (account && typeof account.puzzleStreak === "number") setStreak(account.puzzleStreak); }, [account?.puzzleStreak]);
 	const [pendingFlash, setPendingFlash] = useState<"solved" | "fail" | null>(null);
 	const [boardFlash, setBoardFlash] = useState<"solved" | "fail" | null>(null);
@@ -180,7 +187,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 				// Solved: the board's border turns green (stays while solved) and the rating delta pops in the dossier; no overlay.
 				if (d.solved) { sound.win(); setFlash({ solved: true, delta: d.playerDelta }); setDone("solved"); setTimeout(() => setFlash(null), 1200); }
 				else setDone("fail");
-				if (!d.noRating && typeof d.playerBefore === "number" && typeof d.playerAfter === "number") showRankChange(d.playerBefore, d.playerAfter, d.solved ? 1250 : 150);
+				if (!d.noRating && typeof d.playerBefore === "number" && typeof d.playerAfter === "number" && d.playerBefore !== d.playerAfter) animateRating(d.playerBefore, d.playerAfter);
 				getSocket().emit("get_match_history");
 			}),
 			onSocket("puzzle_run_end", (d: RunEnd) => withFlash(() => { finish(); if (accountRef.current) update(d.mode === "streak" ? { streakBest: d.best } : { stormBest: d.best }); setRunEnd(d); })),
@@ -292,15 +299,6 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 						<div className={`${styles.boardWrap} ${boardFlash === "solved" || done === "solved" ? styles.flashSolved : boardFlash === "fail" ? styles.flashFail : ""}`} style={mobile ? { width: "100%", padding: PHONE_BOX_PAD } : { width: box, height: box }} data-shake-host="">
 							<GameBoard session={session} cellPx={cellPx} className={styles.board}>
 							</GameBoard>
-							{/* Rank boundary crossed: a held card over the board box. */}
-							{rankChange && (
-								<div className={`${styles.rankFlash} ${rankChange.up ? styles.rankUp : styles.rankDown}`} style={{ borderColor: rankChange.color }}>
-									<div className={styles.rankFlashKicker}>{rankChange.up ? "Rank up!" : "Rank down"}</div>
-									<PuzzleRankBadge rating={rankChange.rating} size={12} />
-									<div className={styles.rankFlashLabel} style={{ color: rankChange.color }}>{rankChange.label}</div>
-									<div className={styles.rankFlashRating}>{rankChange.rating} rating</div>
-								</div>
-							)}
 						</div>
 
 					</div>
@@ -316,8 +314,8 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 										<span className={styles.ladderTier} style={{ color: ladder.tierColor }}>{ladder.tierName + " " + ladder.levelLabel}{flash && typeof flash.delta === "number" && flash.delta !== 0 ? <span className={`${styles.delta} ${flash.delta > 0 ? styles.gain : styles.loss}`}>{flash.delta > 0 ? "+" : ""}{flash.delta}</span> : null}</span>
 									</div>
 								</div>
-								<div className={styles.rankBar}><div className={styles.rankFill} style={{ width: ladder.levelPct + "%", background: ladder.tierColor }} /></div>
-								<div className={styles.rankFoot}><span>{ladder.rating}</span><span>{ladder.nextLevelAt == null ? "" : ladder.nextLevelAt + " · " + puzzleLadder(ladder.nextLevelAt).tierName + " " + puzzleLadder(ladder.nextLevelAt).levelLabel}</span></div>
+								<div className={styles.rankBar}><div className={styles.rankFill} style={{ width: (fillOverride ?? ladder.levelPct) + "%", background: ladder.tierColor }} /></div>
+								<div className={styles.rankFoot}><span>{shownRating ?? ladder.rating}</span><span>{ladder.nextLevelAt == null ? "" : ladder.nextLevelAt + " · " + puzzleLadder(ladder.nextLevelAt).tierName + " " + puzzleLadder(ladder.nextLevelAt).levelLabel}</span></div>
 								</div>
 								<div className={styles.stats}>
 									<div className={styles.stat}><span className={styles.statLabel}>Rating</span><span className={styles.statValue}>{ladder.rating}</span></div>
