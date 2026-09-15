@@ -16,6 +16,7 @@ import { ResultPanel, ResultHeader, ResultDetail, ResultFoot, ResultActions } fr
 import { autoEnterGameFullscreen } from "../../game/fullscreen";
 import { useInGameBody } from "../play/mobile";
 import styles from "./SoloPage.module.scss";
+import { useAdminClearBoard } from "../../game/admin-clear";
 
 type Size = "small" | "medium" | "large";
 const SIZES: Size[] = ["small", "medium", "large"];
@@ -52,6 +53,7 @@ export default function SoloPage() {
 		onFlagPlaced: () => startTimerOnce(),
 		onAfterReveal: (result: ActionResult) => onAfterReveal(result)
 	}), []);
+	useAdminClearBoard(session, account?.isAdmin);
 	if (import.meta.env.DEV) (window as any).__session = session; // probing from the console / tests
 
 	function startTimerOnce() {

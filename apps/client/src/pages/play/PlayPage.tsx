@@ -26,6 +26,7 @@ import { tierFor } from "../../shared/ranking";
 import { useAuth } from "../../shared/auth";
 import { useMediaQuery, useInGameBody, ActionBar, jumpArea, PORTRAIT_MQ, LANDSCAPE_PHONE_MQ } from "./mobile";
 import styles from "./PlayPage.module.scss";
+import { useAdminClearBoard } from "../../game/admin-clear";
 
 const DUEL_GAP_PX = 16;  // .duelGrid's gap between the two cards (PlayPage.module.scss)
 const LS_PANEL_W = 158;  // the landscape side panels' width (matches .landscape's grid columns in PlayPage.module.scss)
@@ -90,6 +91,7 @@ export default function PlayPage() {
 	const [flagMode, setFlagMode] = useState(false);
 	const flagRef = useRef(flagMode); flagRef.current = flagMode;
 	const session = match.session;
+	useAdminClearBoard(session, account?.isAdmin);
 	const boardHostRef = useRef<HTMLDivElement>(null);
 	// Phone landscape zoom (duel-zoom.ts): the board starts at the whole-board overview every round (zoomCellPx
 	// null: the fit, centred); the round's first tap zooms in on that cell, then taps play at any zoom and two
