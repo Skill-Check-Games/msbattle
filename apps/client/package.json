@@ -6,7 +6,7 @@
 	"description": "msbattle web client: Vite + React 18 + TypeScript, SCSS modules, react-router. Talks to apps/server over socket.io and /api.",
 	"scripts": {
 		"dev": "vite",
-		"build": "vite build",
+		"build": "node scripts/generate-sitemap.mjs && vite build",
 		"preview": "vite preview --port 4173 --host",
 		"typecheck": "tsc --noEmit",
 		"test:e2e": "playwright test"
