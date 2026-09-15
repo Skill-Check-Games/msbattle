@@ -70,6 +70,9 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 	const [fillOverride, setFillOverride] = useState<number | null>(null);
 	// A TIER change (new icon / colour) also swaps the badge with the shipped animation: shatter up, drop down.
 	const [badgeSwap, setBadgeSwap] = useState<{ from: number; to: number; seq: number } | null>(null);
+	// Until the sequence reaches the badge (1.3s), the badge and tier label keep showing the OLD rank — the
+	// account already carries the new rating, and flipping early would show the new badge before the swap.
+	const [heldRating, setHeldRating] = useState<number | null>(null);
 	const ratingTimers = useRef<number[]>([]);
 	const animateRating = (before: number, after: number) => {
 		ratingTimers.current.forEach(clearTimeout); ratingTimers.current = [];
@@ -79,6 +82,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 		// sequence starts — otherwise it would ease to the new fill first and then jump about.
 		setShownRating(before);
 		setFillOverride(a.levelPct);
+		setHeldRating(before);
 		const T = (fn: () => void, ms: number) => ratingTimers.current.push(window.setTimeout(fn, ms));
 		T(() => {
 			const start = Date.now(), dur = 950;
@@ -86,7 +90,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 			requestAnimationFrame(frame);
 			setFillOverride(crossed ? (up ? 100 : 0) : null);
 		}, 400);
-		T(() => { if (crossed) setFillOverride(null); }, 1300);
+		T(() => { if (crossed) setFillOverride(null); setHeldRating(null); }, 1300);
 		if (a.tierIndex !== b.tierIndex) {
 			T(() => setBadgeSwap(prev => ({ from: before, to: after, seq: (prev?.seq || 0) + 1 })), 1300);
 			T(() => setBadgeSwap(null), 1300 + RANK_BADGE_SWAP_MS);
@@ -289,7 +293,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 	const isRun = !!p && (p.mode === "streak" || p.mode === "storm" || p.mode === "daily");
 	const box = desktopBox;
 	const cellPx = !session.rows ? 32 : mobile ? Math.min(PUZZLE_CELL_MAX_MOBILE, Math.floor(phoneW / session.cols)) : Math.min(PUZZLE_CELL_MAX, Math.floor((box - SHAKE_PAD_X * 2) / session.cols), Math.floor((box - SHAKE_PAD_Y * 2) / session.rows));
-	const ladder = puzzleLadder(account?.puzzleRating || 0);
+	const ladder = puzzleLadder(heldRating ?? (account?.puzzleRating || 0)); // badge, tier label and bar colour
 	void tick;
 
 	return (
@@ -320,7 +324,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 							<>
 								<div className={styles.rankCard}>
 								<div className={styles.ladderHead}>
-									{badgeSwap ? <RankBadgeSwap key={badgeSwap.seq} kind="puzzle" from={badgeSwap.from} to={badgeSwap.to} size={9} /> : <PuzzleRankBadge rating={account.puzzleRating || 0} size={9} />}
+									{badgeSwap ? <RankBadgeSwap key={badgeSwap.seq} kind="puzzle" from={badgeSwap.from} to={badgeSwap.to} size={9} /> : <PuzzleRankBadge rating={ladder.rating} size={9} />}
 									<div className={styles.ladderText}>
 										<span className={styles.cardTitle}>Puzzle Ladder</span>
 										<span className={styles.ladderTier} style={{ color: ladder.tierColor }}>{ladder.tierName + " " + ladder.levelLabel}{flash && typeof flash.delta === "number" && flash.delta !== 0 ? <span className={`${styles.delta} ${flash.delta > 0 ? styles.gain : styles.loss}`}>{flash.delta > 0 ? "+" : ""}{flash.delta}</span> : null}</span>
