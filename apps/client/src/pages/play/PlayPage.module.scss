@@ -35,7 +35,7 @@
 // Two cards side by side, or one above the other (duelGridStacked: PlayPage.tsx decides from what fits the window).
 .duelGrid { display: grid; grid-template-columns: auto auto; justify-content: center; gap: 1rem; align-items: stretch; }
 .duelGridStacked { grid-template-columns: 1fr; }
-.arena {
+.arena { position: relative;
 	position: relative; display: flex; flex-direction: column; gap: 0.85rem; padding: 1rem 1.1rem; border-radius: 10px; min-width: 0;
 	background: var(--surface); border: 1px solid var(--side); box-shadow: 0 0 0 1px color-mix(in srgb, var(--side) 35%, transparent), 0 0 28px -8px var(--side);
 }
@@ -106,11 +106,6 @@
 .cleared { background: rgba(5, 8, 18, 0.5); }   // the mine-hit's dark tint; the dial (ClearedDial, hud.tsx) sits centred in it
 
 // ---- phones: portrait ----
-.actionBar { display: none; }
-.navBtn, .modeBtn { border: 1px solid var(--border); background: var(--surface-2); border-radius: 6px; font-weight: 700; padding: 0.6rem 0.4rem; }
-.navBtn { flex: 0 0 44px; font-size: 1.3rem; line-height: 1; &:disabled { opacity: 0.4; } }
-.modeBtn { flex: 1 1 0; }
-.modeActive { border-color: var(--accent); color: var(--accent-hover); background: rgba(99, 102, 241, 0.14); }
 .portrait {
 	.header { margin-bottom: 0.6rem; gap: 0.5rem; }
 	.timerMode, .fsBtn { display: none; }
@@ -129,12 +124,11 @@
 	.arenaOpp, .side, .tools { display: none; }
 	// The card shakes as a whole here (data-shake-host), so the scroller needs only a 3px gutter
 	// (PORTRAIT_GUTTER_X in PlayPage.tsx keeps the column fit in step): canvas edge to card edge is 7px.
-	.arena { padding: 3px; box-shadow: none; }
+	.arena { position: relative; padding: 3px; box-shadow: none; }
 	.boardCard { padding: 3px; width: 100%; }
 	.board > div:first-child { padding: 3px; width: var(--board-view-w, auto); }
 	.boardWrap { justify-content: center; }
 	// (boardWrap stays centred: the scroller is cropped to whole columns above)
-	.actionBar { display: flex; gap: 0.5rem; }
 }
 
 // ---- phones: landscape (the legacy three-panel layout: you | board | opponent), also used when a
@@ -168,23 +162,6 @@
 	.lsClock .duelTimer { font-size: 1.4rem; transition: color 0.3s ease; }
 	.lsSpacer { flex: 1 1 auto; }
 	.lsLeft { font-size: 0.74rem; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
-	// The area jumps: a full-width pair tucked right under the mode button (a tighter gap than the panel's).
-	.lsNav { display: flex; gap: 0.4rem; width: 100%; margin-top: -0.2rem; .navBtn { flex: 1 1 0; height: 41px; padding: 0; } }
-	// The mode button: two faces stacked, Reveal (a covered cell) and the red-tinted Flag; a tap crossfades
-	// between them in 150ms. No 3D flip: a quick clean fade reads better at this size.
-	// It takes the opponent's mini board's box exactly (same height, the panel's inner width) right under your name.
-	.lsMode { width: 100%; height: var(--ls-mini-h, 104px); flex: 0 0 auto; border: 0; background: none; padding: 0; position: relative; }
-	.flipCard { position: relative; display: block; width: 100%; height: 100%; }
-	// The Outline button: a firm 2px stroke in the tool's colour, the label in that colour over a faint tint, and it
-	// fills solid the instant it is pressed (no lift, no glow). Reveal is blue like your side; Flag is the red of the flag.
-	.flipFace { position: absolute; inset: 0; border-radius: 8px; border: 2px solid var(--duel-you); box-shadow: none; font-size: 1.05rem; background: var(--surface-2); display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-weight: 700; font-size: 0.9rem; color: var(--text); opacity: 1; transition: opacity 0.15s ease; }
-	.flipFace { background: color-mix(in srgb, var(--duel-you) 8%, transparent); color: #bfd7ff; }
-	.flipBack { opacity: 0; border-color: var(--danger); background: color-mix(in srgb, var(--danger) 8%, transparent); color: #fecaca; }
-	.lsMode:active .flipFace { background: var(--duel-you); color: #fff; }
-	.lsMode:active .flipBack { background: var(--danger); }
-	.lsModeFlag .flipFace { opacity: 0; }
-	.lsModeFlag .flipBack { opacity: 1; }
-	.cellIcon { width: 20px; height: 20px; border-radius: 5px; background: linear-gradient(#4f93f7, #2563eb); border: 1px solid #1e40af; box-sizing: border-box; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28); flex: 0 0 auto; }
 	// Grid rows give the board row a definite height, so the board's scroller can be capped to it.
 	// The centre column: an outer box with no visible edges that stacks the lead bar (1v1) over the board
 	// card. The bar has the rounded top corners; the board card starts right under it with the border,
@@ -192,7 +169,7 @@
 	.lsCenter { --side: var(--duel-you); position: relative; display: grid; grid-template-rows: minmax(0, 1fr); min-width: 0; min-height: 0; }
 	.lsCenterBar { grid-template-rows: auto minmax(0, 1fr); }
 	.lsBar { border-radius: 7px 7px 0 0; overflow: hidden; }
-	.lsBoardCard { display: grid; grid-template-rows: minmax(0, 1fr); min-width: 0; padding: 0.55rem 0.6rem 0.6rem; }
+	.lsBoardCard { position: relative; display: grid; grid-template-rows: minmax(0, 1fr); min-width: 0; padding: 0.55rem 0.6rem 0.6rem; }
 	.lsCenterBar .lsBoardCard { border-top: 0; border-radius: 0 0 7px 7px; }
 	// 6 players: no bar above the board, so the card stands on its own and its padding is even on all four sides.
 	&.multi .lsBoardCard { padding: 0.6rem; }
@@ -233,7 +210,6 @@
 	.lsPanel { gap: 0.5rem; }
 	.lsYou, .lsOpp { padding-top: 0.6rem; }
 	.lsPanel > div:first-of-type > :first-child { margin-top: 0; }   // the ring avatar loses its top margin
-	.lsNav { .navBtn { height: 36px; } }
 	.lsClock .duelTimer { font-size: 1.2rem; }
 }
 // A phone held in portrait: the landscape layout is laid out at the viewport's height x width, then

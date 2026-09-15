@@ -11,6 +11,7 @@ import { KNOWN, UNKNOWN } from "../../game/board-render";
 import { useAdminClearBoard } from "../../game/admin-clear";
 import { attachPanAnywhere, attachPinchZoom, clearZoomTransform, ZOOMED_IN_CELL_PX, PinchCommit } from "../../game/duel-zoom";
 import { RankBadgeSwap, RANK_BADGE_SWAP_MS } from "../../game/RankBadgeSwap";
+import { FlagToggle } from "../../game/FlagToggle";
 import { makeBoardDecoder } from "../../game/board-decoder";
 import { sound } from "../../audio/sound";
 import GameBoard, { SHAKE_PAD_X, SHAKE_PAD_Y } from "../../game/GameBoard";
@@ -393,10 +394,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 							<GameBoard session={session} cellPx={cellPx} className={styles.board} flagMode={() => flagMode}>
 							</GameBoard>
 							{phoneLandscape && (
-								<div className={styles.modeRow}>
-									{/* Flag-mode toggle (design G·09): the same flag in both states — grey off, red on a red-tinted, red-bordered button when armed. */}
-									<button type="button" className={`${styles.flagToggle} ${flagMode ? styles.flagToggleOn : ""}`} aria-pressed={flagMode} aria-label="Flag mode" onClick={() => setFlagMode(f => !f)}><FlagIcon lit={flagMode} /></button>
-								</div>
+								<FlagToggle on={flagMode} onToggle={() => setFlagMode(f => !f)} />
 							)}
 						</div>
 
@@ -505,5 +503,3 @@ function LadderRail({ rating }: { rating: number }) {
 }
 function CheckIcon() { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>; }
 function CrossIcon() { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17" /></svg>; }
-// The flag of the toggle: one silhouette, grey when off, red cloth on a light pole when on.
-function FlagIcon({ lit }: { lit: boolean }) { return <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v18" stroke={lit ? "#e2e8f0" : "var(--muted)"} strokeWidth="2.2" strokeLinecap="round" /><path d="M7 4l11 3.5L7 11.5z" fill={lit ? "var(--danger)" : "var(--muted)"} /></svg>; }

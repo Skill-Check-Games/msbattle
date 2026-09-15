@@ -27,17 +27,6 @@ export function useInGameBody() {
 	}, []);
 }
 
-// navDisabled: the area jumps are off until GO (the board holds the overview through the countdown); a mine penalty does not turn them off.
-export function ActionBar({ flagMode, setFlagMode, session, className, navDisabled }: { flagMode: boolean; setFlagMode: (f: boolean) => void; session: BoardSession; className?: string; navDisabled?: boolean }) {
-	return (
-		<div className={`${styles.actionBar} ${className || ""}`}>
-			<button type="button" className={styles.navBtn} aria-label="Previous unsolved area" disabled={navDisabled} onClick={() => jumpArea(session, -1)}>‹</button>
-			<button type="button" className={`${styles.modeBtn} ${!flagMode ? styles.modeActive : ""}`} onClick={() => setFlagMode(false)}>Reveal</button>
-			<button type="button" className={`${styles.modeBtn} ${flagMode ? styles.modeActive : ""}`} onClick={() => setFlagMode(true)}>🚩 Flag</button>
-			<button type="button" className={styles.navBtn} aria-label="Next unsolved area" disabled={navDisabled} onClick={() => jumpArea(session, 1)}>›</button>
-		</div>
-	);
-}
 
 // Frontier cells (covered, touching a revealed cell) grouped into 8-connected areas, each landing on
 // the member nearest its centroid; cycle through the areas by angle around the board centre so a

@@ -24,7 +24,8 @@ import { SeriesResultModal } from "./ResultModals";
 import { AvatarChip, FlagChip } from "../../shared/Avatar";
 import { tierFor } from "../../shared/ranking";
 import { useAuth } from "../../shared/auth";
-import { useMediaQuery, useInGameBody, ActionBar, jumpArea, PORTRAIT_MQ, LANDSCAPE_PHONE_MQ } from "./mobile";
+import { useMediaQuery, useInGameBody, PORTRAIT_MQ, LANDSCAPE_PHONE_MQ } from "./mobile";
+import { FlagToggle } from "../../game/FlagToggle";
 import styles from "./PlayPage.module.scss";
 import { useAdminClearBoard } from "../../game/admin-clear";
 
@@ -432,7 +433,8 @@ export default function PlayPage() {
 	// The overlays (mine-hit freeze tint, "cleared" notice) cover the whole board card, not just the canvas.
 	const board = <GameBoard session={session} cellPx={cellPx} flagMode={() => flagRef.current} input={zoomInput} className={styles.board} />;
 
-	const actionBar = <ActionBar flagMode={flagMode} setFlagMode={setFlagMode} session={session} navDisabled={!s.roundLive || s.roundResultShown} />;
+	// Phones: the flag-mode toggle sits over the board card's bottom-right corner (game/FlagToggle, design G·09).
+	const flagToggle = <FlagToggle on={flagMode} onToggle={() => setFlagMode(f => !f)} />;
 
 	if (lsBranch) {
 		const opp = opps[0] || null;
@@ -460,19 +462,6 @@ export default function PlayPage() {
 					{/* Opposite the back button: a way back into fullscreen after an accidental exit (a swipe from the edge). */}
 					<FullscreenButton className={styles.lsFs} lockLandscape />
 					<DuelIdentity player={me || (account ? { id: "", name: account.name, avatar: account.avatarColor, country: account.country, rating: undefined } as any : null)} side="you" vertical ring noTier avatarPx={lsShort ? 48 : 64} />
-					{/* One button that flips between the two tools: a card with Reveal (a covered cell) on the front and Flag on the red back. */}
-					<button type="button" className={`${styles.lsMode} ${flagMode ? styles.lsModeFlag : ""}`} onClick={() => setFlagMode(!flagMode)} aria-pressed={flagMode} aria-label={flagMode ? "Flag mode, tap for reveal" : "Reveal mode, tap for flag"}>
-						<span className={styles.flipCard} aria-hidden="true">
-							<span className={styles.flipFace}><i className={styles.cellIcon} />Reveal</span>
-							<span className={`${styles.flipFace} ${styles.flipBack}`}>🚩 Flag</span>
-						</span>
-					</button>
-					{/* The area jumps, a full-width pair right under the mode button. Off while the board is held (before GO, and once
-					    the result is up), live through a mine penalty (looking around is allowed). */}
-					<div className={styles.lsNav}>
-						<button type="button" className={styles.navBtn} aria-label="Previous unsolved area" disabled={!s.roundLive || s.roundResultShown} onClick={() => jumpArea(session, -1)}>‹</button>
-						<button type="button" className={styles.navBtn} aria-label="Next unsolved area" disabled={!s.roundLive || s.roundResultShown} onClick={() => jumpArea(session, 1)}>›</button>
-					</div>
 					{s.search && !duo && <span className={styles.searchStatus}><span className={styles.spinner} />{s.search.members.length}/{s.search.size}</span>}
 					<div className={`${styles.lsClock} ${!timer.text ? styles.clockIdle : ""}`}><span className={`${styles.duelTimer} ${timer.cls}`}>{clockText}</span></div>
 					<span className={styles.lsLeft}>{cellsLeftOf(myFrame) || "\u00a0"}</span>
@@ -487,6 +476,7 @@ export default function PlayPage() {
 					<div className={styles.lsBoardCard}>
 						<div className={`${styles.boardWrap} ${styles.lsBoardWrap}`}>{board}{!duo && <PlaceStamp place={me ? placeOf[me.id] : null} />}</div>
 						{boardOverlays}
+						{flagToggle}
 					</div>
 				</div>
 				{/* 1v1: the opponent's mine hit reads like your own, the panel turns red with the penalty count over their mini
@@ -540,6 +530,7 @@ export default function PlayPage() {
 					<LeadBar myLeft={cellsLeftNum(myFrame)} opLeft={cellsLeftNum(opps[0] ? frameOf(opps[0]) : null)} />
 					<div className={`${styles.duelGrid} ${duoStacked ? styles.duelGridStacked : ""}`}>
 						<div className={`${styles.arena} ${styles.arenaYou} ${hitClass(myHit)}`} style={viewW ? ({ "--board-view-w": viewW + "px" } as React.CSSProperties) : undefined} ref={boardHostRef} data-shake-host="">
+							{portrait && !planningLobby && flagToggle}
 							<div className={styles.arenaHead}>
 								<DuelIdentity player={me || (account ? { id: "", name: account.name, avatar: account.avatarColor, country: account.country, rating: undefined } as any : null)} side="you" plain />
 								<ArenaStat frame={myFrame} side="you" hit={myHit === "on"} />
@@ -561,7 +552,6 @@ export default function PlayPage() {
 							{hitCount(oppFrozenUntil, oppHit)}
 						</div>
 					</div>
-					{portrait && !planningLobby && actionBar}
 				</div>
 			) : multi ? (
 				<div className={`${styles.duelStack} ${styles.multiStack}`}>

@@ -1,0 +1,7 @@
+.toggle {
+	position: absolute; right: 8px; bottom: 8px; z-index: 3;
+	width: 46px; height: 46px; display: inline-flex; align-items: center; justify-content: center; padding: 0;
+	border-radius: 4px; background: rgba(19, 26, 46, 0.92); border: 1px solid var(--border); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+	cursor: pointer; touch-action: manipulation; transition: background var(--motion-micro), border-color var(--motion-micro);
+}
+.on { background: rgba(239, 68, 68, 0.2); border-color: var(--danger); }

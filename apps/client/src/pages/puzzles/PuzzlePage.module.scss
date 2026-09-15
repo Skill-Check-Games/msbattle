@@ -23,12 +23,8 @@
 	canvas { flex: 0 0 auto; touch-action: none; }
 }
 // Reveal | Flag pill (phone landscape): square corners like the app's buttons, in the panel's bottom-right margin.
-// The pill overlays the panel's bottom-right corner; the pan viewport runs on underneath it (the board can be
-// dragged under the pill), and the overview rests a little above centre so it clears the pill (PuzzlePage.tsx).
-.modeRow { position: absolute; right: 8px; bottom: 8px; z-index: 3; pointer-events: none; }
-// Flag-mode toggle (design G·09): a 46px button with 4px corners; on = red tint + red border, the flag turns red.
-.flagToggle { pointer-events: auto; width: 46px; height: 46px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border-radius: 4px; background: rgba(19, 26, 46, 0.92); border: 1px solid var(--border); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45); cursor: pointer; transition: background var(--motion-micro), border-color var(--motion-micro); }
-.flagToggleOn { background: rgba(239, 68, 68, 0.2); border-color: var(--danger); }
+// The flag toggle (game/FlagToggle) overlays the panel's bottom-right corner; the pan viewport runs on underneath
+// it (the board can be dragged under it), and the overview rests a little above centre so it clears it.
 .flashSolved { box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.6), var(--shadow); }
 .flashFail { box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.6), var(--shadow); }
 .board { vertical-align: top; }
