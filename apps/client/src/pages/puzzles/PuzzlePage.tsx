@@ -144,6 +144,11 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 	const gridRef = useRef<HTMLDivElement>(null);
 	const pageRef = useRef<HTMLElement>(null);
 	const [desktopBox, setDesktopBox] = useState(PUZZLE_BOX_PX);
+	// Phone landscape (design F3·04): the middle panel takes all the width the side columns leave, the board
+	// sits centred in it a little smaller than the panel, and the Reveal | Flag pill lives in the panel's
+	// bottom-right margin, off the cells.
+	const [panel, setPanel] = useState({ w: PUZZLE_BOX_PX, h: PUZZLE_BOX_PX });
+	const [flagMode, setFlagMode] = useState(false);
 	const [phoneW, setPhoneW] = useState(PUZZLE_BOX_PX_MOBILE);
 	const landscape = useMediaQuery(LANDSCAPE_MQ);
 	const portraitOrientation = useMediaQuery("(orientation: portrait)");
@@ -281,6 +286,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 				others++;
 			}
 			const availW = grid.clientWidth - side - others * gapPx;
+			if (landscape) { if (availW > 0 && availH > 0) setPanel({ w: Math.floor(availW), h: Math.floor(availH) }); return; }
 			const box = Math.min(availH, availW);
 			if (box > 0) setDesktopBox(Math.max(240, Math.min(900, Math.floor(box))));
 		};
@@ -305,7 +311,12 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 	const p = puzzleRef.current;
 	const isRun = !!p && (p.mode === "streak" || p.mode === "storm" || p.mode === "daily");
 	const box = desktopBox;
-	const fitCell = !session.rows ? 32 : Math.max(1, Math.min(PUZZLE_CELL_MAX, Math.floor((box - SHAKE_PAD_X * 2) / session.cols), Math.floor((box - SHAKE_PAD_Y * 2) / session.rows))); // the whole board in the box
+	// The whole board in its box: the square desktop box, or (phone landscape) the wide panel — minus the pill's
+	// own row at the bottom (LS_PILL_ROW) and a margin all round, so the board never meets the panel's edge.
+	const LS_MARGIN = 16, LS_PILL_ROW = 48;
+	const fitCell = !session.rows ? 32 : phoneLandscape
+		? Math.max(1, Math.min(PUZZLE_CELL_MAX, Math.floor((panel.w - LS_MARGIN * 2 - SHAKE_PAD_X * 2) / session.cols), Math.floor((panel.h - LS_PILL_ROW - LS_MARGIN * 2 - SHAKE_PAD_Y * 2) / session.rows)))
+		: Math.max(1, Math.min(PUZZLE_CELL_MAX, Math.floor((box - SHAKE_PAD_X * 2) / session.cols), Math.floor((box - SHAKE_PAD_Y * 2) / session.rows)));
 	const cellPx = !session.rows ? 32 : mobile ? Math.min(PUZZLE_CELL_MAX_MOBILE, Math.floor(phoneW / session.cols)) : phoneLandscape && zoomCellPx != null ? zoomCellPx : fitCell;
 	cellPxRef.current = cellPx;
 	// Phone landscape: the canvas floats in the scroller with margins of half the box on every side, so at any
@@ -377,9 +388,17 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 						</div>
 					) : <LadderRail rating={account.puzzleRating || 0} />)}
 					<div className={styles.boardCol} ref={boardHostRef}>
-						<div ref={boardWrapRef} className={`${styles.boardWrap} ${boardFlash === "solved" || done === "solved" ? styles.flashSolved : boardFlash === "fail" ? styles.flashFail : ""} ${phoneLandscape ? styles.panZoom : ""}`} style={mobile ? { width: "100%", padding: PHONE_BOX_PAD } : { width: box, height: box }} data-shake-host="">
-							<GameBoard session={session} cellPx={cellPx} className={styles.board}>
+						<div ref={boardWrapRef} className={`${styles.boardWrap} ${boardFlash === "solved" || done === "solved" ? styles.flashSolved : boardFlash === "fail" ? styles.flashFail : ""} ${phoneLandscape ? styles.panZoom : ""}`} style={mobile ? { width: "100%", padding: PHONE_BOX_PAD } : phoneLandscape ? { height: panel.h } : { width: box, height: box }} data-shake-host="">
+							<GameBoard session={session} cellPx={cellPx} className={styles.board} flagMode={() => flagMode}>
 							</GameBoard>
+							{phoneLandscape && (
+								<div className={styles.modeRow}>
+									<div className={`${styles.modePill} ${flagMode ? styles.modePillFlag : ""}`} role="group" aria-label="Tap tool">
+										<button type="button" className={`${styles.modeHalf} ${!flagMode ? styles.modeOn : ""}`} onClick={() => setFlagMode(false)}><TapIcon /> Reveal</button>
+										<button type="button" className={`${styles.modeHalf} ${flagMode ? `${styles.modeOn} ${styles.modeOnFlag}` : ""}`} onClick={() => setFlagMode(true)}><FlagIcon lit={flagMode} /> Flag</button>
+									</div>
+								</div>
+							)}
 						</div>
 
 					</div>
@@ -389,7 +408,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 							<>
 								<div className={styles.rankCard}>
 								<div className={styles.ladderHead}>
-									{badgeSwap ? <RankBadgeSwap key={badgeSwap.seq} kind="puzzle" from={badgeSwap.from} to={badgeSwap.to} size={9} /> : <PuzzleRankBadge rating={ladder.rating} size={9} />}
+									{badgeSwap ? <RankBadgeSwap key={badgeSwap.seq} kind="puzzle" from={badgeSwap.from} to={badgeSwap.to} size={9} /> : <PuzzleRankBadge rating={ladder.rating} size={phoneLandscape ? 6 : 9} />}
 									<div className={styles.ladderText}>
 										<span className={styles.cardTitle}>Puzzle Ladder</span>
 										<span className={styles.ladderTier} style={{ color: ladder.tierColor }}>{ladder.tierName + " " + ladder.levelLabel}{flash && typeof flash.delta === "number" && flash.delta !== 0 ? <span className={`${styles.delta} ${flash.delta > 0 ? styles.gain : styles.loss}`}>{flash.delta > 0 ? "+" : ""}{flash.delta}</span> : null}</span>
@@ -487,3 +506,5 @@ function LadderRail({ rating }: { rating: number }) {
 }
 function CheckIcon() { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>; }
 function CrossIcon() { return <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17" /></svg>; }
+function TapIcon() { return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 11V5.5a1.5 1.5 0 0 1 3 0V11" /><path d="M12 10.5a1.5 1.5 0 0 1 3 0V13" /><path d="M15 12a1.5 1.5 0 0 1 3 0v4.5c0 3-2 5-5.5 5S7 19 6 16.5L4.4 12.8a1.4 1.4 0 0 1 2.5-1.3L9 14" /></svg>; }
+function FlagIcon({ lit }: { lit: boolean }) { return <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" /><path d="M7 4l11 3.5L7 11.5z" fill={lit ? "var(--danger)" : "currentColor"} /></svg>; }
