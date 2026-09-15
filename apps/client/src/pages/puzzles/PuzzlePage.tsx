@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { getSocket, onSocket } from "../../online/socket";
 import { useAuth } from "../../shared/auth";
 import { BoardSession, ActionResult } from "../../game/board-session";
-import { KNOWN, UNKNOWN } from "../../game/board-render";
+import { KNOWN, UNKNOWN, MINE } from "../../game/board-render";
 import { makeBoardDecoder } from "../../game/board-decoder";
 import { sound } from "../../audio/sound";
 import GameBoard, { SHAKE_PAD_X, SHAKE_PAD_Y } from "../../game/GameBoard";
@@ -108,6 +108,22 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 		document.addEventListener("keydown", onKey);
 		return () => document.removeEventListener("keydown", onKey);
 	}, [done]);
+	// Admin-only test hotkey: F8 clears the current board instantly by playing every remaining safe cell through
+	// the normal action path (each reveal is sent to the server like a real click), so the solve, rating and
+	// rank animation all happen exactly as they would for a hand-solved puzzle.
+	useEffect(() => {
+		if (!account?.isAdmin) return;
+		const onKey = (e: KeyboardEvent) => {
+			if (e.key !== "F8" || e.repeat) return;
+			const p = puzzleRef.current; if (!p || p.finished || !session.state) return;
+			e.preventDefault();
+			for (let r = 0; r < session.rows; r++) for (let c = 0; c < session.cols; c++) {
+				if (session.state[r][c] === UNKNOWN && session.cellAt(r, c) !== MINE) session.performAction(r, c, false);
+			}
+		};
+		document.addEventListener("keydown", onKey);
+		return () => document.removeEventListener("keydown", onKey);
+	}, [account?.isAdmin]);
 	const onActionsKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
 		if (e.key !== "ArrowLeft" && e.key !== "ArrowRight" && e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
 		const list = Array.from(e.currentTarget.querySelectorAll<HTMLButtonElement>("button"));
