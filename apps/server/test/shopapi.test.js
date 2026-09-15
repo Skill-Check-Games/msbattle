@@ -182,7 +182,10 @@ test("fake-grant with no session token -> 401 unauthenticated", async function()
 });
 
 test("fake-grant as a non-admin -> 403 forbidden", async function() {
+	// Dev logins are admins by default; demote this one to stand in for a real non-admin account.
 	var token = await devUserToken(stripeServer, "NotAnAdmin");
+	var nonAdminId = dbCall("console.log(JSON.stringify(db.getUserByToken('" + token + "').id))");
+	dbCall("db.setUserAdmin(" + nonAdminId + ", false); console.log('null')");
 	var r = await fetch(stripeServer.base + "/api/shop/fake-grant", {
 		method: "POST", headers: { "Content-Type": "application/json", "X-Session-Token": token }, body: JSON.stringify({ itemId: "img:scout-dog" })
 	});

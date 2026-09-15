@@ -224,6 +224,9 @@ function authDev(req, res, url) {
 	// own (see shopApi.js's serveFakeGrant comment). Blank/omitted behaves exactly as before.
 	var email = (url.searchParams.get("email") || "").trim().slice(0, 254) || null;
 	var user = resolveOAuthUser("dev", name.toLowerCase(), name, null, email, url.searchParams.get("upgrade"));
+	// A dev login is always an admin locally (DEV_AUTH is a developer-only switch): admin pages, the F8
+	// clear-board hotkey and the Fake Shop all work without an allow-listed email.
+	if (!user.is_admin) { db.setUserAdmin(user.id, true); user.is_admin = 1; }
 	finishLogin(res, user.id);
 }
 
