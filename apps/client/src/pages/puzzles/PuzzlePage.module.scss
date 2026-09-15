@@ -7,7 +7,7 @@
 .empty { color: var(--muted); }
 // Board column and card sit side by side at equal height: the card stretches to the board box's height
 // and pins its footer + Hint to the bottom (legacy: .game-side align-self: stretch, flex: 0 0 320px).
-.grid { display: flex; gap: 1.25rem; align-items: stretch; flex-wrap: wrap; justify-content: center; }
+.grid { position: relative; display: flex; gap: 1.25rem; align-items: stretch; flex-wrap: wrap; justify-content: center; }
 .boardCol { display: flex; flex-direction: column; align-items: center; gap: 0.6rem; }
 .boardWrap {
 	position: relative; display: flex; align-items: center; justify-content: center; max-width: 100%;
@@ -52,11 +52,12 @@
 .flashLabel { font-size: 1.2rem; font-weight: 700; }
 @keyframes flash-in { 0% { opacity: 0; transform: scale(0.9); } 15% { opacity: 1; transform: scale(1); } 80% { opacity: 1; } 100% { opacity: 0; } }
 // Rank boundary crossed: a card over the board, held longer than the solve flash, framed in the new tier's colour.
-.rankFlash { gap: 0.5rem; background: rgba(8, 12, 20, 0.86); border: 3px solid; animation: rank-in 2.6s ease both; z-index: 5; }
+.rankFlash { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.6rem; border-radius: 8px; pointer-events: none; background: rgba(8, 12, 20, 0.9); border: 3px solid; animation: rank-in 2.6s ease both; z-index: 6; }
 .rankUp { box-shadow: 0 0 40px rgba(255, 255, 255, 0.18) inset; }
 .rankDown { filter: saturate(0.7); }
 .rankFlashKicker { font-size: 0.8rem; letter-spacing: 0.22em; text-transform: uppercase; font-weight: 800; color: var(--text); opacity: 0.85; }
-.rankFlashLabel { font-family: var(--font-display); font-size: 1.7rem; font-weight: 800; line-height: 1.1; }
+.rankFlashLabel { font-family: var(--font-display); font-size: 2.4rem; font-weight: 800; line-height: 1.1; text-align: center; }
+.rankFlashRating { font-size: 0.95rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 @keyframes rank-in { 0% { opacity: 0; transform: scale(0.85); } 12% { opacity: 1; transform: scale(1.04); } 20% { transform: scale(1); } 85% { opacity: 1; } 100% { opacity: 0; } }
 // Phones (legacy portrait layout): the page header goes, the card flattens into the column so its head
 // and stats sit above the board and Hint lands at the bottom of the screen; the board box spans the

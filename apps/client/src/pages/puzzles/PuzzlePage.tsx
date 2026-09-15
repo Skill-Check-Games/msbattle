@@ -238,13 +238,6 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 						<div className={`${styles.boardWrap} ${boardFlash === "solved" ? styles.flashSolved : boardFlash === "fail" ? styles.flashFail : ""}`} style={mobile ? { width: "100%", padding: PHONE_BOX_PAD } : { width: box, height: box }} data-shake-host="">
 							<GameBoard session={session} cellPx={cellPx} className={styles.board}>
 								{flash && <div className={`${styles.flash} ${flash.solved ? styles.flashOk : styles.flashBad}`}><div className={styles.flashIcon}>{flash.solved ? "✓" : "✗"}</div><div className={styles.flashLabel}>{flash.solved ? "Solved" : "Mine hit"}</div></div>}
-								{rankChange && (
-									<div className={`${styles.flash} ${styles.rankFlash} ${rankChange.up ? styles.rankUp : styles.rankDown}`} style={{ borderColor: rankChange.color }}>
-										<div className={styles.rankFlashKicker}>{rankChange.up ? "Rank up!" : "Rank down"}</div>
-										<PuzzleRankBadge rating={rankChange.rating} size={9} />
-										<div className={styles.rankFlashLabel} style={{ color: rankChange.color }}>{rankChange.label}</div>
-									</div>
-								)}
 							</GameBoard>
 						</div>
 						{p && !isRun && p.puzzleId != null && <div className={styles.info}>Puzzle #{p.puzzleId}<span className={styles.sep}>·</span><span style={{ color: difficultyLabel(p.difficulty) === "Easy" ? "var(--success)" : difficultyLabel(p.difficulty) === "Medium" ? "var(--energy-streak)" : "var(--danger)" }}>{difficultyLabel(p.difficulty)}</span></div>}
@@ -280,6 +273,15 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 							</>
 						) : null}
 					</aside>
+					{/* Rank boundary crossed: covers the WHOLE puzzle area (board + side card), not just the canvas. */}
+					{rankChange && (
+						<div className={`${styles.rankFlash} ${rankChange.up ? styles.rankUp : styles.rankDown}`} style={{ borderColor: rankChange.color }}>
+							<div className={styles.rankFlashKicker}>{rankChange.up ? "Rank up!" : "Rank down"}</div>
+							<PuzzleRankBadge rating={rankChange.rating} size={14} />
+							<div className={styles.rankFlashLabel} style={{ color: rankChange.color }}>{rankChange.label}</div>
+							<div className={styles.rankFlashRating}>{rankChange.rating} rating</div>
+						</div>
+					)}
 				</div>
 			)}
 			{runEnd && (
