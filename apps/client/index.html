@@ -8,6 +8,12 @@
 	<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=optional">
 	<link rel="icon" type="image/svg+xml" href="/favicon.svg">
 	<meta name="theme-color" content="#6366f1">
+	<!-- Plausible: privacy-friendly analytics. No cookies, so no consent banner.
+	     The standard script tracks react-router's pushState navigations on its own.
+	     The second line queues plausible() calls made before the deferred script has
+	     loaded. Plausible ignores localhost, so this is inert in dev. -->
+	<script defer data-domain="msbattle.net" src="https://plausible.io/js/script.js"></script>
+	<script>window.plausible = window.plausible || function () { (window.plausible.q = window.plausible.q || []).push(arguments) };</script>
 	<title>MSBattle</title>
 </head>
 <body>
