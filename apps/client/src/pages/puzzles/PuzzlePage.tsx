@@ -345,7 +345,6 @@ function LadderRail({ rating }: { rating: number }) {
 	const tiers = PUZZLE_TIERS.map((t, i) => ({ ...t, i })).reverse();
 	return (
 		<aside className={styles.rail} aria-label="Puzzle Ladder tiers">
-			<span className={styles.cardTitle}>Ladder</span>
 			{tiers.map(t => {
 				const current = t.i === me.tierIndex, reached = t.i < me.tierIndex;
 				return (
