@@ -151,7 +151,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 	const [panel, setPanel] = useState({ w: PUZZLE_BOX_PX, h: PUZZLE_BOX_PX });
 	const [flagMode, setFlagMode] = useState(false);
 	const flagRef = useRef(false); flagRef.current = flagMode; // the board input is wired once: it must read the CURRENT mode
-	const LS_MARGIN = 16, LS_PILL_ROW = 48; // landscape: board margin, and the height the pill overlays at the bottom
+	const LS_MARGIN = 16, LS_PILL_ROW = 56; // landscape: board margin, and the height the pill overlays at the bottom
 	const [phoneW, setPhoneW] = useState(PUZZLE_BOX_PX_MOBILE);
 	const landscape = useMediaQuery(LANDSCAPE_MQ);
 	const portraitOrientation = useMediaQuery("(orientation: portrait)");
