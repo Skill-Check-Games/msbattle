@@ -14,7 +14,7 @@ export default function PuzzlesPicker({ open, onClose }: { open: boolean; onClos
 	const l = puzzleLadder(account?.puzzleRating || 0);
 	const go = (path: string) => { onClose(); navigate(path); };
 	return (
-		<Modal open onClose={onClose} width={620} labelledBy="puzzles_modal_title" className={styles.dialog}>
+		<Modal open onClose={onClose} width={620} labelledBy="puzzles_modal_title" className={styles.dialog} hideClose>
 			<div className={styles.head}>
 				<div className={styles.icon} style={{ color: "#60a5fa" }} aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h7v7H4V4zm9 0h7v7h-7V4zM4 13h7v7H4v-7zm9 4l2.5 2.5L20 14" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg></div>
 				<div><h2 id="puzzles_modal_title" className={styles.title}>Puzzles</h2><p className={styles.sub}>Rated deduction positions, one at a time</p></div>
