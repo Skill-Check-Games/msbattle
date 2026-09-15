@@ -71,13 +71,16 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 		ratingTimers.current.forEach(clearTimeout); ratingTimers.current = [];
 		const a = puzzleLadder(before), b = puzzleLadder(after);
 		const crossed = a.tierIndex !== b.tierIndex || a.level !== b.level, up = after > before;
+		// The account already carries the new rating, so the bar is pinned to the OLD level's fill until the
+		// sequence starts — otherwise it would ease to the new fill first and then jump about.
 		setShownRating(before);
+		setFillOverride(a.levelPct);
 		const T = (fn: () => void, ms: number) => ratingTimers.current.push(window.setTimeout(fn, ms));
 		T(() => {
 			const start = Date.now(), dur = 950;
 			const frame = () => { const t = Math.min(1, (Date.now() - start) / dur), e = 1 - Math.pow(1 - t, 3); setShownRating(Math.round(before + (after - before) * e)); if (t < 1) requestAnimationFrame(frame); else setShownRating(null); };
 			requestAnimationFrame(frame);
-			if (crossed) setFillOverride(up ? 100 : 0);
+			setFillOverride(crossed ? (up ? 100 : 0) : null);
 		}, 400);
 		T(() => { if (crossed) setFillOverride(null); }, 1300);
 		T(() => { if (crossed) (up ? sound.rankUp : sound.rankDown)(); }, 1700);
