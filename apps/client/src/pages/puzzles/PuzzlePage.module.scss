@@ -40,6 +40,8 @@
 .historyOk { background: rgba(34, 197, 94, 0.15); color: var(--success); }
 .historyMiss { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
 .cardSpacer { flex: 1 1 auto; }
+.runStats { grid-template-columns: 1fr 1fr; .stat:last-child { grid-column: 1 / -1; } } // two live numbers, the best underneath
+.dossier .hint { margin-top: 0; }
 // Ladder rail: all eight tiers, compact, stretched to the board's height.
 .rail { width: auto; flex: 1 1 200px; min-width: 0; max-width: 260px; box-sizing: border-box; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0 0.75rem; box-shadow: var(--shadow); display: flex; flex-direction: column; justify-content: space-evenly; }
 .railRow { display: flex; align-items: center; gap: 0.6rem; padding: 0.1rem 0.5rem; border-radius: 6px; border: 1px solid transparent; min-height: 0; }
@@ -90,7 +92,7 @@
 	.boardCol { flex: 1 1 auto; justify-content: flex-start; width: 100%; }
 	.boardWrap { width: 100%; height: auto; box-sizing: border-box; }
 	.card, .rankCard { display: contents; }
-	.stats, .history, .cardSpacer { display: none; }
+	.stats:not(.runStats), .history, .cardSpacer { display: none; }
 	.cardHeadRated { display: flex; }
 	// Stack order (design M·05): title · tier rail · rank row + bar · board · Next.
 	.cardHead { order: -3; }
@@ -147,7 +149,7 @@
 	.ladderTier { font-size: 0.95rem; }
 	.rankFoot { font-size: 0.68rem; }
 	.stats { display: grid; gap: 8px; }
-	.stat:nth-child(1), .stat:nth-child(4) { display: none; } // rating is on the rank card; best streak waits for desktop
+	.stats:not(.runStats) .stat:nth-child(1), .stats:not(.runStats) .stat:nth-child(4) { display: none; } // rating is on the rank card; best streak waits for desktop
 	.stat { padding: 0.5rem 0.65rem; }
 	.statValue { font-size: 1.05rem; }
 	.history { display: none; }

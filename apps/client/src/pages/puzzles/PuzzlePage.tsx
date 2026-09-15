@@ -109,11 +109,9 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 	const [phoneW, setPhoneW] = useState(PUZZLE_BOX_PX_MOBILE);
 	const landscape = useMediaQuery(LANDSCAPE_MQ);
 	const portraitOrientation = useMediaQuery("(orientation: portrait)");
-	// The Puzzle Ladder plays in landscape on phones, like battles: a phone-sized device held in portrait gets the
-	// landscape layout rotated 90 degrees by CSS (body.duel-force-rotate). Runs (streak/storm/daily) keep portrait.
-	const pRef = puzzleRef.current;
-	const ratedMode = !pRef || !(pRef.mode === "streak" || pRef.mode === "storm" || pRef.mode === "daily");
-	const forceRotate = ratedMode && !landscape && portraitOrientation && phoneSizedDevice();
+	// Every puzzle mode plays in landscape on phones, like battles: a phone-sized device held in portrait gets the
+	// landscape layout rotated 90 degrees by CSS (body.duel-force-rotate).
+	const forceRotate = !landscape && portraitOrientation && phoneSizedDevice();
 	useEffect(() => {
 		document.body.classList.toggle("duel-force-rotate", forceRotate);
 		const raf = requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
@@ -279,7 +277,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 			{!account ? <p className={styles.empty}>Sign in to play. Your score is tied to your account.</p> : !p && status ? <p className={styles.empty}>{status}</p> : (
 				<div className={styles.grid} ref={gridRef}>
 					{/* Landscape phones: the back arrow + title sit in a left column above the rail (design L·02). */}
-					{!isRun && (phoneLandscape ? (
+					{(phoneLandscape ? (
 						<div className={styles.leftCol}>
 							<div className={styles.cardHead}><button type="button" className={styles.back} onClick={exit} aria-label="Back to lobby">←</button><span className={styles.cardTitle}>{TITLES[mode]}</span></div>
 							<LadderRail rating={account.puzzleRating || 0} />
@@ -301,8 +299,8 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 						</div>
 
 					</div>
-					<aside className={`${styles.card} ${!isRun ? styles.dossier : ""}`}>
-						<div className={`${styles.cardHead} ${!isRun ? styles.cardHeadRated : ""}`}><button type="button" className={styles.back} onClick={exit} aria-label="Back to lobby">←</button><span className={styles.cardTitle}>{TITLES[mode]}</span></div>
+					<aside className={`${styles.card} ${styles.dossier}`}>
+						<div className={`${styles.cardHead} ${styles.cardHeadRated}`}><button type="button" className={styles.back} onClick={exit} aria-label="Back to lobby">←</button><span className={styles.cardTitle}>{TITLES[mode]}</span></div>
 						{!isRun ? (
 							<>
 								<div className={styles.rankCard}>
@@ -337,11 +335,13 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 							</>
 						) : p && p.run ? (
 							<>
-								<div className={styles.runRow}>
-									<div className={styles.runStat}><span className={styles.runLabel}>{p.mode === "daily" ? "Streak" : "Solved"}</span><span className={styles.runValue}>{p.mode === "daily" ? p.run.streak || 0 : p.run.solves || 0}</span></div>
-									<div className={styles.runStat}><span className={styles.runLabel}>{p.mode === "streak" ? "Level" : p.mode === "storm" ? "Time" : "Today"}</span><span className={styles.runValue}>{p.mode === "streak" ? String(p.run.targetRating || 0) : p.mode === "storm" ? stormClock(p.run.endsAt || 0) : formatDailyDate(p.run.date || "")}</span></div>
+								{/* Runs use the same dossier boxes as the ladder: the run's two live numbers and the best. */}
+								<div className={`${styles.stats} ${styles.runStats}`}>
+									<div className={styles.stat}><span className={styles.statLabel}>{p.mode === "daily" ? "Streak" : "Solved"}</span><span className={styles.statValue}>{p.mode === "daily" ? p.run.streak || 0 : p.run.solves || 0}</span></div>
+									<div className={styles.stat}><span className={styles.statLabel}>{p.mode === "streak" ? "Level" : p.mode === "storm" ? "Time" : "Today"}</span><span className={styles.statValue}>{p.mode === "streak" ? String(p.run.targetRating || 0) : p.mode === "storm" ? stormClock(p.run.endsAt || 0) : formatDailyDate(p.run.date || "")}</span></div>
+									<div className={styles.stat}><span className={styles.statLabel}>Best</span><span className={styles.statValue}>{p.mode === "streak" ? account.streakBest || 0 : p.mode === "storm" ? account.stormBest || 0 : p.run.bestStreak || 0}</span></div>
 								</div>
-								<div className={styles.runFoot}><span>Best</span><span>{p.mode === "streak" ? account.streakBest || 0 : p.mode === "storm" ? account.stormBest || 0 : p.run.bestStreak || 0}</span></div>
+								<div className={styles.cardSpacer} />
 								<button className={`btn ${styles.hint} ${p.hintUsed ? styles.hintUsed : ""}`} disabled={p.finished} onClick={() => getSocket().emit("puzzle_hint")}>💡 Hint</button>
 							</>
 						) : null}
