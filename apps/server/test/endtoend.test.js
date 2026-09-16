@@ -101,8 +101,12 @@ test("a fast win on the game server reports a real ratingDelta back through seri
 		const handoff = await once(lobby, "match_handoff", 60000);
 
 		gameSock = io(handoff.gameUrl, { transports: ["websocket"], forceNew: true, auth: { token: handoff.token } });
-		await once(gameSock, "joined_room", 60000);
-		const start = await once(gameSock, "start_game", 60000);
+		// Both listeners go on BEFORE the first await: the game server sends joined_room and start_game back to
+		// back (a one-human match starts the moment its human attaches), and whether they arrive as one or two
+		// frames is up to the network — a listener added after joined_room resolves can miss start_game.
+		const joinedP = once(gameSock, "joined_room", 60000), startP = once(gameSock, "start_game", 60000);
+		await joinedP;
+		const start = await startP;
 		const board = decodeBoard(start.boardData, start.boardMask, start.rows, start.cols);
 
 		// Win as fast as possible: reveal every non-mine cell right after the round actually goes

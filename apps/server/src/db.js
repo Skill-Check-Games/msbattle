@@ -146,13 +146,11 @@ addColumnIfMissing("users", "ranked_reset_v2", "INTEGER NOT NULL DEFAULT 0");
 // null → the default red). `country` is an ISO-3166 alpha-2 code (null → none), shown as a flag emoji.
 addColumnIfMissing("users", "avatar_color", "TEXT");
 addColumnIfMissing("users", "country", "TEXT");
-try {
-	db.exec(
-		"UPDATE users SET rating_sprint = 0, rating_standard = 0, rating_tournament = 0, " +
-		"rating_territory = 0, provisional_games = 0, sprint_provisional = 0, standard_provisional = 0, " +
-		"tournament_provisional = 0, played = 0, wins = 0, ranked_reset_v2 = 1 WHERE ranked_reset_v2 = 0"
-	);
-} catch (e) { /* already reset */ }
+// The one-shot ranked reset that once ran here is GONE. It zeroed every row with ranked_reset_v2 = 0 on
+// every boot — and new users were inserted with the column's DEFAULT 0, so each deploy wiped the rank of
+// every account created since the previous deploy (ratings, played, wins), while match_history kept
+// growing. New rows are now inserted with the flag set, and the repair below restores what it can.
+db.exec("UPDATE users SET ranked_reset_v2 = 1 WHERE ranked_reset_v2 = 0");
 // The single legacy `rating` column is gone — "overall" rating is now max-across-modes, computed
 // on demand (readUserRating with no style / topPlayers). Drop it so it can't be read by accident.
 dropColumnIfExists("users", "rating");
@@ -229,6 +227,22 @@ db.exec(
 	");" +
 	"CREATE INDEX IF NOT EXISTS idx_match_user ON match_history(user_id, created_at);"
 );
+// Ranked repair (idempotent, cheap; the wipe that made it necessary is described above the ranked_reset_v2 column): where the wipe left `played` below the recorded matches, or a style's rating
+// at 0 although matches were recorded for it, put back the counts and the latest recorded rating.
+try {
+	db.exec(
+		"UPDATE users SET " +
+		"  played = (SELECT COUNT(*) FROM match_history m WHERE m.user_id = users.id), " +
+		"  wins = (SELECT COUNT(*) FROM match_history m WHERE m.user_id = users.id AND m.won = 1) " +
+		"WHERE played < (SELECT COUNT(*) FROM match_history m WHERE m.user_id = users.id)"
+	);
+	["sprint", "standard"].forEach(function(style) {
+		db.exec(
+			"UPDATE users SET rating_" + style + " = (SELECT m.rating_after FROM match_history m WHERE m.user_id = users.id AND m.style = '" + style + "' ORDER BY m.created_at DESC, m.id DESC LIMIT 1) " +
+			"WHERE rating_" + style + " = 0 AND EXISTS (SELECT 1 FROM match_history m WHERE m.user_id = users.id AND m.style = '" + style + "' AND m.rating_after > 0)"
+		);
+	});
+} catch (e) { console.error("ranked repair failed", e); }
 // Stored replays of ranked matches. `data` is a gzipped binary input-log (see runtime/replay.js):
 // a header + per-round mine layout bitmask + per-player event tracks (varint dt + cell<<1|button),
 // re-simulated at playback time. Participants live in a side table so we can list a user's replays
@@ -498,8 +512,8 @@ function upsertUser(provider, providerId, providerName, avatarUrl, email) {
 	// still carry the old DEFAULT 1000 doesn't seed new accounts at Silver III.
 	var info = db.prepare(
 		"INSERT INTO users (provider, provider_id, name, display_name, avatar_url, email, last_provider, created_at, " +
-		"rating_sprint, rating_standard, rating_tournament, rating_territory, puzzle_rating) " +
-		"VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, ?)"
+		"rating_sprint, rating_standard, rating_tournament, rating_territory, puzzle_rating, ranked_reset_v2) " +
+		"VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, ?, 1)"
 	).run(provider, providerId, providerName, providerName, avatarUrl || null, emailLower, provider, Date.now(), PUZZLE_START_RATING);
 	linkIdentity(info.lastInsertRowid, provider, providerId, emailLower);
 	setProviderAuthFields(info.lastInsertRowid, provider, providerId, providerName);
@@ -515,8 +529,8 @@ function createGuest() {
 	var providerId = crypto.randomBytes(12).toString("hex");
 	var info = db.prepare(
 		"INSERT INTO users (provider, provider_id, name, is_guest, created_at, " +
-		"rating_sprint, rating_standard, rating_tournament, rating_territory, puzzle_rating) " +
-		"VALUES ('guest', ?, ?, 1, ?, 0, 0, 0, 0, ?)"
+		"rating_sprint, rating_standard, rating_tournament, rating_territory, puzzle_rating, ranked_reset_v2) " +
+		"VALUES ('guest', ?, ?, 1, ?, 0, 0, 0, 0, ?, 1)"
 	).run(providerId, name, Date.now(), PUZZLE_START_RATING);
 	return db.prepare("SELECT * FROM users WHERE id = ?").get(info.lastInsertRowid);
 }
