@@ -71,7 +71,7 @@ export function Radar({ size }: { size: number }) {
 }
 
 function Badge({ player, size = 14 }: { player: RoomPlayer | null; size?: number }) {
-	return player && typeof player.rating === "number" ? <RankBadge rating={player.rating} size={size} /> : <PlacementBadge size={size} />;
+	return player && typeof player.rating === "number" ? <RankBadge rating={player.rating} provisional={player.provisional} size={size} /> : <PlacementBadge size={size} />;
 }
 
 // Mounted only while the banner plays; the parent unmounts it after MATCH_FOUND_MS.

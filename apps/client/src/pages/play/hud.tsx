@@ -28,7 +28,7 @@ export function DuelIdentity({ player, side, vertical, plain, ring, skeleton, no
 			<AvatarChip avatar={player.avatar} country={player.country} px={px} className={styles.idAvatar} />
 			<div className={styles.idInfo}>
 				<div className={styles.idName}><span className={styles.idNameText}>{player.name || "Anonymous"}</span><FlagChip country={player.country} px={16} /></div>
-				{tier && <div className={styles.idTier}><RankBadge rating={player.rating!} size={7} /><span style={{ color: tier.color }}>{tier.name}</span></div>}
+				{tier && <div className={styles.idTier}><RankBadge rating={player.rating!} provisional={player.provisional} size={7} /><span style={{ color: tier.color }}>{tier.name}</span></div>}
 			</div>
 		</div>
 	);

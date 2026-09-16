@@ -7,7 +7,9 @@ function box(size: number | undefined, extra?: CSSProperties): CSSProperties {
 	return { fontSize: size != null ? size + "px" : undefined, ...extra };
 }
 
-export function RankBadge({ rating, size }: { rating: number; size?: number }) {
+// provisional: the player is still in placement, so the locked placement plate shows instead of a tier's emblem.
+export function RankBadge({ rating, size, provisional }: { rating: number; size?: number; provisional?: boolean }) {
+	if (provisional) return <PlacementBadge size={size} />;
 	const { tierClass, svg } = rankEmblemSVG(rating);
 	return <div className={"rank-badge tier-" + tierClass} style={box(size)} dangerouslySetInnerHTML={{ __html: svg }} />;
 }

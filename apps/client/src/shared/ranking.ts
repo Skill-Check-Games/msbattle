@@ -16,7 +16,11 @@ export const SUB_TIERS_PER_TIER = 3;
 export const SUB_TIER_NUMERALS = ["I", "II", "III"];
 export const MASTER_THRESHOLD = TIER_BASE_RATING + TIER_BANDS.length * SUB_TIERS_PER_TIER * SUB_TIER_WIDTH;
 
-export function tierFor(rating: number, _provisional?: boolean): { name: string; color: string } {
+// A player still in placement has no rank yet, whatever the hidden rating says: "Placement" in the muted colour
+// (a rating of 0 would otherwise wear Bronze I unearned). Pair it with RankBadge's `provisional` for the badge.
+export const PLACEMENT_TIER = { name: "Placement", color: "var(--muted)" };
+export function tierFor(rating: number, provisional?: boolean): { name: string; color: string } {
+	if (provisional) return PLACEMENT_TIER;
 	if (rating >= MASTER_THRESHOLD) return { name: "Master", color: "#c084fc" };
 	const clamped = rating < TIER_BASE_RATING ? TIER_BASE_RATING : rating;
 	const subIdx = Math.floor((clamped - TIER_BASE_RATING) / SUB_TIER_WIDTH);
