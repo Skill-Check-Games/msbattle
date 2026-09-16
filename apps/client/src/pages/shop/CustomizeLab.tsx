@@ -12,6 +12,7 @@ import { setBoardSkin, setRevealEffect, useCosmetics } from "../../shared/cosmet
 import GameBoard from "../../game/GameBoard";
 import { sound } from "../../audio/sound";
 import { DuelIdentity } from "../play/hud";
+import { useMediaQuery } from "../play/mobile";
 import Modal from "../../app/Modal";
 import { ShopItem, itemById, itemUnlocked, priceLabel, buyItem } from "./shop-api";
 import styles from "./CustomizeLab.module.scss";
@@ -95,17 +96,19 @@ export default function CustomizeLab({ host, tab: tabProp, onTabChange, sheet, o
 	const identity = account ? { id: "", name: account.name, avatar: preview.avatar || account.avatarColor || DEFAULT_AVATAR, country: account.country, rating: Math.max(account.ratingSprint || 0, account.ratingStandard || 0), provisional: account.provisional } : null;
 
 	const tabButtons = TABS.map(([id, label]) => <button key={id} type="button" className={`${styles.tab} ${tab === id ? styles.tabActive : ""}`} onClick={() => setTab(id)}>{label}</button>);
-	const landscapePhone = sheet && window.matchMedia("(orientation: landscape)").matches;
+	const landscape = useMediaQuery("(orientation: landscape)");
+	const landscapePhone = sheet && landscape;
+	const portraitPhone = sheet && !landscape;
 	return (
-		<div className={`${styles.body} ${host === "page" ? styles.page : styles.modalHost} ${sheet ? styles.sheet : ""} ${landscapePhone ? styles.sheetLandscape : ""}`}>
+		<div className={`${styles.body} ${host === "page" ? styles.page : styles.modalHost} ${sheet ? styles.sheet : ""} ${landscapePhone ? styles.sheetLandscape : ""} ${portraitPhone ? styles.sheetPortrait : ""}`}>
 			{sheet && (
 				<div className={styles.bar}>
 					<button type="button" className={styles.back} onClick={onBack} aria-label="Back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6" /></svg></button>
 					<h2 id="lab_title" className={styles.barTitle}>Customize</h2>
-					<div className={styles.pills}>{tabButtons}</div>
-					<span className={styles.barSpacer} />
+					{landscapePhone ? <><div className={styles.pills}>{tabButtons}</div><span className={styles.barSpacer} /></> : <span className={styles.barFill} />}
 				</div>
 			)}
+			{portraitPhone && <div className={`${styles.tabs} ${styles.sheetTabs}`}>{tabButtons}</div>}
 			<div className={styles.picker}>
 				{!sheet && <div className={styles.tabs}>{tabButtons}</div>}
 				{fakeAllowed && host === "page" && <label className={styles.fake}><input type="checkbox" checked={fakeShop} onChange={(e) => setFakeShop(e.target.checked)} /> Fake shop</label>}

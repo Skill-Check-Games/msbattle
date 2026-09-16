@@ -60,13 +60,15 @@
 // Glyph icons sit on a different baseline than text; a 1em line box keeps them optically centred in .btn.
 .btnIcon { display: inline-flex; align-items: center; justify-content: center; width: 1em; height: 1em; line-height: 1; font-size: 1.05em; }
 
-// ---- Phone sheet (design CL·01a): a grid — the 44px bar across the top, then the tiles beside (landscape) or
-// under (portrait) a compact preview; each region scrolls on its own, the sheet itself never does.
+// ---- Phone sheet: a grid, the sheet itself never scrolls. Landscape (design CL·01a): one 44px bar (back · title ·
+// tab pills), tiles left, preview column right. Portrait (design CP·01): 48px bar (back · title), a full-width tab
+// row, the compact preview card, then the two-column tile grid taking the rest and scrolling on its own.
 .sheet { display: grid !important; gap: 0; height: 100%; min-height: 0; padding: 0; grid-template-columns: minmax(0, 1fr); grid-template-rows: 44px auto minmax(0, 1fr); }
 .bar { grid-column: 1 / -1; grid-row: 1; display: flex; align-items: center; gap: 8px; padding: 0 8px; border-bottom: 1px solid var(--border); min-width: 0; }
 .back { flex: 0 0 36px; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; border: 0; background: none; color: var(--muted); padding: 0; }
 .barTitle { margin: 0; font-size: 0.95rem; font-weight: 700; white-space: nowrap; }
 .barSpacer { flex: 0 0 36px; }
+.barFill { flex: 1 1 auto; }
 .pills { flex: 1 1 auto; display: flex; justify-content: center; min-width: 0; }
 .pills .tab { flex: 0 0 auto; padding: 6px 14px; border: 0; border-radius: 999px; font-size: 0.82rem; & + & { border-left: 0; } }
 .pills .tabActive { background: rgba(99, 102, 241, 0.14); color: var(--text); }
@@ -102,5 +104,20 @@
 .sheet .check { display: none; }
 .sheet .grid { grid-template-columns: 1fr; gap: 6px; }
 .sheetLandscape .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-@media (max-width: 480px) { .sheet .barTitle { display: none; } }
+// Portrait: bar · tabs · preview card · grid.
+.sheetPortrait { grid-template-rows: 48px auto auto minmax(0, 1fr); }
+.sheetPortrait .bar { padding: 0 10px; }
+.sheetPortrait .barTitle { font-size: 1.05rem; }
+.sheetTabs { grid-row: 2; margin: 10px 10px 0; }
+.sheetTabs .tab { padding: 0.55rem 0.2rem; font-size: 0.85rem; }
+.sheetPortrait .preview { grid-row: 3; flex-direction: column; flex-wrap: nowrap; align-items: center; margin: 10px 10px 0; padding: 8px 10px; gap: 6px; }
+.sheetPortrait .identity { flex: 0 0 auto; align-self: flex-start; }
+.sheetPortrait .picker { grid-row: 4; }
+.sheetPortrait .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.sheetPortrait .tile { gap: 8px; padding: 8px; }
+.sheetPortrait .tileName { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } // one line each so every row is the same height
+.sheetPortrait .tilePreview { width: 44px; height: 44px; canvas { max-width: 44px; max-height: 44px; } }
+.sheetPortrait .tileLocked .tileBody { padding-right: 1.6rem; }
+.sheetPortrait .lock { right: 0.4rem; width: 1.5rem; height: 1.5rem; font-size: 0.75rem; }
+@media (max-width: 480px) { .sheetLandscape .barTitle { display: none; } }
 .sheet .tileLocked .tileBody { padding-right: 2.2rem; } // room for the lock badge
