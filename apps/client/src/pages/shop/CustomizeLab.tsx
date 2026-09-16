@@ -131,9 +131,12 @@ export default function CustomizeLab({ host, tab: tabProp, onTabChange, sheet, o
 			<div className={styles.preview} data-lab-preview="">
 				<div className={styles.identity}><DuelIdentity player={identity as any} side="you" /></div>
 				<div className={styles.boardFrame}><GameBoard session={session} cellPx={sheet ? Math.min(cellPxFor(colsRef.current), 20) : cellPxFor(colsRef.current)} keyboard={false} /></div>
-				<div className={styles.boardHint}>{sheet ? "Tap a tile to test the effect" : "Click a tile to test the effect!"}</div>
+				{/* A fixed-height row for the actions: the Buy button appears when a locked item is previewed, and the row
+				    keeps its size either way so nothing below (or the sheet's grid) shifts. */}
+				<div className={styles.previewActions}>
 				<button type="button" className={`btn btn-ghost ${styles.reset} ${dirty ? styles.resetDirty : ""}`} disabled={!dirty} onClick={resetBoard}><span className={styles.btnIcon} aria-hidden="true">↻</span><span>Reset board</span></button>
-				{preview.last && <button type="button" className={`btn btn-primary ${styles.buy}`} onClick={() => setPurchase(preview.last)}><span className={styles.btnIcon} aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 4h2l2.4 11.2a1 1 0 0 0 1 .8h9.6a1 1 0 0 0 1-.8L21 8H6.5" /><circle cx="9.5" cy="20" r="1.3" /><circle cx="17.5" cy="20" r="1.3" /></svg></span><span>Buy {preview.last.label} · {priceLabel(preview.last.id)}</span></button>}
+				<button type="button" className={`btn btn-primary ${styles.buy} ${preview.last ? "" : styles.buyHidden}`} disabled={!preview.last} aria-hidden={!preview.last} onClick={() => preview.last && setPurchase(preview.last)}><span className={styles.btnIcon} aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 4h2l2.4 11.2a1 1 0 0 0 1 .8h9.6a1 1 0 0 0 1-.8L21 8H6.5" /><circle cx="9.5" cy="20" r="1.3" /><circle cx="17.5" cy="20" r="1.3" /></svg></span><span>{preview.last ? `Buy ${preview.last.label} · ${priceLabel(preview.last.id)}` : "Buy"}</span></button>
+				</div>
 			</div>
 			{purchase && <PurchaseModal item={purchase} fake={fakeShop && fakeAllowed} onClose={() => setPurchase(null)} onBought={() => onBought(purchase)} onError={(text) => setStatus({ text, kind: "error" })} />}
 		</div>
