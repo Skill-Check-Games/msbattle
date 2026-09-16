@@ -264,7 +264,14 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 			const stacked = getComputedStyle(grid).flexDirection === "column";
 			if (stacked) { setPhoneW(Math.max(1, grid.clientWidth - PHONE_BOX_PAD * 2 - SHAKE_PAD_X * 2)); return; }
 			const rotated = document.body.classList.contains("duel-force-rotate");
-			const landscape = window.matchMedia(LANDSCAPE_MQ).matches || rotated;
+			// The landscape lock (fullscreen on a phone) flips the orientation: the resize event lands BEFORE React has
+			// re-rendered for the media-query change, so the DOM is still the rotated layout while the viewport is not
+			// (or vice versa). Measuring then reads the viewport's width as the height (a 900px box that scrolls the
+			// page); skip, and the deps below re-run this once the layout has switched.
+			const mqLandscape = window.matchMedia(LANDSCAPE_MQ).matches;
+			const rotatedNow = !mqLandscape && window.matchMedia("(orientation: portrait)").matches && phoneSizedDevice();
+			if (rotated !== rotatedNow) return;
+			const landscape = mqLandscape || rotated;
 			// Rotated: the page's own height is the viewport's WIDTH, and bounding rects are post-transform, so the
 			// board's offset from the page top is summed through offsetParents instead.
 			let hostTop = host.getBoundingClientRect().top;
@@ -291,7 +298,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 		measure();
 		window.addEventListener("resize", measure);
 		return () => window.removeEventListener("resize", measure);
-	}, [!!account, !!puzzleRef.current, status, mobile]);
+	}, [!!account, !!puzzleRef.current, status, mobile, phoneLandscape, forceRotate]);
 
 	function withFlash(fn: () => void) {
 		setPendingFlash(pf => { if (pf) { setBoardFlash(pf); setTimeout(() => { setBoardFlash(null); fn(); }, 280); } else fn(); return null; });
