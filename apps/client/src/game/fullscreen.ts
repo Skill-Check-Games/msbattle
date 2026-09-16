@@ -9,17 +9,19 @@ export const autoFullscreenEnabled = () => { try { return localStorage.getItem(A
 export const setAutoFullscreenEnabled = (on: boolean) => { try { localStorage.setItem(AUTO_KEY, on ? "1" : "0"); } catch { /* storage blocked */ } };
 export const fullscreenSupported = () => { const el = document.documentElement as any; return !!(el.requestFullscreen || el.webkitRequestFullscreen); };
 
-export function enterGameFullscreen(force = false, lockLandscape = force) {
+// onRefused: the browser turned the request down (or has no API) — the caller can tell the player why, since a
+// silently ignored tap on the fullscreen button reads as a broken button.
+export function enterGameFullscreen(force = false, lockLandscape = force, onRefused?: (reason: string) => void) {
 	try {
 		if (isMobileViewport() && !force) return;
 		if (isInFullscreen()) { if (lockLandscape) tryLockLandscape(); return; }   // already fullscreen (phones keep it between games): the lock still has to be renewed
 		const el = document.documentElement as any;
 		const req = el.requestFullscreen || el.webkitRequestFullscreen;
-		if (!req) return;
+		if (!req) { onRefused?.("not supported by this browser"); return; }
 		const r = req.call(el);
-		if (r && typeof r.then === "function") r.then(() => { if (lockLandscape) tryLockLandscape(); }).catch(() => {});
+		if (r && typeof r.then === "function") r.then(() => { if (lockLandscape) tryLockLandscape(); }).catch((e: any) => { onRefused?.(e && (e.name || e.message) ? String(e.name || e.message) : "refused by the browser"); });
 		else if (lockLandscape) tryLockLandscape();
-	} catch { /* blocked or unsupported */ }
+	} catch (e: any) { onRefused?.(e && e.name ? String(e.name) : "refused by the browser"); }
 }
 export function tryLockLandscape() {
 	try { const o = (screen as any).orientation; if (o && typeof o.lock === "function") { const p = o.lock("landscape"); if (p && p.catch) p.catch(() => {}); } } catch { /* unsupported */ }

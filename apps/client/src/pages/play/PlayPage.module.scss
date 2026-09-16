@@ -154,9 +154,10 @@
 	.lsOpp { --side: var(--duel-opp); padding-top: 0.8rem; }
 	// The two corner buttons on your panel: exit (top left) and fullscreen (top right), bare muted icons with
 	// a 34px hit area, no frame or fill, so they sit quietly beside the avatar.
-	.lsBack, .lsFs { position: absolute; top: 0.5rem; width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--muted); &:hover { color: var(--text); } }
-	.lsBack { left: 0.5rem; }
-	.lsFs { right: 0.5rem; }
+	// 44px targets (the icon stays 18px): a thumb has to land these in the panel's corners.
+	.lsBack, .lsFs { position: absolute; top: 0.2rem; width: 44px; height: 44px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 6px; background: none; color: var(--muted); &:hover { color: var(--text); } }
+	.lsBack { left: 0.2rem; }
+	.lsFs { right: 0.2rem; }
 	// Timer box: mode line over the clock, framed by the you-to-opponent gradient like the desktop badge.
 	// The clock is just the time: no icon, no mode line, no box. Dimmed until GO (clockIdle).
 	.lsClock .duelTimer { font-size: 1.4rem; transition: color 0.3s ease; }
