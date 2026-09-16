@@ -28,6 +28,7 @@ import { useMediaQuery, useInGameBody, PORTRAIT_MQ, LANDSCAPE_PHONE_MQ } from ".
 import { FlagToggle } from "../../game/FlagToggle";
 import styles from "./PlayPage.module.scss";
 import { useAdminClearBoard } from "../../game/admin-clear";
+import Modal from "../../app/Modal";
 
 const DUEL_GAP_PX = 16;  // .duelGrid's gap between the two cards (PlayPage.module.scss)
 const LS_PANEL_W = 158;  // the landscape side panels' width (matches .landscape's grid columns in PlayPage.module.scss)
@@ -418,10 +419,24 @@ export default function PlayPage() {
 	// After every hook: leaving a match unmounts the room state, and the redirect must not change hook order.
 	if (!s.inRoom && !s.search) return <Navigate to="/" replace />;
 
+	// A ranked match still running (the series hasn't ended): leaving counts as a loss, so the exit asks first.
+	const [confirmLeave, setConfirmLeave] = useState(false);
+	const rankedLive = !!(s.inRoom && s.room && s.room.ranked && s.room.phase === "playing" && !s.seriesResult);
 	const exit = () => {
 		if (s.search) { match.cancelSearch(); navigate("/"); return; }
+		if (rankedLive) { setConfirmLeave(true); return; }
 		match.leaveRoom(); navigate("/");
 	};
+	const leaveNow = () => { setConfirmLeave(false); match.leaveRoom(); navigate("/"); };
+	const leaveConfirm = confirmLeave && (
+		<Modal open onClose={() => setConfirmLeave(false)} width={360} title="Leave the match?" labelledBy="leave_title" hideClose>
+			<p className={styles.leaveText}>Leaving a ranked match counts as a loss.</p>
+			<div className={`${styles.leaveActions} kbd-btn-group`}>
+				<button type="button" className="btn" onClick={() => setConfirmLeave(false)} autoFocus>Stay</button>
+				<button type="button" className={`btn ${styles.leaveBtn}`} onClick={leaveNow}>Leave</button>
+			</div>
+		</Modal>
+	);
 
 	const boardOverlays = (
 		<>
@@ -501,6 +516,7 @@ export default function PlayPage() {
 				{(foundPhase === "banner" || foundPhase === "cardOut") && (duo ? <MatchFoundBanner me={me} opp={opp} compact /> : <MatchFoundSix players={match.roster()} myId={match.myId} compact />)}
 				{winBanner(true)}
 				{s.seriesResult && winPhase !== "in" && <SeriesResultModal result={s.seriesResult} myId={match.myId} compact />}
+				{leaveConfirm}
 			</section>
 		);
 	}
@@ -605,6 +621,7 @@ export default function PlayPage() {
 				</div>
 			)}
 			{s.seriesResult && winPhase !== "in" && <SeriesResultModal result={s.seriesResult} myId={match.myId} />}
+			{leaveConfirm}
 		</section>
 	);
 }

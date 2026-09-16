@@ -219,3 +219,8 @@
 	position: fixed; top: 0; left: 0; width: 100vh; height: 100vw; z-index: 40; background: var(--bg);
 	transform-origin: top left; transform: rotate(90deg) translateY(-100%);
 }
+
+// Leaving a live ranked match: the confirm dialog (rendered inside the game view so a force-rotated phone sees it upright).
+.leaveText { margin: 0 0 1rem; color: var(--muted); }
+.leaveActions { display: flex; gap: 0.5rem; justify-content: flex-end; .btn { min-width: 96px; } }
+.leaveBtn { border-color: var(--danger); color: var(--danger); &:hover { background: rgba(239, 68, 68, 0.12); border-color: var(--danger); } }
