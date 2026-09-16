@@ -22,6 +22,8 @@ export type Tab = Kind;
 const TABS: Array<[Tab, string]> = [["avatar", "Avatar"], ["skin", "Board"], ["revealEffect", "Effects"]];
 // URL slugs for the tabs (/shop/<slug>, /customize/<slug>): every tab is a loadable address.
 export const TAB_SLUGS: Record<Tab, string> = { avatar: "avatar", skin: "board", revealEffect: "effects" };
+type PreviewKey = "avatar" | "skin" | "effect";
+const previewKey = (kind: Kind | Tab): PreviewKey => kind === "avatar" ? "avatar" : kind === "skin" ? "skin" : "effect";
 export function tabFromSlug(slug: string | undefined): Tab | null { for (const t of Object.keys(TAB_SLUGS) as Tab[]) if (TAB_SLUGS[t] === slug) return t; return null; }
 const AVATAR_BLURBS: Record<string, string> = { anon: "The default anonymous silhouette.", mine: "The classic sea mine, staring back.", "img:scout-dog": "Sniffs out the safest tile first.", "img:sentry-fox": "Keeps a sharp eye on the board.", "img:sentry-owl": "Never misses a clue.", "img:signal-cat": "Always alert for danger.", "img:guard-teddy": "A cuddly line of defense." };
 const avatarLabel = (v: string) => v === "anon" ? "Anonymous" : v === "mine" ? "Mine" : itemById(v)?.label || "Flag";
@@ -42,7 +44,8 @@ export default function CustomizeLab({ host, tab: tabProp, onTabChange, sheet, o
 	const [tabState, setTabState] = useState<Tab>("avatar");
 	const tab = tabProp || tabState;
 	const setTab = (t: Tab) => { setTabState(t); onTabChange?.(t); };
-	const [preview, setPreview] = useState<{ avatar: string | null; skin: string | null; effect: string | null; last: ShopItem | null }>({ avatar: null, skin: null, effect: null, last: null });
+	// One previewed id per kind, plus the locked (buyable) item per kind: the Buy button only ever shows the current tab's.
+	const [preview, setPreview] = useState<{ avatar: string | null; skin: string | null; effect: string | null; locked: Record<PreviewKey, ShopItem | null> }>({ avatar: null, skin: null, effect: null, locked: { avatar: null, skin: null, effect: null } });
 	const [purchase, setPurchase] = useState<ShopItem | null>(null);
 	const [fakeShop, setFakeShop] = useState(false);
 	const [status, setStatus] = useState<{ text: string; kind: string } | null>(null);
@@ -74,10 +77,12 @@ export default function CustomizeLab({ host, tab: tabProp, onTabChange, sheet, o
 	const resetBoard = () => { minesRef.current = DEMO_MINES; session.setBoard(DEMO_ROWS, colsRef.current, cellAt, restingState()); setDirty(false); };
 	const owned = account?.ownedItems;
 	const previewLocked = (kind: Kind, id: string, item: ShopItem | null) => {
-		setPreview(p => ({ ...p, [kind === "avatar" ? "avatar" : kind === "skin" ? "skin" : "effect"]: id, last: item }));
+		const key = previewKey(kind);
+		setPreview(p => ({ ...p, [key]: id, locked: { ...p.locked, [key]: item } }));
 		if (kind === "revealEffect") applyRevealEffect(id);
 	};
-	const clearPreview = (kind: Kind) => setPreview(p => ({ ...p, [kind === "avatar" ? "avatar" : kind === "skin" ? "skin" : "effect"]: null, last: p.last && p.last.kind === kind ? null : p.last }));
+	const clearPreview = (kind: Kind) => { const key = previewKey(kind); setPreview(p => ({ ...p, [key]: null, locked: { ...p.locked, [key]: null } })); };
+	const buyable = preview.locked[previewKey(tab)];
 	// Leaving the lab reverts any previewed effect to the real pick (the skin preview never touched the real pick).
 	useEffect(() => () => { applyRevealEffect(localRevealEffect); }, []);
 
@@ -138,7 +143,7 @@ export default function CustomizeLab({ host, tab: tabProp, onTabChange, sheet, o
 				    keeps its size either way so nothing below (or the sheet's grid) shifts. */}
 				<div className={styles.previewActions}>
 				<button type="button" className={`btn btn-ghost ${styles.reset}`} disabled={!dirty} onClick={resetBoard}><span className={styles.btnIcon} aria-hidden="true">↻</span><span>Reset board</span></button>
-				<button type="button" className={`btn btn-primary ${styles.buy} ${preview.last ? "" : styles.buyHidden}`} disabled={!preview.last} aria-hidden={!preview.last} onClick={() => preview.last && setPurchase(preview.last)}><span className={styles.btnIcon} aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 4h2l2.4 11.2a1 1 0 0 0 1 .8h9.6a1 1 0 0 0 1-.8L21 8H6.5" /><circle cx="9.5" cy="20" r="1.3" /><circle cx="17.5" cy="20" r="1.3" /></svg></span><span>{preview.last ? (sheet ? `Buy · ${priceLabel(preview.last.id)}` : `Buy ${preview.last.label} · ${priceLabel(preview.last.id)}`) : "Buy"}</span></button>
+				<button type="button" className={`btn btn-primary ${styles.buy} ${buyable ? "" : styles.buyHidden}`} disabled={!buyable} aria-hidden={!buyable} onClick={() => buyable && setPurchase(buyable)}><span className={styles.btnIcon} aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 4h2l2.4 11.2a1 1 0 0 0 1 .8h9.6a1 1 0 0 0 1-.8L21 8H6.5" /><circle cx="9.5" cy="20" r="1.3" /><circle cx="17.5" cy="20" r="1.3" /></svg></span><span>{buyable ? (sheet ? `Buy · ${priceLabel(buyable.id)}` : `Buy ${buyable.label} · ${priceLabel(buyable.id)}`) : "Buy"}</span></button>
 				</div>
 			</div>
 			{purchase && <PurchaseModal item={purchase} fake={fakeShop && fakeAllowed} onClose={() => setPurchase(null)} onBought={() => onBought(purchase)} onError={(text) => setStatus({ text, kind: "error" })} />}
