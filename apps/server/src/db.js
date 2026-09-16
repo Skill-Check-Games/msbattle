@@ -1014,6 +1014,17 @@ function backfillPlayerStats(userId) {
 		c.best_swing, c.wins_1v1, c.wins_6p, c.peak_puzzle_rating, c.dailies_solved, c.daily_streak_best,
 		c.last_active_day, c.distinct_days, userId);
 }
+// Current ranked win streak (wins in a row, any style), read for the Elo streak bonus at match end.
+// Same backfill guard as achievementStats so an older account's streak isn't reported as 0 the first
+// time it's read. Errors → 0 (no bonus), never a thrown match end.
+function currentWinStreak(userId) {
+	try {
+		ensurePlayerStats(userId);
+		var row = db.prepare("SELECT win_streak_current, backfilled FROM player_stats WHERE user_id = ?").get(userId);
+		if (row && !row.backfilled) { backfillPlayerStats(userId); row = db.prepare("SELECT win_streak_current FROM player_stats WHERE user_id = ?").get(userId); }
+		return (row && row.win_streak_current) || 0;
+	} catch (e) { console.error("currentWinStreak failed", e); return 0; }
+}
 function achievementStats(userId) {
 	try {
 		ensurePlayerStats(userId);
@@ -1739,6 +1750,7 @@ module.exports = {
 	getReplay: getReplay,
 	linkReplayToMatches: linkReplayToMatches,
 	achievementStats: achievementStats,
+	currentWinStreak: currentWinStreak,
 	// Puzzles
 	scoreToRating: scoreToRating,
 	poolRating: poolRating,

@@ -85,7 +85,8 @@ Other docs: `ARCHITECTURE_PLAN.md` (target architecture; read before any service
 - Ranked: fixed ruleset (best of 5, 5 min rounds, Standard 6 min, 5 s mine penalty, medium board,
   10% mines Sprint / 20% Standard), pairwise Elo. Ratings are **per style** (`rating_sprint`,
   `rating_standard`), 0 → 3000+, 200 per sub-tier, everyone starts at 0. "Overall" = max across
-  modes. Placement swings are large (`kFactor`) and margin of victory adds a bonus (`elo.js`).
+  modes. Placement swings are large (`kFactor`), margin of victory adds a bonus, and a win streak
+  (3+ in a row, read from `player_stats.win_streak_current`) multiplies a win's gain up to 3× at 6 (`elo.js`).
 - Puzzles: two-way `puzzle_rating` only picks which puzzles you get and is hidden from the UI; the
   visible rank is the monotonic Puzzle Ladder (`puzzle_points`, `core/PuzzleLadder.js`).
 - Filler bots come from the pre-benchmarked `bots-pool.json`. Re-run `node apps/server/scripts/generate-bot-pool.js`

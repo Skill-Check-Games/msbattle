@@ -33,6 +33,20 @@ function kFactor(played, style) { return Math.max(40, 150 - played * 14) * style
 // off their pool rating, with a settled match count so they get the ordinary K, never the placement one.
 var BOT_SETTLED_PLAYED = 10;
 
+// Win-streak bonus: a WIN on a hot streak pays more. `streak` is the number of wins in a row this
+// win extends (so the win that makes it 3 in a row is streak 3). Nothing below 3; then the gain grows by
+// half a settled-K step per win — 3 → 1.5×, 4 → 2×, 5 → 2.5× — capping at 3× from 6 in a row. Losses
+// and non-first finishes are never touched. The bonus is measured against the SETTLED K (not the
+// placement K), so a streak during placement adds the same absolute bonus as it would later instead of
+// tripling an already-large placement swing.
+var STREAK_BONUS_FROM = 3, STREAK_BONUS_MAX_AT = 6, STREAK_MAX_MULTIPLIER = 3;
+function streakMultiplier(streak) {
+	if (!(streak >= STREAK_BONUS_FROM)) return 1;
+	var t = Math.min(1, (streak - (STREAK_BONUS_FROM - 1)) / (STREAK_BONUS_MAX_AT - (STREAK_BONUS_FROM - 1)));
+	return 1 + (STREAK_MAX_MULTIPLIER - 1) * t;
+}
+function settledK(style) { return kFactor(BOT_SETTLED_PLAYED, style); }
+
 // Margin-of-victory: a dominant finish boosts the rating GAIN by up to the style's margin bonus. The
 // margin is the gap between this player's progress (avg fraction of board cleared across the series) and
 // the best progress among the players they outranked — so clearing far ahead of the next player pays more
@@ -100,7 +114,7 @@ function applyEloForPlayer(targetPid, allParts, style) {
 }
 
 // PURE pairwise-Elo math (P0-4): given the match `parts` — one per player, each
-// { rank, rating, progress, bot, userId, played } — fill in { delta, newRating, provisional } for
+// { rank, rating, progress, bot, userId, played, streak? } — fill in { delta, newRating, provisional } for
 // every persisted human and return the same array. Each pair of players is a mini-match; a player's
 // delta is K * mean(score - expected) across opponents (so a round's swing stays ~K regardless of
 // lobby size). No db, no appState, no sockets — `ratings before` and `played` are inputs, so this is
@@ -123,6 +137,11 @@ function computeRankedElo(parts, style) {
 		// Normalize by sqrt(n-1) instead of (n-1) so beating more opponents pays
 		// more: 1v1 top spot ~K/2; 6-player top spot ~K*sqrt(5)/2 ≈ 2.2× as much.
 		var delta = kFactor(p.bot ? BOT_SETTLED_PLAYED : p.played, style) * sum / Math.sqrt(n - 1);
+		// Win-streak bonus (humans only; `streak` = wins in a row BEFORE this match, this win extends it).
+		if (!p.bot && p.rank === 1 && delta > 0) {
+			var mult = streakMultiplier((p.streak || 0) + 1);
+			if (mult > 1) delta += (mult - 1) * settledK(style) * sum / Math.sqrt(n - 1);
+		}
 		// Reward dominant wins: scale a positive swing by how far ahead of the field you finished.
 		if (delta > 0) delta *= marginFactor(p, parts, style);
 		p.delta = Math.round(delta);
@@ -144,7 +163,8 @@ function applyRankedElo(standings, style) {
 			var u = db.getUserById(acc.userId);
 			if (u) { rating = readUserRating(u, style); userId = acc.userId; played = u.played; }
 		}
-		return { rank: s.rank, rating: rating, progress: s.progress, bot: bot, userId: userId, played: played, delta: null, newRating: null, provisional: false };
+		return { rank: s.rank, rating: rating, progress: s.progress, bot: bot, userId: userId, played: played,
+			streak: userId ? db.currentWinStreak(userId) : 0, delta: null, newRating: null, provisional: false };
 	});
 	var n = parts.length;
 	if (n < 2) return;
@@ -168,6 +188,7 @@ function applyRankedElo(standings, style) {
 			standings[k].ratingDelta = parts[k].delta;
 			standings[k].rating = parts[k].newRating;
 			standings[k].provisional = parts[k].provisional;
+			standings[k].played = parts[k].played + 1; // games played after this one: the result panel's placement dots
 			// Keep the in-memory cache in sync with what we just persisted.
 			if (accounts[standings[k].id]) {
 				var acc = accounts[standings[k].id];
@@ -197,7 +218,8 @@ function applyRankedEloFromReport(standings, style) {
 			progress: s.progress,
 			bot: !s.userId,
 			userId: s.userId || null,
-			played: s.played || 0
+			played: s.played || 0,
+			streak: s.userId ? db.currentWinStreak(s.userId) : 0
 		};
 	});
 	computeRankedElo(parts, style);
@@ -218,6 +240,7 @@ function applyRankedEloFromReport(standings, style) {
 		standings[i].ratingDelta = p.delta;
 		standings[i].rating = p.newRating;
 		standings[i].provisional = p.provisional;
+		standings[i].played = p.played + 1;
 	}
 }
 
@@ -226,6 +249,7 @@ module.exports = {
 	readUserRating: readUserRating,
 	applyEloForPlayer: applyEloForPlayer,
 	computeRankedElo: computeRankedElo,
+	streakMultiplier: streakMultiplier,
 	applyRankedElo: applyRankedElo,
 	applyRankedEloFromReport: applyRankedEloFromReport
 };

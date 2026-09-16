@@ -96,6 +96,12 @@ else is grouped:
   scaled by how far your `progress` (avg fraction of board cleared across the series) beat the
   player you outranked — so a dominant clear pays more than a photo-finish. Progress is summed per
   round on the room (`progressSum`/`progressRounds`) and averaged in `buildSeriesStandings`.
+  **Win-streak bonus** (`streakMultiplier`): a WIN that makes it 3 in a row pays 1.5×, 4 → 2×,
+  5 → 2.5×, 6+ → 3× (losses untouched). The bonus is `(mult-1) × settled K`, so during placement
+  it's an additive top-up rather than tripling the big placement K. The streak (any style) comes
+  from `player_stats.win_streak_current` via `db.currentWinStreak` at apply time, in both the
+  in-process and the game-server-report paths. Note the settled gain vs an EQUAL opponent is
+  already ~20 (duel) / ~45 (6-player); gains shrink as you climb above the 1000-rated bots.
   **Standard is boosted** (`kFactor`/`marginFactor` take
   the style): its games take far longer than Sprint so a session yields fewer, and `styleKMultiplier`
   scales Standard's K by 1.5× in game 1 easing to a steady 1.3× (extra placement push), while its
