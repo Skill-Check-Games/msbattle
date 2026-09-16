@@ -10,6 +10,7 @@ import { BoardSession } from "../../game/board-session";
 import { BoardView, MINE, UNKNOWN, KNOWN, buildAvatarCanvas, sizeCellCanvas, applyBoardSkin, applyRevealEffect, localBoardSkin, localRevealEffect, REVEAL_DUR, WAVE_STEP_MS, WAVE_MAX_MS, BOARD_SKINS, BOARD_SKIN_LIST, AVATAR_COLORS, AVATAR_IMAGES, REVEAL_EFFECT_LIST, DEFAULT_AVATAR } from "../../game/board-render";
 import { setBoardSkin, setRevealEffect, useCosmetics } from "../../shared/cosmetics";
 import GameBoard from "../../game/GameBoard";
+import { FlagToggle } from "../../game/FlagToggle";
 import { sound } from "../../audio/sound";
 import { DuelIdentity } from "../play/hud";
 import { useMediaQuery } from "../play/mobile";
@@ -50,9 +51,12 @@ export default function CustomizeLab({ host, tab: tabProp, onTabChange, sheet, o
 	const [fakeShop, setFakeShop] = useState(false);
 	const [status, setStatus] = useState<{ text: string; kind: string } | null>(null);
 	const [dirty, setDirty] = useState(false);
+	// Phones: the same flag-mode toggle as every other board (game/FlagToggle); the input reads the CURRENT mode via the ref.
+	const [flagMode, setFlagMode] = useState(false);
+	const flagRef = useRef(false); flagRef.current = flagMode;
 	const [, bump] = useState(0);
 	const minesRef = useRef<number[][]>(DEMO_MINES);
-	const colsRef = useRef(window.innerWidth <= 860 ? 8 : 11);
+	const colsRef = useRef(sheet || window.innerWidth <= 860 ? 8 : 11); // the phone sheet always gets the small 8-column demo board
 	const fakeAllowed = !!(account && account.isAdmin) || !!providers.dev;
 
 	const cellAt = (r: number, c: number) => {
@@ -138,7 +142,10 @@ export default function CustomizeLab({ host, tab: tabProp, onTabChange, sheet, o
 			</div>
 			<div className={styles.preview} data-lab-preview="">
 				<div className={styles.identity}><DuelIdentity player={identity as any} side="you" /></div>
-				<div className={styles.boardFrame}><GameBoard session={session} cellPx={sheet ? Math.min(cellPxFor(colsRef.current), 20) : cellPxFor(colsRef.current)} keyboard={false} /></div>
+				<div className={styles.boardFrame}>
+					<GameBoard session={session} cellPx={sheet ? Math.min(cellPxFor(colsRef.current), landscapePhone ? 16 : 20) : cellPxFor(colsRef.current)} keyboard={false} flagMode={() => flagRef.current} />
+					{sheet && <FlagToggle on={flagMode} onToggle={() => setFlagMode(f => !f)} />}
+				</div>
 				{/* A fixed-height row for the actions: the Buy button appears when a locked item is previewed, and the row
 				    keeps its size either way so nothing below (or the sheet's grid) shifts. */}
 				<div className={styles.previewActions}>

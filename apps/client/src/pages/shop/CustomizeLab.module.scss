@@ -79,7 +79,10 @@
 .sheet .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .sheet .preview { grid-row: 2; min-height: 0; margin: 10px 10px 0; padding: 8px 10px; gap: 6px; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: center; }
 .sheet .identity { min-height: 0; align-self: center; flex: 1 1 140px; }
-.sheet .boardFrame { flex: 0 0 auto; }
+// The board frame spans the card so the flag toggle sits in the card's bottom-right corner, clear of the centred board;
+// the narrow landscape column keeps the board at 16px cells and reserves the toggle's width on the right.
+.sheet .boardFrame { flex: 0 0 auto; width: 100%; position: relative; overflow: visible; }
+.sheetLandscape .boardFrame { padding-right: 60px; }
 // Its own full-width line under the board in portrait; a fixed-height row (never the column's leftover height) in landscape.
 .sheet .previewActions { flex: 0 0 auto; width: 100%; max-width: none; min-height: 2.2rem; }
 .sheet .reset, .sheet .buy { flex: 1 1 0; max-width: none; padding: 0.35rem 0.5rem; font-size: 0.8rem; }
