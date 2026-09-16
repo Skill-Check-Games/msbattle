@@ -33,7 +33,9 @@ const DEMO_ROWS = 8;
 const DEMO_MINES = [[0, 5], [2, 3], [2, 5], [3, 1], [3, 2], [3, 3], [1, 8], [6, 1]];
 const DEMO_OPEN_AT = [1, 1];
 
-export default function CustomizeLab({ host, tab: tabProp, onTabChange }: { host: "page" | "modal"; tab?: Tab; onTabChange?: (t: Tab) => void }) {
+// sheet: the phone full-screen version (design CL·01a) — one 44px bar with a back arrow, the title and the tabs as
+// pills, then the tiles beside (landscape) or under (portrait) a compact preview. onBack closes it.
+export default function CustomizeLab({ host, tab: tabProp, onTabChange, sheet, onBack }: { host: "page" | "modal"; tab?: Tab; onTabChange?: (t: Tab) => void; sheet?: boolean; onBack?: () => void }) {
 	const { account, update, providers } = useAuth();
 	useCosmetics();
 	const [tabState, setTabState] = useState<Tab>("avatar");
@@ -92,10 +94,20 @@ export default function CustomizeLab({ host, tab: tabProp, onTabChange }: { host
 	const avatarValues = ["anon", "mine", ...AVATAR_COLORS, ...Object.keys(AVATAR_IMAGES).map(id => "img:" + id)];
 	const identity = account ? { id: "", name: account.name, avatar: preview.avatar || account.avatarColor || DEFAULT_AVATAR, country: account.country, rating: Math.max(account.ratingSprint || 0, account.ratingStandard || 0), provisional: account.provisional } : null;
 
+	const tabButtons = TABS.map(([id, label]) => <button key={id} type="button" className={`${styles.tab} ${tab === id ? styles.tabActive : ""}`} onClick={() => setTab(id)}>{label}</button>);
+	const landscapePhone = sheet && window.matchMedia("(orientation: landscape)").matches;
 	return (
-		<div className={`${styles.body} ${host === "page" ? styles.page : styles.modalHost}`}>
+		<div className={`${styles.body} ${host === "page" ? styles.page : styles.modalHost} ${sheet ? styles.sheet : ""} ${landscapePhone ? styles.sheetLandscape : ""}`}>
+			{sheet && (
+				<div className={styles.bar}>
+					<button type="button" className={styles.back} onClick={onBack} aria-label="Back"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6" /></svg></button>
+					<h2 id="lab_title" className={styles.barTitle}>Customize</h2>
+					<div className={styles.pills}>{tabButtons}</div>
+					<span className={styles.barSpacer} />
+				</div>
+			)}
 			<div className={styles.picker}>
-				<div className={styles.tabs}>{TABS.map(([id, label]) => <button key={id} type="button" className={`${styles.tab} ${tab === id ? styles.tabActive : ""}`} onClick={() => setTab(id)}>{label}</button>)}</div>
+				{!sheet && <div className={styles.tabs}>{tabButtons}</div>}
 				{fakeAllowed && host === "page" && <label className={styles.fake}><input type="checkbox" checked={fakeShop} onChange={(e) => setFakeShop(e.target.checked)} /> Fake shop</label>}
 				<div className={styles.panel}>
 				{status && <div className={`${styles.status} ${status.kind === "success" ? styles.statusOk : styles.statusErr}`}>{status.text}</div>}
@@ -118,8 +130,8 @@ export default function CustomizeLab({ host, tab: tabProp, onTabChange }: { host
 			</div>
 			<div className={styles.preview} data-lab-preview="">
 				<div className={styles.identity}><DuelIdentity player={identity as any} side="you" /></div>
-				<div className={styles.boardFrame}><GameBoard session={session} cellPx={cellPxFor(colsRef.current)} keyboard={false} /></div>
-				<div className={styles.boardHint}>Click a tile to test the effect!</div>
+				<div className={styles.boardFrame}><GameBoard session={session} cellPx={sheet ? Math.min(cellPxFor(colsRef.current), 20) : cellPxFor(colsRef.current)} keyboard={false} /></div>
+				<div className={styles.boardHint}>{sheet ? "Tap a tile to test the effect" : "Click a tile to test the effect!"}</div>
 				<button type="button" className={`btn btn-ghost ${styles.reset} ${dirty ? styles.resetDirty : ""}`} disabled={!dirty} onClick={resetBoard}><span className={styles.btnIcon} aria-hidden="true">↻</span><span>Reset board</span></button>
 				{preview.last && <button type="button" className={`btn btn-primary ${styles.buy}`} onClick={() => setPurchase(preview.last)}><span className={styles.btnIcon} aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 4h2l2.4 11.2a1 1 0 0 0 1 .8h9.6a1 1 0 0 0 1-.8L21 8H6.5" /><circle cx="9.5" cy="20" r="1.3" /><circle cx="17.5" cy="20" r="1.3" /></svg></span><span>Buy {preview.last.label} · {priceLabel(preview.last.id)}</span></button>}
 			</div>

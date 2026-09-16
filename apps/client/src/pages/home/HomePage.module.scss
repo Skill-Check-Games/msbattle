@@ -174,4 +174,6 @@
 // Fixed-size dialog: switching tabs never resizes it; each column scrolls inside instead.
 .labDialog { width: min(1200px, 96vw); height: min(760px, 90vh); display: flex; flex-direction: column; overflow: hidden; @media (max-width: 860px) { height: auto; max-height: calc(100dvh - 1.5rem); overflow-y: auto; } }
 .labFoot { flex: 0 0 auto; display: flex; justify-content: flex-end; margin-top: 1rem; }
+// Phones: the Customize modal is a full-screen sheet; the lab draws its own bar (back · title · tabs).
+.labSheet { position: fixed; inset: 0; width: 100% !important; height: 100dvh; max-height: none; border-radius: 0; border: 0; padding: 0; overflow: hidden; background: var(--surface-2); animation: none; }
 .nameError { font-size: 0.78rem; color: var(--danger); margin-left: 0.4rem; }

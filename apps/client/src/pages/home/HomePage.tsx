@@ -20,6 +20,9 @@ import { useMatchHistory, useDailyStatus, sessionStats, formatDailyDate } from "
 import type { Account } from "../../shared/types";
 import styles from "./HomePage.module.scss";
 import { autoEnterGameFullscreen, enterDuelMobileFullscreen } from "../../game/fullscreen";
+import { useMediaQuery } from "../play/mobile";
+// Phones (either orientation): the Customize modal is a full-screen sheet with its own bar (design CL·01a).
+const PHONE_SHEET_MQ = "(max-width: 700px), (orientation: landscape) and (max-height: 500px)";
 
 // Fixed previews per mode. All three share Standard's 6x9 so they render the same size.
 const MODE_BOARDS: Record<string, BoardSpec> = {
@@ -67,6 +70,7 @@ function IdentityRow({ account, matches, customize }: { account: Account | null;
 	const labTab = customize ? (tabFromSlug(slug) || "avatar") : null;
 	const lab = !!labTab;
 	const setLab = (open: boolean) => navigate(open ? "/customize/avatar" : "/");
+	const phoneSheet = useMediaQuery(PHONE_SHEET_MQ);
 	const [flagOpen, setFlagOpen] = useState(false);
 	const flagBtn = useRef<HTMLButtonElement>(null);
 	const closeFlag = useCallback(() => setFlagOpen(false), []);
@@ -75,7 +79,7 @@ function IdentityRow({ account, matches, customize }: { account: Account | null;
 	const flagSrc = countryFlagSrcSquare(account?.country);
 	return (
 		<div className={styles.you}>
-			<Modal open={lab} onClose={() => setLab(false)} width={1200} title="Customize" labelledBy="lab_title" className={styles.labDialog}>{lab && <CustomizeLab host="modal" tab={labTab!} onTabChange={t => navigate("/customize/" + TAB_SLUGS[t], { replace: true })} />}<div className={styles.labFoot}><button className="btn btn-primary" type="button" onClick={() => setLab(false)}>Done</button></div></Modal>
+			<Modal open={lab} onClose={() => setLab(false)} width={1200} title={phoneSheet ? undefined : "Customize"} hideClose={phoneSheet} labelledBy="lab_title" className={`${styles.labDialog} ${phoneSheet ? styles.labSheet : ""}`}>{lab && <CustomizeLab host="modal" sheet={phoneSheet} onBack={() => setLab(false)} tab={labTab!} onTabChange={t => navigate("/customize/" + TAB_SLUGS[t], { replace: true })} />}{!phoneSheet && <div className={styles.labFoot}><button className="btn btn-primary" type="button" onClick={() => setLab(false)}>Done</button></div>}</Modal>
 			<button type="button" className={`${styles.youBox} ${styles.youAvatar}`} title="Edit avatar" onClick={() => setLab(true)}>
 				{account ? <AvatarChip avatar={account.avatarColor} country={account.country} px={73} corner={0} title="" /> : <span className={`skel-shimmer ${styles.avatarSkel}`} />}
 			</button>
