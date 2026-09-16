@@ -49,7 +49,6 @@
 .boardFrame { position: relative; display: flex; justify-content: center; max-width: 100%; overflow: auto; }
 .boardHint { font-size: 0.82rem; color: var(--muted); text-align: center; }
 .reset { min-width: 0; border-color: var(--border); &:disabled { opacity: 0.45; cursor: default; } }
-.resetDirty { border-color: var(--accent); color: #fff; background: var(--accent); &:hover { background: var(--accent-hover); border-color: var(--accent-hover); } }
 .buy { min-width: 0; }
 .buyHidden { visibility: hidden; }
 .previewActions { display: flex; gap: 0.5rem; width: 100%; min-height: 2.6rem; justify-content: center; align-items: center; .btn { white-space: nowrap; flex: 0 1 auto; } }
