@@ -52,7 +52,7 @@
 .resetDirty { border-color: var(--accent); color: #fff; background: var(--accent); &:hover { background: var(--accent-hover); border-color: var(--accent-hover); } }
 .buy { min-width: 0; }
 .buyHidden { visibility: hidden; }
-.previewActions { display: flex; gap: 0.5rem; width: 100%; min-height: 2.6rem; justify-content: center; .btn { white-space: nowrap; flex: 0 1 auto; } }
+.previewActions { display: flex; gap: 0.5rem; width: 100%; min-height: 2.6rem; justify-content: center; align-items: center; .btn { white-space: nowrap; flex: 0 1 auto; } }
 
 .purchase { display: flex; flex-direction: column; align-items: center; gap: 0.8rem; padding-top: 0.5rem; }
 .purchasePreview { display: flex; align-items: center; justify-content: center; min-height: 80px; }
@@ -79,15 +79,17 @@
 .sheet .preview { grid-row: 2; min-height: 0; margin: 10px 10px 0; padding: 8px 10px; gap: 6px; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: center; }
 .sheet .identity { min-height: 0; align-self: center; flex: 1 1 140px; }
 .sheet .boardFrame { flex: 0 0 auto; }
-.sheet .reset { display: none; }
-.sheet .resetDirty { display: inline-flex; }
-.sheet .previewActions { flex: 1 1 100%; max-width: none; min-height: 2.2rem; }
-.sheet .reset, .sheet .buy { flex: 1 1 0; max-width: none; padding: 0.35rem 0.6rem; font-size: 0.8rem; }
+// Its own full-width line under the board in portrait; a fixed-height row (never the column's leftover height) in landscape.
+.sheet .previewActions { flex: 0 0 auto; width: 100%; max-width: none; min-height: 2.2rem; }
+.sheet .reset, .sheet .buy { flex: 1 1 0; max-width: none; padding: 0.35rem 0.5rem; font-size: 0.8rem; }
 // Landscape: tiles left (three columns), the preview a 230px column on the right, both the full height under the bar.
 .sheetLandscape { grid-template-columns: minmax(0, 1fr) 230px; grid-template-rows: 44px minmax(0, 1fr); }
 .sheetLandscape .picker { grid-column: 1; grid-row: 2; }
 .sheetLandscape .preview { grid-column: 2; grid-row: 2; margin: 10px 10px 10px 0; overflow-y: auto; flex-direction: column; flex-wrap: nowrap; }
 .sheetLandscape .identity { flex: 0 0 auto; align-self: flex-start; }
+// The 230px column is too narrow for both buttons side by side: stack them, each the column's full width.
+.sheetLandscape .previewActions { flex-direction: column; gap: 6px; }
+.sheetLandscape .reset, .sheetLandscape .buy { flex: 0 0 auto; width: 100%; }
 .sheetLandscape .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 // Sheet tiles: the compact row tile (icon · name · one-line blurb) so a screen shows several at once; the
 // green border alone marks the selection (no check badge).
