@@ -136,9 +136,9 @@
 	.boardCol { flex: 1 1 auto; min-width: 0; width: auto; justify-content: flex-start; align-self: stretch; }
 	.boardWrap { width: 100%; height: auto; box-sizing: border-box; }
 	.leftCol { width: auto; flex: 0 0 130px; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
-	.leftCol .cardHead { display: flex; align-items: center; gap: 0.25rem; padding: 0 2px; order: 0; margin: 0; line-height: 1.1; min-width: 0; }
+	.leftCol .cardHead { display: flex; align-items: center; gap: 0.15rem; padding: 0 2px; order: 0; margin: 0; line-height: 1.1; min-width: 0; height: 44px; }
 	.leftCol .cardTitle { font-size: 0.8rem; font-weight: 700; color: var(--text); text-transform: none; letter-spacing: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-	.back { display: block; flex: 0 0 auto; width: 1.3rem; font-size: 1.3rem; text-align: left; }
+	.back { display: flex; align-items: center; justify-content: center; flex: 0 0 auto; width: 44px; height: 44px; margin-left: -6px; font-size: 1.7rem; }
 	.rail { display: flex; flex-direction: column; justify-content: space-evenly; width: 100%; flex: 1 1 auto; padding: 2px; margin: 0; order: 0; }
 	.railRow { flex-direction: row; padding: 1px 6px; gap: 6px; }
 	.railText { flex: 1; align-items: flex-start; }

@@ -21,7 +21,7 @@ import { ResultPanel, ResultHeader, ResultDetail, ResultFoot, ResultActions } fr
 import { formatDailyDate } from "../home/home-data";
 import BoardLogic from "core/src/common/BoardLogic.js";
 import { useInGameBody, useMediaQuery, PORTRAIT_MQ } from "../play/mobile";
-import { phoneSizedDevice } from "../../game/fullscreen";
+import { phoneSizedDevice, isInFullscreen, tryLockLandscape } from "../../game/fullscreen";
 // Any landscape phone, whatever its width (an iPhone SE is 667 wide in landscape — narrower than the portrait
 // breakpoint — and must still get the side-by-side layout, or the stacked page overflows 375px of height).
 const LANDSCAPE_MQ = "(orientation: landscape) and (max-height: 500px)";
@@ -158,6 +158,15 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 	// Every puzzle mode plays in landscape on phones, like battles: a phone-sized device held in portrait gets the
 	// landscape layout rotated 90 degrees by CSS (body.duel-force-rotate).
 	const forceRotate = !landscape && portraitOrientation && phoneSizedDevice();
+	// Like battles: while a phone is fullscreen on a puzzle page, hold the orientation lock — on mount (the tap
+	// that opened the mode already asked for fullscreen) and again whenever fullscreen is (re-)entered.
+	useEffect(() => {
+		if (!phoneSizedDevice()) return;
+		const relock = () => { if (isInFullscreen()) tryLockLandscape(); };
+		relock();
+		document.addEventListener("fullscreenchange", relock); document.addEventListener("webkitfullscreenchange", relock);
+		return () => { document.removeEventListener("fullscreenchange", relock); document.removeEventListener("webkitfullscreenchange", relock); };
+	}, []);
 	useEffect(() => {
 		document.body.classList.toggle("duel-force-rotate", forceRotate);
 		const raf = requestAnimationFrame(() => window.dispatchEvent(new Event("resize")));
