@@ -9,8 +9,8 @@ import { getSocket } from "../../online/socket";
 import { BoardSession } from "../../game/board-session";
 import { BoardView, MINE, UNKNOWN, KNOWN, buildAvatarCanvas, sizeCellCanvas, applyBoardSkin, applyRevealEffect, localBoardSkin, localRevealEffect, REVEAL_DUR, WAVE_STEP_MS, WAVE_MAX_MS, BOARD_SKINS, BOARD_SKIN_LIST, AVATAR_COLORS, AVATAR_IMAGES, REVEAL_EFFECT_LIST, DEFAULT_AVATAR } from "../../game/board-render";
 import { setBoardSkin, setRevealEffect, useCosmetics } from "../../shared/cosmetics";
-import GameBoard from "../../game/GameBoard";
-import { FlagToggle } from "../../game/FlagToggle";
+import TouchBoard from "../../game/TouchBoard";
+import { SHAKE_PAD_Y } from "../../game/GameBoard";
 import { sound } from "../../audio/sound";
 import { DuelIdentity } from "../play/hud";
 import { useMediaQuery } from "../play/mobile";
@@ -34,6 +34,7 @@ const REVEAL_GLYPHS: Record<string, string> = { ripple: "🌊", spark: "⚡", sh
 // legacy client's exact 13 cells (rows 0-1 to column 4, row 2 to column 2), with the mines placed so its
 // border shows a 3 and a 4; the rest is mostly one zero region, so a click on the right clears most of it.
 const DEMO_ROWS = 8;
+const SHEET_TOGGLE_ROW = 60; // landscape sheet: the flag toggle's row under the board (52px + its 8px inset)
 const DEMO_MINES = [[0, 5], [2, 3], [2, 5], [3, 1], [3, 2], [3, 3], [1, 8], [6, 1]];
 const DEMO_OPEN_AT = [1, 1];
 
@@ -51,9 +52,6 @@ export default function CustomizeLab({ host, tab: tabProp, onTabChange, sheet, o
 	const [fakeShop, setFakeShop] = useState(false);
 	const [status, setStatus] = useState<{ text: string; kind: string } | null>(null);
 	const [dirty, setDirty] = useState(false);
-	// Phones: the same flag-mode toggle as every other board (game/FlagToggle); the input reads the CURRENT mode via the ref.
-	const [flagMode, setFlagMode] = useState(false);
-	const flagRef = useRef(false); flagRef.current = flagMode;
 	const [, bump] = useState(0);
 	const minesRef = useRef<number[][]>(DEMO_MINES);
 	const colsRef = useRef(sheet || window.innerWidth <= 860 ? 8 : 11); // the phone sheet always gets the small 8-column demo board
@@ -108,6 +106,7 @@ export default function CustomizeLab({ host, tab: tabProp, onTabChange, sheet, o
 	const landscape = useMediaQuery("(orientation: landscape)");
 	const landscapePhone = sheet && landscape;
 	const portraitPhone = sheet && !landscape;
+	const demoCell = sheet ? Math.min(cellPxFor(colsRef.current), landscapePhone ? 16 : 20) : cellPxFor(colsRef.current);
 	return (
 		<div className={`${styles.body} ${host === "page" ? styles.page : styles.modalHost} ${sheet ? styles.sheet : ""} ${landscapePhone ? styles.sheetLandscape : ""} ${portraitPhone ? styles.sheetPortrait : ""}`}>
 			{sheet && (
@@ -142,9 +141,11 @@ export default function CustomizeLab({ host, tab: tabProp, onTabChange, sheet, o
 			</div>
 			<div className={styles.preview} data-lab-preview="">
 				<div className={styles.identity}><DuelIdentity player={identity as any} side="you" /></div>
+				{/* Phones: TouchBoard is the same pan/zoom viewport with the flag toggle as every other phone board; the
+				    landscape column's box is taller so the overview rests above the toggle's row. */}
 				<div className={styles.boardFrame}>
-					<GameBoard session={session} cellPx={sheet ? Math.min(cellPxFor(colsRef.current), landscapePhone ? 16 : 20) : cellPxFor(colsRef.current)} keyboard={false} flagMode={() => flagRef.current} />
-					{sheet && <FlagToggle on={flagMode} onToggle={() => setFlagMode(f => !f)} />}
+					<TouchBoard session={session} fitCellPx={demoCell} touch={!!sheet} keyboard={false} restOffsetY={landscapePhone ? SHEET_TOGGLE_ROW : 0}
+						style={sheet ? { width: "100%", height: DEMO_ROWS * demoCell + SHAKE_PAD_Y * 2 + (landscapePhone ? SHEET_TOGGLE_ROW : 0) } : undefined} />
 				</div>
 				{/* A fixed-height row for the actions: the Buy button appears when a locked item is previewed, and the row
 				    keeps its size either way so nothing below (or the sheet's grid) shifts. */}
