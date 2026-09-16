@@ -1,5 +1,6 @@
 // Puzzles picker: the Puzzle Ladder (with your tier and level progress inline) and Time Trial.
 import { useNavigate } from "react-router-dom";
+import { autoEnterGameFullscreen, enterDuelMobileFullscreen } from "../../game/fullscreen";
 import Modal from "../../app/Modal";
 import { useAuth } from "../../shared/auth";
 import { puzzleLadder } from "../../shared/puzzle-ladder";
@@ -12,7 +13,8 @@ export default function PuzzlesPicker({ open, onClose }: { open: boolean; onClos
 	const navigate = useNavigate();
 	if (!open) return null;
 	const l = puzzleLadder(account?.puzzleRating || 0);
-	const go = (path: string) => { onClose(); navigate(path); };
+	// Phones play puzzles fullscreen in landscape like battles (the request has to ride this tap); desktop only if opted in.
+	const go = (path: string) => { onClose(); autoEnterGameFullscreen(); enterDuelMobileFullscreen(); navigate(path); };
 	return (
 		<Modal open onClose={onClose} width={620} labelledBy="puzzles_modal_title" className={styles.dialog} hideClose>
 			<div className={styles.head}>

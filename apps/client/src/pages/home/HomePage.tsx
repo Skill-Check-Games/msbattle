@@ -19,6 +19,7 @@ import PreviewBoard, { BoardSpec } from "../../game/PreviewBoard";
 import { useMatchHistory, useDailyStatus, sessionStats, formatDailyDate } from "./home-data";
 import type { Account } from "../../shared/types";
 import styles from "./HomePage.module.scss";
+import { autoEnterGameFullscreen, enterDuelMobileFullscreen } from "../../game/fullscreen";
 
 // Fixed previews per mode. All three share Standard's 6x9 so they render the same size.
 const MODE_BOARDS: Record<string, BoardSpec> = {
@@ -231,7 +232,7 @@ function DailyHero({ account, daily, skin }: { account: Account | null; daily: R
 					<span className={styles.dailyCell}><span className={styles.dailyLabel}>Streak</span><span className={styles.dailyValue}>{account ? "🔥 " + streak : "—"}</span></span>
 					<span className={styles.dailyCell}><span className={styles.dailyLabel}>Today</span><span className={styles.dailyValue}>{!account ? "" : !attempt ? "Not played" : attempt.solved ? "Solved today" : "Missed today"}</span></span>
 				</div>
-				<button className={`btn btn-primary ${styles.dailyAction}`} disabled={disabled} onClick={() => navigate("/puzzles/daily")}>{label}</button>
+				<button className={`btn btn-primary ${styles.dailyAction}`} disabled={disabled} onClick={() => { autoEnterGameFullscreen(); enterDuelMobileFullscreen(); navigate("/puzzles/daily"); }}>{label}</button>
 			</div>
 		</div>
 	);
