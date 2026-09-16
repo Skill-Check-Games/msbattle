@@ -37,6 +37,9 @@ export default function TouchBoard({ session, fitCellPx, touch, overviewKey, res
 	const fitRef = useRef(fitCellPx); fitRef.current = fitCellPx;
 	const pendingPinch = useRef<(PinchCommit & { fromCellPx: number }) | null>(null);
 	const padKey = useRef("");
+	// A board arriving outside React's render (session.setBoard) must re-run the centring below: subscribe like GameBoard does.
+	const [, bump] = useState(0);
+	useEffect(() => session.subscribe(() => bump(n => n + 1)), [session]);
 
 	// A new board opens at the overview.
 	const firstKey = useRef(true);
