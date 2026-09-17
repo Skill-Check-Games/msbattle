@@ -127,12 +127,13 @@ const puzzleBadgeParts = (() => {
 	const claymore = F("M30 45 Q50 36 70 45 V60 Q50 51 30 60 Z") + '<path d="M33 53 Q50 45.5 67 53" fill="none" stroke="' + PUZZLE_BADGE_DARK + '" stroke-width="1.6"/>' + R(46, 36, 8, 5, 1.5) + S("M38 60 L34 72", 3.5) + S("M62 60 L66 72", 3.5);
 	const seaOutline = C(50, 52, 11) + knobs(11, 3.5, 3, 2);
 	const dynamite = R(37, 44, 8, 26, 3) + R(46, 44, 8, 26, 3) + R(55, 44, 8, 26, 3) + '<rect x="35" y="54" width="30" height="5" fill="' + PUZZLE_BADGE_DARK + '"/>' + S("M52 44 Q56 36 62 34", 2.5) + star(4.5, 64, 33);
-	const seaSolid = C(50, 52, 12, true) + spikes(12, 5.5, 4) + D(45.4, 47.4, 3.1);
+	// Bomb Squad: steel helmet with chin strap.
+	const helmet = F("M32 57 A18 18 0 0 1 68 57 Z") + R(27, 56, 46, 5.5, 2.75) + S("M41 62 Q50 71 59 62", 3);
 	const ring = (r: number, op: string) => C(50, 52, r, false, 2.5).replace('stroke-width="2.5"', 'stroke-width="2.5" opacity="' + op + '"');
 	const radar = ring(21, "0.45") + ring(14, "0.6") + ring(7, "0.8") + F("M50 52 L50 29 A23 23 0 0 1 70 41 Z") + C(50, 52, 3, true) + C(40, 40, 2.4, true) + C(59, 63, 2.4, true);
 	// Recruit: a dog tag on its chain. Enlisted, but no gear issued yet.
 	const dogTag = '<g transform="rotate(-14 50 52)">' + R(41, 38, 18, 30, 5) + D(50, 44, 2.4) + "</g>" + S("M50 41 C50 30 42 28 40 33", 2.5);
-	const EMBLEMS = [dogTag, shrink(magnifier, 0.92), shovel, '<g transform="translate(0 -0.5)">' + shrink(claymore, 0.92) + "</g>", shrink(seaOutline, 0.92), shrink(dynamite, 0.92), shrink(seaSolid, 0.92), radar];
+	const EMBLEMS = [dogTag, shrink(magnifier, 0.92), shovel, '<g transform="translate(0 -0.5)">' + shrink(claymore, 0.92) + "</g>", shrink(seaOutline, 0.92), shrink(dynamite, 0.92), helmet, radar];
 	function roundel(lit: number) {
 		let out = '<circle cx="50" cy="52" r="40" fill="' + PUZZLE_BADGE_DARK + '"/><g stroke="currentColor" stroke-width="6" fill="none">';
 		for (let i = 0; i < 8; i++) {
