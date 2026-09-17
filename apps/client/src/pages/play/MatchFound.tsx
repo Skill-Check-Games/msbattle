@@ -56,7 +56,7 @@ export function MatchFoundSix({ players, myId, compact }: { players: RoomPlayer[
 						<div key={p.id} className={`${styles.slot} ${p.id === myId || p.isYou ? styles.slotYou : ""}`} >
 							<AvatarChip avatar={p.avatar} country={p.country} px={compact ? 30 : 46} className={styles.slotAvatar} />
 							<span className={styles.slotName}><span className={styles.name}>{p.name}</span><FlagChip country={p.country} px={compact ? 12 : 16} /></span>
-							<span className={styles.slotRank} style={tier ? { color: tier.color } : undefined}><Badge player={p} size={compact ? 9 : 12} />{tier ? tier.name : "Placement"}</span>
+							<span className={styles.slotRank} style={tier ? { color: tier.color } : undefined}><Badge player={p} size={compact ? 9 : 12} /><span className={styles.slotTier}>{tier ? tier.name : "Placement"}</span></span>
 						</div>
 					);
 				})}

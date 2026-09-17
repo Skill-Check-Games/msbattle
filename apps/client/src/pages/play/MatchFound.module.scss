@@ -94,6 +94,9 @@ $gridHold: 4300ms;
 .slotName { flex: 1 1 auto; min-width: 0; display: inline-flex; align-items: center; font-family: var(--font-display); font-weight: 700; font-size: clamp(0.85rem, 1.55vw, 1.4rem); line-height: 1.2; }
 .slotName .name { min-width: 0; }
 .slotRank { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 0.35em; font-family: var(--font-display); font-weight: 700; font-size: clamp(0.62rem, 1.05vw, 0.95rem); white-space: nowrap; }
+// The tier label takes the width of the longest one ("Platinum III" / "Placement"), so the badges line up in a
+// column down the grid whatever each row's tier is called.
+.slotTier { display: inline-block; min-width: 6.6em; }
 @keyframes slotIn { from { transform: translateX(var(--from)); opacity: 0; } }
 @keyframes slotOut { to { transform: translateX(var(--from)); opacity: 0; } }
 @keyframes inL { from { transform: translateX(-110%); } to { transform: translateX(0); } }
