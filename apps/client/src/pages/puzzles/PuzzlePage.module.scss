@@ -22,7 +22,7 @@
 .flashFail { box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.6), var(--shadow); }
 // Solved: a check mark pops at the board's centre as the green sweep reaches the edges, then goes again.
 // Solved (design "Ledger"): the board steps back and a Solved tag slides into the box's corner; the beats live in
-// the dossier (bubble, streakFlare, nextBreathe, nextHint), timed with the rating count-up.
+// the dossier (streakFlare, nextBreathe, nextHint), timed with the rating count-up.
 .boardReceded { animation: recede 0.5s ease-out 0.2s forwards; }
 @keyframes recede { to { opacity: 0.45; filter: saturate(0.6); } }
 .solvedTag { position: absolute; top: 12px; right: 12px; z-index: 4; background: var(--success); color: #06240f; font: 800 13px/1 var(--font-display); letter-spacing: 0.06em; text-transform: uppercase; padding: 7px 11px; border-radius: 5px; opacity: 0; transform: translateX(24px); animation: tag-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) 0.3s forwards; pointer-events: none; }
@@ -33,7 +33,7 @@
 @keyframes breathe { 0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); } 50% { box-shadow: 0 0 0 6px rgba(99, 102, 241, 0.35); } }
 .nextHint { font-size: 11px; color: var(--muted); text-align: right; opacity: 0; animation: fade-in 0.4s ease 1.8s forwards; }
 @keyframes fade-in { to { opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .boardReceded, .solvedTag, .streakFlare, .nextBreathe, .nextHint, .bubble { animation-duration: 0.01s; animation-delay: 0s; animation-iteration-count: 1; } .historyNew { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .boardReceded, .solvedTag, .streakFlare, .nextBreathe, .nextHint { animation-duration: 0.01s; animation-delay: 0s; animation-iteration-count: 1; } .historyNew { animation: none; } }
 .board { vertical-align: top; }
 .info { font-size: 0.82rem; color: var(--muted); display: inline-flex; gap: 0.4rem; align-items: center; }
 .sep { opacity: 0.6; }
@@ -91,12 +91,7 @@
 .loss { color: var(--danger); }
 @keyframes delta-pop { 0% { opacity: 0; transform: translateY(6px); } 20% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; } }
 .streakChip { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.82rem; font-weight: 700; color: var(--energy-streak); }
-.rankBarWrap { position: relative; }
 .rankBar { height: 8px; border-radius: 4px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
-// The rating delta rides the bar's tip (Ledger): a small tag above the bar whose left follows the fill.
-.bubble { position: absolute; top: -30px; transform: translateX(-50%); background: var(--success); color: #06240f; font: 800 12px/1 var(--font-display); padding: 5px 7px; border-radius: 4px; white-space: nowrap; pointer-events: none; transition: left 0.9s cubic-bezier(0.22, 1, 0.36, 1); animation: bubble 2.2s ease 0.1s both; &::after { content: ""; position: absolute; left: 50%; bottom: -4px; width: 8px; height: 8px; background: inherit; transform: translateX(-50%) rotate(45deg); } }
-.bubbleLoss { background: var(--danger); color: #fff; }
-@keyframes bubble { 0% { opacity: 0; } 10% { opacity: 1; } 85% { opacity: 1; } 100% { opacity: 0; } }
 .rankFill { height: 100%; border-radius: 4px; transition: width 0.9s cubic-bezier(0.22, 1, 0.36, 1); }
 .rankFoot { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .hint { width: 100%; margin-top: auto; }
@@ -129,7 +124,7 @@
 	// Stack order (design M·05): title · tier rail · rank row + bar · board · Next.
 	.cardHead { order: -3; }
 	.rail { order: -2; }
-	.ladderHead, .rankBarWrap, .rankFoot, .runRow, .runFoot { order: -1; }
+	.ladderHead, .rankBar, .rankFoot, .runRow, .runFoot { order: -1; }
 	.nextHint { display: none; }
 	// The tier rail turns into a horizontal strip of badges: names hidden, the current tier keeps its pips.
 	.rail { width: 100%; max-width: none; flex: 0 0 auto; flex-direction: row-reverse; justify-content: space-between; padding: 6px 8px; margin-bottom: 0.2rem; } // row-reverse: Recruit left, Grandmaster right
@@ -140,7 +135,7 @@
 	.spotChip { display: none; }
 	.ladderHead .cardTitle { display: none; } // the page title already says Puzzle Ladder
 	.ladderHead { gap: 0.6rem; }
-	.rankBarWrap { margin-top: -0.45rem; }
+	.rankBar { margin-top: -0.45rem; }
 	.rankFoot { margin-top: -0.55rem; margin-bottom: 0.1rem; }
 	.cardHead { gap: 0.8rem; margin-bottom: 0.3rem; }
 	.back { display: block; text-align: center; }
@@ -178,7 +173,7 @@
 	.card { display: flex; flex-direction: column; width: auto; flex: 0 0 150px; gap: 8px; }
 	.cardHeadRated { display: none; }
 	.rankCard { display: flex; padding: 0.5rem 0.6rem; gap: 0.3rem; }
-	.ladderHead, .rankBarWrap, .rankFoot, .actions { order: 0; margin: 0; width: auto; }
+	.ladderHead, .rankBar, .rankFoot, .actions { order: 0; margin: 0; width: auto; }
 	.nextHint { display: none; }
 	.ladderHead { gap: 0.5rem; }
 	.ladderHead .cardTitle { display: none; }

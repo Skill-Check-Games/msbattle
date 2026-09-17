@@ -187,8 +187,8 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 		}
 	}), []);
 	// The solved finish (design "Ledger"): the board steps back behind a Solved tag and the dossier does the
-	// talking — the rating delta rides the bar's tip as it fills (the rank card itself only moves its bar, and
-	// swaps its badge on a tier change), the streak flares and Next breathes with an Enter hint. Played once per puzzle: locally on the last safe
+	// talking — the rank card fills its bar (and swaps its badge on a tier change), the streak flares and Next
+	// breathes with an Enter hint. Played once per puzzle: locally on the last safe
 	// reveal, or on the server's result if that came first (a resumed puzzle, a hint that finished it). `flash`
 	// drives the timed beats and clears after them; `done` keeps the settled state (tag, receded board, Next).
 	const localSolvedRef = useRef(false);
@@ -389,11 +389,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 										<span className={styles.ladderTier} style={{ color: ladder.tierColor }}>{ladder.tierName + " " + ladder.levelLabel}</span>
 									</div>
 								</div>
-								<div className={styles.rankBarWrap}>
-									<div className={styles.rankBar}><div className={styles.rankFill} style={{ width: (fillOverride ?? ladder.levelPct) + "%", background: ladder.tierColor }} /></div>
-									{/* The delta rides the bar's tip: its left follows the fill with the same easing, so it travels as the bar fills. */}
-									{flash && typeof flash.delta === "number" && flash.delta !== 0 && <span className={`${styles.bubble} ${flash.delta > 0 ? "" : styles.bubbleLoss}`} style={{ left: (fillOverride ?? ladder.levelPct) + "%" }}>{flash.delta > 0 ? "+" : ""}{flash.delta}</span>}
-								</div>
+								<div className={styles.rankBar}><div className={styles.rankFill} style={{ width: (fillOverride ?? ladder.levelPct) + "%", background: ladder.tierColor }} /></div>
 								<div className={styles.rankFoot}><span>{shownRating ?? ladder.rating}</span><span>{ladder.nextLevelAt == null ? "" : ladder.nextLevelAt + " · " + puzzleLadder(ladder.nextLevelAt).tierName + " " + puzzleLadder(ladder.nextLevelAt).levelLabel}</span></div>
 								</div>
 								<div className={styles.stats}>
