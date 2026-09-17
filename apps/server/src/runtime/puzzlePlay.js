@@ -7,6 +7,7 @@
 
 var appState = require("./appState");
 var db = require("../db");
+var elo = require("./elo");
 var puzzleGen = require("core/src/engine/PuzzleGenerator");
 var gameCreator = require("core/src/engine/GameCreator");
 var cspSolver = require("core/src/engine/CSPSolver");
@@ -312,14 +313,16 @@ function finalizePuzzle(socket, playerID, solved) {
 	else playerActual = 0;
 	var puzzleActual = 1 - playerActual;
 	// Streak: consecutive clean rated solves (a miss resets it, a hinted solve keeps but doesn't extend it).
-	// The rank is read off the rating, so the streak reward is a few extra rating points on top of the Elo
-	// exchange (puzzleStreakBonus) — small on purpose, the rating is still mostly earned against the puzzles.
+	// The streak pays like a ranked win streak (elo.streakMultiplier): the solve's GAIN is multiplied — 1.5× on
+	// the 3rd in a row, 2× on the 4th, 2.5× on the 5th, 3× from the 6th on; the bonus is the part above 1×.
 	var userNow = db.getUserById(pp.userId) || {};
 	var streakBefore = userNow.puzzle_streak || 0;
 	var streak = !solved ? 0 : pp.hintUsed ? streakBefore : streakBefore + 1;
 	if (streak !== streakBefore) db.setPuzzleStreak(pp.userId, streak);
-	var streakBonus = (solved && !pp.hintUsed) ? puzzleStreakBonus(streak) : 0;
-	var playerAfter = db.eloUpdate(pp.playerBefore, pp.puzzleBefore, PLAYER_K, playerActual) + streakBonus;
+	var baseAfter = db.eloUpdate(pp.playerBefore, pp.puzzleBefore, PLAYER_K, playerActual);
+	var gain = baseAfter - pp.playerBefore;
+	var streakBonus = (solved && !pp.hintUsed && gain > 0) ? Math.round(gain * (elo.streakMultiplier(streak) - 1)) : 0;
+	var playerAfter = baseAfter + streakBonus;
 	// Puzzles are NOT re-rated by play: their rating is the scoring function's (db.poolRating), fixed at
 	// insert. Only the attempt/solve counters move.
 	var puzzleAfter = pp.puzzleBefore;
@@ -353,10 +356,6 @@ function finalizePuzzle(socket, playerID, solved) {
 var PLAYER_K = 30;
 // Streak bonus in RATING points on top of the Elo gain, by the streak length INCLUDING this solve:
 // 3-4 → +3, 5-9 → +6, 10+ → +10. Capped so a long run is a nudge, not a second rating engine.
-function puzzleStreakBonus(streak) {
-	return streak >= 10 ? 10 : streak >= 5 ? 6 : streak >= 3 ? 3 : 0;
-}
-
 // The puzzle branch of the server's left/right click handlers delegates here.
 // Returns true if a puzzle is in play for this socket (so the server stops routing).
 function handleLeftClick(playerID, data) {
