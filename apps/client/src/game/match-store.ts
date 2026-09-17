@@ -100,6 +100,9 @@ class MatchStore {
 	isMulti() { const n = this.battleSize(); return n >= 3 && n <= 7; }
 	isBattle() { return this.isDuo() || this.isMulti(); }
 	battleActive() { const s = this.state; return !!(s.search) || !!(s.room && (s.room.phase === "playing" || s.room.ranked)); }
+	startRatings: Record<string, number> = {};
+	// A roster entry with the rating it entered the match with (see room_state): for the round-end banner.
+	asAtStart(p: RoomPlayer): RoomPlayer { const r = this.startRatings[p.id]; return typeof r === "number" && r !== p.rating ? { ...p, rating: r } : p; }
 	roster(): RoomPlayer[] { const s = this.state; if (s.room && s.room.players) return s.room.players; if (s.search) return s.search.members; return []; }
 	me(): RoomPlayer | null { return this.roster().find(p => p.id === this.myId || p.isYou) || null; }
 	opponents(): RoomPlayer[] { return this.roster().filter(p => !(p.id === this.myId || p.isYou)); }
@@ -149,6 +152,7 @@ class MatchStore {
 			});
 		});
 		socket.on("joined_room", (d) => {
+			this.startRatings = {};
 			// The search's roster stays until the room's first state replaces it (below): a moment with neither would
 			// empty every seat in the players' views and rebuild them, a blink, as the sixth player arrived.
 			this.set({ inRoom: true, mode: d && d.mode ? d.mode : this.state.mode, seriesResult: null, roundResult: null, gameProgress: "", roundDeadline: null, waitingCleared: false });
@@ -164,6 +168,9 @@ class MatchStore {
 		socket.on("room_list", (d) => this.set({ rooms: (d && d.rooms) || [] }));
 		socket.on("room_state", (room: RoomState) => {
 			const prev = this.state.room;
+			// Each player's rating as it stood when the match began: the series-end Elo lands in room_state at the
+			// same time as the last round's result, and the winner banner must still show the rank they played AS.
+			room.players.forEach(p => { if (typeof p.rating === "number" && !(p.id in this.startRatings)) this.startRatings[p.id] = p.rating; });
 			if (!prev || prev.rows !== room.rows || prev.cols !== room.cols) this.session.rows = room.rows, this.session.cols = room.cols;
 			// Opponent finish chime, once per opponent per round.
 			if (room.phase === "playing" && !this.state.roundResultShown) {

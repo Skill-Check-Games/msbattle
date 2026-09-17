@@ -390,7 +390,8 @@ export default function PlayPage() {
 	const frames = s.frames || [];
 	const myFrame = frames[0] || null;
 	const frameOf = (p: RoomPlayer) => frames.find(f => f && f.id === p.id) || null;
-	const winner = roundWinnerId ? match.roster().find(p => p.id === roundWinnerId) || null : null;
+	const winnerNow = roundWinnerId ? match.roster().find(p => p.id === roundWinnerId) || null : null;
+	const winner = winnerNow ? match.asAtStart(winnerNow) : null; // the rank they played as, not the one the result just gave them
 	const winBanner = (compact?: boolean, stacked?: boolean) => winPhase && roundWinnerId ? <RoundEndBanner winner={winner} side={roundWinnerId === match.myId ? "you" : "opp"} leaving={winPhase === "out"} compact={compact} stacked={stacked} /> : null;
 	const modeLine = s.mode ? "RANKED · " + (STYLE_LABELS[s.mode.replace(/_(duo|six)$/, "")] || "").toUpperCase() : "";
 	// Before the round is live the clock shows the full round length (it starts counting at GO).
