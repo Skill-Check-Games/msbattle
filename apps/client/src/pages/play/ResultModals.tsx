@@ -183,7 +183,6 @@ function PlacementCard({ played, need }: { played: number | null; need: number }
 		<div className={`${styles.ratingCard} ${styles.placementCard}`}>
 			<div className={styles.placeHead}>
 				<span className={styles.placeTitle}>Placement</span>
-				{done != null && <span className={styles.placeCount}>{done} of {need}</span>}
 			</div>
 			<div className={styles.rings} role="img" aria-label={done == null ? "Placement match played" : `${done} of ${need} placement matches played`}>
 				{Array.from({ length: need }, (_, i) => {

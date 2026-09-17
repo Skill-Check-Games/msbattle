@@ -34,7 +34,6 @@
 .placementCard { gap: 0.7rem; }
 .placeHead { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
 .placeTitle { font-family: var(--font-display); font-size: 0.72rem; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
-.placeCount { font-family: var(--font-display); font-weight: 800; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
 .rings { display: flex; align-items: center; gap: 0.6rem; }
 .ring {
 	position: relative; flex: 1 1 0; aspect-ratio: 1; max-width: 2.6rem; border-radius: 50%;
@@ -118,7 +117,6 @@
 	.progLabels { font-size: 0.7rem; }
 	.rings { gap: 0.4rem; }
 	.ring { max-width: 1.9rem; border-width: 2px; }
-	.placeCount { font-size: 0.9rem; }
 	.placeFoot { font-size: 0.74rem; }
 	.context { grid-area: context; gap: 0.35rem; min-width: 0; }
 	.standings { gap: 0.2rem; }
