@@ -70,8 +70,8 @@ function RankedResult({ result, myId, compact }: { result: SeriesResult; myId: s
 	const [shown, setShown] = useState(oldRating ?? newRating);
 	const [fill, setFill] = useState(tierProgress(oldRating ?? newRating).fill);
 	const crossed = oldRating != null && tierFor(oldRating).name !== tierFor(newRating).name;
-	// The badge's icon / colour changed (a base tier, not just a sub-tier): swap it with the shipped animation.
-	const tierChanged = oldRating != null && tierFor(oldRating).color !== tierFor(newRating).color;
+	// The badge changed (a new sub-tier adds a chevron; a new tier its colour): swap it with the shipped animation.
+	const tierChanged = crossed;
 	const [badgeSwap, setBadgeSwap] = useState(false);
 	// Until the sequence reaches the tier moment (1300ms) the badge and the tier label keep the OLD rank; the swap
 	// animation then carries the badge to the new one. Nothing to hold when there is no "before" or during placement.
