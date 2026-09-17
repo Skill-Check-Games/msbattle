@@ -1,7 +1,7 @@
 .scrim { position: fixed; inset: 0; z-index: 299; background: rgba(3, 6, 12, 0.72); }
 // Sized like achtung-royale's picker (480 x 540 on desktop); the phone sheet takes the viewport minus a margin.
 .panel { position: fixed; z-index: 300; width: 480px; height: 540px; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55); }
-.narrow { top: 50%; left: 50%; transform: translate(-50%, -50%); width: calc(100vw - 24px); height: calc(100dvh - 40px); max-width: 480px; }
+.narrow { top: 20px; left: 50%; transform: translateX(-50%); width: calc(100vw - 24px); height: calc(100dvh - 40px); max-width: 480px; }
 .head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.7rem 0.9rem 0.6rem; border-bottom: 1px solid var(--border); }
 .title { font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
 .close { width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface-2); color: var(--muted); font-size: 1.1rem; line-height: 1; padding: 0; &:hover { color: var(--text); border-color: var(--muted); } }
