@@ -9,6 +9,8 @@ import styles from "./PlayPage.module.scss";
 
 export const PORTRAIT_MQ = "(max-width: 700px)";
 export const LANDSCAPE_PHONE_MQ = "(orientation: landscape) and (max-height: 500px) and (min-width: 701px)";
+// Phones in either orientation: the Customize lab (the modal on the home page, the shop page) becomes a full-screen sheet.
+export const PHONE_SHEET_MQ = "(max-width: 700px), (orientation: landscape) and (max-height: 500px)";
 
 export function useMediaQuery(q: string): boolean {
 	const [m, setM] = useState(() => window.matchMedia(q).matches);

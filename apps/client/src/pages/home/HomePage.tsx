@@ -20,9 +20,8 @@ import { useMatchHistory, useDailyStatus, sessionStats, formatDailyDate } from "
 import type { Account } from "../../shared/types";
 import styles from "./HomePage.module.scss";
 import { autoEnterGameFullscreen, enterDuelMobileFullscreen } from "../../game/fullscreen";
-import { useMediaQuery } from "../play/mobile";
+import { useMediaQuery, PHONE_SHEET_MQ } from "../play/mobile";
 // Phones (either orientation): the Customize modal is a full-screen sheet with its own bar (design CL·01a).
-const PHONE_SHEET_MQ = "(max-width: 700px), (orientation: landscape) and (max-height: 500px)";
 
 // Fixed previews per mode. All three share Standard's 6x9 so they render the same size.
 const MODE_BOARDS: Record<string, BoardSpec> = {

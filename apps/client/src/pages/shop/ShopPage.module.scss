@@ -3,3 +3,5 @@
 .banner { margin: 0 0 1rem; padding: 0.6rem 0.9rem; border-radius: 6px; border: 1px solid var(--border); background: var(--surface-2); }
 .ok { border-color: rgba(74, 222, 128, 0.4); }
 .err { border-color: rgba(248, 113, 113, 0.4); }
+// Phones: the lab as a full-screen sheet over everything (the navbar included), as HomePage.module.scss .labSheet.
+.sheet { position: fixed; inset: 0; height: 100dvh; overflow: hidden; background: var(--surface-2); z-index: 150; display: flex; flex-direction: column; } // above the navbar (100), under modals (200)
