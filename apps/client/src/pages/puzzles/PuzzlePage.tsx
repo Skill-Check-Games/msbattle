@@ -186,12 +186,13 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 			if (p.mode !== "streak" && p.mode !== "storm" && !localSolvedRef.current && p.totalSafe > 0 && session.countKnownSafe() >= p.totalSafe) { localSolvedRef.current = true; playSolved(undefined); }
 		}
 	}), []);
-	// The solved finish (design "Sweep"): the board's border turns green (stays while solved), a green wash sweeps
-	// the tiles out from the last click, a check mark pops at the board's centre and goes, and the rating delta
-	// pops in the dossier. Played once per puzzle: locally on the last safe reveal, or on the server's result if
-	// that came first (a resumed puzzle, a hint that finished it).
+	// The solved finish (design "Ledger"): the board steps back behind a Solved tag and the dossier does the
+	// talking — the rank card glows in the tier colour, the rating delta rides the bar's tip as it fills, the
+	// streak flares and Next breathes with an Enter hint. Played once per puzzle: locally on the last safe
+	// reveal, or on the server's result if that came first (a resumed puzzle, a hint that finished it). `flash`
+	// drives the timed beats and clears after them; `done` keeps the settled state (tag, receded board, Next).
 	const localSolvedRef = useRef(false);
-	const playSolved = (delta: number | undefined) => { sound.win(); session.startSweep(); setFlash({ solved: true, delta }); setDone("solved"); setTimeout(() => setFlash(null), 1200); };
+	const playSolved = (delta: number | undefined) => { sound.win(); setFlash({ solved: true, delta }); setDone("solved"); setTimeout(() => setFlash(null), 2600); };
 	if (import.meta.env.DEV) (window as any).__puzzle = session;
 	useAdminClearBoard(session, account?.isAdmin);
 
@@ -369,10 +370,10 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 					) : <LadderRail rating={heldRating ?? (account.puzzleRating || 0)} spot={spotlight} />)}
 					<div className={styles.boardCol} ref={boardHostRef}>
 						{/* Phone landscape: TouchBoard is the pan/zoom viewport with the flag toggle; the overview rests above the toggle's row (LS_PILL_ROW). */}
-						<TouchBoard session={session} fitCellPx={cellPx} touch={phoneLandscape} overviewKey={p?.puzzleId} restOffsetY={LS_PILL_ROW} boardClassName={styles.board}
+						<TouchBoard session={session} fitCellPx={cellPx} touch={phoneLandscape} overviewKey={p?.puzzleId} restOffsetY={LS_PILL_ROW} boardClassName={`${styles.board} ${done === "solved" ? styles.boardReceded : ""}`}
 							className={`${styles.boardWrap} ${boardFlash === "solved" || done === "solved" ? styles.flashSolved : boardFlash === "fail" ? styles.flashFail : ""}`}
 							style={mobile ? { width: "100%", padding: PHONE_BOX_PAD } : phoneLandscape ? { height: panel.h } : { width: box, height: box }}>
-							{done === "solved" && <div className={styles.solvedCheck} aria-hidden="true"><CheckIcon /></div>}
+							{done === "solved" && <div className={styles.solvedTag} aria-hidden="true">Solved</div>}
 						</TouchBoard>
 
 					</div>
@@ -380,20 +381,24 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 						<div className={`${styles.cardHead} ${styles.cardHeadRated}`}><button type="button" className={styles.back} onClick={exit} aria-label="Back to lobby">←</button><span className={styles.cardTitle}>{TITLES[mode]}</span></div>
 						{!isRun ? (
 							<>
-								<div className={styles.rankCard}>
+								<div className={`${styles.rankCard} ${flash?.solved ? styles.rankCardGlow : ""}`} style={{ "--tier": ladder.tierColor } as any}>
 								<div className={styles.ladderHead}>
 									{badgeSwap ? <RankBadgeSwap key={badgeSwap.seq} kind="puzzle" from={badgeSwap.from} to={badgeSwap.to} size={9} /> : <PuzzleRankBadge rating={ladder.rating} size={phoneLandscape ? 6 : 9} />}
 									<div className={styles.ladderText}>
 										<span className={styles.cardTitle}>Puzzle Ladder</span>
-										<span className={styles.ladderTier} style={{ color: ladder.tierColor }}>{ladder.tierName + " " + ladder.levelLabel}{flash && typeof flash.delta === "number" && flash.delta !== 0 ? <span className={`${styles.delta} ${flash.delta > 0 ? styles.gain : styles.loss}`}>{flash.delta > 0 ? "+" : ""}{flash.delta}</span> : null}</span>
+										<span className={styles.ladderTier} style={{ color: ladder.tierColor }}>{ladder.tierName + " " + ladder.levelLabel}</span>
 									</div>
 								</div>
-								<div className={styles.rankBar}><div className={styles.rankFill} style={{ width: (fillOverride ?? ladder.levelPct) + "%", background: ladder.tierColor }} /></div>
+								<div className={styles.rankBarWrap}>
+									<div className={styles.rankBar}><div className={styles.rankFill} style={{ width: (fillOverride ?? ladder.levelPct) + "%", background: ladder.tierColor }} /></div>
+									{/* The delta rides the bar's tip: its left follows the fill with the same easing, so it travels as the bar fills. */}
+									{flash && typeof flash.delta === "number" && flash.delta !== 0 && <span className={`${styles.bubble} ${flash.delta > 0 ? "" : styles.bubbleLoss}`} style={{ left: (fillOverride ?? ladder.levelPct) + "%" }}>{flash.delta > 0 ? "+" : ""}{flash.delta}</span>}
+								</div>
 								<div className={styles.rankFoot}><span>{shownRating ?? ladder.rating}</span><span>{ladder.nextLevelAt == null ? "" : ladder.nextLevelAt + " · " + puzzleLadder(ladder.nextLevelAt).tierName + " " + puzzleLadder(ladder.nextLevelAt).levelLabel}</span></div>
 								</div>
 								<div className={styles.stats}>
 									<div className={styles.stat}><span className={styles.statLabel}>Rating</span><span className={styles.statValue}>{shownRating ?? ladder.rating}</span></div>
-									<div className={styles.stat}><span className={styles.statLabel}>Streak</span><span className={styles.statValue} style={{ color: "var(--energy-streak)" }}>{streak}{flash && streakBonus ? <span className={`${styles.delta} ${styles.gain}`}> +{streakBonus}</span> : null}</span></div>
+									<div className={styles.stat}><span className={styles.statLabel}>Streak</span><span className={`${styles.statValue} ${flash?.solved ? styles.streakFlare : ""}`} style={{ color: "var(--energy-streak)" }}>{streak}{flash && streakBonus ? <span className={`${styles.delta} ${styles.gain}`}> +{streakBonus}</span> : null}</span></div>
 									<div className={styles.stat}><span className={styles.statLabel}>Solved</span><span className={styles.statValue}>{account.puzzlesSolved || 0} / {account.puzzlesAttempted || 0}</span></div>
 									<div className={styles.stat}><span className={styles.statLabel}>Best streak</span><span className={styles.statValue}>{Math.max(account.puzzleStreakBest || 0, streak)}</span></div>
 								</div>
@@ -405,10 +410,11 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 								{/* Hint button removed for now (2026-09-14); the server-side puzzle_hint path is still there. */}
 								{done && (
 									<div className={`${styles.actions} kbd-btn-group`} onKeyDown={onActionsKey}>
-										<button ref={nextBtnRef} className={`btn btn-primary ${styles.primaryAction}`} onClick={() => getSocket().emit("puzzle_next")}>{done === "solved" ? "Next" : "Next puzzle"}</button>
+										<button ref={nextBtnRef} className={`btn btn-primary ${styles.primaryAction} ${done === "solved" ? styles.nextBreathe : ""}`} onClick={() => getSocket().emit("puzzle_next")}>{done === "solved" ? "Next" : "Next puzzle"}</button>
 										{done !== "solved" && <button className="btn" onClick={() => { if (p) getSocket().emit("puzzle_retry", { puzzleId: p.puzzleId }); }}>Try again</button>}
 									</div>
 								)}
+								{done === "solved" && <span className={styles.nextHint}>Enter ↵ for the next puzzle</span>}
 							</>
 						) : p && p.run ? (
 							<>
