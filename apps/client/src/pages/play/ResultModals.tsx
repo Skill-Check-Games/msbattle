@@ -73,10 +73,14 @@ function RankedResult({ result, myId, compact }: { result: SeriesResult; myId: s
 	// The badge's icon / colour changed (a base tier, not just a sub-tier): swap it with the shipped animation.
 	const tierChanged = oldRating != null && tierFor(oldRating).color !== tierFor(newRating).color;
 	const [badgeSwap, setBadgeSwap] = useState(false);
+	// Until the sequence reaches the tier moment (1300ms) the badge and the tier label keep the OLD rank; the swap
+	// animation then carries the badge to the new one. Nothing to hold when there is no "before" or during placement.
+	const [settled, setSettled] = useState(placing || oldRating == null);
 	// The run just ended: the locked plate shakes and shatters to reveal the first rank badge (PlacementReveal).
 	const [revealing, setRevealing] = useState(revealed);
 	const tier = tierFor(newRating);
 	const prog = tierProgress(newRating);
+	const shownTier = settled ? tier : tierFor(oldRating ?? newRating), shownProg = settled ? prog : tierProgress(oldRating ?? newRating);
 
 	useEffect(() => {
 		// The account carries this match: the new rating, whether placement is over, and one more game
@@ -97,7 +101,7 @@ function RankedResult({ result, myId, compact }: { result: SeriesResult; myId: s
 			requestAnimationFrame(frame);
 			setFill(crossed ? (newRating > from ? 1 : 0) : prog.fill);
 		}, 400);
-		const t2 = setTimeout(() => { if (crossed) setFill(prog.fill); }, 1300);
+		const t2 = setTimeout(() => { if (crossed) setFill(prog.fill); setSettled(true); }, 1300);
 		// The fanfare lands on the plate giving way for a reveal, and on the rating settling for a tier change.
 		const t3 = setTimeout(() => { if (crossed || revealed) (newRating > (oldRating ?? 0) || revealed ? sound.rankUp : sound.rankDown)(); }, revealed ? PLACEMENT_REVEAL_SOUND_MS : 1700);
 		const t4 = setTimeout(() => { if (tierChanged && !revealed) setBadgeSwap(true); }, 1300);
@@ -116,7 +120,7 @@ function RankedResult({ result, myId, compact }: { result: SeriesResult; myId: s
 	return (
 		<ResultPanel slow kind={kind} className={`${styles.ranked} ${won ? styles.rankedWin : styles.rankedLose} ${compact ? styles.compact : ""}`}>
 			<div className={styles.hero}>
-				<div className={styles.heroBadge}>{placing ? <PlacementBadge size={compact ? 10 : 13} /> : revealing ? <PlacementReveal rating={newRating} size={compact ? 10 : 13} /> : badgeSwap && oldRating != null ? <RankBadgeSwap kind="rank" from={oldRating} to={newRating} size={compact ? 10 : 13} /> : <RankBadge rating={newRating} size={compact ? 10 : 13} />}</div>
+				<div className={styles.heroBadge}>{placing ? <PlacementBadge size={compact ? 10 : 13} /> : revealing ? <PlacementReveal rating={newRating} size={compact ? 10 : 13} /> : badgeSwap && oldRating != null ? <RankBadgeSwap kind="rank" from={oldRating} to={newRating} size={compact ? 10 : 13} /> : <RankBadge rating={settled ? newRating : (oldRating ?? newRating)} size={compact ? 10 : 13} />}</div>
 				<div className={styles.heroText}>
 					<div className={`${styles.heading} ${won ? styles.headingWin : ""} ${placeCls}`}>{heading}</div>
 					<div className={styles.sub}>{MODE_LABELS[result.mode || ""] || "Ranked match"}{!isDuo && rank ? " · " + standings.length + " players" : ""}</div>
@@ -133,7 +137,7 @@ function RankedResult({ result, myId, compact }: { result: SeriesResult; myId: s
 							<div className={`${styles.col} ${styles.right}`}><div className={styles.colLabel}>After</div><div className={styles.colNum}>{shown}</div></div>
 						</div>
 						<div className={styles.track}><span className={styles.trackFill} style={{ width: Math.round(fill * 100) + "%" }} /></div>
-						<div className={styles.progLabels}><span style={{ color: tier.color }}>{tier.name}</span><span>{prog.atMax ? "Top tier reached" : prog.pointsToNext + " to " + prog.nextName}</span></div>
+						<div className={styles.progLabels}><span style={{ color: shownTier.color }}>{shownTier.name}</span><span>{shownProg.atMax ? "Top tier reached" : shownProg.pointsToNext + " to " + shownProg.nextName}</span></div>
 					</div>
 				)}
 
