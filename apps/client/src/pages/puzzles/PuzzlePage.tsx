@@ -364,7 +364,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 					{(phoneLandscape ? (
 						<div className={styles.leftCol}>
 							<div className={styles.cardHead}><button type="button" className={styles.back} onClick={exit} aria-label="Back to lobby">←</button><span className={styles.cardTitle}>{TITLES[mode]}</span></div>
-							<LadderRail rating={heldRating ?? (account.puzzleRating || 0)} spot={spotlight} />
+							<LadderRail rating={heldRating ?? (account.puzzleRating || 0)} spot={spotlight} badge={5} />
 						</div>
 					) : <LadderRail rating={heldRating ?? (account.puzzleRating || 0)} spot={spotlight} />)}
 					<div className={styles.boardCol} ref={boardHostRef}>
@@ -458,7 +458,9 @@ function stormClock(endsAt: number): string {
 }
 
 // The ladder rail (desktop): every tier, top to bottom, the player's tier highlighted with its level pips.
-function LadderRail({ rating, spot }: { rating: number; spot?: number | null }) {
+// badge: the tier badge size (px per em of the 5em plate). The desktop rail is as tall as the board box and its
+// eight rows had far more room than the badges used; the landscape phone rail keeps the small one.
+function LadderRail({ rating, spot, badge = 7.6 }: { rating: number; spot?: number | null; badge?: number }) {
 	const me = puzzleLadder(rating);
 	const tiers = PUZZLE_TIERS.map((t, i) => ({ ...t, i })).reverse();
 	return (
@@ -467,7 +469,7 @@ function LadderRail({ rating, spot }: { rating: number; spot?: number | null }) 
 				const current = t.i === me.tierIndex, reached = t.i < me.tierIndex;
 				return (
 					<div key={t.name} className={`${styles.railRow} ${current ? styles.railCurrent : ""} ${reached || current ? "" : styles.railLocked} ${spot === t.i ? styles.railSpot : ""}`} style={spot === t.i ? { "--spot": t.color } as any : undefined}>
-						<PuzzleRankBadge rating={ratingForTierLevel(t.i, 1)} size={5} />
+						<PuzzleRankBadge rating={ratingForTierLevel(t.i, 1)} size={badge} />
 						<div className={styles.railText}>
 							<span className={styles.railName} style={{ color: reached || current ? t.color : undefined }}>{t.name}{current ? " " + me.levelLabel : ""}</span>
 							{current && <div className={styles.pips}>{Array.from({ length: LEVELS_PER_TIER }, (_, k) => <i key={k} style={k < me.level ? { background: t.color } : undefined} />)}</div>}
