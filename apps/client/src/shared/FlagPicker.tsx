@@ -1,8 +1,10 @@
 // Country flag picker (the same shape as achtung-royale's): a searchable grid of named flag cards.
 // Desktop: a popover anchored to the trigger (flips above when there is more room). Under 900px: a
-// full-height sheet over a scrim. Closes on Escape, scrim/outside click, resize, or scrolling the page
-// outside the panel. The search box only takes focus on desktop: on a phone that would raise the
-// keyboard over the grid, and its 16px type keeps iOS from zooming the page in on focus.
+// full-height sheet over a scrim. Closes on Escape, scrim/outside click, and (desktop only, where the
+// popover is anchored) resize or scrolling the page outside the panel. The sheet ignores scroll and
+// height-only resizes: raising the on-screen keyboard fires both, and it instead tracks the visual
+// viewport so the grid stays above the keyboard. The search box only takes focus by itself on desktop,
+// and its 16px type keeps iOS from zooming the page in on focus.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { countryList, countryFlagSrcSquare } from "./countries";
@@ -16,6 +18,7 @@ export default function FlagPicker({ anchor, current, onSelect, onClose }: Props
 	const panelRef = useRef<HTMLDivElement>(null);
 	const searchRef = useRef<HTMLInputElement>(null);
 	const narrow = window.innerWidth < NARROW;
+	const [vv, setVv] = useState<{ top: number; height: number } | null>(null);
 	const items = useMemo(() => countryList(), []);
 	const query = q.trim().toLowerCase();
 	const filtered = query ? items.filter(it => it.name.toLowerCase().includes(query) || it.code.toLowerCase().includes(query)) : items;
@@ -24,11 +27,22 @@ export default function FlagPicker({ anchor, current, onSelect, onClose }: Props
 	useEffect(() => {
 		if (!narrow) searchRef.current?.focus();
 		const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
-		const onScroll = (e: Event) => { if (panelRef.current && e.target instanceof Node && panelRef.current.contains(e.target)) return; onClose(); };
+		const onScroll = (e: Event) => { if (narrow || (panelRef.current && e.target instanceof Node && panelRef.current.contains(e.target))) return; onClose(); };
+		const startW = window.innerWidth;
+		const onResize = () => { if (!narrow || window.innerWidth !== startW) onClose(); };
 		const onDown = (e: MouseEvent) => { if (panelRef.current && !panelRef.current.contains(e.target as Node) && !(anchor && anchor.contains(e.target as Node))) onClose(); };
-		document.addEventListener("keydown", onKey); window.addEventListener("scroll", onScroll, true); window.addEventListener("resize", onClose); document.addEventListener("mousedown", onDown);
-		return () => { document.removeEventListener("keydown", onKey); window.removeEventListener("scroll", onScroll, true); window.removeEventListener("resize", onClose); document.removeEventListener("mousedown", onDown); };
-	}, [onClose, anchor]);
+		document.addEventListener("keydown", onKey); window.addEventListener("scroll", onScroll, true); window.addEventListener("resize", onResize); document.addEventListener("mousedown", onDown);
+		return () => { document.removeEventListener("keydown", onKey); window.removeEventListener("scroll", onScroll, true); window.removeEventListener("resize", onResize); document.removeEventListener("mousedown", onDown); };
+	}, [onClose, anchor, narrow]);
+
+	useEffect(() => {
+		const v = window.visualViewport;
+		if (!narrow || !v) return;
+		const sync = () => setVv({ top: v.offsetTop, height: v.height });
+		sync();
+		v.addEventListener("resize", sync); v.addEventListener("scroll", sync);
+		return () => { v.removeEventListener("resize", sync); v.removeEventListener("scroll", sync); };
+	}, [narrow]);
 
 	let pos: React.CSSProperties = {};
 	if (!narrow && anchor) {
@@ -36,6 +50,7 @@ export default function FlagPicker({ anchor, current, onSelect, onClose }: Props
 		const flipUp = spaceBelow < PANEL_H + 12 && r.top > spaceBelow;
 		pos = { top: Math.round(flipUp ? Math.max(8, r.top - PANEL_H - 6) : r.bottom + 6), left: Math.round(Math.max(8, Math.min(r.left, window.innerWidth - PANEL_W - 8))) };
 	}
+	if (narrow && vv) pos = { top: Math.round(vv.top + 20), height: Math.round(vv.height - 40) };
 	const cell = (code: string | null, name: string, src: string | null) => (
 		<button key={code || "none"} type="button" className={`${styles.cell} ${code === current ? styles.active : ""}`} onClick={() => { onSelect(code); onClose(); }}>
 			<span className={styles.cellImg}>{src && <img src={src} alt="" loading="lazy" />}</span>
