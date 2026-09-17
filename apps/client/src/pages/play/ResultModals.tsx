@@ -14,6 +14,7 @@ import type { Account } from "../../shared/types";
 import { useMediaQuery, LANDSCAPE_PHONE_MQ } from "./mobile";
 import styles from "./ResultModals.module.scss";
 import { RankBadgeSwap, RANK_BADGE_SWAP_MS } from "../../game/RankBadgeSwap";
+import { PlacementReveal, PLACEMENT_REVEAL_MS, PLACEMENT_REVEAL_SOUND_MS } from "../../game/PlacementReveal";
 
 const deltaText = (d: number) => (d > 0 ? "+" : d < 0 ? "−" : "±") + Math.abs(d);
 const deltaCls = (d: number) => d > 0 ? styles.gain : d < 0 ? styles.loss : styles.flat;
@@ -72,6 +73,8 @@ function RankedResult({ result, myId, compact }: { result: SeriesResult; myId: s
 	// The badge's icon / colour changed (a base tier, not just a sub-tier): swap it with the shipped animation.
 	const tierChanged = oldRating != null && tierFor(oldRating).color !== tierFor(newRating).color;
 	const [badgeSwap, setBadgeSwap] = useState(false);
+	// The run just ended: the locked plate shakes and shatters to reveal the first rank badge (PlacementReveal).
+	const [revealing, setRevealing] = useState(revealed);
 	const tier = tierFor(newRating);
 	const prog = tierProgress(newRating);
 
@@ -95,10 +98,12 @@ function RankedResult({ result, myId, compact }: { result: SeriesResult; myId: s
 			setFill(crossed ? (newRating > from ? 1 : 0) : prog.fill);
 		}, 400);
 		const t2 = setTimeout(() => { if (crossed) setFill(prog.fill); }, 1300);
-		const t3 = setTimeout(() => { if (crossed || revealed) (newRating > (oldRating ?? 0) || revealed ? sound.rankUp : sound.rankDown)(); }, 1700);
-		const t4 = setTimeout(() => { if (tierChanged) setBadgeSwap(true); }, 1300);
+		// The fanfare lands on the plate giving way for a reveal, and on the rating settling for a tier change.
+		const t3 = setTimeout(() => { if (crossed || revealed) (newRating > (oldRating ?? 0) || revealed ? sound.rankUp : sound.rankDown)(); }, revealed ? PLACEMENT_REVEAL_SOUND_MS : 1700);
+		const t4 = setTimeout(() => { if (tierChanged && !revealed) setBadgeSwap(true); }, 1300);
 		const t5 = setTimeout(() => setBadgeSwap(false), 1300 + RANK_BADGE_SWAP_MS);
-		return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); clearTimeout(t5); };
+		const t6 = setTimeout(() => setRevealing(false), PLACEMENT_REVEAL_MS);
+		return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); clearTimeout(t5); clearTimeout(t6); };
 	}, []);
 
 	// The panel's frame: green for a win, red only for a finish in the bottom half of the field (a podium
@@ -111,7 +116,7 @@ function RankedResult({ result, myId, compact }: { result: SeriesResult; myId: s
 	return (
 		<ResultPanel slow kind={kind} className={`${styles.ranked} ${won ? styles.rankedWin : styles.rankedLose} ${compact ? styles.compact : ""}`}>
 			<div className={styles.hero}>
-				<div className={styles.heroBadge}>{placing ? <PlacementBadge size={compact ? 10 : 13} /> : badgeSwap && oldRating != null ? <RankBadgeSwap kind="rank" from={oldRating} to={newRating} size={compact ? 10 : 13} /> : <RankBadge rating={newRating} size={compact ? 10 : 13} />}</div>
+				<div className={styles.heroBadge}>{placing ? <PlacementBadge size={compact ? 10 : 13} /> : revealing ? <PlacementReveal rating={newRating} size={compact ? 10 : 13} /> : badgeSwap && oldRating != null ? <RankBadgeSwap kind="rank" from={oldRating} to={newRating} size={compact ? 10 : 13} /> : <RankBadge rating={newRating} size={compact ? 10 : 13} />}</div>
 				<div className={styles.heroText}>
 					<div className={`${styles.heading} ${won ? styles.headingWin : ""} ${placeCls}`}>{heading}</div>
 					<div className={styles.sub}>{MODE_LABELS[result.mode || ""] || "Ranked match"}{!isDuo && rank ? " · " + standings.length + " players" : ""}</div>

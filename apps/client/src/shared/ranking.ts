@@ -90,6 +90,22 @@ const LOCK = '<rect x="38" y="50" width="24" height="18" rx="4" fill="currentCol
 export function placementBadgeSVG(): string {
 	return '<svg viewBox="0 0 100 100" aria-hidden="true"><polygon points="' + RANK_HEX_PTS + '" fill="rgba(255,255,255,0.03)" stroke="currentColor" stroke-width="4" stroke-dasharray="7 6" stroke-linejoin="round"/>' + LOCK + "</svg>";
 }
+// The placement plate cut for the reveal animation (PlacementReveal.tsx): six wedges from the centre to each
+// edge, each a clipped copy of the dashed plate, plus the padlock as its own group with the shackle separate so
+// it can spring open. `cls` names the classes the animation styles hang on; per-wedge flight vectors are inline.
+let placementRevealSeq = 0;
+export function placementRevealSVG(cls: { wedge: string; lock: string; shackle: string }): string {
+	const V = [[50, 15], [85, 34], [85, 72], [50, 91], [15, 72], [15, 34]], cx = 50, cy = 53, id = "pr" + (++placementRevealSeq);
+	const plate = '<polygon points="' + RANK_HEX_PTS + '" fill="rgba(255,255,255,0.03)" stroke="currentColor" stroke-width="4" stroke-dasharray="7 6" stroke-linejoin="round"/>';
+	let defs = "", body = "";
+	for (let i = 0; i < 6; i++) {
+		const a = V[i], b = V[(i + 1) % 6], mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2, dx = mx - cx, dy = my - cy, len = Math.hypot(dx, dy), k = 34 + (i % 3) * 7;
+		defs += '<clipPath id="' + id + i + '"><polygon points="' + cx + "," + cy + " " + a.join(",") + " " + b.join(",") + '"/></clipPath>';
+		body += '<g class="' + cls.wedge + '" clip-path="url(#' + id + i + ')" style="--wx:' + (dx / len * k).toFixed(1) + "px;--wy:" + (dy / len * k).toFixed(1) + "px;--wr:" + ((i % 2 ? 1 : -1) * (25 + i * 9)) + "deg;--d:" + (i * 0.04).toFixed(2) + 's">' + plate + "</g>";
+	}
+	const lock = '<g class="' + cls.lock + '"><rect x="38" y="50" width="24" height="18" rx="4" fill="currentColor"/><path class="' + cls.shackle + '" d="M43 50 V44 a7 7 0 0 1 14 0 V50" fill="none" stroke="currentColor" stroke-width="4.5"/></g>';
+	return '<svg viewBox="0 0 100 100" aria-hidden="true" style="overflow:visible"><defs>' + defs + "</defs>" + body + lock + "</svg>";
+}
 // Puzzle Ladder counterpart: a dashed circle with the padlock, before the first rated solve.
 export function puzzleLockedBadgeSVG(): string {
 	return '<svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="53" r="36" fill="rgba(255,255,255,0.03)" stroke="currentColor" stroke-width="4" stroke-dasharray="7 6"/>' + LOCK + "</svg>";

@@ -1,0 +1,41 @@
+// Placement reveal ("Lock pops"). Timeline from --t0 (a short hold while the panel fades in):
+//   0 → 0.9s  the plate trembles, harder and harder
+//   0.9s      the shackle springs open
+//   1.15s     the lock drops off the plate
+//   1.55s     the plate splits into six wedges that fly out and fade; the rank badge reforms with an overshoot
+.box { position: relative; width: 1em; height: 1em; flex: 0 0 auto; }
+.face { position: absolute; inset: 0; :global(.rank-badge) { width: 100%; height: 100%; font-size: inherit; } }
+.face svg { width: 100%; height: 100%; display: block; }
+.under { opacity: 0; transform: scale(0.6); animation: reform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) calc(var(--t0) + 1.55s) forwards; }
+.plate { animation: shake 0.9s linear var(--t0) both; }
+.wedge { transform-box: fill-box; transform-origin: center; animation: wedge-fly 0.8s cubic-bezier(0.2, 0.7, 0.3, 1) calc(var(--t0) + 1.55s + var(--d, 0s)) forwards; }
+.lock { transform-box: view-box; transform-origin: 50px 58px; animation: lock-drop 0.45s cubic-bezier(0.5, 0, 0.8, 0.4) calc(var(--t0) + 1.15s) forwards; }
+.shackle { transform-box: view-box; transform-origin: 57px 50px; animation: shackle-pop 0.22s cubic-bezier(0.34, 1.56, 0.64, 1) calc(var(--t0) + 0.9s) forwards; }
+
+// escalating tremor, snapping back to rest at the end (the pop follows)
+@keyframes shake {
+	0% { transform: translate(0, 0) rotate(0); }
+	8% { transform: translate(-0.6px, 0.3px) rotate(-0.3deg); }
+	16% { transform: translate(0.7px, -0.3px) rotate(0.3deg); }
+	24% { transform: translate(-1px, 0.5px) rotate(-0.6deg); }
+	32% { transform: translate(1.2px, -0.6px) rotate(0.7deg); }
+	40% { transform: translate(-1.6px, 0.8px) rotate(-1deg); }
+	48% { transform: translate(1.9px, -0.9px) rotate(1.2deg); }
+	56% { transform: translate(-2.4px, 1.1px) rotate(-1.6deg); }
+	64% { transform: translate(2.8px, -1.3px) rotate(1.9deg); }
+	72% { transform: translate(-3.4px, 1.6px) rotate(-2.4deg); }
+	80% { transform: translate(3.9px, -1.8px) rotate(2.8deg); }
+	88% { transform: translate(-4.6px, 2.2px) rotate(-3.4deg); }
+	96% { transform: translate(5px, -2.4px) rotate(3.8deg); }
+	100% { transform: translate(0, 0) rotate(0); }
+}
+@keyframes shackle-pop { to { transform: rotate(-70deg); } }
+@keyframes lock-drop { to { transform: translateY(46px) rotate(18deg); opacity: 0; } }
+// the wedges fly first and only fade over the second half of the flight
+@keyframes wedge-fly { 0% { opacity: 1; } 45% { opacity: 1; } 100% { transform: translate(var(--wx), var(--wy)) rotate(var(--wr)); opacity: 0; } }
+@keyframes reform { 0% { opacity: 0; transform: scale(0.6); } 60% { opacity: 1; transform: scale(1.14); } 100% { opacity: 1; transform: scale(1); } }
+
+@media (prefers-reduced-motion: reduce) {
+	.plate { display: none; }
+	.under { animation: none; opacity: 1; transform: none; }
+}
