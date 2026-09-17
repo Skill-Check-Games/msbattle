@@ -130,8 +130,9 @@ const puzzleBadgeParts = (() => {
 	const seaSolid = C(50, 52, 12, true) + spikes(12, 5.5, 4) + D(45.4, 47.4, 3.1);
 	const ring = (r: number, op: string) => C(50, 52, r, false, 2.5).replace('stroke-width="2.5"', 'stroke-width="2.5" opacity="' + op + '"');
 	const radar = ring(21, "0.45") + ring(14, "0.6") + ring(7, "0.8") + F("M50 52 L50 29 A23 23 0 0 1 70 41 Z") + C(50, 52, 3, true) + C(40, 40, 2.4, true) + C(59, 63, 2.4, true);
-	// Recruit deliberately carries no emblem: the bare roundel is the bottom rung.
-	const EMBLEMS = ["", shrink(magnifier, 0.92), shovel, '<g transform="translate(0 -0.5)">' + shrink(claymore, 0.92) + "</g>", shrink(seaOutline, 0.92), shrink(dynamite, 0.92), shrink(seaSolid, 0.92), radar];
+	// Recruit: a dog tag on its chain. Enlisted, but no gear issued yet.
+	const dogTag = '<g transform="rotate(-14 50 52)">' + R(41, 38, 18, 30, 5) + D(50, 44, 2.4) + "</g>" + S("M50 41 C50 30 42 28 40 33", 2.5);
+	const EMBLEMS = [dogTag, shrink(magnifier, 0.92), shovel, '<g transform="translate(0 -0.5)">' + shrink(claymore, 0.92) + "</g>", shrink(seaOutline, 0.92), shrink(dynamite, 0.92), shrink(seaSolid, 0.92), radar];
 	function roundel(lit: number) {
 		let out = '<circle cx="50" cy="52" r="40" fill="' + PUZZLE_BADGE_DARK + '"/><g stroke="currentColor" stroke-width="6" fill="none">';
 		for (let i = 0; i < 8; i++) {
