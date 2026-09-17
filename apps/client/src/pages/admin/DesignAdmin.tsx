@@ -29,7 +29,7 @@ LADDER_RATINGS.push(MASTER_THRESHOLD);
 export default function DesignAdmin() {
 	return (
 		<AdminPage title="Design" sub="A living reference for the visual design system, rendered with the live components." wide>
-			<LabSection title="Rank ladder" sub="Every tier is framed in a point-top hexagon with the sub-tier chevrons (a star for Master), filled with the tier's colour.">
+			<LabSection title="Rank ladder" sub="Every tier is framed in a point-top hexagon in the tier's colour. Bronze counts chevrons, Silver bars and Gold stars for the sub-tier; Platinum carries a bolt and Diamond a gem, with the frame telling the sub-tier (plain, inner rim, forged); Master is the star.">
 				<div className={styles.ranks}>
 					{LADDER_RATINGS.map(rating => {
 						const tier = tierFor(rating);

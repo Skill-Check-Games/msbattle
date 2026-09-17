@@ -58,7 +58,7 @@ function rankHexChevrons(n: number, grad: string) {
 			50 + "," + y.toFixed(1), (x0 + w) + "," + (y + rise).toFixed(1), (x0 + w) + "," + (y + rise + thick).toFixed(1),
 			50 + "," + (y + thick).toFixed(1), x0 + "," + (y + rise + thick).toFixed(1), x0 + "," + (y + rise).toFixed(1)
 		];
-		p += '<polygon points="' + pts.join(" ") + '" fill="url(#' + grad + ')"/>';
+		p += '<polygon points="' + pts.join(" ") + '" ' + (grad ? 'fill="url(#' + grad + ')"' : 'style="fill:' + RB + '"') + "/>";
 	}
 	return p;
 }
@@ -70,6 +70,61 @@ function rankHexStarSVG(grad: string) {
 	}
 	return '<polygon points="' + pts.join(" ") + '" fill="url(#' + grad + ')"/>';
 }
+// ---- band marks (Design Lab, Sep 2026): the sub-tier is one to three of the band's own mark for Bronze
+// (chevrons), Silver (bars) and Gold (stars); Platinum carries a bolt and Diamond a gem, with the frame telling
+// the sub-tier: I the plain rim, II an inner rim, III "forged" (inner rim, rays and cracks on a thicker rim).
+// Everything stays inside the hexagon. Colours come from the .rank-badge.tier-* custom properties.
+const RB = "var(--rb-c2)", RB_DARK = "var(--bg, #0b1020)";
+const HEX_VERTS = RANK_HEX_PTS.split(" ").map(p => p.split(",").map(Number));
+const hexDir = (i: number, r: number) => { const v = HEX_VERTS[i], dx = v[0] - 50, dy = v[1] - 53, l = Math.hypot(dx, dy); return [50 + dx / l * r, 53 + dy / l * r]; };
+const rbPath = (d: string, w: number, opacity?: number, color = RB) => '<path d="' + d + '" style="fill:none;stroke:' + color + ';stroke-width:' + w + (opacity != null ? ";opacity:" + opacity : "") + '" stroke-linecap="round" stroke-linejoin="round"/>';
+const rbFill = (d: string) => '<path d="' + d + '" style="fill:' + RB + '"/>';
+function scaledHex(k: number): string { return HEX_VERTS.map(v => (50 + (v[0] - 50) * k).toFixed(1) + "," + (53 + (v[1] - 53) * k).toFixed(1)).join(" "); }
+function starPoints(cx: number, cy: number, ro: number, ri: number): string {
+	const pts: string[] = [];
+	for (let k = 0; k < 10; k++) { const a = (-90 + k * 36) * Math.PI / 180, r = k % 2 ? ri : ro; pts.push((cx + r * Math.cos(a)).toFixed(1) + "," + (cy + r * Math.sin(a)).toFixed(1)); }
+	return pts.join(" ");
+}
+function rankHexBars(n: number): string {
+	const h = 5, gap = 5, total = n * h + (n - 1) * gap, y0 = 53 - total / 2;
+	let p = "";
+	for (let i = 0; i < n; i++) p += '<rect x="31" y="' + (y0 + i * (h + gap)).toFixed(1) + '" width="38" height="' + h + '" rx="2.5" style="fill:' + RB + '"/>';
+	return p;
+}
+function rankHexStars(n: number): string {
+	const gap = 17, x0 = 50 - (n - 1) * gap / 2;
+	let p = "";
+	for (let i = 0; i < n; i++) p += '<polygon points="' + starPoints(x0 + i * gap, 53, 8, 3.4) + '" style="fill:' + RB + '"/>';
+	return p;
+}
+const rankBolt = () => '<g transform="translate(50 53) scale(1.02) translate(-50 -46)">' + rbFill("M54 26 L37 49 H48 L45 66 L63 41 H52 Z") + "</g>";
+const rankGem = () => '<g transform="translate(50 53) scale(1.02) translate(-50 -47)">' + rbFill("M35 42 L43 32 H57 L65 42 L50 62 Z") + rbPath("M35 42 H65 M43 32 L50 42 L57 32 M50 42 V62", 1.5, undefined, RB_DARK) + "</g>";
+const rankInnerRim = () => '<polygon points="' + scaledHex(0.82) + '" style="fill:none;stroke:' + RB + ';stroke-width:2"/>';
+// Forged (level III): twelve fine rays and six jagged cracks from the emblem to the corners, on a thicker rim.
+function rankForged(): string {
+	let s = rankInnerRim();
+	for (let i = 0; i < 12; i++) {
+		const a = -Math.PI / 2 + i * Math.PI / 6, r0 = 16, r1 = i % 2 ? 27 : 36;
+		s += rbPath("M" + (50 + Math.cos(a) * r0).toFixed(1) + " " + (53 + Math.sin(a) * r0).toFixed(1) + " L" + (50 + Math.cos(a) * r1).toFixed(1) + " " + (53 + Math.sin(a) * r1).toFixed(1), 1.3, 0.4);
+	}
+	for (let i = 0; i < 6; i++) {
+		const a = hexDir(i, 18), m1 = hexDir(i, 26), m2 = hexDir(i, 33), b = hexDir(i, 39), px = -(b[1] - a[1]) / 24, py = (b[0] - a[0]) / 24, sgn = i % 2 ? 1 : -1;
+		const k1 = [m1[0] + px * 3 * sgn, m1[1] + py * 3 * sgn], k2 = [m2[0] - px * 2.5 * sgn, m2[1] - py * 2.5 * sgn];
+		s += rbPath("M" + a[0].toFixed(1) + " " + a[1].toFixed(1) + " L" + k1[0].toFixed(1) + " " + k1[1].toFixed(1) + " L" + k2[0].toFixed(1) + " " + k2[1].toFixed(1) + " L" + b[0].toFixed(1) + " " + b[1].toFixed(1), 1.8, 0.6);
+		if (i % 2 === 0) s += rbPath("M" + k1[0].toFixed(1) + " " + k1[1].toFixed(1) + " L" + (k1[0] + px * 6 * sgn + (m2[0] - m1[0]) * 0.35).toFixed(1) + " " + (k1[1] + py * 6 * sgn + (m2[1] - m1[1]) * 0.35).toFixed(1), 1.3, 0.48);
+	}
+	return s + '<polygon points="' + RANK_HEX_PTS + '" style="fill:none;stroke:' + RB + ';stroke-width:6" stroke-linejoin="round"/>';
+}
+function rankBandMark(tierClass: string, subN: number): string {
+	switch (tierClass) {
+		case "bronze": return rankHexChevrons(subN, "");
+		case "silver": return rankHexBars(subN);
+		case "gold": return rankHexStars(subN);
+		case "platinum": case "diamond": return (subN === 3 ? rankForged() : subN === 2 ? rankInnerRim() : "") + (tierClass === "platinum" ? rankBolt() : rankGem());
+	}
+	return rankHexChevrons(subN, "");
+}
+
 let rankGradSeq = 0;
 export function rankEmblemSVG(rating: number): { tierClass: string; svg: string } {
 	const info = rankIconFor(rating);
@@ -80,7 +135,7 @@ export function rankEmblemSVG(rating: number): { tierClass: string; svg: string 
 	let svg = '<svg class="rank-emblem" viewBox="0 0 100 100" aria-hidden="true">';
 	svg += '<defs><linearGradient id="' + grad + '" x1="0" y1="0" x2="0.3" y2="1"><stop offset="0" style="stop-color:var(--rb-c2)"/><stop offset="1" style="stop-color:var(--rb-c2)"/></linearGradient></defs>';
 	svg += rankHexSVG();
-	svg += isMaster ? rankHexStarSVG(grad) : rankHexChevrons(subN, grad);
+	svg += isMaster ? rankHexStarSVG(grad) : rankBandMark(info.tierClass, subN);
 	svg += "</svg>";
 	return { tierClass: info.tierClass, svg };
 }
