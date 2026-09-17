@@ -178,8 +178,20 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 		mode: () => { const p = puzzleRef.current; return p && !p.finished ? "puzzle" : null; },
 		sound,
 		onAction: (r, c, asFlag) => { session.hintClues = []; session.hintCovered = []; movesRef.current.push({ r, c, flag: !!asFlag }); getSocket().emit(asFlag ? "right_click" : "left_click", { r, c }); },
-		onAfterReveal: (result: ActionResult) => { const p = puzzleRef.current; if (p && (p.mode === "streak" || p.mode === "storm") && result.hitMine) setPendingFlash("fail"); }
+		onAfterReveal: (result: ActionResult) => {
+			const p = puzzleRef.current; if (!p || p.finished) return;
+			if (result.hitMine) { if (p.mode === "streak" || p.mode === "storm") setPendingFlash("fail"); return; }
+			// Every safe cell is open: that IS the solve, so the finish plays now. The server's puzzle_result (the
+			// rating, the streak) lands a round-trip later and only adds the delta to the flash already showing.
+			if (p.mode !== "streak" && p.mode !== "storm" && !localSolvedRef.current && p.totalSafe > 0 && session.countKnownSafe() >= p.totalSafe) { localSolvedRef.current = true; playSolved(undefined); }
+		}
 	}), []);
+	// The solved finish (design "Sweep"): the board's border turns green (stays while solved), a green wash sweeps
+	// the tiles out from the last click, a check mark pops at the board's centre and goes, and the rating delta
+	// pops in the dossier. Played once per puzzle: locally on the last safe reveal, or on the server's result if
+	// that came first (a resumed puzzle, a hint that finished it).
+	const localSolvedRef = useRef(false);
+	const playSolved = (delta: number | undefined) => { sound.win(); session.startSweep(); setFlash({ solved: true, delta }); setDone("solved"); setTimeout(() => setFlash(null), 1200); };
 	if (import.meta.env.DEV) (window as any).__puzzle = session;
 	useAdminClearBoard(session, account?.isAdmin);
 
@@ -208,7 +220,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 					}
 					session.setBoard(d.rows, d.cols, decoder, state);
 					session.focusedR = Math.floor(d.rows / 2); session.focusedC = Math.floor(d.cols / 2);
-					setDone(null); setFlash(null); setStatus(""); setDaily(null); setRunEnd(null);
+					setDone(null); setFlash(null); setStatus(""); setDaily(null); setRunEnd(null); localSolvedRef.current = false;
 					rerender();
 				};
 				withFlash(apply);
@@ -228,9 +240,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 						puzzleRecent: [...(acc.puzzleRecent || []), d.solved].slice(-10)
 					});
 				}
-				// Solved (design "Sweep"): the board's border turns green (stays while solved), a green wash sweeps the tiles
-				// out from the last click, a check mark pops at the board's centre and goes, and the rating delta pops in the dossier.
-				if (d.solved) { sound.win(); session.startSweep(); setFlash({ solved: true, delta: d.playerDelta }); setDone("solved"); setTimeout(() => setFlash(null), 1200); }
+				if (d.solved) { if (localSolvedRef.current) setFlash(f => f ? { ...f, delta: d.playerDelta } : f); else { localSolvedRef.current = true; playSolved(d.playerDelta); } }
 				else setDone("fail");
 				if (!d.noRating && typeof d.playerBefore === "number" && typeof d.playerAfter === "number" && d.playerBefore !== d.playerAfter) {
 					// New rank: higher than any level reached before (the server sends the peak rating before this solve).

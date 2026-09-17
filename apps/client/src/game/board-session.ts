@@ -231,6 +231,9 @@ export class BoardSession {
 
 	// ---- counting ----
 	countKnown(): number { let n = 0; if (!this.state) return 0; for (const row of this.state) for (const v of row) if (v === KNOWN) n++; return n; }
+	// Revealed SAFE cells (a revealed mine, as on a marathon board with lives, does not count): the puzzle's
+	// solved test on the client, so the finish can play before the server confirms it.
+	countKnownSafe(): number { let n = 0; if (!this.state) return 0; for (let r = 0; r < this.rows; r++) for (let c = 0; c < this.cols; c++) if (this.state[r][c] === KNOWN && this.cellAt(r, c) !== MINE) n++; return n; }
 	countFlags(): number { let n = 0; if (!this.state) return 0; for (const row of this.state) for (const v of row) if (v === FLAGGED) n++; return n; }
 
 	// ---- local prediction ----
