@@ -321,7 +321,10 @@ export class BoardSession {
 				if (this.state[nr][nc] === UNKNOWN) { this.focusedR = nr; this.focusedC = nc; return true; }
 				nr += dr; nc += dc;
 			}
-			return false;
+			// No covered cell that way: go to the board's edge instead of staying put.
+			const er = Math.max(0, Math.min(this.rows - 1, nr)), ec = Math.max(0, Math.min(this.cols - 1, nc));
+			if (er === this.focusedR && ec === this.focusedC) return false;
+			this.focusedR = er; this.focusedC = ec; return true;
 		}
 		const tr = Math.max(0, Math.min(this.rows - 1, this.focusedR + dr)), tc = Math.max(0, Math.min(this.cols - 1, this.focusedC + dc));
 		if (tr === this.focusedR && tc === this.focusedC) return false;
