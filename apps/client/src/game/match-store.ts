@@ -110,6 +110,16 @@ class MatchStore {
 		if (this.wired) return; this.wired = true;
 		const socket = getSocket();
 		socket.on("connected", (d) => { this.myId = d.id; this.mainId = d.id; });
+		// The main server restarted (a deploy) while we were queued: the queue is in its memory, so the new
+		// instance knows nothing of us. The lobby socket reconnects and re-authenticates on its own; if a
+		// search is still showing, ask for it again so it carries on instead of spinning forever.
+		socket.on("authenticated", () => {
+			const s = this.state;
+			if (!s.search || s.inRoom || !s.search.mode) return;
+			socket.emit("find_ranked", { mode: s.search.mode });
+			if (this.searchAckTimer) clearTimeout(this.searchAckTimer);
+			this.searchAckTimer = window.setTimeout(() => { this.searchAckTimer = null; if (this.state.search && !this.state.inRoom) this.failSearch("Couldn't rejoin the matchmaking queue. Please try again."); }, 5000);
+		});
 		// Split deployment: the match is played on a game server. On that server this client's id is the
 		// GAME socket's id (matches are keyed by socket id), so it is adopted for the match: which board is
 		// mine, winnerId and standings all compare against it. The main id comes back on teardown.
@@ -345,6 +355,5 @@ export const STYLE_LABELS: Record<string, string> = { sprint: "Sprint", standard
 
 export const match = new MatchStore();
 // Dev builds expose the store for probes and debugging (never in production).
-if (import.meta.env.DEV) (window as any).__match = match;
 if (import.meta.env.DEV) (window as any).__match = match;
 export function useMatch(): MatchState { return useSyncExternalStore(match.subscribe, match.getSnapshot); }
