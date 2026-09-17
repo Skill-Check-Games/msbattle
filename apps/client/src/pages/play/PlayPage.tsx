@@ -416,11 +416,12 @@ export default function PlayPage() {
 		return out;
 	}, [frames, s.roundResult]);
 
+	// A ranked match still running (the series hasn't ended): leaving counts as a loss, so the exit asks first.
+	const [confirmLeave, setConfirmLeave] = useState(false);
+
 	// After every hook: leaving a match unmounts the room state, and the redirect must not change hook order.
 	if (!s.inRoom && !s.search) return <Navigate to="/" replace />;
 
-	// A ranked match still running (the series hasn't ended): leaving counts as a loss, so the exit asks first.
-	const [confirmLeave, setConfirmLeave] = useState(false);
 	const rankedLive = !!(s.inRoom && s.room && s.room.ranked && s.room.phase === "playing" && !s.seriesResult);
 	const exit = () => {
 		if (s.search) { match.cancelSearch(); navigate("/"); return; }
