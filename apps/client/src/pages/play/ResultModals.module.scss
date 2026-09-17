@@ -14,7 +14,6 @@
 
 // ---- the rating block ----
 .ratingCard { align-self: stretch; padding: 1.1rem 1.2rem; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--border); display: flex; flex-direction: column; gap: 0.65rem; }
-.revealLine { font-size: 0.85rem; color: var(--muted); b { font-weight: 800; } }
 .cols { display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; gap: 0.5rem; }
 .col { display: flex; flex-direction: column; gap: 0.1rem; }
 .center { align-items: center; padding-bottom: 0.2rem; .colNum { font-size: 1.4rem; } }
@@ -117,7 +116,6 @@
 	.colLabel { font-size: 0.6rem; }
 	.track { height: 0.6rem; }
 	.progLabels { font-size: 0.7rem; }
-	.revealLine { font-size: 0.74rem; }
 	.rings { gap: 0.4rem; }
 	.ring { max-width: 1.9rem; border-width: 2px; }
 	.placeCount { font-size: 0.9rem; }

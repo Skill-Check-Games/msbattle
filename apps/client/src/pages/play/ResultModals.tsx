@@ -127,7 +127,6 @@ function RankedResult({ result, myId, compact }: { result: SeriesResult; myId: s
 				? <PlacementCard played={playedAfter} need={need} />
 				: (
 					<div className={styles.ratingCard}>
-						{revealed && <div className={styles.revealLine}>Placement complete · your rank is <b style={{ color: tier.color }}>{tier.name}</b></div>}
 						<div className={styles.cols}>
 							<div className={styles.col}><div className={styles.colLabel}>Before</div><div className={`${styles.colNum} ${styles.old}`}>{oldRating ?? newRating}</div></div>
 							<div className={`${styles.col} ${styles.center}`}>{typeof mine?.ratingDelta === "number" && <div className={`${styles.colNum} ${deltaCls(mine.ratingDelta)}`}>{deltaText(mine.ratingDelta)}</div>}</div>
