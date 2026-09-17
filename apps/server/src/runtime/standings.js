@@ -10,7 +10,7 @@ var gameUtil = require("./gameUtil");
 var roundStarts = appState.roundStarts, games = appState.games, accounts = appState.accounts;
 var names = appState.names, botRating = appState.botRating;
 var avatars = appState.avatars, countries = appState.countries;
-var isBot = gameUtil.isBot, accountRating = gameUtil.accountRating;
+var isBot = gameUtil.isBot, accountRating = gameUtil.accountRating, accountPlayed = gameUtil.accountPlayed;
 
 var RANKED_BOT_RATING, PROVISIONAL_GAMES;
 function init(deps) { RANKED_BOT_RATING = deps.RANKED_BOT_RATING; PROVISIONAL_GAMES = deps.PROVISIONAL_GAMES; }
@@ -57,7 +57,7 @@ function buildStandings(room) {
 		var finishedAt = g ? (g.finishedAt || 0) : 0;
 		var bot = isBot(pid);
 		var rating = bot ? (botRating[pid] || RANKED_BOT_RATING) : accountRating(accounts[pid], style);
-		var provisional = bot ? false : (accounts[pid] ? accounts[pid].played < PROVISIONAL_GAMES : false);
+		var provisional = bot ? false : (accounts[pid] ? accountPlayed(accounts[pid], style) < PROVISIONAL_GAMES : false);
 		var safeCount = g ? g.revealedSafeCount() : 0;
 		var totalSafe = g ? (g.totalSafeSquares || 0) : 0;
 		return {
@@ -107,7 +107,8 @@ function buildSeriesStandings(room) {
 		// Result-card display rating: bots read their measured pool rating (never gain/lose Elo);
 		// humans get this pre-match rating overwritten with the post-match one by applyRankedElo below.
 		var rating = bot ? (botRating[pid] || RANKED_BOT_RATING) : accountRating(accounts[pid], style);
-		var provisional = bot ? false : (accounts[pid] ? accounts[pid].played < PROVISIONAL_GAMES : false);
+		var provisional = bot ? false : (accounts[pid] ? accountPlayed(accounts[pid], style) < PROVISIONAL_GAMES : false);
+		var clearRounds = (room.clearRounds && room.clearRounds[pid]) || 0;
 		// Average per-round progress across the series — the margin-of-victory signal at series end.
 		// avatar/country: the result card shows each player as they appeared in the match (already public
 		// in every room broadcast, so nothing new is exposed).
@@ -116,6 +117,8 @@ function buildSeriesStandings(room) {
 			progress: rounds > 0 ? (sums[pid] || 0) / rounds : 0,
 			finished: finished,
 			finishMs: (finished && roundStart && finishedAt) ? (finishedAt - roundStart) : null,
+			// Average clear time over the rounds this player finished (null if none): the placement speed signal.
+			clearMs: clearRounds > 0 ? Math.round(room.clearMsSum[pid] / clearRounds) : null,
 			rating: rating,
 			provisional: provisional };
 	});

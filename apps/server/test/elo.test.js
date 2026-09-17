@@ -13,6 +13,8 @@ before(() => {
 	elo = require("../src/runtime/elo");
 	db = require("../src/db");
 	elo.init({ RANKED_BOT_RATING: 1000, PROVISIONAL_GAMES: 5 });
+	// The placement speed curve reads the benchmarked bot pool.
+	require("core/src/engine/BotPlayer").loadPool(path.join(__dirname, "..", "..", "..", "bots-pool.json"));
 });
 
 test("1v1 equal ratings: winner +K/2, loser -K/2 (settled K=40)", () => {
@@ -130,14 +132,88 @@ test("streak bonus starts at the 3rd consecutive win (streak 2 before the match 
 	assert.strictEqual(none[0].delta, 20, "2 in a row is not yet a streak");
 });
 
-test("streak bonus is measured against the settled K, so placement swings get an additive bonus, not 3×", () => {
-	// Game 1 K=150: base +75. A 6-streak adds (3-1) × settled 40 × 0.5 = +40, not 75 × 3.
+test("streak bonus is measured against the settled K, so an early post-placement swing gets an additive bonus, not 3×", () => {
+	// Game 6 (played 5) K=80: base +40. A 6-streak adds (3-1) × settled 40 × 0.5 = +40, not 40 × 3.
 	const parts = [
-		{ rank: 1, rating: 1000, bot: false, userId: 1, played: 0, streak: 5 },
-		{ rank: 2, rating: 1000, bot: false, userId: 2, played: 0, streak: 0 }
+		{ rank: 1, rating: 1000, bot: false, userId: 1, played: 5, streak: 5 },
+		{ rank: 2, rating: 1000, bot: false, userId: 2, played: 5, streak: 0 }
 	];
 	elo.computeRankedElo(parts, "sprint");
-	assert.strictEqual(parts[0].delta, 115);
+	assert.strictEqual(parts[0].delta, 80);
+});
+
+// ---- Placement: a performance estimate for the first PROVISIONAL_GAMES matches on a ladder ----
+test("placement match 1: a 1v1 win over a 1000-rated bot lands on the outcome estimate (opponent + 400) with no clear time", () => {
+	const parts = [
+		{ rank: 1, rating: 0, bot: false, userId: 1, played: 0 },
+		{ rank: 2, rating: 1000, bot: true, userId: null, played: 10 }
+	];
+	elo.computeRankedElo(parts, "sprint");
+	assert.strictEqual(parts[0].newRating, 1400);
+	assert.strictEqual(parts[0].delta, 1400);
+	assert.strictEqual(parts[0].provisional, true, "4 more placement matches to go");
+});
+
+test("placement: 1st of six among 1000-rated bots reads as 1400; 3rd of six as a little above the field", () => {
+	const six = (rank) => { const parts = [{ rank, rating: 0, bot: false, userId: 1, played: 0 }]; for (let r = 1; r <= 6; r++) if (r !== rank) parts.push({ rank: r, rating: 1000, bot: true, userId: null, played: 10 }); elo.computeRankedElo(parts, "sprint"); return parts[0].newRating; };
+	assert.strictEqual(six(1), 1400);
+	assert.strictEqual(six(3), 1080);   // beat three, lost to two: 1000 + 400 × (3 − 2) / 5
+	assert.strictEqual(six(6), 600);
+});
+
+test("speedRating: the pool's clear times map a Sprint time to a rating, faster is higher, clamped at the curve's ends", () => {
+	const slow = elo.speedRating("sprint", 130000), mid = elo.speedRating("sprint", 60000), fast = elo.speedRating("sprint", 10000);
+	assert.ok(slow < 400, "two minutes is Bronze pace: " + slow);
+	assert.ok(mid > 1700 && mid < 2200, "a minute is Platinum pace: " + mid);
+	assert.ok(fast >= 2700, "ten seconds sits at the top of the curve: " + fast);
+	assert.ok(elo.speedRating("standard", 60000) > elo.speedRating("sprint", 60000), "a minute on the denser Standard board is worth more");
+});
+
+test("placement blends the clear time in: a win over a 1000 bot cleared in a minute lands well above the outcome estimate alone", () => {
+	const parts = [
+		{ rank: 1, rating: 0, bot: false, userId: 1, played: 0, clearMs: 60000 },
+		{ rank: 2, rating: 1000, bot: true, userId: null, played: 10 }
+	];
+	elo.computeRankedElo(parts, "sprint");
+	const speed = elo.speedRating("sprint", 60000);
+	assert.strictEqual(parts[0].newRating, Math.round((1400 + speed) / 2));
+	assert.ok(parts[0].newRating > 1500 && parts[0].newRating < 1800, "Gold-Platinum after one fast win: " + parts[0].newRating);
+});
+
+test("placement is a running mean: a loss in match 2 pulls the estimate down, it does not step by K", () => {
+	const parts = [
+		{ rank: 2, rating: 1400, bot: false, userId: 1, played: 1 },
+		{ rank: 1, rating: 1400, bot: true, userId: null, played: 10 }
+	];
+	elo.computeRankedElo(parts, "sprint");
+	assert.strictEqual(parts[0].newRating, 1200);   // mean(1400, 1400 − 400)
+	assert.strictEqual(parts[0].delta, -200);
+});
+
+test("placement caps at PLACEMENT_CAP (upper Platinum / lower Diamond); the rest has to be earned by Elo", () => {
+	const parts = [
+		{ rank: 1, rating: 0, bot: false, userId: 1, played: 0, clearMs: 15000 },
+		{ rank: 2, rating: 2900, bot: true, userId: null, played: 10 }
+	];
+	elo.computeRankedElo(parts, "sprint");
+	assert.strictEqual(parts[0].newRating, elo.PLACEMENT_CAP);
+	assert.strictEqual(elo.PLACEMENT_CAP, 2500);
+});
+
+test("the last placement match clears provisional; from then on it is ordinary Elo (K settles from 80)", () => {
+	const last = [
+		{ rank: 1, rating: 1600, bot: false, userId: 1, played: 4 },
+		{ rank: 2, rating: 1600, bot: true, userId: null, played: 10 }
+	];
+	elo.computeRankedElo(last, "sprint");
+	assert.strictEqual(last[0].provisional, false);
+	assert.strictEqual(last[0].newRating, 1680);   // mean of four 1600s and a 2000
+	const after = [
+		{ rank: 1, rating: 1680, bot: false, userId: 1, played: 5 },
+		{ rank: 2, rating: 1680, bot: true, userId: null, played: 10 }
+	];
+	elo.computeRankedElo(after, "sprint");
+	assert.strictEqual(after[0].delta, 40);   // K = 150 − 5 × 14 = 80, half of it for an even 1v1 win
 });
 
 test("6-player win at Gold vs 1000-rated bots: streak lifts a ~15 gain to ~45", () => {

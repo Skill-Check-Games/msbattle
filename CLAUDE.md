@@ -85,7 +85,10 @@ Other docs: `ARCHITECTURE_PLAN.md` (target architecture; read before any service
 - Ranked: fixed ruleset (best of 5, 5 min rounds, Standard 6 min, 5 s mine penalty, medium board,
   10% mines Sprint / 20% Standard), pairwise Elo. Ratings are **per style** (`rating_sprint`,
   `rating_standard`), 0 → 3000+, 200 per sub-tier, everyone starts at 0. "Overall" = max across
-  modes. Placement swings are large (`kFactor`), margin of victory adds a bonus, and a win streak
+  modes. Placement (the first 5 matches on a style's ladder, counted per style) is a performance estimate,
+  not Elo steps: each match's outcome estimate (opponents ± 400) blended with a speed rating from the bot
+  pool's clear-time curve, the rating being the running mean, capped at 2500 (`PLACEMENT_CAP`). After
+  that, ordinary pairwise Elo with K settling 80 → 40; margin of victory adds a bonus, and a win streak
   (3+ in a row, read from `player_stats.win_streak_current`) multiplies a win's gain up to 3× at 6 (`elo.js`).
 - Puzzles: two-way `puzzle_rating` only picks which puzzles you get and is hidden from the UI; the
   visible rank is the monotonic Puzzle Ladder (`puzzle_points`, `core/PuzzleLadder.js`).

@@ -7,6 +7,7 @@
 var db = require("../db");
 var appState = require("./appState");
 var gameUtil = require("./gameUtil");
+var botPlayer = require("core/src/engine/BotPlayer");
 
 var accounts = appState.accounts, botRating = appState.botRating;
 var isBot = gameUtil.isBot;
@@ -46,6 +47,75 @@ function streakMultiplier(streak) {
 	return 1 + (STREAK_MAX_MULTIPLIER - 1) * t;
 }
 function settledK(style) { return kFactor(BOT_SETTLED_PLAYED, style); }
+
+// ---- Placement: the first PROVISIONAL_GAMES matches on a style's ladder ----
+// Not Elo steps from 0 but a performance estimate, so a strong newcomer lands near their level in a
+// match or two and a weak start is corrected just as fast. Each placement match yields a performance
+// rating: the classic outcome estimate (each opponent's rating ± 400 for a win / loss, averaged) blended
+// with a SPEED rating when the player cleared the board — the rating of pool bots that clear this
+// style's board in the same time (bots-pool.json's benchmarked clear times, see speedRating). The
+// rating after placement match k is the mean of the k performance ratings so far (so match 1 jumps
+// straight to its estimate and later matches average in, up or down), capped at PLACEMENT_CAP: upper
+// Platinum / lower Diamond at most; anything higher has to be earned by ordinary Elo afterwards.
+var PLACEMENT_CAP = 2500;
+var PLACEMENT_SPEED_WEIGHT = 0.5;
+var STYLE_DENSITY = { sprint: "0.10", standard: "0.20" }; // the ranked boards' mine densities (RANKED_MODES in ranked.js)
+var SPEED_BAND = 300;
+var speedCurves = null; // density key → [{ ms, rating }] from slowest to fastest, one point per rating band
+function speedCurve(key) {
+	if (!speedCurves) {
+		speedCurves = {};
+		var pool = botPlayer.getPool();
+		Object.keys(STYLE_DENSITY).forEach(function(style) {
+			var k = STYLE_DENSITY[style], bands = {};
+			pool.forEach(function(b) {
+				var t = b.times && b.times[k];
+				if (typeof b.rating !== "number" || typeof t !== "number" || !(t > 0)) return;
+				var band = Math.floor(b.rating / SPEED_BAND);
+				(bands[band] = bands[band] || []).push(t);
+			});
+			var pts = Object.keys(bands).map(function(band) {
+				var ts = bands[band].slice().sort(function(a, c) { return a - c; });
+				return { rating: band * SPEED_BAND + SPEED_BAND / 2, ms: ts[Math.floor(ts.length / 2)] };
+			}).sort(function(a, c) { return c.ms - a.ms; });
+			speedCurves[k] = pts;
+		});
+	}
+	return speedCurves[key] || [];
+}
+// The rating at which pool bots clear this board in `ms`: linear interpolation between the bands' median
+// times, clamped to the curve's ends. null without a curve (no pool) so the caller falls back to outcome only.
+function speedRating(style, ms) {
+	var key = STYLE_DENSITY[style]; if (!key) return null;
+	var pts = speedCurve(key); if (pts.length < 2) return null;
+	if (ms >= pts[0].ms) return pts[0].rating;
+	for (var i = 1; i < pts.length; i++) {
+		if (ms >= pts[i].ms) {
+			var a = pts[i - 1], b = pts[i], t = (a.ms - ms) / (a.ms - b.ms);
+			return a.rating + (b.rating - a.rating) * t;
+		}
+	}
+	return pts[pts.length - 1].rating;
+}
+// One placement match's performance rating for `p` against `parts` (see above).
+function performanceRating(p, parts, style) {
+	var sum = 0, n = 0;
+	for (var j = 0; j < parts.length; j++) {
+		var q = parts[j]; if (q === p) continue;
+		var score = p.rank < q.rank ? 1 : p.rank > q.rank ? 0 : 0.5;
+		sum += q.rating + 400 * (2 * score - 1); n++;
+	}
+	if (!n) return p.rating;
+	var outcome = sum / n;
+	var speed = (typeof p.clearMs === "number" && p.clearMs > 0) ? speedRating(style, p.clearMs) : null;
+	return speed == null ? outcome : (1 - PLACEMENT_SPEED_WEIGHT) * outcome + PLACEMENT_SPEED_WEIGHT * speed;
+}
+// The rating after a placement match: the running mean of the performance ratings so far, capped.
+function placementRating(p, parts, style) {
+	var k = p.played + 1;
+	var mean = (p.rating * p.played + performanceRating(p, parts, style)) / k;
+	return Math.round(Math.max(0, Math.min(PLACEMENT_CAP, mean)));
+}
 
 // Margin-of-victory: a dominant finish boosts the rating GAIN by up to the style's margin bonus. The
 // margin is the gap between this player's progress (avg fraction of board cleared across the series) and
@@ -97,6 +167,7 @@ function applyEloForPlayer(targetPid, allParts, style) {
 	}
 	var delta = Math.round(kFactor(target.played, style) * sum / Math.sqrt(n - 1));
 	var newRating = Math.max(0, target.rating + delta); // Bronze I floors at 0
+	if (target.played < PROVISIONAL_GAMES) { newRating = placementRating(target, allParts, style); delta = newRating - target.rating; } // placement: the performance estimate (a walk-out is a loss to everyone)
 	var provisional = (target.played + 1) < PROVISIONAL_GAMES;
 	db.updateRating(target.userId, newRating, target.rank === 1, style);
 	db.recordMatch({
@@ -108,7 +179,9 @@ function applyEloForPlayer(targetPid, allParts, style) {
 		// lobby tile updates the right tier badge.
 		if (style === "sprint") accounts[targetPid].ratingSprint = newRating;
 		else if (style === "standard") accounts[targetPid].ratingStandard = newRating;
-		accounts[targetPid].played = target.played + 1;
+		accounts[targetPid].played = (accounts[targetPid].played || 0) + 1;
+		if (style === "sprint") accounts[targetPid].playedSprint = target.played + 1;
+		else if (style === "standard") accounts[targetPid].playedStandard = target.played + 1;
 	}
 	return { delta: delta, newRating: newRating, provisional: provisional };
 }
@@ -126,6 +199,14 @@ function computeRankedElo(parts, style) {
 		var p = parts[i];
 		p.delta = null; p.newRating = null; p.provisional = false;
 		if (n < 2 || (!p.bot && !p.userId)) continue;
+		if (!p.bot && p.played < PROVISIONAL_GAMES) {
+			// Placement: the performance estimate replaces the pairwise step (no streak / margin bonuses: the
+			// estimate already reads the result and the speed).
+			p.newRating = placementRating(p, parts, style);
+			p.delta = p.newRating - p.rating;
+			p.provisional = (p.played + 1) < PROVISIONAL_GAMES;
+			continue;
+		}
 		var sum = 0;
 		for (var j = 0; j < n; j++) {
 			if (i === j) continue;
@@ -161,9 +242,9 @@ function applyRankedElo(standings, style) {
 		var rating = bot ? (botRating[s.id] || RANKED_BOT_RATING) : RANKED_BOT_RATING, userId = null, played = 0;
 		if (!bot && acc) {
 			var u = db.getUserById(acc.userId);
-			if (u) { rating = readUserRating(u, style); userId = acc.userId; played = u.played; }
+			if (u) { rating = readUserRating(u, style); userId = acc.userId; played = db.playedByStyle(u.id, u.played || 0)[style]; } // games on THIS ladder
 		}
-		return { rank: s.rank, rating: rating, progress: s.progress, bot: bot, userId: userId, played: played,
+		return { rank: s.rank, rating: rating, progress: s.progress, clearMs: s.clearMs, bot: bot, userId: userId, played: played,
 			streak: userId ? db.currentWinStreak(userId) : 0, delta: null, newRating: null, provisional: false };
 	});
 	var n = parts.length;
@@ -194,7 +275,9 @@ function applyRankedElo(standings, style) {
 				var acc = accounts[standings[k].id];
 				if (style === "sprint") acc.ratingSprint = parts[k].newRating;
 				else if (style === "standard") acc.ratingStandard = parts[k].newRating;
-				acc.played = parts[k].played + 1;
+				acc.played = (acc.played || 0) + 1;
+				if (style === "sprint") acc.playedSprint = parts[k].played + 1;
+				else if (style === "standard") acc.playedStandard = parts[k].played + 1;
 			}
 		}
 	}
@@ -216,6 +299,7 @@ function applyRankedEloFromReport(standings, style) {
 			rank: s.rank,
 			rating: (typeof s.ratingBefore === "number") ? s.ratingBefore : RANKED_BOT_RATING,
 			progress: s.progress,
+			clearMs: s.clearMs,
 			bot: !s.userId,
 			userId: s.userId || null,
 			played: s.played || 0,
@@ -251,5 +335,8 @@ module.exports = {
 	computeRankedElo: computeRankedElo,
 	streakMultiplier: streakMultiplier,
 	applyRankedElo: applyRankedElo,
-	applyRankedEloFromReport: applyRankedEloFromReport
+	applyRankedEloFromReport: applyRankedEloFromReport,
+	speedRating: speedRating,
+	performanceRating: performanceRating,
+	PLACEMENT_CAP: PLACEMENT_CAP
 };

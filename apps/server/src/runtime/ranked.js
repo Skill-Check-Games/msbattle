@@ -106,7 +106,7 @@ function rankedSearchMembers(viewerID, mode) {
 			id: pid,
 			name: names[pid] || (u && db.displayNameOf(u)) || "Anonymous",
 			rating: u ? readUserRating(u, style) : 0,
-			provisional: u ? (u.played < PROVISIONAL_GAMES) : true,
+			provisional: u ? (db.playedByStyle(u.id, u.played || 0)[style] < PROVISIONAL_GAMES) : true,
 			avatar: avatars[pid] || null,
 			country: countries[pid] || null,
 			isYou: pid === viewerID,
@@ -343,7 +343,7 @@ function allocateMatchToGameServer(mode, modeDef, matchSize, humans, botSpecs) {
 			revealEffect: appState.revealEffects[pid] || null,
 			userId: acc ? acc.userId : null,
 			rating: u ? readUserRating(u, style) : 1000,
-			played: u ? u.played : 0
+			played: u ? db.playedByStyle(u.id, u.played || 0)[style] : 0 // games on THIS ladder: placement is per style
 		};
 	});
 	var spec = {

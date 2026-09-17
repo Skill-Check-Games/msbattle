@@ -95,8 +95,9 @@ function buildPublicProfilePayload(user) {
 }
 
 function loginSocket(socket, playerID, user, token, sendToken) {
+	var playedBy = db.playedByStyle(user.id, user.played || 0);
 	accounts[playerID] = {
-		userId: user.id, token: token, played: user.played,
+		userId: user.id, token: token, played: user.played, playedSprint: playedBy.sprint, playedStandard: playedBy.standard,
 		ratingSprint: user.rating_sprint, ratingStandard: user.rating_standard
 	};
 	var displayName = db.displayNameOf(user); // editable display_name, falling back to the legacy/guest name
@@ -142,6 +143,7 @@ function migrateReconnectedPlayer(oldID, newID, socket) {
 	// progressSum only exists once at least one round has finished (see endIndividualGame) — carries the
 	// margin-of-victory bonus's per-round average forward so a mid-series reconnect doesn't reset it.
 	if (room.progressSum && room.progressSum.hasOwnProperty(oldID)) { room.progressSum[newID] = room.progressSum[oldID]; delete room.progressSum[oldID]; }
+	if (room.clearMsSum && room.clearMsSum.hasOwnProperty(oldID)) { room.clearMsSum[newID] = room.clearMsSum[oldID]; delete room.clearMsSum[oldID]; room.clearRounds[newID] = room.clearRounds[oldID]; delete room.clearRounds[oldID]; }
 	socket.join("room:" + room.id);
 	// Bring the reconnected client fully current. Its own board's move-sync heartbeat (Main.js) will
 	// separately catch the server up on anything it clicked while offline — the exact same dropped-

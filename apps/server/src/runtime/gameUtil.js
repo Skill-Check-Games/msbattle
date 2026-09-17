@@ -55,6 +55,14 @@ function maxAccountRating(acc) {
 	if (!acc) return null;
 	return Math.max(acc.ratingSprint || 0, acc.ratingStandard || 0);
 }
+// Games played on this style's ladder (placement and the K-factor are per style). Falls back to the lifetime
+// count for a cache entry that predates the per-style fields.
+function accountPlayed(acc, style) {
+	if (!acc) return 0;
+	var v = style === "sprint" ? acc.playedSprint : style === "standard" ? acc.playedStandard : undefined;
+	return typeof v === "number" ? v : (acc.played || 0);
+}
+
 function accountRating(acc, style) {
 	if (!acc) return null;
 	if (style === "sprint") return acc.ratingSprint;
@@ -141,6 +149,7 @@ function drainPendingRoomEvents(socket, userId) {
 }
 
 module.exports = {
+	accountPlayed: accountPlayed,
 	obfuscateBoard: obfuscateBoard,
 	gameForBroadcast: gameForBroadcast,
 	isBot: isBot,

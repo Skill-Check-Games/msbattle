@@ -296,9 +296,12 @@ function endIndividualGame(room, reason) {
 	// margin-of-victory bonus (a dominant clear pays more than a photo-finish).
 	room.progressSum = room.progressSum || {};
 	room.progressRounds = (room.progressRounds || 0) + 1;
+	room.clearMsSum = room.clearMsSum || {}; room.clearRounds = room.clearRounds || {};
 	for (var ps = 0; ps < roundStandings.length; ps++) {
 		var pe = roundStandings[ps];
 		room.progressSum[pe.id] = (room.progressSum[pe.id] || 0) + (pe.progress || 0);
+		// Clear times of finished rounds: the placement speed signal (elo.js performanceRating).
+		if (pe.finished && typeof pe.finishMs === "number" && pe.finishMs > 0) { room.clearMsSum[pe.id] = (room.clearMsSum[pe.id] || 0) + pe.finishMs; room.clearRounds[pe.id] = (room.clearRounds[pe.id] || 0) + 1; }
 	}
 	// Round winner = unique top-ranked player, if any.
 	var winnerID = null;
@@ -659,7 +662,7 @@ function buildPlayerParts(pid, rank, style) {
 		rating: bot ? (botRating[pid] || RANKED_BOT_RATING) : (u ? elo.readUserRating(u, style) : RANKED_BOT_RATING),
 		bot: bot,
 		userId: u ? u.id : null,
-		played: u ? u.played : 0
+		played: u ? db.playedByStyle(u.id, u.played || 0)[style] : 0
 	};
 }
 
@@ -971,8 +974,8 @@ function attachGameClient(socket, playerID) {
 	// made every game-server client show "Placement" before and after the match).
 	if (seat.userId != null) {
 		var acc = { userId: seat.userId, played: typeof seat.played === "number" ? seat.played : 0 };
-		if (entry.room.rankedStyle === "sprint") acc.ratingSprint = seat.rating;
-		else if (entry.room.rankedStyle === "standard") acc.ratingStandard = seat.rating;
+		if (entry.room.rankedStyle === "sprint") { acc.ratingSprint = seat.rating; acc.playedSprint = acc.played; }
+		else if (entry.room.rankedStyle === "standard") { acc.ratingStandard = seat.rating; acc.playedStandard = acc.played; }
 		accounts[playerID] = acc;
 	}
 	games[playerID] = createPlayerGame(playerID, entry.room.rows, entry.room.cols);
