@@ -323,6 +323,7 @@ function finalizePuzzle(socket, playerID, solved) {
 	// Puzzles are NOT re-rated by play: their rating is the scoring function's (db.poolRating), fixed at
 	// insert. Only the attempt/solve counters move.
 	var puzzleAfter = pp.puzzleBefore;
+	var peakBefore = db.puzzlePeakRating(pp.userId); // read before the update below raises it
 	db.updateUserPuzzleRating(pp.userId, playerAfter, solved);
 	db.recordPuzzleAttempt(pp.puzzleId, solved);
 	db.setCurrentPuzzle(pp.userId, null);
@@ -342,7 +343,8 @@ function finalizePuzzle(socket, playerID, solved) {
 		puzzleAfter: puzzleAfter,
 		streakBonus: streakBonus,
 		streak: streak,
-		puzzleStreakBest: Math.max(userNow.puzzle_streak_best || 0, streak)
+		puzzleStreakBest: Math.max(userNow.puzzle_streak_best || 0, streak),
+		peakBefore: peakBefore
 	});
 }
 

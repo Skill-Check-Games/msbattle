@@ -849,6 +849,11 @@ function markMatchPersisted(matchId) {
 		return info.changes > 0; // 1 = newly inserted (first time); 0 = already present
 	} catch (e) { console.error("markMatchPersisted failed", e); return true; }
 }
+// The highest puzzle rating the player has held (player_stats), 0 when untracked; the client compares the rank
+// after a solve against it to know whether a rank is being reached for the first time.
+function puzzlePeakRating(userId) {
+	try { var row = db.prepare("SELECT peak_puzzle_rating FROM player_stats WHERE user_id = ?").get(userId); return (row && row.peak_puzzle_rating) || 0; } catch (e) { return 0; }
+}
 // Puzzle solve/attempt: keep the peak puzzle rating + an active day. (Called from updateUserPuzzleRating.)
 function bumpPuzzleStats(userId, newRating) {
 	try {
@@ -1771,6 +1776,7 @@ module.exports = {
 	deletePuzzleById: deletePuzzleById,
 	recordPuzzleAttempt: recordPuzzleAttempt,
 	updateUserPuzzleRating: updateUserPuzzleRating,
+	puzzlePeakRating: puzzlePeakRating,
 	resetPuzzleProgress: resetPuzzleProgress,
 	setCurrentPuzzle: setCurrentPuzzle,
 	eloUpdate: eloUpdate,

@@ -58,6 +58,20 @@
 .railRow { display: flex; align-items: center; gap: 0.6rem; padding: 0.1rem 0.5rem; border-radius: 6px; border: 1px solid transparent; min-height: 0; }
 .railCurrent { background: rgba(255, 255, 255, 0.06); }
 .railLocked { opacity: 0.45; }
+// Spotlight (a rank reached for the first time): the board and dossier fade back, the other rows fade further, and
+// the new row steps forward with a light sweep and a chip beside it. The rail and grid keep their layout throughout.
+.boardCol, .dossier > *, .railRow { transition: opacity 0.35s; }
+.dimmed .boardCol, .dimmed .dossier > * { opacity: 0.25; }
+.dimmed .railRow:not(.railSpot) { opacity: 0.2; }
+.railSpot { position: relative; z-index: 3; background: var(--surface-2); box-shadow: 0 0 0 1px var(--spot), 0 0 28px rgba(0, 0, 0, 0.6); animation: spot-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.railSpot .railName { color: var(--spot) !important; }
+.railSweep { position: absolute; inset: 0; border-radius: inherit; overflow: hidden; pointer-events: none; }
+.railSweep::after { content: ""; position: absolute; top: 0; bottom: 0; left: -60%; width: 50%; background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.28), transparent); animation: spot-sweep 0.8s ease-out 0.3s both; }
+.spotChip { position: absolute; left: calc(100% + 14px); top: 50%; transform: translateY(-50%); white-space: nowrap; background: var(--spot); color: var(--bg); font-family: var(--font-display); font-weight: 800; font-size: 0.68rem; letter-spacing: 0.14em; text-transform: uppercase; padding: 7px 10px; border-radius: 4px; animation: chip-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) 0.35s both; pointer-events: none; }
+@keyframes spot-in { to { transform: scale(1.12); } }
+@keyframes spot-sweep { to { left: 120%; } }
+@keyframes chip-in { from { opacity: 0; transform: translate(-8px, -50%); } to { opacity: 1; transform: translate(0, -50%); } }
+@media (prefers-reduced-motion: reduce) { .railSpot, .railSweep::after, .spotChip { animation: none; } }
 .railText { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
 .railName { font-family: var(--font-display); font-weight: 700; font-size: 0.82rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pips { display: flex; gap: 4px; i { flex: 1; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.1); } }
@@ -107,6 +121,7 @@
 	.railText { flex: 0 0 auto; align-items: center; }
 	.railName { display: none; }
 	.pips { display: none; }
+	.spotChip { display: none; }
 	.ladderHead .cardTitle { display: none; } // the page title already says Puzzle Ladder
 	.ladderHead { gap: 0.6rem; }
 	.rankBar { margin-top: -0.45rem; }

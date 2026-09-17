@@ -32,7 +32,11 @@ const TITLES: Record<PuzzleMode, string> = { rated: "Puzzle Ladder", streak: "St
 
 interface Run { mode: PuzzleMode; solves?: number; targetRating?: number; endsAt?: number; streak?: number; date?: string; bestStreak?: number; }
 interface Puzzle { puzzleId: number; difficulty: number; totalSafe: number; totalMines: number; playerRating: number; mode: PuzzleMode; run: Run | null; finished: boolean; hintUsed: boolean; noRating?: boolean; }
-interface RatedResult { solved: boolean; hintUsed: boolean; playerBefore?: number; playerAfter?: number; playerDelta?: number; streakBonus?: number; streak?: number; puzzleStreakBest?: number; noRating?: boolean; }
+const SPOTLIGHT_MS = 1700;
+// The ladder as one climbing index (tier * 3 + level), for "is this rank higher than any before".
+const ladderLevelIndex = (rating: number) => { const l = puzzleLadder(rating); return l.tierIndex * LEVELS_PER_TIER + l.level; };
+
+interface RatedResult { solved: boolean; hintUsed: boolean; playerBefore?: number; playerAfter?: number; playerDelta?: number; streakBonus?: number; streak?: number; puzzleStreakBest?: number; noRating?: boolean; peakBefore?: number; }
 interface RunEnd { mode: "streak" | "storm"; solves: number; score: number; bestBefore: number; best: number; }
 interface DailyResult { date: string; solved: boolean; streak: number; bestStreak?: number; }
 
@@ -75,8 +79,12 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 	// Until the sequence reaches the badge (1.3s), the badge and tier label keep showing the OLD rank — the
 	// account already carries the new rating, and flipping early would show the new badge before the swap.
 	const [heldRating, setHeldRating] = useState<number | null>(null);
+	// A rank reached for the FIRST time (above the player's peak rating so far): the page dims and the rail's new
+	// row steps into a spotlight for SPOTLIGHT_MS from the moment the rank switches (design "Spotlight"). Ranking
+	// back up to a rank held before, or down, gets the ordinary sequence.
+	const [spotlight, setSpotlight] = useState<number | null>(null);   // the spotlit tier index
 	const ratingTimers = useRef<number[]>([]);
-	const animateRating = (before: number, after: number) => {
+	const animateRating = (before: number, after: number, newRank: boolean) => {
 		ratingTimers.current.forEach(clearTimeout); ratingTimers.current = [];
 		const a = puzzleLadder(before), b = puzzleLadder(after);
 		const crossed = a.tierIndex !== b.tierIndex || a.level !== b.level, up = after > before;
@@ -93,9 +101,13 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 			setFillOverride(crossed ? (up ? 100 : 0) : null);
 		}, 400);
 		T(() => { if (crossed) setFillOverride(null); setHeldRating(null); }, 1300);
+		const spot = newRank && crossed && up;
+		if (spot) { T(() => setSpotlight(b.tierIndex), 1300); T(() => setSpotlight(null), 1300 + SPOTLIGHT_MS); }
 		if (a.tierIndex !== b.tierIndex) {
-			T(() => setBadgeSwap(prev => ({ from: before, to: after, seq: (prev?.seq || 0) + 1 })), 1300);
-			T(() => setBadgeSwap(null), 1300 + RANK_BADGE_SWAP_MS);
+			// The badge swap waits for the spotlight to lift, so it is not played into a dimmed card.
+			const swapAt = spot ? 1300 + SPOTLIGHT_MS : 1300;
+			T(() => setBadgeSwap(prev => ({ from: before, to: after, seq: (prev?.seq || 0) + 1 })), swapAt);
+			T(() => setBadgeSwap(null), swapAt + RANK_BADGE_SWAP_MS);
 		}
 		T(() => { if (crossed) (up ? sound.rankUp : sound.rankDown)(); }, 1700);
 	};
@@ -220,7 +232,11 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 				// out from the last click, a check mark pops at the board's centre and goes, and the rating delta pops in the dossier.
 				if (d.solved) { sound.win(); session.startSweep(); setFlash({ solved: true, delta: d.playerDelta }); setDone("solved"); setTimeout(() => setFlash(null), 1200); }
 				else setDone("fail");
-				if (!d.noRating && typeof d.playerBefore === "number" && typeof d.playerAfter === "number" && d.playerBefore !== d.playerAfter) animateRating(d.playerBefore, d.playerAfter);
+				if (!d.noRating && typeof d.playerBefore === "number" && typeof d.playerAfter === "number" && d.playerBefore !== d.playerAfter) {
+					// New rank: higher than any level reached before (the server sends the peak rating before this solve).
+					const peak = Math.max(typeof d.peakBefore === "number" ? d.peakBefore : 0, d.playerBefore);
+					animateRating(d.playerBefore, d.playerAfter, ladderLevelIndex(d.playerAfter) > ladderLevelIndex(peak));
+				}
 				getSocket().emit("get_match_history");
 			}),
 			onSocket("puzzle_run_end", (d: RunEnd) => withFlash(() => { finish(); if (accountRef.current) update(d.mode === "streak" ? { streakBest: d.best } : { stormBest: d.best }); setRunEnd(d); })),
@@ -333,14 +349,14 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 				<span className={styles.title}>{TITLES[mode]}</span>
 			</div>
 			{!account ? <p className={styles.empty}>Sign in to play. Your score is tied to your account.</p> : !p && status ? <p className={styles.empty}>{status}</p> : (
-				<div className={styles.grid} ref={gridRef}>
+				<div className={`${styles.grid} ${spotlight != null ? styles.dimmed : ""}`} ref={gridRef}>
 					{/* Landscape phones: the back arrow + title sit in a left column above the rail (design L·02). */}
 					{(phoneLandscape ? (
 						<div className={styles.leftCol}>
 							<div className={styles.cardHead}><button type="button" className={styles.back} onClick={exit} aria-label="Back to lobby">←</button><span className={styles.cardTitle}>{TITLES[mode]}</span></div>
-							<LadderRail rating={account.puzzleRating || 0} />
+							<LadderRail rating={heldRating ?? (account.puzzleRating || 0)} spot={spotlight} />
 						</div>
-					) : <LadderRail rating={account.puzzleRating || 0} />)}
+					) : <LadderRail rating={heldRating ?? (account.puzzleRating || 0)} spot={spotlight} />)}
 					<div className={styles.boardCol} ref={boardHostRef}>
 						{/* Phone landscape: TouchBoard is the pan/zoom viewport with the flag toggle; the overview rests above the toggle's row (LS_PILL_ROW). */}
 						<TouchBoard session={session} fitCellPx={cellPx} touch={phoneLandscape} overviewKey={p?.puzzleId} restOffsetY={LS_PILL_ROW} boardClassName={styles.board}
@@ -432,7 +448,7 @@ function stormClock(endsAt: number): string {
 }
 
 // The ladder rail (desktop): every tier, top to bottom, the player's tier highlighted with its level pips.
-function LadderRail({ rating }: { rating: number }) {
+function LadderRail({ rating, spot }: { rating: number; spot?: number | null }) {
 	const me = puzzleLadder(rating);
 	const tiers = PUZZLE_TIERS.map((t, i) => ({ ...t, i })).reverse();
 	return (
@@ -440,12 +456,13 @@ function LadderRail({ rating }: { rating: number }) {
 			{tiers.map(t => {
 				const current = t.i === me.tierIndex, reached = t.i < me.tierIndex;
 				return (
-					<div key={t.name} className={`${styles.railRow} ${current ? styles.railCurrent : ""} ${reached || current ? "" : styles.railLocked}`}>
+					<div key={t.name} className={`${styles.railRow} ${current ? styles.railCurrent : ""} ${reached || current ? "" : styles.railLocked} ${spot === t.i ? styles.railSpot : ""}`} style={spot === t.i ? { "--spot": t.color } as any : undefined}>
 						<PuzzleRankBadge rating={ratingForTierLevel(t.i, 1)} size={5} />
 						<div className={styles.railText}>
 							<span className={styles.railName} style={{ color: reached || current ? t.color : undefined }}>{t.name}{current ? " " + me.levelLabel : ""}</span>
 							{current && <div className={styles.pips}>{Array.from({ length: LEVELS_PER_TIER }, (_, k) => <i key={k} style={k < me.level ? { background: t.color } : undefined} />)}</div>}
 						</div>
+						{spot === t.i && <><i className={styles.railSweep} aria-hidden="true" /><span className={styles.spotChip}>New rank</span></>}
 					</div>
 				);
 			})}
