@@ -16,6 +16,7 @@ import { sound } from "../../audio/sound";
 import { SHAKE_PAD_X, SHAKE_PAD_Y } from "../../game/GameBoard";
 import { PuzzleRankBadge } from "../../shared/RankBadge";
 import { puzzleLadder, PUZZLE_TIERS, LEVELS_PER_TIER, ratingForTierLevel } from "../../shared/puzzle-ladder";
+import { formatClearTime } from "../../shared/ranking";
 import { ResultPanel, ResultHeader, ResultDetail, ResultFoot, ResultActions } from "../../game/ResultPanel";
 import { formatDailyDate } from "../home/home-data";
 import BoardLogic from "core/src/common/BoardLogic.js";
@@ -185,13 +186,15 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 			if (p.mode !== "streak" && p.mode !== "storm" && !localSolvedRef.current && p.totalSafe > 0 && session.countKnownSafe() >= p.totalSafe) { localSolvedRef.current = true; playSolved(undefined); }
 		}
 	}), []);
-	// The solved finish (design "Ledger"): the board steps back behind a Solved tag and the dossier does the
-	// talking — the rank card fills its bar (and swaps its badge on a tier change), the streak flares and Next
-	// breathes. Played once per puzzle: locally on the last safe
-	// reveal, or on the server's result if that came first (a resumed puzzle, a hint that finished it). `flash`
-	// drives the timed beats and clears after them; `done` keeps the settled state (tag, receded board, Next).
+	// The solved finish (design "Strip"): a slim result strip rises inside the bottom edge of the board box — check,
+	// Solved, the clear time, the rating change, the streak — and stays until Next; the rank card fills its bar (and
+	// swaps its badge on a tier change). Played once per puzzle: locally on the last safe reveal, or on the server's
+	// result if that came first (a resumed puzzle, a hint that finished it). The rating change lands a round-trip
+	// later and fills its slot in the strip when it does.
 	const localSolvedRef = useRef(false);
-	const playSolved = (delta: number | undefined) => { sound.win(); setFlash({ solved: true, delta }); setDone("solved"); setTimeout(() => setFlash(null), 2600); };
+	const boardStartRef = useRef(0);
+	const [solveInfo, setSolveInfo] = useState<{ ms: number; delta?: number } | null>(null);
+	const playSolved = (delta: number | undefined) => { sound.win(); setSolveInfo({ ms: Date.now() - boardStartRef.current, delta }); setFlash({ solved: true, delta }); setDone("solved"); setTimeout(() => setFlash(null), 1200); };
 	if (import.meta.env.DEV) (window as any).__puzzle = session;
 	useAdminClearBoard(session, account?.isAdmin);
 
@@ -220,7 +223,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 					}
 					session.setBoard(d.rows, d.cols, decoder, state);
 					session.focusedR = Math.floor(d.rows / 2); session.focusedC = Math.floor(d.cols / 2);
-					setDone(null); setFlash(null); setStatus(""); setDaily(null); setRunEnd(null); localSolvedRef.current = false;
+					setDone(null); setFlash(null); setStatus(""); setDaily(null); setRunEnd(null); localSolvedRef.current = false; setSolveInfo(null); boardStartRef.current = Date.now();
 					rerender();
 				};
 				withFlash(apply);
@@ -240,7 +243,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 						puzzleRecent: [...(acc.puzzleRecent || []), d.solved].slice(-10)
 					});
 				}
-				if (d.solved) { if (localSolvedRef.current) setFlash(f => f ? { ...f, delta: d.playerDelta } : f); else { localSolvedRef.current = true; playSolved(d.playerDelta); } }
+				if (d.solved) { if (localSolvedRef.current) { setFlash(f => f ? { ...f, delta: d.playerDelta } : f); setSolveInfo(i => i ? { ...i, delta: d.playerDelta } : i); } else { localSolvedRef.current = true; playSolved(d.playerDelta); } }
 				else setDone("fail");
 				if (!d.noRating && typeof d.playerBefore === "number" && typeof d.playerAfter === "number" && d.playerBefore !== d.playerAfter) {
 					// New rank: higher than any level reached before (the server sends the peak rating before this solve).
@@ -369,10 +372,20 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 					) : <LadderRail rating={heldRating ?? (account.puzzleRating || 0)} spot={spotlight} />)}
 					<div className={styles.boardCol} ref={boardHostRef}>
 						{/* Phone landscape: TouchBoard is the pan/zoom viewport with the flag toggle; the overview rests above the toggle's row (LS_PILL_ROW). */}
-						<TouchBoard session={session} fitCellPx={cellPx} touch={phoneLandscape} overviewKey={p?.puzzleId} restOffsetY={LS_PILL_ROW} boardClassName={`${styles.board} ${done === "solved" ? styles.boardReceded : ""}`}
+						<TouchBoard session={session} fitCellPx={cellPx} touch={phoneLandscape} overviewKey={p?.puzzleId} restOffsetY={LS_PILL_ROW} boardClassName={styles.board}
 							className={`${styles.boardWrap} ${boardFlash === "solved" || done === "solved" ? styles.flashSolved : boardFlash === "fail" ? styles.flashFail : ""}`}
 							style={mobile ? { width: "100%", padding: PHONE_BOX_PAD } : phoneLandscape ? { height: panel.h } : { width: box, height: box }}>
-							{done === "solved" && <div className={styles.solvedTag} aria-hidden="true">Solved</div>}
+							{done === "solved" && solveInfo && (
+								<div className={styles.strip} role="status">
+									<span className={styles.stripCheck}><CheckIcon /></span>
+									<b className={styles.stripTitle}>Solved</b>
+									<div className={styles.stripMetrics}>
+										<span>Time<b>{formatClearTime(solveInfo.ms)}</b></span>
+										{!p?.noRating && <span>Rating<b className={typeof solveInfo.delta === "number" ? (solveInfo.delta > 0 ? styles.gain : solveInfo.delta < 0 ? styles.loss : "") : styles.stripPending}>{typeof solveInfo.delta === "number" ? (solveInfo.delta > 0 ? "+" : "") + solveInfo.delta : "…"}</b></span>}
+										{!p?.noRating && <span>Streak<b style={{ color: "var(--energy-streak)" }}>{streak}</b></span>}
+									</div>
+								</div>
+							)}
 						</TouchBoard>
 
 					</div>
@@ -393,7 +406,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 								</div>
 								<div className={styles.stats}>
 									<div className={styles.stat}><span className={styles.statLabel}>Rating</span><span className={styles.statValue}>{shownRating ?? ladder.rating}</span></div>
-									<div className={styles.stat}><span className={styles.statLabel}>Streak</span><span className={`${styles.statValue} ${flash?.solved ? styles.streakFlare : ""}`} style={{ color: "var(--energy-streak)" }}>{streak}{flash && streakBonus ? <span className={`${styles.delta} ${styles.gain}`}> +{streakBonus}</span> : null}</span></div>
+									<div className={styles.stat}><span className={styles.statLabel}>Streak</span><span className={styles.statValue} style={{ color: "var(--energy-streak)" }}>{streak}{flash && streakBonus ? <span className={`${styles.delta} ${styles.gain}`}> +{streakBonus}</span> : null}</span></div>
 									<div className={styles.stat}><span className={styles.statLabel}>Solved</span><span className={styles.statValue}>{account.puzzlesSolved || 0} / {account.puzzlesAttempted || 0}</span></div>
 									<div className={styles.stat}><span className={styles.statLabel}>Best streak</span><span className={styles.statValue}>{Math.max(account.puzzleStreakBest || 0, streak)}</span></div>
 								</div>
@@ -405,7 +418,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 								{/* Hint button removed for now (2026-09-14); the server-side puzzle_hint path is still there. */}
 								{done && (
 									<div className={`${styles.actions} kbd-btn-group`} onKeyDown={onActionsKey}>
-										<button ref={nextBtnRef} className={`btn btn-primary ${styles.primaryAction} ${done === "solved" ? styles.nextBreathe : ""}`} onClick={() => getSocket().emit("puzzle_next")}>{done === "solved" ? "Next" : "Next puzzle"}</button>
+										<button ref={nextBtnRef} className={`btn btn-primary ${styles.primaryAction}`} onClick={() => getSocket().emit("puzzle_next")}>{done === "solved" ? "Next" : "Next puzzle"}</button>
 										{done !== "solved" && <button className="btn" onClick={() => { if (p) getSocket().emit("puzzle_retry", { puzzleId: p.puzzleId }); }}>Try again</button>}
 									</div>
 								)}

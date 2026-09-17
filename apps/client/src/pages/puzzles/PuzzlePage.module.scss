@@ -21,17 +21,15 @@
 .flashSolved { box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.6), var(--shadow); }
 .flashFail { box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.6), var(--shadow); }
 // Solved: a check mark pops at the board's centre as the green sweep reaches the edges, then goes again.
-// Solved (design "Ledger"): the board steps back and a Solved tag slides into the box's corner; the beats live in
-// the dossier (streakFlare, nextBreathe), timed with the rating count-up.
-.boardReceded { animation: recede 0.5s ease-out 0.2s forwards; }
-@keyframes recede { to { opacity: 0.45; filter: saturate(0.6); } }
-.solvedTag { position: absolute; top: 12px; right: 12px; z-index: 4; background: var(--success); color: #06240f; font: 800 13px/1 var(--font-display); letter-spacing: 0.06em; text-transform: uppercase; padding: 7px 11px; border-radius: 5px; opacity: 0; transform: translateX(24px); animation: tag-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) 0.3s forwards; pointer-events: none; }
-@keyframes tag-in { to { opacity: 1; transform: none; } }
-.streakFlare { animation: flare 0.9s ease 1.3s; }
-@keyframes flare { 0% { text-shadow: none; } 30% { text-shadow: 0 0 14px var(--energy-streak); transform: scale(1.12); } 100% { text-shadow: none; transform: none; } }
-.nextBreathe { animation: breathe 1.6s ease-in-out 1.6s infinite; }
-@keyframes breathe { 0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); } 50% { box-shadow: 0 0 0 6px rgba(99, 102, 241, 0.35); } }
-@media (prefers-reduced-motion: reduce) { .boardReceded, .solvedTag, .streakFlare, .nextBreathe { animation-duration: 0.01s; animation-delay: 0s; animation-iteration-count: 1; } .historyNew { animation: none; } }
+// Solved (design "Strip"): a slim result strip rises inside the bottom edge of the board box and stays until Next.
+// Over the phone's flag toggle on purpose: once solved there is nothing left to flag.
+.strip { position: absolute; left: 0; right: 0; bottom: 0; z-index: 4; display: flex; align-items: center; gap: 14px; padding: 12px 16px; background: rgba(11, 16, 32, 0.92); border-top: 1px solid rgba(34, 197, 94, 0.5); transform: translateY(100%); animation: strip-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.25s forwards; }
+@keyframes strip-up { to { transform: none; } }
+.stripCheck { width: 30px; height: 30px; border-radius: 50%; background: var(--success); color: #06240f; display: flex; align-items: center; justify-content: center; flex: 0 0 auto; svg { width: 18px; height: 18px; } }
+.stripTitle { font: 800 17px/1 var(--font-display); }
+.stripMetrics { display: flex; gap: 14px; margin-left: auto; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; span b { font-size: 14px; color: var(--text); margin-left: 4px; font-family: var(--font-display); } }
+.stripPending { color: var(--muted) !important; }
+@media (prefers-reduced-motion: reduce) { .strip { animation-duration: 0.01s; animation-delay: 0s; } .historyNew { animation: none; } }
 .board { vertical-align: top; }
 .info { font-size: 0.82rem; color: var(--muted); display: inline-flex; gap: 0.4rem; align-items: center; }
 .sep { opacity: 0.6; }
