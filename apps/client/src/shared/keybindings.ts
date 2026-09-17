@@ -4,7 +4,7 @@ export const KEY_ACTIONS = [
 	{ id: "reveal", label: "Reveal cell" }, { id: "flag", label: "Flag / unflag" }, { id: "next", label: "Jump to next unsolved area" }
 ] as const;
 export type KeyAction = typeof KEY_ACTIONS[number]["id"];
-const DEFAULTS: Record<KeyAction, string> = { up: "ArrowUp", down: "ArrowDown", left: "ArrowLeft", right: "ArrowRight", reveal: "x", flag: "z", next: "Tab" };
+const DEFAULTS: Record<KeyAction, string> = { up: "ArrowUp", down: "ArrowDown", left: "ArrowLeft", right: "ArrowRight", reveal: " ", flag: "z", next: "Tab" };
 
 let binds: Record<KeyAction, string | null> = { ...DEFAULTS };
 try {

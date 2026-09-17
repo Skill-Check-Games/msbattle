@@ -107,6 +107,9 @@ export function attachBoardKeyboard(session: BoardSession): () => void {
 		const tag = (e.target as HTMLElement | null)?.tagName || "";
 		if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
 		if ((e.target as HTMLElement | null)?.closest?.(".kbd-btn-group")) return;
+		// Space / Enter on a focused button or link activate it natively (Ready, Leave, the fullscreen button): never
+		// also play a cell. Other keys (arrows) still move the cursor with a button focused, as before.
+		if ((tag === "BUTTON" || tag === "A") && (e.key === " " || e.key === "Enter")) return;
 		if (e.ctrlKey || e.metaKey || e.altKey) return;
 		const action = keybindings.actionFor(e);
 		if (!action) return;
