@@ -1057,7 +1057,10 @@ async function reportResultToMain(report) {
 	var seatByPid = (report.room && report.room.seatByPid) || {};
 	var standings = (report.standings || []).map(function(s) {
 		var seat = seatByPid[s.id];
-		return seat ? Object.assign({}, s, { userId: seat.userId, ratingBefore: seat.rating, played: seat.played }) : s;
+		if (seat) return Object.assign({}, s, { userId: seat.userId, ratingBefore: seat.rating, played: seat.played });
+		// A bot has no seat: its pool rating (already on the standing, from buildSeriesStandings) is its
+		// rating-before, or main would score it as a 1000-rated Silver and the result card would show that.
+		return Object.assign({}, s, { ratingBefore: typeof s.rating === "number" ? s.rating : undefined });
 	});
 	var wire = {
 		matchId: report.matchId, ranked: report.ranked, mode: report.mode, style: report.style,
