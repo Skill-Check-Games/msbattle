@@ -187,7 +187,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 	}), []);
 	// The solved finish (design "Ledger"): the board steps back behind a Solved tag and the dossier does the
 	// talking — the rank card fills its bar (and swaps its badge on a tier change), the streak flares and Next
-	// breathes with an Enter hint. Played once per puzzle: locally on the last safe
+	// breathes. Played once per puzzle: locally on the last safe
 	// reveal, or on the server's result if that came first (a resumed puzzle, a hint that finished it). `flash`
 	// drives the timed beats and clears after them; `done` keeps the settled state (tag, receded board, Next).
 	const localSolvedRef = useRef(false);
@@ -409,7 +409,6 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 										{done !== "solved" && <button className="btn" onClick={() => { if (p) getSocket().emit("puzzle_retry", { puzzleId: p.puzzleId }); }}>Try again</button>}
 									</div>
 								)}
-								{done === "solved" && <span className={styles.nextHint}>Enter ↵ for the next puzzle</span>}
 							</>
 						) : p && p.run ? (
 							<>
