@@ -112,6 +112,7 @@ export class BoardSession {
 		this.prevState = this.clone(this.state);
 		this.resetAnimations();
 		this.focusedR = 0; this.focusedC = 0; this.focusVisible = false;
+		this.hover = null; this.hoverKind = null; this.hoverExtra = []; // the pointer's cell on the OLD board may not exist on this one
 		this.clearNoFlag = true; this.clearNoReveal = true;
 		this.hintClues = []; this.hintCovered = [];
 		this.sweep = null;
@@ -187,6 +188,7 @@ export class BoardSession {
 	// can be chorded when chordTargets says so.
 	private clickableKind(r: number, c: number): HoverKind {
 		const s = this.state; if (!s || !this.hooks.mode() || this.isFrozen()) return null;
+		if (r < 0 || r >= this.rows || c < 0 || c >= this.cols) return null; // a hover left over from a bigger board
 		const v = s[r][c];
 		if (v === UNKNOWN || v === FLAGGED) return "cell";
 		return this.chordTargets(r, c) ? "chord" : null;
