@@ -169,15 +169,15 @@ function RankAnimLab() {
 // buttons would act on a match that does not exist, so they are hidden behind a single Close preview.
 const RESULT_PREVIEW_NAMES = ["Foxglove", "Ironclad99", "Nimbus", "Quartzite", "Redwood", "Silversmith"];
 const RESULT_PREVIEW_FLAGS = ["SE", "DE", "US", "FR", "NO", "GB"];
-function buildPreviewStandings(totalPlayers: number, myRank: number, myRating: number, myDelta: number, myName: string, myProvisional = false): Standing[] {
+function buildPreviewStandings(totalPlayers: number, myRank: number, myRating: number, myDelta: number, myName: string, myProvisional = false, myPlayed?: number): Standing[] {
 	const entries: Standing[] = [];
 	let nameIdx = 0;
 	for (let rank = 1; rank <= totalPlayers; rank++) {
-		if (rank === myRank) entries.push({ id: "me", name: myName, rank, rating: myRating, ratingDelta: myDelta, provisional: myProvisional, finished: true, finishMs: 42000, progress: 1, avatar: "anon", country: "SE" });
+		if (rank === myRank) entries.push({ id: "me", name: myName, rank, rating: myRating, ratingDelta: myDelta, provisional: myProvisional, played: myPlayed, finished: true, finishMs: 42000, progress: 1, avatar: "anon", country: "SE" });
 		else {
 			const finished = rank <= Math.max(2, totalPlayers - 2); // a couple of trailing ranks still racing
 			const idx = nameIdx++;
-			entries.push({ id: "preview-p" + rank, name: RESULT_PREVIEW_NAMES[idx % RESULT_PREVIEW_NAMES.length], avatar: "anon", country: RESULT_PREVIEW_FLAGS[idx % RESULT_PREVIEW_FLAGS.length], rank, rating: 500 + (totalPlayers - rank) * 15, ratingDelta: rank <= 2 ? 8 : -6, provisional: false, finished, finishMs: finished ? 18000 + rank * 6000 : undefined, progress: finished ? 1 : 0.4 + rank * 0.05 });
+			entries.push({ id: "preview-p" + rank, name: RESULT_PREVIEW_NAMES[idx % RESULT_PREVIEW_NAMES.length], avatar: "anon", country: RESULT_PREVIEW_FLAGS[idx % RESULT_PREVIEW_FLAGS.length], rank, rating: 500 + (totalPlayers - rank) * 15, ratingDelta: rank <= 2 ? 8 : -6, provisional: rank === totalPlayers - 1, played: rank === totalPlayers - 1 ? 3 : undefined, finished, finishMs: finished ? 18000 + rank * 6000 : undefined, progress: finished ? 1 : 0.4 + rank * 0.05 });
 		}
 	}
 	return entries;
@@ -206,7 +206,7 @@ function ResultPreviewLab() {
 		unlockAudio();
 		const isDuo = totalPlayers === 2, myRank = isDuo ? 1 : 3, need = account.placementGames || 5;
 		const done = matchNo >= need;
-		const standings = buildPreviewStandings(totalPlayers, myRank, account.ratingSprint, 34, account.name || "You", !done);
+		const standings = buildPreviewStandings(totalPlayers, myRank, account.ratingSprint, 34, account.name || "You", !done, matchNo);
 		const winner = standings.find(s => s.rank === 1)!;
 		setPreview({ result: { ranked: true, mode: isDuo ? "sprint_duo" : "sprint_six", winnerId: winner.id, winnerName: winner.name, standings, scores: [] }, from: account.ratingSprint, saved: savedNow() });
 		update({ playedSprint: matchNo - 1, provisional: !done });

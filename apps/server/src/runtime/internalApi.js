@@ -42,7 +42,7 @@ function handleInternalRoute(req, res, url) {
 			try {
 				var r = results.persistResult(report);
 				var ratings = (r && r.standings || []).map(function(s) {
-					return { id: s.id, ratingDelta: s.ratingDelta, rating: s.rating, provisional: s.provisional };
+					return { id: s.id, ratingDelta: s.ratingDelta, rating: s.rating, provisional: s.provisional, played: s.played };
 				});
 				send(res, 200, { ok: true, applied: !!(r && r.applied), standings: ratings });
 			}

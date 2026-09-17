@@ -408,6 +408,7 @@ async function endSeries(room) {
 				s.ratingDelta = r.ratingDelta;
 				s.rating = r.rating;
 				s.provisional = r.provisional;
+				if (typeof r.played === "number") s.played = r.played;
 			}
 		});
 	}

@@ -136,8 +136,8 @@ function RankedResult({ result, myId, compact }: { result: SeriesResult; myId: s
 			{opp && mine ? (
 				<div className={styles.context}>
 					<div className={styles.duel}>
-						<PlayerLine s={mine} me compact={compact} />
-						<PlayerLine s={opp} compact={compact} />
+						<PlayerLine s={mine} me compact={compact} need={need} />
+						<PlayerLine s={opp} compact={compact} need={need} />
 					</div>
 				</div>
 			) : (
@@ -150,7 +150,7 @@ function RankedResult({ result, myId, compact }: { result: SeriesResult; myId: s
 								<AvatarChip avatar={s.avatar || "anon"} country={s.country} px={compact ? 20 : 26} className={styles.savatar} />
 								<div className={styles.sname}><span className={styles.snameText}>{s.name}</span>{s.country && <FlagChip country={s.country} px={compact ? 11 : 13} />}</div>
 								<div className={`${styles.stime} ${s.finished ? "" : styles.dnf}`}>{resultOf(s)}</div>
-								<div className={`${styles.sdelta} ${typeof s.ratingDelta === "number" ? deltaCls(s.ratingDelta) : styles.flat}`}>{typeof s.ratingDelta === "number" ? deltaText(s.ratingDelta) : "—"}</div>
+								<RankCell s={s} size={compact ? 5 : 5.2} need={need} />
 							</div>
 						);
 					})}</div>
@@ -189,23 +189,38 @@ function PlacementCard({ played, need }: { played: number | null; need: number }
 	);
 }
 
-// One duellist in the 1v1 context: avatar, name and tier on the left, the clear time on the right.
-function PlayerLine({ s, me, compact }: { s: Standing; me?: boolean; compact?: boolean }) {
-	const tier = typeof s.rating === "number" ? tierFor(s.rating, s.provisional) : null;
+// One duellist in the 1v1 context: avatar, name and clear time on the left; the rank badge and rating change on the right.
+function PlayerLine({ s, me, compact, need }: { s: Standing; me?: boolean; compact?: boolean; need: number }) {
 	const finished = s.finished && typeof s.finishMs === "number";
 	return (
 		<div className={`${styles.pline} ${me ? styles.plineMe : ""}`}>
 			<AvatarChip avatar={s.avatar || "anon"} country={s.country} px={compact ? 28 : 36} className={styles.savatar} />
 			<div className={styles.pinfo}>
 				<div className={styles.pname}><span className={styles.snameText}>{s.name}</span>{s.country && <FlagChip country={s.country} px={compact ? 11 : 14} />}</div>
-				{tier && <div className={styles.ptier} style={{ color: tier.color }}>{tier.name}</div>}
+				<div className={styles.ptime}><span className={`${styles.ptimeVal} ${finished ? (me ? styles.you : styles.oppc) : styles.dnf}`}>{resultOf(s)}</span> cleared</div>
 			</div>
-			<div className={styles.ptime}>
-				<div className={`${styles.ptimeVal} ${finished ? (me ? styles.you : styles.oppc) : styles.dnf}`}>{resultOf(s)}</div>
-				<div className={styles.ptimeLabel}>cleared</div>
-			</div>
+			<RankCell s={s} size={compact ? 5.6 : 6.4} need={need} />
 		</div>
 	);
+}
+
+// The right-hand pair of every row (design T·02): the rank badge and the rating change. A player still in
+// placement shows the dashed placement plate and, since their rating stays hidden, their placement dots.
+function RankCell({ s, size, need }: { s: Standing; size: number; need: number }) {
+	const placing = !!s.provisional;
+	return (
+		<>
+			<div className={styles.sbadge}>{typeof s.rating === "number" ? <RankBadge rating={s.rating} provisional={placing} size={size} /> : <PlacementBadge size={size} />}</div>
+			<div className={`${styles.sdelta} ${!placing && typeof s.ratingDelta === "number" ? deltaCls(s.ratingDelta) : styles.flat}`}>
+				{placing ? <PlacementDots played={s.played} need={need} /> : typeof s.ratingDelta === "number" ? deltaText(s.ratingDelta) : "—"}
+			</div>
+		</>
+	);
+}
+// One dot per placement match, filled for the ones played (the same mark as the home page's ranked chip).
+function PlacementDots({ played, need }: { played?: number; need: number }) {
+	const done = typeof played === "number" ? Math.max(0, Math.min(need, played)) : 0;
+	return <span className={styles.pdots} role="img" aria-label={typeof played === "number" ? `${done} of ${need} placement matches played` : "In placement"}>{Array.from({ length: need }, (_, i) => <i key={i} className={i < done ? styles.pdotOn : ""} />)}</span>;
 }
 
 function CasualResult({ result, myId }: { result: SeriesResult; myId: string | null }) {
