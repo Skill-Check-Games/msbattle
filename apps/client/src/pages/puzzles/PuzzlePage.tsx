@@ -34,7 +34,6 @@ interface Run { mode: PuzzleMode; solves?: number; targetRating?: number; endsAt
 interface Puzzle { puzzleId: number; difficulty: number; totalSafe: number; totalMines: number; playerRating: number; mode: PuzzleMode; run: Run | null; finished: boolean; hintUsed: boolean; noRating?: boolean; }
 const SPOTLIGHT_MS = 1700;
 // The ladder as one climbing index (tier * 3 + level), for "is this rank higher than any before".
-const ladderLevelIndex = (rating: number) => { const l = puzzleLadder(rating); return l.tierIndex * LEVELS_PER_TIER + l.level; };
 
 interface RatedResult { solved: boolean; hintUsed: boolean; playerBefore?: number; playerAfter?: number; playerDelta?: number; streakBonus?: number; streak?: number; puzzleStreakBest?: number; noRating?: boolean; peakBefore?: number; }
 interface RunEnd { mode: "streak" | "storm"; solves: number; score: number; bestBefore: number; best: number; }
@@ -81,7 +80,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 	const [heldRating, setHeldRating] = useState<number | null>(null);
 	// A rank reached for the FIRST time (above the player's peak rating so far): the page dims and the rail's new
 	// row steps into a spotlight for SPOTLIGHT_MS from the moment the rank switches (design "Spotlight"). Ranking
-	// back up to a rank held before, or down, gets the ordinary sequence.
+	// back up to a rank held before, a new sub-level within a tier, or down, gets the ordinary sequence.
 	const [spotlight, setSpotlight] = useState<number | null>(null);   // the spotlit tier index
 	const ratingTimers = useRef<number[]>([]);
 	const animateRating = (before: number, after: number, newRank: boolean) => {
@@ -101,7 +100,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 			setFillOverride(crossed ? (up ? 100 : 0) : null);
 		}, 400);
 		T(() => { if (crossed) setFillOverride(null); setHeldRating(null); }, 1300);
-		const spot = newRank && crossed && up;
+		const spot = newRank && crossed && up && a.tierIndex !== b.tierIndex;   // a whole new tier, not a sub-level of one held before
 		if (spot) { T(() => setSpotlight(b.tierIndex), 1300); T(() => setSpotlight(null), 1300 + SPOTLIGHT_MS); }
 		if (a.tierIndex !== b.tierIndex) {
 			// The badge swap waits for the spotlight to lift, so it is not played into a dimmed card.
@@ -246,7 +245,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 				if (!d.noRating && typeof d.playerBefore === "number" && typeof d.playerAfter === "number" && d.playerBefore !== d.playerAfter) {
 					// New rank: higher than any level reached before (the server sends the peak rating before this solve).
 					const peak = Math.max(typeof d.peakBefore === "number" ? d.peakBefore : 0, d.playerBefore);
-					animateRating(d.playerBefore, d.playerAfter, ladderLevelIndex(d.playerAfter) > ladderLevelIndex(peak));
+					animateRating(d.playerBefore, d.playerAfter, puzzleLadder(d.playerAfter).tierIndex > puzzleLadder(peak).tierIndex);
 				}
 				getSocket().emit("get_match_history");
 			}),
