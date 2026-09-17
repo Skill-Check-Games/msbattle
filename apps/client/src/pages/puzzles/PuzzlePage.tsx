@@ -187,8 +187,8 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 		}
 	}), []);
 	// The solved finish (design "Ledger"): the board steps back behind a Solved tag and the dossier does the
-	// talking — the rank card glows in the tier colour, the rating delta rides the bar's tip as it fills, the
-	// streak flares and Next breathes with an Enter hint. Played once per puzzle: locally on the last safe
+	// talking — the rating delta rides the bar's tip as it fills (the rank card itself only moves its bar, and
+	// swaps its badge on a tier change), the streak flares and Next breathes with an Enter hint. Played once per puzzle: locally on the last safe
 	// reveal, or on the server's result if that came first (a resumed puzzle, a hint that finished it). `flash`
 	// drives the timed beats and clears after them; `done` keeps the settled state (tag, receded board, Next).
 	const localSolvedRef = useRef(false);
@@ -381,7 +381,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 						<div className={`${styles.cardHead} ${styles.cardHeadRated}`}><button type="button" className={styles.back} onClick={exit} aria-label="Back to lobby">←</button><span className={styles.cardTitle}>{TITLES[mode]}</span></div>
 						{!isRun ? (
 							<>
-								<div className={`${styles.rankCard} ${flash?.solved ? styles.rankCardGlow : ""}`} style={{ "--tier": ladder.tierColor } as any}>
+								<div className={styles.rankCard}>
 								<div className={styles.ladderHead}>
 									{badgeSwap ? <RankBadgeSwap key={badgeSwap.seq} kind="puzzle" from={badgeSwap.from} to={badgeSwap.to} size={9} /> : <PuzzleRankBadge rating={ladder.rating} size={phoneLandscape ? 6 : 9} />}
 									<div className={styles.ladderText}>
