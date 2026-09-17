@@ -216,8 +216,9 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 						puzzleRecent: [...(acc.puzzleRecent || []), d.solved].slice(-10)
 					});
 				}
-				// Solved: the board's border turns green (stays while solved) and the rating delta pops in the dossier; no overlay.
-				if (d.solved) { sound.win(); setFlash({ solved: true, delta: d.playerDelta }); setDone("solved"); setTimeout(() => setFlash(null), 1200); }
+				// Solved (design "Sweep"): the board's border turns green (stays while solved), a green wash sweeps the tiles
+				// out from the last click, a check mark pops at the board's centre and goes, and the rating delta pops in the dossier.
+				if (d.solved) { sound.win(); session.startSweep(); setFlash({ solved: true, delta: d.playerDelta }); setDone("solved"); setTimeout(() => setFlash(null), 1200); }
 				else setDone("fail");
 				if (!d.noRating && typeof d.playerBefore === "number" && typeof d.playerAfter === "number" && d.playerBefore !== d.playerAfter) animateRating(d.playerBefore, d.playerAfter);
 				getSocket().emit("get_match_history");
@@ -344,7 +345,9 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 						{/* Phone landscape: TouchBoard is the pan/zoom viewport with the flag toggle; the overview rests above the toggle's row (LS_PILL_ROW). */}
 						<TouchBoard session={session} fitCellPx={cellPx} touch={phoneLandscape} overviewKey={p?.puzzleId} restOffsetY={LS_PILL_ROW} boardClassName={styles.board}
 							className={`${styles.boardWrap} ${boardFlash === "solved" || done === "solved" ? styles.flashSolved : boardFlash === "fail" ? styles.flashFail : ""}`}
-							style={mobile ? { width: "100%", padding: PHONE_BOX_PAD } : phoneLandscape ? { height: panel.h } : { width: box, height: box }} />
+							style={mobile ? { width: "100%", padding: PHONE_BOX_PAD } : phoneLandscape ? { height: panel.h } : { width: box, height: box }}>
+							{done === "solved" && <div className={styles.solvedCheck} aria-hidden="true"><CheckIcon /></div>}
+						</TouchBoard>
 
 					</div>
 					<aside className={`${styles.card} ${styles.dossier}`}>
@@ -370,7 +373,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 								</div>
 								<div className={styles.history}>
 									<span className={styles.cardTitle}>Last 10</span>
-									<div className={styles.historyDots}>{(account.puzzleRecent || []).map((ok, i) => <span key={i} className={`${styles.historyDot} ${ok ? styles.historyOk : styles.historyMiss}`}>{ok ? <CheckIcon /> : <CrossIcon />}</span>)}</div>
+									<div className={styles.historyDots}>{(account.puzzleRecent || []).map((ok, i, all) => <span key={i} className={`${styles.historyDot} ${ok ? styles.historyOk : styles.historyMiss} ${done === "solved" && i === all.length - 1 ? styles.historyNew : ""}`}>{ok ? <CheckIcon /> : <CrossIcon />}</span>)}</div>
 								</div>
 								<div className={styles.cardSpacer} />
 								{/* Hint button removed for now (2026-09-14); the server-side puzzle_hint path is still there. */}

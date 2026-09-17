@@ -8,8 +8,10 @@ import BoardLogic from "core/src/common/BoardLogic.js";
 import {
 	BoardView, CellAnim, HoverKind, MINE, UNKNOWN, KNOWN, FLAGGED,
 	REVEAL_DUR, FLAG_DUR, MINE_DUR, SETTLE_DUR, WAVE_STEP_MS, WAVE_MAX_MS,
-	drawKnownBase, drawNumber, drawUnknown, roundRectPath, paletteHasGlow, localBoardSkin
+	drawKnownBase, drawNumber, drawUnknown, roundRectPath, paletteHasGlow, localBoardSkin, easeOutCubic
 } from "./board-render";
+// Puzzle solved sweep: ms per ring of distance from the origin, one cell's flash length, and its alpha curve.
+const SWEEP_STEP_MS = 55, SWEEP_CELL_MS = 1100, SWEEP_PEAK = 0.55, SWEEP_REST = 0.1, SWEEP_COLOR = "#22c55e";
 
 export type CellAt = (r: number, c: number) => number;
 export interface ActionResult { revealed: number[][]; hitMine: boolean; anyChange: boolean; clearedFlags: number[][]; }
@@ -79,6 +81,9 @@ export class BoardSession {
 	clearNoFlag = true; clearNoReveal = true;
 	// Puzzle hint highlights (drawn over the board).
 	hintClues: number[][] = []; hintCovered: number[][] = [];
+	// Puzzle solved: a green wash sweeps out from the last click, cell by cell, and settles to a faint tint that
+	// stays until the next board (startSweep / paintSweep).
+	sweep: { r: number; c: number; start: number } | null = null;
 
 	private anims: Record<string, AnimEntry> = {};
 	private raf: number | null = null;
@@ -109,6 +114,7 @@ export class BoardSession {
 		this.focusedR = 0; this.focusedC = 0; this.focusVisible = false;
 		this.clearNoFlag = true; this.clearNoReveal = true;
 		this.hintClues = []; this.hintCovered = [];
+		this.sweep = null;
 		this.frozenUntil = 0;
 		this.render();
 		this.emitChange(); // GameBoard re-sizes its canvas to the new rows/cols
@@ -382,6 +388,7 @@ export class BoardSession {
 		if (paletteHasGlow()) return false; // glow digits bleed past their cell
 		if (this.glyphs.length) return false;
 		if (this.hintClues.length || this.hintCovered.length) return false;
+		if (this.sweep) return false;
 		return true;
 	}
 	private view(canvas: HTMLCanvasElement, state: number[][], skin: string | null): BoardView {
@@ -401,6 +408,7 @@ export class BoardSession {
 				if (this.goAnim) {
 					if (!this.paintGoWithIdle(ctx, sw, sh, isRevealed)) { this.goAnim = null; this.setIdle(false); }
 				} else if (this.idleActive) this.paintIdle(ctx, sw, sh, isRevealed);
+				this.paintSweep(ctx, sw, sh, now);
 				this.paintHints(ctx, sw, sh);
 			});
 			if (dirtyKeys && this.canPartialRepaint()) {
@@ -499,6 +507,7 @@ export class BoardSession {
 			for (const key of keys) { const a = this.anims[key]; if (now >= a.start + durOf(a.type)) delete this.anims[key]; else alive = true; }
 			this.explosions = this.explosions.filter(e => now - e.start < explosionLife(e, this.frozenUntil, now));
 			if (this.glyphs.length || this.goAnim || this.idleActive || this.explosions.length) alive = true;
+			if (this.sweep && now < this.sweep.start + this.sweepLength()) alive = true;
 			// A hovered chordable number wiggles, so its cell repaints every frame while the pointer is on it.
 			if (NUMBER_HOVER_WIGGLE && this.hoverKind === "chord" && this.hover) { keys.push(this.hover.r + "," + this.hover.c); alive = true; }
 			this.render(keys);
@@ -625,6 +634,34 @@ export class BoardSession {
 			this.drawIdleCell(ctx, c * sw + gap / 2, r * sh + gap / 2, w, h, rad, a, base);
 		}
 		this.endIdleFadeIfDone(fade);
+	}
+	// ---- puzzle solved sweep ----
+	// From `origin` (the last click, else the board's centre): each cell lights up SWEEP_STEP_MS per ring of
+	// distance later, flashing to SWEEP_PEAK then easing down to SWEEP_REST, where it stays.
+	startSweep(origin?: { r: number; c: number } | null) {
+		if (!this.rows || !this.cols) return;
+		const o = origin || this.lastActionCell || { r: Math.floor(this.rows / 2), c: Math.floor(this.cols / 2) };
+		this.sweep = { r: o.r, c: o.c, start: performance.now() };
+		this.startAnimLoop();
+	}
+	private sweepLength(): number {
+		const sw = this.sweep; if (!sw) return 0;
+		const far = Math.max(sw.r, this.rows - 1 - sw.r, sw.c, this.cols - 1 - sw.c);
+		return far * SWEEP_STEP_MS + SWEEP_CELL_MS;
+	}
+	private paintSweep(ctx: CanvasRenderingContext2D, sw: number, sh: number, now: number) {
+		const s = this.sweep; if (!s) return;
+		const gap = Math.max(1, Math.round(Math.min(sw, sh) * 0.08)), rad = (Math.min(sw, sh) - gap) * 0.2;
+		ctx.save(); ctx.fillStyle = SWEEP_COLOR;
+		for (let r = 0; r < this.rows; r++) for (let c = 0; c < this.cols; c++) {
+			const dist = Math.max(Math.abs(r - s.r), Math.abs(c - s.c));
+			const t = (now - s.start - dist * SWEEP_STEP_MS) / SWEEP_CELL_MS;
+			if (t <= 0) continue;
+			const a = t >= 1 ? SWEEP_REST : t < 0.25 ? SWEEP_PEAK * (t / 0.25) : SWEEP_PEAK - (SWEEP_PEAK - SWEEP_REST) * easeOutCubic((t - 0.25) / 0.75);
+			ctx.globalAlpha = a;
+			roundRectPath(ctx, c * sw + gap / 2, r * sh + gap / 2, sw - gap, sh - gap, rad); ctx.fill();
+		}
+		ctx.restore();
 	}
 	private paintHints(ctx: CanvasRenderingContext2D, sw: number, sh: number) {
 		if (!this.hintClues.length && !this.hintCovered.length) return;
