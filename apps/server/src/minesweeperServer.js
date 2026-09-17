@@ -644,6 +644,17 @@ function applyEarlyLeavePenalty(playerID, room) {
 	// pinned at the worst rank, then apply Elo for the leaver only. The other
 	// players' Elo is still computed normally at endSeries.
 	var seriesStandings = standings.buildSeriesStandings(room);
+	// Split deployment: the accounts live on main, so the penalty is computed and persisted there from the
+	// seats this match was allocated with. Resolves with the same {delta, newRating, provisional} (or null).
+	if (role.ROLE === "game") {
+		var seats = room.seatByPid || {}, mine = seats[playerID];
+		if (!mine || mine.userId == null) return null;
+		var others = seriesStandings.map(function(s) {
+			var seat = seats[s.id];
+			return seat ? { rank: s.rank, userId: seat.userId, ratingBefore: seat.rating, played: seat.played, name: s.name } : { rank: s.rank, userId: null, ratingBefore: s.rating, name: s.name };
+		});
+		return postLeaveToMain({ matchId: (room.matchConfig && room.matchConfig.matchId) || null, style: room.rankedStyle, leaver: { userId: mine.userId, ratingBefore: mine.rating, played: mine.played }, others: others });
+	}
 	var lastRank = seriesStandings.length + 1;
 	var parts = [buildPlayerParts(playerID, lastRank, room.rankedStyle)];
 	for (var i = 0; i < seriesStandings.length; i++) {
@@ -1102,6 +1113,24 @@ async function reportResultToMain(report) {
 
 // One POST of a result report. Resolves with main's echoed standings, or null on any failure (network,
 // non-2xx, bad JSON) — never rejects.
+// The early-leave penalty (applyEarlyLeavePenalty, game role): three quick tries, then give up on telling the
+// leaver the number — the leave itself is not lost, only its display.
+async function postLeaveToMain(payload) {
+	var body = JSON.stringify(payload);
+	for (var attempt = 0; attempt < 3; attempt++) {
+		try {
+			var res = await fetch(role.MAIN_URL + "/internal/leave", { method: "POST", headers: { "content-type": "application/json", "x-internal-secret": role.INTERNAL_SECRET }, body: body, signal: AbortSignal.timeout(6000) });
+			if (!res.ok) throw new Error("HTTP " + res.status);
+			var data = await res.json();
+			return (data && data.leave) || null;
+		} catch (e) {
+			console.error("leave report to main failed (attempt " + attempt + "): " + (e && e.message));
+			if (attempt < 2) await new Promise(function(r) { setTimeout(r, 1500 * (attempt + 1)); });
+		}
+	}
+	return null;
+}
+
 async function postReportToMain(body, attempt) {
 	try {
 		var res = await fetch(role.MAIN_URL + "/internal/report", {
@@ -1321,11 +1350,10 @@ io.on("connection", function (socket) {
 		var leaveEloInfo = removePlayerFromRoom(playerID);
 		if (socketRef) {
 			socketRef.join("lobby");
-			socketRef.emit("left_room", leaveEloInfo ? {
-				ratingDelta: leaveEloInfo.delta,
-				rating: leaveEloInfo.newRating,
-				provisional: leaveEloInfo.provisional
-			} : null);
+			// In the split, the penalty comes back from main (a Promise); in-process it is the plain object.
+			Promise.resolve(leaveEloInfo).then(function(info) {
+				socketRef.emit("left_room", info ? { ratingDelta: info.delta, rating: info.newRating, provisional: info.provisional } : null);
+			});
 			socketRef.emit("room_list", { rooms: roomState.getRoomList() });
 		}
 	});

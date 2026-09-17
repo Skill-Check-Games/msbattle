@@ -328,8 +328,27 @@ function applyRankedEloFromReport(standings, style) {
 	}
 }
 
+// An early leave reported OVER THE NETWORK by a game server (the split deployment): the leaver's seat
+// (userId / rating-before / games played on this ladder) and the others' seats, the leaver pinned at the
+// worst rank. The same pairwise math as applyEloForPlayer; only the leaver is persisted — the others get
+// their Elo at series end as usual. Returns { delta, newRating, provisional } or null for a bad payload.
+function applyLeaveFromReport(leaver, others, style) {
+	if (!leaver || leaver.userId == null || !Array.isArray(others) || !others.length) return null;
+	var parts = [{ rank: others.length + 1, rating: (typeof leaver.ratingBefore === "number") ? leaver.ratingBefore : RANKED_BOT_RATING, bot: false, userId: leaver.userId, played: leaver.played || 0, streak: 0 }];
+	others.forEach(function(o, i) {
+		parts.push({ rank: typeof o.rank === "number" ? o.rank : i + 1, rating: (typeof o.ratingBefore === "number") ? o.ratingBefore : RANKED_BOT_RATING, bot: !o.userId, userId: o.userId || null, played: o.played || 0, streak: 0 });
+	});
+	computeRankedElo(parts, style);
+	var p = parts[0];
+	if (typeof p.newRating !== "number") return null;
+	db.updateRating(leaver.userId, p.newRating, false, style);
+	db.recordMatch({ userId: leaver.userId, style: style, ratingBefore: p.rating, ratingAfter: p.newRating, placement: p.rank, players: parts.length, won: false, opponent: (others.length === 1 && others[0].name) || null });
+	return { delta: p.delta, newRating: p.newRating, provisional: p.provisional };
+}
+
 module.exports = {
 	init: init,
+	applyLeaveFromReport: applyLeaveFromReport,
 	readUserRating: readUserRating,
 	applyEloForPlayer: applyEloForPlayer,
 	computeRankedElo: computeRankedElo,

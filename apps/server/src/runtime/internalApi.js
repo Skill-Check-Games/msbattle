@@ -6,6 +6,7 @@
 
 var role = require("./role");
 var results = require("./results");
+var elo = require("./elo");
 var lifecycle = require("./lifecycle");
 
 var allocateHandler = null; // set by the server (game role): function(spec) -> runs the match
@@ -47,6 +48,17 @@ function handleInternalRoute(req, res, url) {
 				send(res, 200, { ok: true, applied: !!(r && r.applied), standings: ratings });
 			}
 			catch (e) { console.error("internal report failed", e); send(res, 500, { error: "persist_failed" }); }
+		});
+		return true;
+	}
+
+	// game → main: a player left a live ranked match. Main applies the leaver's penalty (pinned last, persisted
+	// for them alone) and echoes the numbers so the game server can tell the leaver what it cost.
+	if (url.pathname === "/internal/leave" && req.method === "POST") {
+		readJson(req, function(err, body) {
+			if (err) { send(res, 400, { error: "bad_json" }); return; }
+			try { send(res, 200, { ok: true, leave: elo.applyLeaveFromReport(body && body.leaver, body && body.others, body && body.style) }); }
+			catch (e) { console.error("internal leave failed", e); send(res, 500, { error: "leave_failed" }); }
 		});
 		return true;
 	}

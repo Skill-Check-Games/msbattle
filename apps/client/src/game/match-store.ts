@@ -128,7 +128,8 @@ class MatchStore {
 			startMatchSocket(d.gameUrl, d.token, {
 				onAttached: (id, reconnected) => {
 					this.myId = id;
-					if (reconnected) { this.set({ message: null }); this.flash("Reconnected."); } else this.set({});
+					// Attached again, by whichever path: the "Connection lost" line is over.
+					if (reconnected) { this.set({ message: null }); this.flash("Reconnected."); } else this.set({ message: null });
 				},
 				onDisconnect: (reason) => {
 					if (!this.state.inRoom || this.state.seriesResult) return;
@@ -229,7 +230,8 @@ class MatchStore {
 			this.session.freeze(sec * 1000);
 		});
 		socket.on("series_ended", (d: SeriesResult) => {
-			this.set({ gameProgress: "", roundDeadline: null });
+			// A result handed over on reconnect comes without a match_attached: it also ends any "Connection lost" line.
+			this.set({ gameProgress: "", roundDeadline: null, message: null });
 			(d.winnerId === this.myId ? sound.seriesWin : sound.lose)();
 			track("Match Finished", {
 				mode: d && d.ranked ? "ranked" : "multiplayer",
@@ -295,7 +297,7 @@ class MatchStore {
 		this.session.idleSuppressed = false;
 		this.session.setIdle(false);
 		this.session.clear();
-		this.set({ inRoom: false, room: null, search: null, roundLive: false, countdownDigitsAt: null, roundResultShown: false, roundDeadline: null, gameProgress: "", frames: null, seriesResult: null, roundResult: null, frozenUntil: 0, waitingCleared: false });
+		this.set({ inRoom: false, room: null, search: null, roundLive: false, countdownDigitsAt: null, roundResultShown: false, roundDeadline: null, gameProgress: "", frames: null, seriesResult: null, roundResult: null, frozenUntil: 0, waitingCleared: false, message: null });
 	}
 
 	// ---- round helpers ----

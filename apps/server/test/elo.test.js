@@ -142,6 +142,16 @@ test("streak bonus is measured against the settled K, so an early post-placement
 	assert.strictEqual(parts[0].delta, 80);
 });
 
+test("applyLeaveFromReport: a settled leaver is pinned last and persisted alone (the split's early-leave penalty)", () => {
+	const g = db.createGuest();
+	db.updateRating(g.id, 1200, false, "sprint");
+	for (let i = 0; i < 9; i++) db.recordMatch({ userId: g.id, style: "sprint", ratingBefore: 1200, ratingAfter: 1200, placement: 1, players: 2, won: true, opponent: null }); // past placement
+	const info = elo.applyLeaveFromReport({ userId: g.id, ratingBefore: 1200, played: 9 }, [{ rank: 1, userId: null, ratingBefore: 1200, name: "Bot" }], "sprint");
+	assert.strictEqual(info.delta, -20, "K=40 loss to an equal: −K/2");
+	assert.strictEqual(info.newRating, 1180);
+	assert.strictEqual(elo.readUserRating(db.getUserById(g.id), "sprint"), 1180, "persisted for the leaver");
+});
+
 // ---- Placement: a performance estimate for the first PROVISIONAL_GAMES matches on a ladder ----
 test("placement match 1: a 1v1 win over a 1000-rated bot lands on the outcome estimate (opponent + 400) with no clear time", () => {
 	const parts = [
