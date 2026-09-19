@@ -23,7 +23,9 @@ interface Kit { kick: Perc; snare: Perc; hihat: Perc; }
 interface PercGain { kick: number; snare: number; hat: number; }
 
 // ---- game sounds: every real gameplay sound, with the args it needs to make noise standalone ----
-const GAME_SOUNDS: { name: string; desc: string; play: () => void }[] = [
+// loop: a Play/Stop toggle (sound.startSearch / stopSearch) instead of a one-shot Play.
+const GAME_SOUNDS: { name: string; desc: string; play: () => void; loop?: boolean }[] = [
+	{ name: "search", desc: "The radar, for as long as a seat is empty: a sonar ping on every turn of the sweep, a breathing Am pad and a slow heartbeat.", play: () => sound.startSearch(), loop: true },
 	{ name: "cascade", desc: "A safe cell opens more than one neighbour at once.", play: () => sound.cascade(4) },
 	{ name: "opponentDone", desc: "An opponent finishes their board before you, in a race mode.", play: () => sound.opponentDone(2) },
 	{ name: "flag", desc: "Placing a flag.", play: () => sound.flag() },
@@ -38,7 +40,9 @@ const GAME_SOUNDS: { name: string; desc: string; play: () => void }[] = [
 	{ name: "seriesWin", desc: "You win an entire ranked series.", play: () => sound.seriesWin() },
 	{ name: "rankUp", desc: "You climb a rank tier.", play: () => sound.rankUp() },
 	{ name: "rankDown", desc: "You drop a rank tier.", play: () => sound.rankDown() },
-	{ name: "matchFound", desc: "A ranked queue forms a match.", play: () => sound.matchFound() }
+	{ name: "matchFound", desc: "Target acquired: the seat fills (1v1) or the sixth player arrives (6 players). Three pings close in, the lock clicks, a two-note confirmation rises.", play: () => sound.matchFound() },
+	{ name: "vsDuel", desc: "The 1v1 VS banner, timed to its animation: the slabs whoosh in from each side and land, the VS punches in with a boom, a drone holds, the slabs fly off.", play: () => sound.vsDuel() },
+	{ name: "vsSix", desc: "The 6-player starting grid, timed to its animation: a riser as the slots glide in, a landing boom and a short fanfare, engines idling under the hold, a whoosh as they leave.", play: () => sound.vsSix() }
 ];
 
 // ---- sweep variants: all built from sound.lab.tone, so a candidate is byte-for-byte what would ship ----
@@ -375,6 +379,9 @@ export default function SoundLab() {
 	const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 	const searchCycle = useRef(0);
 	const stopSearch = () => { if (searchTimer.current) { clearTimeout(searchTimer.current); searchTimer.current = null; } setSearchId(null); };
+	// The shipped search loop (sound.startSearch): one search sound at a time, so starting it stops any candidate and vice versa.
+	const [gameSearchOn, setGameSearchOn] = useState(false);
+	const stopGameSearch = () => { sound.stopSearch(); setGameSearchOn(false); };
 	const playSearchCycle = (variant: SearchVariant) => {
 		const ctx: Ctx | null = lab.getCtx(), master: Master | null = lab.getMaster();
 		if (!ctx || !master) return;
@@ -383,7 +390,7 @@ export default function SoundLab() {
 		searchCycle.current++;
 		searchTimer.current = setTimeout(() => playSearchCycle(variant), variant.cycleBeats * beatS * 1000);
 	};
-	const startSearch = (variant: SearchVariant) => { stopSearch(); searchCycle.current = 0; setSearchId(variant.id); playSearchCycle(variant); };
+	const startSearch = (variant: SearchVariant) => { stopSearch(); stopGameSearch(); searchCycle.current = 0; setSearchId(variant.id); playSearchCycle(variant); };
 
 	// Battle theme loop: reads the selection fresh every bar, so any change lands on the next bar.
 	const sel = useRef<BattleSelection>({
@@ -413,6 +420,7 @@ export default function SoundLab() {
 	useEffect(() => () => {
 		if (searchTimer.current) clearTimeout(searchTimer.current);
 		if (battleTimer.current) clearTimeout(battleTimer.current);
+		sound.stopSearch();
 		sound.setRate(1);
 	}, []);
 
@@ -441,7 +449,9 @@ export default function SoundLab() {
 			<LabSection title="Game sounds" sub="Exactly what plays in a real match.">
 				<div className={labStyles.grid}>{GAME_SOUNDS.map(item => (
 					<LabCard key={item.name} name={item.name} desc={item.desc}>
-						<button type="button" className={`btn ${labStyles.playBtn}`} onClick={() => { unlockAudio(); item.play(); }}>▶ Play</button>
+						{item.loop
+							? <button type="button" className={`btn ${labStyles.playBtn} ${gameSearchOn ? labStyles.playActive : ""}`} onClick={() => { unlockAudio(); if (gameSearchOn) stopGameSearch(); else { stopSearch(); item.play(); setGameSearchOn(true); } }}>{gameSearchOn ? "■ Stop" : "▶ Play loop"}</button>
+							: <button type="button" className={`btn ${labStyles.playBtn}`} onClick={() => { unlockAudio(); item.play(); }}>▶ Play</button>}
 					</LabCard>
 				))}</div>
 			</LabSection>
@@ -454,7 +464,7 @@ export default function SoundLab() {
 				))}</div>
 			</LabSection>
 
-			<LabSection title="Search theme (candidates)" sub="Nothing plays today while a ranked match is being found. These are subtle looping candidates to fill that gap, built to sit naturally against sound.sweep() and the battle theme (same A-minor key and voices). Starting one stops any other that's playing.">
+			<LabSection title="Search theme (candidates)" sub="The search now has a sound (the radar loop under Game sounds, sound.startSearch). These are the earlier looping candidates for that phase, kept for comparison, all built to sit naturally against sound.sweep() and the battle theme (same A-minor key and voices). Starting one stops any other that's playing, the shipped loop included.">
 				<div className={labStyles.grid}>{SEARCH_VARIANTS.map(v => {
 					const active = searchId === v.id;
 					return (

@@ -247,7 +247,8 @@ class MatchStore {
 			setTimeout(() => { if (this.state.inRoom) this.set({ seriesResult: d }); }, 1200);
 			getSocket().emit("get_match_history");
 		});
-		socket.on("match_reveal", () => { this.setCoveredBoard(); sound.matchFound(); });
+		// The found sting is the play page's (with the "Target acquired" card), so it lands with the visual.
+		socket.on("match_reveal", () => { this.setCoveredBoard(); });
 		socket.on("opp_cursor", (d) => { const s = d && this.opponentSessions.get(d.id); if (s) s.setMirrorFocus(d.r, d.c, typeof d.eta === "number" ? d.eta : undefined); });
 		socket.on("left_room", (d) => {
 			if (d && typeof d.rating === "number") this.onRatingKnown(d.rating, d.ratingDelta, d.provisional);

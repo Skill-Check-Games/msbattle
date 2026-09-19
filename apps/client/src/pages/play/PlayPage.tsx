@@ -115,6 +115,11 @@ export default function PlayPage() {
 	const oppId = (match.opponents()[0] || {}).id || null;
 	const lastOppRef = useRef<string | null>(null);
 	useEffect(() => { if (s.search && searchSince == null) setSearchSince(Date.now()); if (!s.search && !s.inRoom) setSearchSince(null); }, [s.search, s.inRoom]);
+	// The radar's sound plays for as long as a seat is empty (the search ends the moment the room forms, in
+	// both formats); the found sting and the VS stinger below follow the found phases, so each sound lands on
+	// its visual rather than on the socket event.
+	const searching = !!s.search;
+	useEffect(() => { if (!searching) return; sound.startSearch(); return () => sound.stopSearch(); }, [searching]);
 	const foundAt = useRef(0), foundCardMs = useRef(FOUND_CARD_MS), foundBannerMs = useRef(MATCH_FOUND_MS);   // the 1v1's card and slabs, or the 6-player breath and grid
 	const foundWaitsForStart = useRef(true);   // 1v1: the card can wait for start_game before giving way; 6 players: nothing is on screen meanwhile, so no waiting
 	useEffect(() => {
@@ -122,7 +127,7 @@ export default function PlayPage() {
 		if (oppId && !lastOppRef.current && searchSince != null && match.isDuo() && !s.roundLive) {
 			lastOppRef.current = oppId;
 			foundAt.current = Date.now(); foundCardMs.current = FOUND_CARD_MS; foundBannerMs.current = MATCH_FOUND_MS; foundWaitsForStart.current = true;
-			setFoundPhase("card");
+			setFoundPhase("card"); sound.matchFound();
 		}
 		if (!oppId && !s.inRoom) lastOppRef.current = null;   // a new search starts fresh; a roster blip inside a room does not
 	}, [oppId]);
@@ -135,7 +140,7 @@ export default function PlayPage() {
 		if (key && lastFieldRef.current !== key && searchSince != null && !s.roundLive) {
 			lastFieldRef.current = key;
 			foundAt.current = Date.now(); foundCardMs.current = FOUND_FIELD_BREATH_MS; foundBannerMs.current = MATCH_FOUND_SIX_MS; foundWaitsForStart.current = false;
-			setFoundPhase("card");
+			setFoundPhase("card"); sound.matchFound();
 		}
 		if (!key && !s.inRoom) lastFieldRef.current = null;
 	}, [fieldFormed]);
@@ -152,6 +157,8 @@ export default function PlayPage() {
 	}, [foundPhase, s.countdownDigitsAt]);
 	useEffect(() => {
 		if (foundPhase !== "cardOut") return;
+		// The banner mounts with this phase: its stinger is timed from here (see sound.vsDuel / vsSix).
+		if (match.isDuo()) sound.vsDuel(); else sound.vsSix();
 		const t1 = setTimeout(() => setFoundPhase("banner"), CARD_LEAVE_MS);
 		// Once the slabs have landed, the board's idle twinkle dissolves and stays off for the countdown.
 		const t3 = setTimeout(() => match.session.fadeIdleOut(900), 700);
