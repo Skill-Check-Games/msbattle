@@ -50,7 +50,7 @@ const PUZZLE_BOX_PX = 548, PUZZLE_CELL_MAX = 80, PUZZLE_BOX_PX_MOBILE = 320, PUZ
 const GRID_GAP_PX = 24; // fallback when the grid's gap can't be read
 
 export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
-	useInGameBody();
+	useInGameBody({ music: false });   // puzzles are played in silence: no battle theme
 	const navigate = useNavigate();
 	const { account, update } = useAuth();
 	// The socket handlers below are registered once per mode, so they must read the CURRENT account through a
