@@ -42,7 +42,7 @@ const GAME_SOUNDS: { name: string; desc: string; play: () => void; loop?: boolea
 	{ name: "rankDown", desc: "You drop a rank tier.", play: () => sound.rankDown() },
 	{ name: "matchFound", desc: "Target acquired: the seat fills (1v1) or the sixth player arrives (6 players). Three pings close in, a two-note confirmation rises.", play: () => sound.matchFound() },
 	{ name: "vsDuel", desc: "The 1v1 VS banner, timed to its animation: the slabs whoosh in from each side, the banner holds, the slabs whoosh off.", play: () => sound.vsDuel() },
-	{ name: "vsSix", desc: "The 6-player starting grid, timed to its animation: a riser as the slots glide in, a short fanfare, the grid holds, a whoosh as they leave.", play: () => sound.vsSix() }
+	{ name: "vsSix", desc: "The 6-player starting grid, timed to its animation: a riser as the slots glide in, the grid holds, a whoosh as they leave.", play: () => sound.vsSix() }
 ];
 
 // ---- sweep variants: all built from sound.lab.tone, so a candidate is byte-for-byte what would ship ----
