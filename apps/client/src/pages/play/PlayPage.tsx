@@ -6,6 +6,7 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "re
 import { Navigate, useNavigate } from "react-router-dom";
 import { getSocket } from "../../online/socket";
 import { sound } from "../../audio/sound";
+import { music } from "../../audio/music";
 import { match, useMatch, MODE_LABELS, STYLE_LABELS, GameFrame, RoomPlayer } from "../../game/match-store";
 import GameBoard, { SHAKE_PAD_X, SHAKE_PAD_Y } from "../../game/GameBoard";
 import { useCellPx, fitCellPx, CellPxOptions, DESKTOP_CELL_MIN } from "../../game/use-cell-px";
@@ -185,7 +186,13 @@ export default function PlayPage() {
 	const [, tick] = useState(0);
 	const portrait = useMediaQuery(PORTRAIT_MQ), landscape = useMediaQuery(LANDSCAPE_PHONE_MQ);
 	const portraitOrientation = useMediaQuery("(orientation: portrait)");
-	useInGameBody();
+	useInGameBody({ music: false });
+	// The battle theme waits for the first round to go live (the search, the VS banner and the 3-2-1 play
+	// over silence and their own sounds), then runs for the rest of the series; a new search from here
+	// (play another) silences it again, and leaving the page stops it.
+	useEffect(() => { if (s.roundLive) music.resume(); }, [s.roundLive]);
+	useEffect(() => { if (s.search || !s.inRoom) music.pause(); }, [!!s.search, s.inRoom]);
+	useEffect(() => () => music.pause(), []);
 	const oppFrozenUntil = (s.frames || []).slice(1).reduce((m, f) => Math.max(m, (f && f.frozenUntil) || 0), 0);
 	// An opponent's mine is heard in every battle (the 1v1, the six-player boards and list alike): a frame whose
 	// penalty is new since the last one plays the distant blast. One path, from the frames, so it never depends on

@@ -19,13 +19,15 @@ export function useMediaQuery(q: string): boolean {
 }
 
 // body.in-game while a game screen is mounted: global CSS hides the navbar/footer on phones. The
-// soundtrack runs only on game screens, and leaving drops fullscreen (phones keep it: re-entering
+// soundtrack runs only on game screens (music: false leaves it to the page, which then starts and
+// stops it itself: the play page waits for the first round to go live), and leaving drops fullscreen (phones keep it: re-entering
 // needs a gesture, and the next match wants it back) but always releases the landscape lock: the
 // site's own pages are not held sideways.
-export function useInGameBody() {
+export function useInGameBody(opts?: { music?: boolean }) {
+	const withMusic = !opts || opts.music !== false;
 	useEffect(() => {
-		document.body.classList.add("in-game"); music.resume();
-		return () => { document.body.classList.remove("in-game"); music.pause(); unlockOrientation(); if (!phoneSizedDevice()) exitGameFullscreen(); };
+		document.body.classList.add("in-game"); if (withMusic) music.resume();
+		return () => { document.body.classList.remove("in-game"); if (withMusic) music.pause(); unlockOrientation(); if (!phoneSizedDevice()) exitGameFullscreen(); };
 	}, []);
 }
 
