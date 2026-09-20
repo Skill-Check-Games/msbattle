@@ -40,8 +40,8 @@ const GAME_SOUNDS: { name: string; desc: string; play: () => void; loop?: boolea
 	{ name: "seriesWin", desc: "You win an entire ranked series.", play: () => sound.seriesWin() },
 	{ name: "rankUp", desc: "You climb a rank tier.", play: () => sound.rankUp() },
 	{ name: "rankDown", desc: "You drop a rank tier.", play: () => sound.rankDown() },
-	{ name: "matchFound", desc: "Target acquired: the seat fills (1v1) or the sixth player arrives (6 players). Three pings close in, the lock clicks, a two-note confirmation rises.", play: () => sound.matchFound() },
-	{ name: "vsDuel", desc: "The 1v1 VS banner, timed to its animation: the slabs whoosh in from each side and land, the VS punches in with a boom, the banner holds, the slabs fly off.", play: () => sound.vsDuel() },
+	{ name: "matchFound", desc: "Target acquired: the seat fills (1v1) or the sixth player arrives (6 players). Three pings close in, a two-note confirmation rises.", play: () => sound.matchFound() },
+	{ name: "vsDuel", desc: "The 1v1 VS banner, timed to its animation: the slabs whoosh in from each side, the banner holds, the slabs whoosh off.", play: () => sound.vsDuel() },
 	{ name: "vsSix", desc: "The 6-player starting grid, timed to its animation: a riser as the slots glide in, a landing boom and a short fanfare, engines idling under the hold, a whoosh as they leave.", play: () => sound.vsSix() }
 ];
 

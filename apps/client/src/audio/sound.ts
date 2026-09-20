@@ -159,27 +159,19 @@ export const sound = {
 		setTimeout(() => bus.disconnect(), 400);
 	},
 	isSearching() { return !!searchBus; },
-	// Target acquired: three pings closing in on the target (A5 C6 E6, faster and louder), the lock (a click
-	// with a low thud under it as the radar's blip holds), then a two-note confirmation rising out of it.
+	// Target acquired: three pings closing in on the target (A5 C6 E6, faster and louder), then a two-note
+	// confirmation rising out of them. No percussion: the pings and the pling are the whole sound.
 	matchFound() {
 		[880, 1046.5, 1318.5].forEach((f, i) => tone({ type: "sine", freq: f, dur: 0.16, gain: 0.06 + i * 0.015, delay: [0, 0.11, 0.2][i] }));
-		tone({ type: "square", freq: 1760, dur: 0.045, gain: 0.05, delay: 0.3 });
-		noise({ dur: 0.06, cutoff: 2500, gain: 0.12, delay: 0.3 });
-		tone({ type: "sine", freq: 95, toFreq: 55, dur: 0.3, gain: 0.14, delay: 0.3 });
 		tone({ type: "triangle", freq: 659.25, dur: 0.24, gain: 0.09, delay: 0.42 });
 		tone({ type: "triangle", freq: 880, dur: 0.5, gain: 0.11, delay: 0.54 });
 	},
 	// The 1v1 banner, timed from its mount (MatchFound.module.scss): the two slabs slide in over 0.7s, one
-	// from each side (a whoosh on each side, a thud as they land), the VS punches in from 0.5s and lands
-	// with its overshoot around 0.85s (the impact: a boom and a crack), the banner
-	// holds in silence to $hold (2.4s), when the slabs fly off up and down (one wide falling whoosh).
+	// from each side (a whoosh on each side), the banner holds in silence to $hold (2.4s), when the slabs
+	// fly off up and down (one wide falling whoosh). Whooshes only: no thud, no impact.
 	vsDuel() {
 		whoosh({ dur: 0.65, from: 300, to: 2600, gain: 0.13, peakAt: 0.55, pan: -0.8 });
 		whoosh({ dur: 0.65, from: 300, to: 2600, gain: 0.13, peakAt: 0.55, pan: 0.8 });
-		tone({ type: "sine", freq: 130, toFreq: 48, dur: 0.28, gain: 0.14, delay: 0.6 });
-		noise({ dur: 0.07, cutoff: 900, gain: 0.22, delay: 0.6 });
-		noise({ dur: 0.16, cutoff: 1600, gain: 0.4, delay: 0.85 });
-		tone({ type: "sine", freq: 85, toFreq: 30, dur: 0.7, gain: 0.32, delay: 0.85 });
 		whoosh({ dur: 0.5, from: 2400, to: 250, gain: 0.11, peakAt: 0.3, delay: 2.4 });
 	},
 	// The 6-player starting grid, timed from its mount: the six slots glide in from 0.3s and settle around
