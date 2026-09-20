@@ -180,7 +180,6 @@ export const sound = {
 	vsSix() {
 		whoosh({ dur: 0.85, from: 250, to: 3200, gain: 0.12, peakAt: 0.7, delay: 0.25, pan: -0.6 });
 		whoosh({ dur: 0.85, from: 250, to: 3200, gain: 0.12, peakAt: 0.7, delay: 0.25, pan: 0.6 });
-		tone({ type: "sine", freq: 220, toFreq: 880, dur: 0.8, gain: 0.04, attack: 0.3, delay: 0.25 });
 		whoosh({ dur: 0.55, from: 2800, to: 220, gain: 0.11, peakAt: 0.3, delay: 4.3 });
 	},
 	// Player actions drive the soundtrack's intensity (music.pulse); the session hook calls this per action.
