@@ -25,7 +25,7 @@ interface PercGain { kick: number; snare: number; hat: number; }
 // ---- game sounds: every real gameplay sound, with the args it needs to make noise standalone ----
 // loop: a Play/Stop toggle (sound.startSearch / stopSearch) instead of a one-shot Play.
 const GAME_SOUNDS: { name: string; desc: string; play: () => void; loop?: boolean }[] = [
-	{ name: "search", desc: "The radar, for as long as a seat is empty: a sonar ping on every turn of the sweep, a breathing Am pad and a slow heartbeat.", play: () => sound.startSearch(), loop: true },
+	{ name: "search", desc: "A heartbeat, for as long as a seat is empty: a low lub-dub on every turn of the radar sweep, nothing tonal, firming up a little over the first half minute.", play: () => sound.startSearch(), loop: true },
 	{ name: "cascade", desc: "A safe cell opens more than one neighbour at once.", play: () => sound.cascade(4) },
 	{ name: "opponentDone", desc: "An opponent finishes their board before you, in a race mode.", play: () => sound.opponentDone(2) },
 	{ name: "flag", desc: "Placing a flag.", play: () => sound.flag() },
@@ -464,7 +464,7 @@ export default function SoundLab() {
 				))}</div>
 			</LabSection>
 
-			<LabSection title="Search theme (candidates)" sub="The search now has a sound (the radar loop under Game sounds, sound.startSearch). These are the earlier looping candidates for that phase, kept for comparison, all built to sit naturally against sound.sweep() and the battle theme (same A-minor key and voices). Starting one stops any other that's playing, the shipped loop included.">
+			<LabSection title="Search theme (candidates)" sub="The search now has a sound (the heartbeat under Game sounds, sound.startSearch). These are the earlier looping candidates for that phase, kept for comparison, all built to sit naturally against sound.sweep() and the battle theme (same A-minor key and voices). Starting one stops any other that's playing, the shipped loop included.">
 				<div className={labStyles.grid}>{SEARCH_VARIANTS.map(v => {
 					const active = searchId === v.id;
 					return (

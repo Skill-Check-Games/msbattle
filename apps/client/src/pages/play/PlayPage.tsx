@@ -116,7 +116,7 @@ export default function PlayPage() {
 	const oppId = (match.opponents()[0] || {}).id || null;
 	const lastOppRef = useRef<string | null>(null);
 	useEffect(() => { if (s.search && searchSince == null) setSearchSince(Date.now()); if (!s.search && !s.inRoom) setSearchSince(null); }, [s.search, s.inRoom]);
-	// The radar's sound plays for as long as a seat is empty (the search ends the moment the room forms, in
+	// The heartbeat plays for as long as a seat is empty (the search ends the moment the room forms, in
 	// both formats); the found sting and the VS stinger below follow the found phases, so each sound lands on
 	// its visual rather than on the socket event.
 	const searching = !!s.search;

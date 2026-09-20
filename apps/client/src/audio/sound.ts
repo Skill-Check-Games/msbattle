@@ -92,13 +92,11 @@ function liveMusic() {
 	return { chord, intensity: musicSource.intensity() };
 }
 
-// ---- The search loop: the radar. The "Finding enemy" card's radar (MatchFound.module.scss .sweep) turns
-// once every SEARCH_SWEEP_S; a soft sonar ping marks each turn, stepping up and back down the A-minor
-// pentatonic so it never reads as one note repeating, over a hushed Am pad that breathes in and out every
-// fourth turn, with a slow heartbeat in between the pings. Everything runs through its own bus so stopping
-// is a short fade rather than a cut, and the found sting can take over at once.
+// ---- The search loop: a heartbeat. One lub-dub on every turn of the "Finding enemy" card's radar
+// (MatchFound.module.scss .sweep turns once every SEARCH_SWEEP_S): a low double thump, nothing tonal, that
+// firms up a little over the first half minute of waiting and then holds. It runs through its own bus so
+// stopping is a short fade rather than a cut, and the found sting can take over at once.
 const SEARCH_SWEEP_S = 2;
-const SEARCH_PINGS = [440, 523.25, 587.33, 659.25, 587.33, 523.25];   // A4 C5 D5 E5 D5 C5
 let searchBus: GainNode | null = null, searchTimer: number | null = null, searchTurnIdx = 0;
 function searchTurn() {
 	searchTimer = null;
@@ -106,10 +104,9 @@ function searchTurn() {
 	// A suspended context (a queue rejoined after a reload, before any click) would stack every turn onto the
 	// same instant and let them all go at once when it wakes: skip the turn instead.
 	if (ctx.state === "running" && !muted) {
-		const i = searchTurnIdx, out = searchBus;
-		if (i % 4 === 0) [220, 261.63, 329.63].forEach(f => pad({ freq: f, dur: SEARCH_SWEEP_S * 4.2, gain: 0.028, attack: SEARCH_SWEEP_S * 1.6, release: SEARCH_SWEEP_S * 1.8, out }));
-		tone({ type: "sine", freq: SEARCH_PINGS[i % SEARCH_PINGS.length], dur: 1.1, gain: i % SEARCH_PINGS.length === 0 ? 0.05 : 0.036, attack: 0.02, out });
-		if (i % 2 === 1) { tone({ type: "sine", freq: 110, toFreq: 80, dur: 0.22, gain: 0.07, delay: 1.0, out }); tone({ type: "sine", freq: 110, toFreq: 80, dur: 0.18, gain: 0.045, delay: 1.3, out }); }
+		const out = searchBus, build = Math.min(1, searchTurnIdx / 15), g = 0.07 + 0.03 * build;
+		tone({ type: "sine", freq: 105, toFreq: 70, dur: 0.24, gain: g, cutoff: 260, out });
+		tone({ type: "sine", freq: 95, toFreq: 65, dur: 0.2, gain: g * 0.6, cutoff: 260, delay: 0.32, out });
 	}
 	searchTurnIdx++;
 	searchTimer = window.setTimeout(searchTurn, SEARCH_SWEEP_S / rate * 1000);
@@ -145,7 +142,7 @@ export const sound = {
 	seriesWin() { arp([523, 659, 784, 1047, 1319], 0.11, 0.34, 0.13); },
 	rankUp() { arp([659, 880, 1047, 1319, 1568], 0.10, 0.38, 0.14); },
 	rankDown() { tone({ type: "sine", freq: 440, toFreq: 233, dur: 0.42, gain: 0.12 }); },
-	// The radar's sound, for as long as a seat is empty. Idempotent: a second start while running is ignored.
+	// The heartbeat, for as long as a seat is empty. Idempotent: a second start while running is ignored.
 	startSearch() {
 		if (searchBus || !ensure()) return;
 		if (ctx!.state === "suspended") ctx!.resume();
