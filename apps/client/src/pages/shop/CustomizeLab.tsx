@@ -7,7 +7,7 @@ import BoardLogic from "core/src/common/BoardLogic.js";
 import { useAuth } from "../../shared/auth";
 import { getSocket } from "../../online/socket";
 import { BoardSession } from "../../game/board-session";
-import { BoardView, MINE, UNKNOWN, KNOWN, buildAvatarCanvas, sizeCellCanvas, applyBoardSkin, applyRevealEffect, localBoardSkin, localRevealEffect, REVEAL_FX_DUR, WAVE_STEP_MS, WAVE_MAX_MS, BOARD_SKINS, BOARD_SKIN_LIST, AVATAR_COLORS, AVATAR_IMAGES, REVEAL_EFFECT_LIST, DEFAULT_AVATAR } from "../../game/board-render";
+import { BoardView, MINE, UNKNOWN, KNOWN, buildAvatarCanvas, sizeCellCanvas, applyBoardSkin, localBoardSkin, localRevealEffect, REVEAL_FX_DUR, WAVE_STEP_MS, WAVE_MAX_MS, BOARD_SKINS, BOARD_SKIN_LIST, AVATAR_COLORS, AVATAR_IMAGES, REVEAL_EFFECT_LIST, DEFAULT_AVATAR } from "../../game/board-render";
 import { setBoardSkin, setRevealEffect, useCosmetics } from "../../shared/cosmetics";
 import TouchBoard from "../../game/TouchBoard";
 import { SHAKE_PAD_Y } from "../../game/GameBoard";
@@ -81,12 +81,11 @@ export default function CustomizeLab({ host, tab: tabProp, onTabChange, sheet, o
 	const previewLocked = (kind: Kind, id: string, item: ShopItem | null) => {
 		const key = previewKey(kind);
 		setPreview(p => ({ ...p, [key]: id, locked: { ...p.locked, [key]: item } }));
-		if (kind === "revealEffect") applyRevealEffect(id);
+		// A locked effect previews on the demo board only; the real pick (what a match uses) is untouched.
+		if (kind === "revealEffect") { session.previewRevealEffect = id; session.render(); }
 	};
-	const clearPreview = (kind: Kind) => { const key = previewKey(kind); setPreview(p => ({ ...p, [key]: null, locked: { ...p.locked, [key]: null } })); };
+	const clearPreview = (kind: Kind) => { const key = previewKey(kind); setPreview(p => ({ ...p, [key]: null, locked: { ...p.locked, [key]: null } })); if (kind === "revealEffect") { session.previewRevealEffect = null; session.render(); } };
 	const buyable = preview.locked[previewKey(tab)];
-	// Leaving the lab reverts any previewed effect to the real pick (the skin preview never touched the real pick).
-	useEffect(() => () => { applyRevealEffect(localRevealEffect); }, []);
 
 	const pickAvatar = (id: string) => { clearPreview("avatar"); update({ avatarColor: id }); getSocket().emit("set_avatar", { color: id }); };
 	const pickSkin = (id: string) => { clearPreview("skin"); setBoardSkin(id); session.render(); };

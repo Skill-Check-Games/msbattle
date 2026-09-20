@@ -297,15 +297,18 @@ function revealLidSpark(ctx: CanvasRenderingContext2D, w: number, h: number, rad
 		ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(cx, cy, s * 0.1 * (1 - st), 0, Math.PI * 2); ctx.fill();
 		ctx.restore();
 	}
-	const sparks = 6;
-	for (let i = 0; i < sparks; i++) {
-		const sa = cellSeededRandom(r * 401 + c * 809 + i * 37), sb = cellSeededRandom(r * 613 + c * 271 + i * 91 + 17);
-		const angle = (i / sparks) * Math.PI * 2 + (sa - 0.5) * 0.9, speed = s * (0.35 + 0.35 * sb);
-		const at = (tt: number) => { const d = speed * easeOutCubic(tt); return [cx + Math.cos(angle) * d, cy + Math.sin(angle) * d + s * 0.45 * tt * tt]; };
-		const [x1, y1] = at(t), [x0, y0] = at(Math.max(0, t - 0.14));
-		ctx.save(); ctx.globalAlpha = 1 - easeInCubic(t); ctx.strokeStyle = i % 2 ? "#ffd166" : "#fff3b0"; ctx.lineCap = "round"; ctx.lineWidth = Math.max(1, s * 0.07 * (1 - t * 0.5));
-		ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
-		ctx.restore();
+	// Six sparks, stroked as two paths (one per colour) rather than one stroke each: big cascades stay smooth.
+	const sparks = 6, tail = Math.max(0, t - 0.14);
+	ctx.globalAlpha = 1 - easeInCubic(t); ctx.lineCap = "round"; ctx.lineWidth = Math.max(1, s * 0.07 * (1 - t * 0.5));
+	for (let colour = 0; colour < 2; colour++) {
+		ctx.strokeStyle = colour ? "#ffd166" : "#fff3b0"; ctx.beginPath();
+		for (let i = colour; i < sparks; i += 2) {
+			const sa = cellSeededRandom(r * 401 + c * 809 + i * 37), sb = cellSeededRandom(r * 613 + c * 271 + i * 91 + 17);
+			const angle = (i / sparks) * Math.PI * 2 + (sa - 0.5) * 0.9, speed = s * (0.35 + 0.35 * sb), dx = Math.cos(angle), dy = Math.sin(angle);
+			const d1 = speed * easeOutCubic(t), d0 = speed * easeOutCubic(tail);
+			ctx.moveTo(cx + dx * d0, cy + dy * d0 + s * 0.45 * tail * tail); ctx.lineTo(cx + dx * d1, cy + dy * d1 + s * 0.45 * t * t);
+		}
+		ctx.stroke();
 	}
 	ctx.restore();
 }
@@ -346,20 +349,34 @@ function revealLidCrt(ctx: CanvasRenderingContext2D, w: number, h: number, rad: 
 	ctx.restore();
 }
 // Dust Puff: the lid fades while soft clouds in its own colour bloom out of it, drift upward and thin
-// away, like sand brushed off a tile. No flash, nothing bright: the slow, soft one.
+// away, like sand brushed off a tile. No flash, nothing bright: the slow, soft one. The cloud is one
+// cached sprite per skin (a radial gradient per puff per cell per frame made big cascades stutter).
+let dustSprite: HTMLCanvasElement | null = null, dustSpriteKey = "";
+function dustPuffSprite(): HTMLCanvasElement | null {
+	const key = COLOR_UNKNOWN_HILITE + "|" + COLOR_UNKNOWN_TOP;
+	if (dustSprite && dustSpriteKey === key) return dustSprite;
+	const size = 64, cv = document.createElement("canvas"); cv.width = size; cv.height = size;
+	const g = cv.getContext("2d"); if (!g) return null;
+	const grd = g.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+	grd.addColorStop(0, withAlpha(COLOR_UNKNOWN_HILITE, 0.7)); grd.addColorStop(0.45, withAlpha(COLOR_UNKNOWN_TOP, 0.55)); grd.addColorStop(1, withAlpha(COLOR_UNKNOWN_TOP, 0));
+	g.fillStyle = grd; g.fillRect(0, 0, size, size);
+	dustSprite = cv; dustSpriteKey = key;
+	return cv;
+}
 function revealLidDust(ctx: CanvasRenderingContext2D, w: number, h: number, rad: number, t: number, r: number, c: number) {
-	ctx.save(); clipCell(ctx, w, h);
 	ctx.save(); ctx.globalAlpha = 1 - easeOutCubic(Math.min(1, t / 0.55)); drawUnknown(ctx, w, h, rad); ctx.restore();
-	const s = Math.min(w, h), puffs = 5, inner = withAlpha(COLOR_UNKNOWN_HILITE, 0.7), mid = withAlpha(COLOR_UNKNOWN_TOP, 0.55), outer = withAlpha(COLOR_UNKNOWN_TOP, 0);
+	const sprite = dustPuffSprite();
+	if (!sprite) return;
+	// The clouds are kept inside the cell by clamping rather than clipping (a clip per cell per frame is
+	// the single dearest thing here); a puff that reaches the edge just hangs there as it thins out.
+	const s = Math.min(w, h), puffs = 4, grow = easeOutCubic(t);
+	ctx.save(); ctx.globalAlpha = 0.75 * (1 - easeInCubic(t));
 	for (let i = 0; i < puffs; i++) {
 		const sa = cellSeededRandom(r * 401 + c * 809 + i * 53), sb = cellSeededRandom(r * 613 + c * 271 + i * 97 + 5), sc = cellSeededRandom(r * 149 + c * 331 + i * 71 + 9);
-		const x = w * (0.2 + 0.6 * sa), y = h * (0.35 + 0.4 * sb) - h * (0.25 + 0.25 * sc) * easeOutCubic(t) + (sa - 0.5) * s * 0.2 * t;
-		const rad2 = s * (0.18 + 0.27 * easeOutCubic(t)) * (0.7 + 0.5 * sc);
-		ctx.save(); ctx.globalAlpha = 0.75 * (1 - easeInCubic(t));
-		const grd = ctx.createRadialGradient(x, y, 0, x, y, rad2);
-		grd.addColorStop(0, inner); grd.addColorStop(0.45, mid); grd.addColorStop(1, outer);
-		ctx.fillStyle = grd; ctx.beginPath(); ctx.arc(x, y, rad2, 0, Math.PI * 2); ctx.fill();
-		ctx.restore();
+		const rad2 = Math.min(s * (0.18 + 0.27 * grow) * (0.7 + 0.5 * sc), s / 2);
+		const x = Math.max(rad2, Math.min(w - rad2, w * (0.2 + 0.6 * sa)));
+		const y = Math.max(rad2, Math.min(h - rad2, h * (0.35 + 0.4 * sb) - h * (0.25 + 0.25 * sc) * grow));
+		ctx.drawImage(sprite, x - rad2, y - rad2, rad2 * 2, rad2 * 2);
 	}
 	ctx.restore();
 }
@@ -368,7 +385,7 @@ const REVEAL_FX: Record<string, RevealFx> = {
 	spark: { dur: 440, draw: revealLidSpark },
 	shatter: { dur: 420, draw: revealLidShatter },
 	crt: { dur: 480, draw: revealLidCrt },
-	dust: { dur: 520, draw: revealLidDust }
+	dust: { dur: 440, draw: revealLidDust }
 };
 // t spans lifetimeMs (a reveal's REVEAL_FX_DUR, a mine's MINE_DUR); the effect gets it rescaled to its own clock.
 function drawRevealLid(ctx: CanvasRenderingContext2D, w: number, h: number, rad: number, t: number, lifetimeMs: number, r: number, c: number, styleId: string) {

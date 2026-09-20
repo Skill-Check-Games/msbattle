@@ -101,6 +101,7 @@ export class BoardSession {
 	// has been received, so bots and late joiners still show where play is happening.
 	mirror = false;
 	revealEffect: string | null = null;   // mirror boards: the opponent's chosen reveal effect
+	previewRevealEffect: string | null = null;   // the shop's demo board: a previewed effect, over the real pick, without touching it
 	private listeners = new Set<() => void>();
 
 	constructor(hooks: SessionHooks) { this.hooks = hooks; }
@@ -397,7 +398,7 @@ export class BoardSession {
 		return true;
 	}
 	private view(canvas: HTMLCanvasElement, state: number[][], skin: string | null): BoardView {
-		return new BoardView(canvas, this.rows, this.cols, state, this.cellAt, { skin, ownBoard: canvas === this.canvas && this.ownBoard, forceRevealEffect: this.mirror ? (this.revealEffect || "ripple") : null, wiggleHover: NUMBER_HOVER_WIGGLE, hoverAt: this.attention() ? (r, c) => { const a = this.attention(); return a && a.r === r && a.c === c ? this.hoverKind : this.hoverExtra.length && this.hoverExtra.indexOf(r + "," + c) !== -1 ? "peek" : null; } : null });
+		return new BoardView(canvas, this.rows, this.cols, state, this.cellAt, { skin, ownBoard: canvas === this.canvas && this.ownBoard, forceRevealEffect: this.mirror ? (this.revealEffect || "ripple") : this.previewRevealEffect, wiggleHover: NUMBER_HOVER_WIGGLE, hoverAt: this.attention() ? (r, c) => { const a = this.attention(); return a && a.r === r && a.c === c ? this.hoverKind : this.hoverExtra.length && this.hoverExtra.indexOf(r + "," + c) !== -1 ? "peek" : null; } : null });
 	}
 	// Paint the board; dirtyKeys ("r,c") limits the repaint to those cells and their neighbours.
 	render(dirtyKeys?: string[]) {
