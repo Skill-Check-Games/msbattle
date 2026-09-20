@@ -174,7 +174,7 @@ export const sound = {
 	},
 	// The 1v1 banner, timed from its mount (MatchFound.module.scss): the two slabs slide in over 0.7s, one
 	// from each side (a whoosh on each side, a thud as they land), the VS punches in from 0.5s and lands
-	// with its overshoot around 0.85s (the impact: a boom, a crack and a dark A power chord), the banner
+	// with its overshoot around 0.85s (the impact: a boom and a crack), the banner
 	// holds in silence to $hold (2.4s), when the slabs fly off up and down (one wide falling whoosh).
 	vsDuel() {
 		whoosh({ dur: 0.65, from: 300, to: 2600, gain: 0.13, peakAt: 0.55, pan: -0.8 });
@@ -183,7 +183,6 @@ export const sound = {
 		noise({ dur: 0.07, cutoff: 900, gain: 0.22, delay: 0.6 });
 		noise({ dur: 0.16, cutoff: 1600, gain: 0.4, delay: 0.85 });
 		tone({ type: "sine", freq: 85, toFreq: 30, dur: 0.7, gain: 0.32, delay: 0.85 });
-		[110, 164.81].forEach(f => tone({ type: "sawtooth", freq: f, dur: 0.55, gain: 0.06, cutoff: 1100, delay: 0.85 }));
 		whoosh({ dur: 0.5, from: 2400, to: 250, gain: 0.11, peakAt: 0.3, delay: 2.4 });
 	},
 	// The 6-player starting grid, timed from its mount: the six slots glide in from 0.3s and settle around
