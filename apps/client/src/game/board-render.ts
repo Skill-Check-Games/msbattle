@@ -67,7 +67,8 @@ applyRevealEffect(stored("ms_reveal_effect") || DEFAULT_REVEAL_EFFECT);
 export const DPR = Math.min(2, window.devicePixelRatio || 1);
 
 // ---- animation timing ----
-export const REVEAL_DUR = 230;
+export const REVEAL_DUR = 230;      // the content (base, digit) fades in over this
+export const REVEAL_FX_DUR = 520;   // a reveal animation lives this long: the lid effects run their own clocks inside it
 export const FLAG_DUR = 260;
 export const MINE_DUR = 460;
 // Reveal wave: cells open in rings of flood distance from the clicked tile, one ring per step; a very
@@ -188,9 +189,13 @@ export function drawCell(ctx: CanvasRenderingContext2D, r: number, c: number, vi
 	if (view.xray && view.isMine(r, c) && !view.isFlagged(r, c)) {
 		drawUnknown(ctx, w, h, rad);
 		drawMineXray(ctx, w, h);
+	} else if (view.isRevealed(r, c) && anim && (anim.type === "reveal" || anim.type === "mine") && anim.t < 0) {
+		// Its turn in the cascade's wave has not come yet: a plain covered cell, no effect, nothing showing through.
+		drawUnknown(ctx, w, h, rad);
 	} else if (view.isRevealed(r, c)) {
 		const revealing = !!anim && (anim.type === "reveal" || anim.type === "mine");
-		const t = revealing ? clamp01(anim!.t) : 1;
+		// The content fades in over REVEAL_DUR; a reveal animation's t spans REVEAL_FX_DUR (the lid effect's clock).
+		const t = revealing ? clamp01(anim!.type === "reveal" ? anim!.t * REVEAL_FX_DUR / REVEAL_DUR : anim!.t) : 1;
 		drawKnownBase(ctx, w, h, rad);
 		if (view.isMine(r, c)) {
 			if (anim && anim.type === "mine") {
@@ -213,7 +218,7 @@ export function drawCell(ctx: CanvasRenderingContext2D, r: number, c: number, vi
 		// board and the default elsewhere (an opponent's reveal is not yours to customize).
 		if (revealing && anim!.t < 1) {
 			const effectId = view.forceRevealEffect || (view.ownBoard ? localRevealEffect : "ripple");
-			drawRevealLid(ctx, w, h, rad, t, r, c, effectId);
+			drawRevealLid(ctx, w, h, rad, anim!.t, anim!.type === "mine" ? MINE_DUR : REVEAL_FX_DUR, r, c, effectId);
 			ctx.globalAlpha = 1;
 		}
 	} else if (view.isFlagged(r, c)) {
@@ -252,8 +257,22 @@ export function drawKnownBase(ctx: CanvasRenderingContext2D, w: number, h: numbe
 	ctx.strokeStyle = COLOR_KNOWN_EDGE; ctx.lineWidth = 1; ctx.stroke();
 }
 
-// ---- reveal effects: how the covered lid comes off. All read the live skin palette. ----
+// ---- reveal effects: how the covered lid comes off. Each effect runs on its own clock (dur, in ms) inside
+// the reveal animation's lifetime; its t is 0..1 over that clock. All read the live skin palette and stay
+// inside the cell (the live board repaints dirty cells only, so nothing may spill onto a neighbour). ----
+type LidFx = (ctx: CanvasRenderingContext2D, w: number, h: number, rad: number, t: number, r: number, c: number) => void;
+interface RevealFx { dur: number; draw: LidFx; }
 function cellSeededRandom(n: number) { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); }
+function clipCell(ctx: CanvasRenderingContext2D, w: number, h: number) { ctx.beginPath(); ctx.rect(0, 0, w, h); ctx.clip(); }
+// A skin colour (#rgb, #rrggbb, rgb() or rgba()) at the given alpha; anything else comes back unchanged.
+function withAlpha(color: string, a: number) {
+	const hex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(color.trim());
+	if (hex) { let x = hex[1]; if (x.length === 3) x = x[0] + x[0] + x[1] + x[1] + x[2] + x[2]; return `rgba(${parseInt(x.slice(0, 2), 16)}, ${parseInt(x.slice(2, 4), 16)}, ${parseInt(x.slice(4, 6), 16)}, ${a})`; }
+	const rgb = /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/i.exec(color.trim());
+	if (rgb) return `rgba(${rgb[1]}, ${rgb[2]}, ${rgb[3]}, ${a})`;
+	return color;
+}
+// Ripple (the default): the lid swells a little and fades, with a white flash at the start.
 function revealLidRipple(ctx: CanvasRenderingContext2D, w: number, h: number, rad: number, t: number) {
 	const scale = 1 + 0.18 * easeOutCubic(t);
 	ctx.save();
@@ -263,19 +282,36 @@ function revealLidRipple(ctx: CanvasRenderingContext2D, w: number, h: number, ra
 	if (t < 0.35) { ctx.globalAlpha = (1 - t / 0.35) * 0.5; ctx.fillStyle = "#ffffff"; roundRectPath(ctx, 0, 0, w, h, rad); ctx.fill(); }
 	ctx.restore();
 }
-function revealLidSpark(ctx: CanvasRenderingContext2D, w: number, h: number, rad: number, t: number) {
-	ctx.save(); ctx.globalAlpha = 1 - easeInCubic(Math.min(1, t * 1.4)); drawUnknown(ctx, w, h, rad); ctx.restore();
-	if (t < 0.5) {
-		const st = t / 0.5, r2 = Math.min(w, h) * (0.12 + 0.3 * st);
-		ctx.save(); ctx.globalAlpha = 1 - st;
-		const grd = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, r2);
-		grd.addColorStop(0, "#ffffff"); grd.addColorStop(1, "rgba(255,255,255,0)");
-		ctx.fillStyle = grd; ctx.beginPath(); ctx.arc(w / 2, h / 2, r2, 0, Math.PI * 2); ctx.fill();
+// Spark Trail: the lid drops fast under a four-ray star flash, and a handful of hot sparks shoot out from
+// the centre, each dragging a short trail, slowing and sagging as they die.
+function revealLidSpark(ctx: CanvasRenderingContext2D, w: number, h: number, rad: number, t: number, r: number, c: number) {
+	ctx.save(); clipCell(ctx, w, h);
+	const cx = w / 2, cy = h / 2, s = Math.min(w, h);
+	if (t < 0.3) { ctx.save(); ctx.globalAlpha = 1 - easeInCubic(t / 0.3); drawUnknown(ctx, w, h, rad); ctx.restore(); }
+	if (t < 0.4) {
+		const st = t / 0.4, len = s * (0.12 + 0.45 * easeOutCubic(st));
+		ctx.save(); ctx.globalAlpha = 1 - st; ctx.strokeStyle = "#fff8e1"; ctx.lineCap = "round"; ctx.lineWidth = Math.max(1, s * 0.06 * (1 - st * 0.7));
+		ctx.beginPath();
+		for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2; ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a) * len, cy + Math.sin(a) * len); }
+		ctx.stroke();
+		ctx.fillStyle = "#ffffff"; ctx.beginPath(); ctx.arc(cx, cy, s * 0.1 * (1 - st), 0, Math.PI * 2); ctx.fill();
 		ctx.restore();
 	}
+	const sparks = 6;
+	for (let i = 0; i < sparks; i++) {
+		const sa = cellSeededRandom(r * 401 + c * 809 + i * 37), sb = cellSeededRandom(r * 613 + c * 271 + i * 91 + 17);
+		const angle = (i / sparks) * Math.PI * 2 + (sa - 0.5) * 0.9, speed = s * (0.35 + 0.35 * sb);
+		const at = (tt: number) => { const d = speed * easeOutCubic(tt); return [cx + Math.cos(angle) * d, cy + Math.sin(angle) * d + s * 0.45 * tt * tt]; };
+		const [x1, y1] = at(t), [x0, y0] = at(Math.max(0, t - 0.14));
+		ctx.save(); ctx.globalAlpha = 1 - easeInCubic(t); ctx.strokeStyle = i % 2 ? "#ffd166" : "#fff3b0"; ctx.lineCap = "round"; ctx.lineWidth = Math.max(1, s * 0.07 * (1 - t * 0.5));
+		ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+		ctx.restore();
+	}
+	ctx.restore();
 }
+// Shatter: the lid cracks into shards that fly outward, tumble and drop as they fade.
 function revealLidShatter(ctx: CanvasRenderingContext2D, w: number, h: number, rad: number, t: number, r: number, c: number) {
-	ctx.save(); ctx.beginPath(); ctx.rect(0, 0, w, h); ctx.clip();
+	ctx.save(); clipCell(ctx, w, h);
 	if (t < 0.15) { ctx.save(); ctx.globalAlpha = 1 - t / 0.15; drawUnknown(ctx, w, h, rad); ctx.restore(); }
 	const shardCount = 4, maxDist = Math.min(w, h) * 0.32;
 	for (let i = 0; i < shardCount; i++) {
@@ -283,34 +319,61 @@ function revealLidShatter(ctx: CanvasRenderingContext2D, w: number, h: number, r
 		const angle = (i / shardCount) * Math.PI * 2 + (seedA - 0.5) * 1.2;
 		const dist = maxDist * easeOutCubic(t), size = Math.min(w, h) * 0.24 * (1 - t * 0.35);
 		ctx.save(); ctx.globalAlpha = 1 - t;
-		ctx.translate(w / 2 + Math.cos(angle) * dist, h / 2 + Math.sin(angle) * dist); ctx.rotate((seedB - 0.5) * 5 * t);
+		ctx.translate(w / 2 + Math.cos(angle) * dist, h / 2 + Math.sin(angle) * dist + h * 0.4 * t * t); ctx.rotate((seedB - 0.5) * 5 * t);
 		ctx.fillStyle = COLOR_UNKNOWN_TOP;
 		ctx.beginPath(); ctx.moveTo(0, -size / 2); ctx.lineTo(size / 2, size / 2); ctx.lineTo(-size / 2, size / 2); ctx.closePath(); ctx.fill();
 		ctx.restore();
 	}
 	ctx.restore();
 }
+// CRT Flicker: the lid blinks hard a few times (on, off, on: cuts, not fades), then a bright scanline sweeps
+// down and wipes it away behind itself; faint scanlines linger over the fresh content and fade out.
 function revealLidCrt(ctx: CanvasRenderingContext2D, w: number, h: number, rad: number, t: number) {
-	if (t < 0.6) {
-		ctx.save(); ctx.globalAlpha = 1 - t / 0.6; drawUnknown(ctx, w, h, rad); ctx.restore();
-		const flicker = Math.abs(Math.sin(t * 50));
-		if (flicker > 0.6) { ctx.save(); ctx.globalAlpha = ((flicker - 0.6) / 0.4) * (1 - t / 0.6); ctx.fillStyle = COLOR_UNKNOWN_TOP; roundRectPath(ctx, 0, 0, w, h, rad); ctx.fill(); ctx.restore(); }
+	ctx.save(); clipCell(ctx, w, h);
+	if (t < 0.3) {
+		const on = t < 0.08 || (t >= 0.14 && t < 0.2) || t >= 0.25;
+		ctx.globalAlpha = on ? 1 : 0.2; drawUnknown(ctx, w, h, rad); ctx.globalAlpha = 1;
+	} else if (t < 0.75) {
+		const y = h * ((t - 0.3) / 0.45), lh = Math.max(1.5, h * 0.08);
+		ctx.save(); ctx.beginPath(); ctx.rect(0, y, w, h - y); ctx.clip(); drawUnknown(ctx, w, h, rad); ctx.restore();
+		ctx.globalAlpha = 0.55; ctx.fillStyle = COLOR_UNKNOWN_HILITE; ctx.fillRect(0, y - lh * 1.5, w, lh * 3);
+		ctx.globalAlpha = 0.95; ctx.fillStyle = "#ffffff"; ctx.fillRect(0, y - lh / 2, w, lh);
 	}
-	if (t < 0.4) { ctx.save(); ctx.globalAlpha = 1 - t / 0.4; ctx.fillStyle = COLOR_UNKNOWN_TOP; ctx.fillRect(0, (t / 0.4) * h, w, Math.max(1, h * 0.06)); ctx.restore(); }
-}
-function revealLidDust(ctx: CanvasRenderingContext2D, w: number, h: number, rad: number, t: number) {
-	ctx.save(); ctx.globalAlpha = 1 - easeOutCubic(t); drawUnknown(ctx, w, h, rad); ctx.restore();
-	const pt = Math.min(1, t * 1.6), r2 = Math.min(w, h) * (0.15 + 0.55 * pt);
-	ctx.save(); ctx.globalAlpha = (1 - pt) * 0.7;
-	const grd = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, r2);
-	grd.addColorStop(0, COLOR_UNKNOWN_HILITE); grd.addColorStop(1, "rgba(255,255,255,0)");
-	ctx.fillStyle = grd; ctx.beginPath(); ctx.arc(w / 2, h / 2, r2, 0, Math.PI * 2); ctx.fill();
+	if (t >= 0.3) {
+		ctx.globalAlpha = 0.22 * (1 - (t - 0.3) / 0.7); ctx.fillStyle = "#000000";
+		const step = Math.max(2, h / 8); for (let y = 0; y < h; y += step) ctx.fillRect(0, y, w, step / 2);
+	}
 	ctx.restore();
 }
-const REVEAL_LID_FX: Record<string, (ctx: CanvasRenderingContext2D, w: number, h: number, rad: number, t: number, r: number, c: number) => void> =
-	{ ripple: revealLidRipple, spark: revealLidSpark, shatter: revealLidShatter, crt: revealLidCrt, dust: revealLidDust };
-function drawRevealLid(ctx: CanvasRenderingContext2D, w: number, h: number, rad: number, t: number, r: number, c: number, styleId: string) {
-	(REVEAL_LID_FX[styleId] || revealLidRipple)(ctx, w, h, rad, t, r, c);
+// Dust Puff: the lid fades while soft clouds in its own colour bloom out of it, drift upward and thin
+// away, like sand brushed off a tile. No flash, nothing bright: the slow, soft one.
+function revealLidDust(ctx: CanvasRenderingContext2D, w: number, h: number, rad: number, t: number, r: number, c: number) {
+	ctx.save(); clipCell(ctx, w, h);
+	ctx.save(); ctx.globalAlpha = 1 - easeOutCubic(Math.min(1, t / 0.55)); drawUnknown(ctx, w, h, rad); ctx.restore();
+	const s = Math.min(w, h), puffs = 5, inner = withAlpha(COLOR_UNKNOWN_HILITE, 0.7), mid = withAlpha(COLOR_UNKNOWN_TOP, 0.55), outer = withAlpha(COLOR_UNKNOWN_TOP, 0);
+	for (let i = 0; i < puffs; i++) {
+		const sa = cellSeededRandom(r * 401 + c * 809 + i * 53), sb = cellSeededRandom(r * 613 + c * 271 + i * 97 + 5), sc = cellSeededRandom(r * 149 + c * 331 + i * 71 + 9);
+		const x = w * (0.2 + 0.6 * sa), y = h * (0.35 + 0.4 * sb) - h * (0.25 + 0.25 * sc) * easeOutCubic(t) + (sa - 0.5) * s * 0.2 * t;
+		const rad2 = s * (0.18 + 0.27 * easeOutCubic(t)) * (0.7 + 0.5 * sc);
+		ctx.save(); ctx.globalAlpha = 0.75 * (1 - easeInCubic(t));
+		const grd = ctx.createRadialGradient(x, y, 0, x, y, rad2);
+		grd.addColorStop(0, inner); grd.addColorStop(0.45, mid); grd.addColorStop(1, outer);
+		ctx.fillStyle = grd; ctx.beginPath(); ctx.arc(x, y, rad2, 0, Math.PI * 2); ctx.fill();
+		ctx.restore();
+	}
+	ctx.restore();
+}
+const REVEAL_FX: Record<string, RevealFx> = {
+	ripple: { dur: 230, draw: revealLidRipple },
+	spark: { dur: 440, draw: revealLidSpark },
+	shatter: { dur: 420, draw: revealLidShatter },
+	crt: { dur: 480, draw: revealLidCrt },
+	dust: { dur: 520, draw: revealLidDust }
+};
+// t spans lifetimeMs (a reveal's REVEAL_FX_DUR, a mine's MINE_DUR); the effect gets it rescaled to its own clock.
+function drawRevealLid(ctx: CanvasRenderingContext2D, w: number, h: number, rad: number, t: number, lifetimeMs: number, r: number, c: number, styleId: string) {
+	const fx = REVEAL_FX[styleId] || REVEAL_FX.ripple, ft = t * lifetimeMs / fx.dur;
+	if (ft < 1) fx.draw(ctx, w, h, rad, clamp01(ft), r, c);
 }
 
 export function drawNumber(ctx: CanvasRenderingContext2D, n: number, w: number, h: number, t: number) {

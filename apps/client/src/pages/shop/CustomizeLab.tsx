@@ -7,7 +7,7 @@ import BoardLogic from "core/src/common/BoardLogic.js";
 import { useAuth } from "../../shared/auth";
 import { getSocket } from "../../online/socket";
 import { BoardSession } from "../../game/board-session";
-import { BoardView, MINE, UNKNOWN, KNOWN, buildAvatarCanvas, sizeCellCanvas, applyBoardSkin, applyRevealEffect, localBoardSkin, localRevealEffect, REVEAL_DUR, WAVE_STEP_MS, WAVE_MAX_MS, BOARD_SKINS, BOARD_SKIN_LIST, AVATAR_COLORS, AVATAR_IMAGES, REVEAL_EFFECT_LIST, DEFAULT_AVATAR } from "../../game/board-render";
+import { BoardView, MINE, UNKNOWN, KNOWN, buildAvatarCanvas, sizeCellCanvas, applyBoardSkin, applyRevealEffect, localBoardSkin, localRevealEffect, REVEAL_FX_DUR, WAVE_STEP_MS, WAVE_MAX_MS, BOARD_SKINS, BOARD_SKIN_LIST, AVATAR_COLORS, AVATAR_IMAGES, REVEAL_EFFECT_LIST, DEFAULT_AVATAR } from "../../game/board-render";
 import { setBoardSkin, setRevealEffect, useCosmetics } from "../../shared/cosmetics";
 import TouchBoard from "../../game/TouchBoard";
 import { SHAKE_PAD_Y } from "../../game/GameBoard";
@@ -214,8 +214,8 @@ function EffectCard({ id, owned, active, previewing, onSelect, onPreviewLocked }
 		let state: number[][] = [], anims: Record<string, { start: number }> = {}, raf: number | null = null;
 		const fresh = () => { state = []; for (let r = 0; r < rows; r++) state.push(new Array(cols).fill(UNKNOWN)); };
 		fresh();
-		const view = new BoardView(canvas, rows, cols, state, () => 0, { forceRevealEffect: id, animAt: (r, c) => { const a = anims[r + "," + c]; return a ? { type: "reveal", t: (performance.now() - a.start) / REVEAL_DUR } : null; } });
-		const loop = () => { const now = performance.now(); let alive = false; for (const k in anims) { if (now - anims[k].start < REVEAL_DUR + WAVE_MAX_MS) alive = true; else delete anims[k]; } view.draw(); raf = alive ? requestAnimationFrame(loop) : null; };
+		const view = new BoardView(canvas, rows, cols, state, () => 0, { forceRevealEffect: id, animAt: (r, c) => { const a = anims[r + "," + c]; return a ? { type: "reveal", t: (performance.now() - a.start) / REVEAL_FX_DUR } : null; } });
+		const loop = () => { const now = performance.now(); let alive = false; for (const k in anims) { if (now - anims[k].start < REVEAL_FX_DUR + WAVE_MAX_MS) alive = true; else delete anims[k]; } view.draw(); raf = alive ? requestAnimationFrame(loop) : null; };
 		const reset = () => { if (raf) cancelAnimationFrame(raf); raf = null; anims = {}; fresh(); view.setState(state); view.draw(); };
 		const play = () => {
 			const cells: number[][] = []; for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) cells.push([r, c]);

@@ -125,10 +125,10 @@
 		DEFAULT_REVEAL_EFFECT: "ripple",
 		REVEAL_EFFECTS: {
 			ripple: { label: "Ripple", blurb: "A soft wave outward as the cascade opens. The default." },
-			spark: { label: "Spark Trail", blurb: "A quick flash at each cell as the cascade races outward." },
+			spark: { label: "Spark Trail", blurb: "A star flash and a burst of hot sparks at each cell as the cascade races outward." },
 			shatter: { label: "Shatter", blurb: "Covered tiles crack into shards and fly apart." },
-			crt: { label: "CRT Flicker", blurb: "A brief flicker and scanline sweep, like an old display waking up." },
-			dust: { label: "Dust Puff", blurb: "A soft puff blooms as each tile clears, like brushing away sand." }
+			crt: { label: "CRT Flicker", blurb: "Each tile blinks, then a scanline sweeps it clean, like an old display waking up." },
+			dust: { label: "Dust Puff", blurb: "Soft clouds drift up off each tile as it clears, like brushing away sand." }
 		},
 		// Avatar cloth colour — the in-game flag. The first entry (matching DEFAULT_AVATAR_COLOR) is
 		// free/default; any other colour here would be a purchasable shop item (ShopCatalog.js derives

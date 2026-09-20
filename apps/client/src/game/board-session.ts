@@ -7,7 +7,7 @@ import { Explosion, makeExplosion, explosionLife } from "./explosion";
 import BoardLogic from "core/src/common/BoardLogic.js";
 import {
 	BoardView, CellAnim, HoverKind, MINE, UNKNOWN, KNOWN, FLAGGED,
-	REVEAL_DUR, FLAG_DUR, MINE_DUR, SETTLE_DUR, WAVE_STEP_MS, WAVE_MAX_MS,
+	REVEAL_FX_DUR, FLAG_DUR, MINE_DUR, SETTLE_DUR, WAVE_STEP_MS, WAVE_MAX_MS,
 	drawKnownBase, drawNumber, drawUnknown, roundRectPath, paletteHasGlow, localBoardSkin, easeOutCubic
 } from "./board-render";
 // Puzzle solved sweep: ms per ring of distance from the origin, one cell's flash length, and its alpha curve.
@@ -32,7 +32,7 @@ export interface SessionHooks {
 }
 
 interface AnimEntry { type: CellAnim["type"]; start: number; }
-const durOf = (type: CellAnim["type"]) => type === "flag" ? FLAG_DUR : type === "mine" ? MINE_DUR : type === "settle" ? SETTLE_DUR : REVEAL_DUR;
+const durOf = (type: CellAnim["type"]) => type === "flag" ? FLAG_DUR : type === "mine" ? MINE_DUR : type === "settle" ? SETTLE_DUR : REVEAL_FX_DUR;
 
 // ---- countdown glyphs (3, 2, 1 spelled out of covered cells) and the go sweep ----
 const COUNTDOWN_GLYPHS: Record<string, string[]> = {
