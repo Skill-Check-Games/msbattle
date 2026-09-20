@@ -175,18 +175,14 @@ export const sound = {
 		whoosh({ dur: 0.5, from: 2400, to: 250, gain: 0.11, peakAt: 0.3, delay: 2.4 });
 	},
 	// The 6-player starting grid, timed from its mount: the six slots glide in from 0.3s and settle around
-	// 1.1s (a riser on both sides into a landing boom and a short A-minor fanfare), then a low thump on
-	// every beat of the battle theme's tempo idles under the hold, like engines on a grid, until $gridHold
-	// (4.3s) when they glide back out (a falling whoosh).
+	// 1.1s (a riser on both sides into a short fanfare), the grid holds in silence until $gridHold (4.3s)
+	// when they glide back out (a falling whoosh). No percussion: the riser, the fanfare and the whoosh.
 	vsSix() {
 		whoosh({ dur: 0.85, from: 250, to: 3200, gain: 0.12, peakAt: 0.7, delay: 0.25, pan: -0.6 });
 		whoosh({ dur: 0.85, from: 250, to: 3200, gain: 0.12, peakAt: 0.7, delay: 0.25, pan: 0.6 });
 		tone({ type: "sine", freq: 220, toFreq: 880, dur: 0.8, gain: 0.04, attack: 0.3, delay: 0.25 });
-		noise({ dur: 0.14, cutoff: 1400, gain: 0.35, delay: 1.1 });
-		tone({ type: "sine", freq: 90, toFreq: 32, dur: 0.6, gain: 0.3, delay: 1.1 });
 		[440, 523.25, 659.25].forEach((f, i) => tone({ type: "triangle", freq: f, dur: 0.22, gain: 0.085, delay: 1.15 + i * 0.08 }));
 		tone({ type: "triangle", freq: 880, dur: 0.7, gain: 0.1, delay: 1.39 });
-		for (let b = 0; b < 6; b++) tone({ type: "sine", freq: 110, toFreq: 70, dur: 0.2, gain: 0.05 + b * 0.008, delay: 1.9 + b * 0.469 });
 		whoosh({ dur: 0.55, from: 2800, to: 220, gain: 0.11, peakAt: 0.3, delay: 4.3 });
 	},
 	// Player actions drive the soundtrack's intensity (music.pulse); the session hook calls this per action.
