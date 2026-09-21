@@ -4,6 +4,12 @@
 // Live (navbar hidden, main padding 0.75rem + 1.5rem): the view fills the viewport so the duel grid can
 // sit vertically centred in it, like the old client.
 .live { min-height: calc(100dvh - 2.25rem); display: flex; flex-direction: column; }
+// The battle backdrop: fixed behind everything on the page (the body's own gradient is the canvas beneath it),
+// covering the viewport, under a dark tint that keeps the HUD and the cards readable over the scene.
+.backdrop { position: fixed; inset: 0; z-index: -1; background-size: cover; background-position: center; animation: backdropIn 0.8s ease-out both;
+	&::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(5, 8, 18, 0.42) 0%, rgba(5, 8, 18, 0.32) 45%, rgba(5, 8, 18, 0.58) 100%); }
+}
+@keyframes backdropIn { from { opacity: 0; } }
 .live .duelStack { margin: auto; }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 .header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }

@@ -33,6 +33,7 @@ import Modal from "../../app/Modal";
 
 const DUEL_GAP_PX = 16;  // .duelGrid's gap between the two cards (PlayPage.module.scss)
 const LS_PANEL_W = 158;  // the landscape side panels' width (matches .landscape's grid columns in PlayPage.module.scss)
+const BATTLE_BACKDROP = "/backdrops/ice.webp";   // the scene behind online battles (trial: the ice concept)
 const FOUND_GAP_MS = 300;        // the match-found banner is gone at least this long before the 3-2-1 begins
 const FOUND_FIELD_BREATH_MS = 1100;  // 6 players: the pause between the last seat filling and the field's presentation (a breath, so it does not feel rushed)
 const FOUND_WAIT_MAX_MS = 4000;  // how long the found card waits for start_game beyond its natural length before giving up
@@ -539,6 +540,8 @@ export default function PlayPage() {
 
 	return (
 		<section ref={viewRef} className={`${styles.view} ${duo ? styles.duo : multi ? styles.multi : ""} ${s.mode ? styles.ranked : ""} ${portrait ? styles.portrait : ""} ${live ? styles.live : ""}`}>
+			{/* A scene behind the boards for online battles (design-refs/skin-concepts): a trial with the ice one, tinted so the HUD keeps its contrast. */}
+			{live && battle && <div className={styles.backdrop} style={{ backgroundImage: `url(${BATTLE_BACKDROP})` }} aria-hidden="true" />}
 			<div className={styles.header}>
 				<button className="btn btn-ghost" onClick={exit}>← Exit game</button>
 				<div className={styles.headerRight}>
