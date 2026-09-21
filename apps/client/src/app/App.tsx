@@ -6,7 +6,7 @@ import Footer from "./Footer";
 import HomePage from "../pages/home/HomePage";
 import SoloPage from "../pages/solo/SoloPage";
 import PlayPage from "../pages/play/PlayPage";
-import PuzzlePage from "../pages/puzzles/PuzzlePage";
+import PuzzlePage, { PuzzleByIdRoute } from "../pages/puzzles/PuzzlePage";
 import LeaderboardPage from "../pages/leaderboard/LeaderboardPage";
 import SettingsPage from "../pages/settings/SettingsPage";
 import { PrivacyPage, TermsPage } from "../pages/legal/LegalPages";
@@ -53,6 +53,7 @@ export default function App() {
 					<Route path="/puzzles/streak" element={<PuzzlePage mode="streak" />} />
 					<Route path="/puzzles/storm" element={<PuzzlePage mode="storm" />} />
 					<Route path="/puzzles/daily" element={<PuzzlePage mode="daily" />} />
+					<Route path="/puzzles/:id" element={<PuzzleByIdRoute />} />
 					<Route path="/leaderboard" element={<LeaderboardPage />} />
 					<Route path="/profile" element={<ProfilePage />} />
 					<Route path="/shop" element={<ShopPage />} />

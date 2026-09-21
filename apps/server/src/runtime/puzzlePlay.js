@@ -416,10 +416,9 @@ function registerSocketHandlers(socket, playerID) {
 		return u;
 	}
 
-	// Practice replay of a puzzle the player just failed. Re-serves the same
-	// board with noRating set — the rating exchange already happened when
-	// the original attempt finalised, so the retry is purely for closure /
-	// learning. Client tells us the puzzleId; we just verify it exists.
+	// Practice play of any puzzle by id: the "Try again" after a failed ladder attempt, and the
+	// /puzzles/:id link (PuzzlePage's single mode). Serves the board with noRating set, so the ladder
+	// never moves; the client tells us the puzzleId and we only verify it exists.
 	socket.on("puzzle_retry", function(data) {
 		var u = authedUserForPuzzle(); if (!u) return;
 		var puzzleId = data && data.puzzleId;

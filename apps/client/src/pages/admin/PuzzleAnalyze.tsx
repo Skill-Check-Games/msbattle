@@ -125,6 +125,7 @@ export function PuzzleCard({ p, onAnalyze }: { p: PoolPuzzle; onAnalyze: (p: Poo
 			<div className={styles.cardHead}>
 				<span className={`${styles.diffBadge} ${styles["diff" + (p.difficulty || 0)] || ""}`}>{(p.rating != null ? p.rating : "?") + " · t" + p.difficulty}</span>
 				<span className={styles.cardMeta}>{p.rows}×{p.cols} · {p.coveredSafe} covered · {density(p)}%</span>
+				<a className={styles.btn} href={"/puzzles/" + p.id} target="_blank" rel="noreferrer">Play</a>
 				<button type="button" className={styles.btn} onClick={() => onAnalyze(p)}>Analyze</button>
 			</div>
 			{p.label && <div className={styles.cardLabel}>{p.label}{p.solved === false ? " · partial" : ""}</div>}

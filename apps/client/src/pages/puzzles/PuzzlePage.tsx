@@ -3,7 +3,7 @@
 // click (left_click/right_click) and answers with puzzle_result, puzzle_run_end or
 // puzzle_daily_result. The board is a fixed square box so puzzles of any shape sit the same.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams, Navigate } from "react-router-dom";
 import { getSocket, onSocket } from "../../online/socket";
 import { useAuth } from "../../shared/auth";
 import { BoardSession, ActionResult } from "../../game/board-session";
@@ -28,8 +28,9 @@ const LANDSCAPE_MQ = "(orientation: landscape) and (max-height: 500px)";
 import styles from "./PuzzlePage.module.scss";
 import { track } from "../../analytics";
 
-export type PuzzleMode = "rated" | "streak" | "storm" | "daily";
-const TITLES: Record<PuzzleMode, string> = { rated: "Puzzle Ladder", streak: "Streak", storm: "Time Trial", daily: "Daily puzzle" };
+// single: one puzzle by id (/puzzles/:id), the same board and dossier as the ladder but never rated: a link anyone can play.
+export type PuzzleMode = "rated" | "streak" | "storm" | "daily" | "single";
+const TITLES: Record<PuzzleMode, string> = { rated: "Puzzle Ladder", streak: "Streak", storm: "Time Trial", daily: "Daily puzzle", single: "Puzzle" };
 
 interface Run { mode: PuzzleMode; solves?: number; targetRating?: number; endsAt?: number; streak?: number; date?: string; bestStreak?: number; }
 interface Puzzle { puzzleId: number; difficulty: number; totalSafe: number; totalMines: number; playerRating: number; mode: PuzzleMode; run: Run | null; finished: boolean; hintUsed: boolean; noRating?: boolean; }
@@ -49,7 +50,15 @@ const PUZZLE_BOX_PX = 548, PUZZLE_CELL_MAX = 80, PUZZLE_BOX_PX_MOBILE = 320, PUZ
 // board box has to leave free beside it.
 const GRID_GAP_PX = 24; // fallback when the grid's gap can't be read
 
-export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
+// /puzzles/:id: a numeric id plays that one puzzle; anything else goes back to the puzzle picker.
+export function PuzzleByIdRoute() {
+	const { id } = useParams();
+	const n = id && /^\d+$/.test(id) ? parseInt(id, 10) : 0;
+	if (!n) return <Navigate to="/puzzles" replace />;
+	return <PuzzlePage key={n} mode="single" puzzleId={n} />;
+}
+
+export default function PuzzlePage({ mode, puzzleId }: { mode: PuzzleMode; puzzleId?: number }) {
 	useInGameBody({ music: false });   // puzzles are played in silence: no battle theme
 	const navigate = useNavigate();
 	const { account, update } = useAuth();
@@ -208,7 +217,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 		const offs = [
 			onSocket("puzzle_board", (d) => {
 				const apply = () => {
-					puzzleRef.current = { puzzleId: d.puzzleId, difficulty: d.difficulty, totalSafe: d.totalSafe, totalMines: d.mines, playerRating: d.playerRating, mode: d.mode || "rated", run: d.run || null, finished: false, hintUsed: false, noRating: !!d.noRating };
+					puzzleRef.current = { puzzleId: d.puzzleId, difficulty: d.difficulty, totalSafe: d.totalSafe, totalMines: d.mines, playerRating: d.playerRating, mode: mode === "single" ? "single" : (d.mode || "rated"), run: d.run || null, finished: false, hintUsed: false, noRating: !!d.noRating };
 					movesRef.current = [];
 					const decoder = makeBoardDecoder(d.boardData, d.boardMask, d.cols);
 					const state: number[][] = []; for (let r = 0; r < d.rows; r++) state.push(new Array(d.cols).fill(UNKNOWN));
@@ -275,16 +284,17 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 				if (d && d.ok) return;
 				// The server couldn't rebuild this one (not the current puzzle any more, or a day rolled over): fresh board.
 				const p = puzzleRef.current;
-				getSocket().emit(p && p.mode === "daily" ? "puzzle_daily_start" : "puzzle_next");
+				if (p && p.mode === "single") getSocket().emit("puzzle_retry", { puzzleId: p.puzzleId });
+				else getSocket().emit(p && p.mode === "daily" ? "puzzle_daily_start" : "puzzle_next");
 			}),
-			onSocket("puzzle_error", (d) => { const reason = (d && d.reason) || "unknown"; setStatus(reason === "auth_required" ? "Sign in to play rated puzzles." : reason === "no_puzzles" ? "No puzzles available yet." : "Couldn't load a puzzle: " + reason); })
+			onSocket("puzzle_error", (d) => { const reason = (d && d.reason) || "unknown"; setStatus(reason === "auth_required" ? "Sign in to play rated puzzles." : reason === "no_puzzles" ? "No puzzles available yet." : reason === "no_puzzle" ? "There is no puzzle with that number." : "Couldn't load a puzzle: " + reason); })
 		];
 		const t = setInterval(() => setTick(n => n + 1), 250);
 		return () => { offs.forEach(off => off()); clearInterval(t); const p = puzzleRef.current; if (p && (p.mode === "streak" || p.mode === "storm") && !p.finished) getSocket().emit("puzzle_run_abandon"); session.clear(); };
 	}, [mode]);
 	// Start only once the socket has authenticated (a fresh page load races the handshake otherwise).
 	const started = useRef<string | null>(null);
-	useEffect(() => { if (!account || started.current === mode) return; started.current = mode; track("Game Started", { mode: "puzzle", puzzleMode: mode }); start(mode); }, [mode, !!account]);
+	useEffect(() => { const key = mode + ":" + (puzzleId || ""); if (!account || started.current === key) return; started.current = key; track("Game Started", { mode: "puzzle", puzzleMode: mode }); start(mode); }, [mode, puzzleId, !!account]);
 
 	// Fit the board box to the viewport: the height left under the header, or the width left beside the
 	// card, whichever is smaller; clamped so odd windows stay usable and huge ones don't blow cells up.
@@ -334,9 +344,11 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 		setPendingFlash(pf => { if (pf) { setBoardFlash(pf); setTimeout(() => { setBoardFlash(null); fn(); }, 280); } else fn(); return null; });
 	}
 	function start(m: PuzzleMode) {
-		setStatus(m === "streak" ? "Starting streak run…" : m === "storm" ? "Starting Time Trial run…" : m === "daily" ? "Checking today's puzzle…" : "Finding a puzzle near your rating…");
+		setStatus(m === "streak" ? "Starting streak run…" : m === "storm" ? "Starting Time Trial run…" : m === "daily" ? "Checking today's puzzle…" : m === "single" ? "Loading puzzle #" + puzzleId + "…" : "Finding a puzzle near your rating…");
 		const socket = getSocket();
-		if (m === "streak") socket.emit("puzzle_streak_start");
+		// A single puzzle by id rides the practice path: the same board, served with noRating, so the ladder never moves.
+		if (m === "single") socket.emit("puzzle_retry", { puzzleId });
+		else if (m === "streak") socket.emit("puzzle_streak_start");
 		else if (m === "storm") socket.emit("puzzle_storm_start");
 		else if (m === "daily") socket.emit("puzzle_daily_status");
 		else socket.emit("puzzle_next");
@@ -345,6 +357,10 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 
 	const p = puzzleRef.current;
 	const isRun = !!p && (p.mode === "streak" || p.mode === "storm" || p.mode === "daily");
+	const title = mode === "single" ? "Puzzle #" + puzzleId : TITLES[mode];
+	// Every ladder or single puzzle has a link: /puzzles/<id> plays exactly that board, unrated, for anyone.
+	const [linkCopied, setLinkCopied] = useState(false);
+	const copyLink = async () => { if (!p) return; try { await navigator.clipboard.writeText(window.location.origin + "/puzzles/" + p.puzzleId); setLinkCopied(true); setTimeout(() => setLinkCopied(false), 1400); } catch { /* clipboard blocked */ } };
 	const box = desktopBox;
 	// The whole board in its box: the square desktop box, or (phone landscape) the wide panel — minus the pill's
 	// own row at the bottom (LS_PILL_ROW) and a margin all round, so the board never meets the panel's edge.
@@ -359,14 +375,14 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 		<section ref={pageRef} className={`${styles.page} ${forceRotate ? styles.rotated : ""} ${forceRotate && window.innerHeight <= 700 ? styles.rotatedNarrow : ""}`}>
 			<div className={styles.header}>
 				<button className="btn btn-ghost" onClick={exit}>← Exit game</button>
-				<span className={styles.title}>{TITLES[mode]}</span>
+				<span className={styles.title}>{title}</span>
 			</div>
 			{!account ? <p className={styles.empty}>Sign in to play. Your score is tied to your account.</p> : !p && status ? <p className={styles.empty}>{status}</p> : (
 				<div className={`${styles.grid} ${spotlight != null ? styles.dimmed : ""}`} ref={gridRef}>
 					{/* Landscape phones: the back arrow + title sit in a left column above the rail (design L·02). */}
 					{(phoneLandscape ? (
 						<div className={styles.leftCol}>
-							<div className={styles.cardHead}><button type="button" className={styles.back} onClick={exit} aria-label="Back to lobby">←</button><span className={styles.cardTitle}>{TITLES[mode]}</span></div>
+							<div className={styles.cardHead}><button type="button" className={styles.back} onClick={exit} aria-label="Back to lobby">←</button><span className={styles.cardTitle}>{title}</span></div>
 							<LadderRail rating={heldRating ?? (account.puzzleRating || 0)} spot={spotlight} badge={5} />
 						</div>
 					) : <LadderRail rating={heldRating ?? (account.puzzleRating || 0)} spot={spotlight} />)}
@@ -390,7 +406,7 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 
 					</div>
 					<aside className={`${styles.card} ${styles.dossier}`}>
-						<div className={`${styles.cardHead} ${styles.cardHeadRated}`}><button type="button" className={styles.back} onClick={exit} aria-label="Back to lobby">←</button><span className={styles.cardTitle}>{TITLES[mode]}</span></div>
+						<div className={`${styles.cardHead} ${styles.cardHeadRated}`}><button type="button" className={styles.back} onClick={exit} aria-label="Back to lobby">←</button><span className={styles.cardTitle}>{title}</span></div>
 						{!isRun ? (
 							<>
 								<div className={styles.rankCard}>
@@ -414,9 +430,16 @@ export default function PuzzlePage({ mode }: { mode: PuzzleMode }) {
 									<span className={styles.cardTitle}>Last 10</span>
 									<div className={styles.historyDots}>{(account.puzzleRecent || []).map((ok, i, all) => <span key={i} className={`${styles.historyDot} ${ok ? styles.historyOk : styles.historyMiss} ${done === "solved" && i === all.length - 1 ? styles.historyNew : ""}`}>{ok ? <CheckIcon /> : <CrossIcon />}</span>)}</div>
 								</div>
+								{p && <div className={styles.puzzleLine}><span>Puzzle #{p.puzzleId}{mode === "single" ? " · unrated" : ""}</span><button type="button" className="btn" onClick={copyLink}>{linkCopied ? "Copied" : "Copy link"}</button></div>}
 								<div className={styles.cardSpacer} />
 								{/* Hint button removed for now (2026-09-14); the server-side puzzle_hint path is still there. */}
-								{done && (
+								{done && mode === "single" && (
+									<div className={`${styles.actions} kbd-btn-group`} onKeyDown={onActionsKey}>
+										<button ref={nextBtnRef} className={`btn ${done === "solved" ? "" : "btn-primary"} ${styles.primaryAction}`} onClick={() => { if (p) getSocket().emit("puzzle_retry", { puzzleId: p.puzzleId }); }}>{done === "solved" ? "Play again" : "Try again"}</button>
+										<button className={`btn ${done === "solved" ? "btn-primary" : ""}`} onClick={() => navigate("/puzzles/play")}>Puzzle Ladder</button>
+									</div>
+								)}
+								{done && mode !== "single" && (
 									<div className={`${styles.actions} kbd-btn-group`} onKeyDown={onActionsKey}>
 										<button ref={nextBtnRef} className={`btn btn-primary ${styles.primaryAction}`} onClick={() => getSocket().emit("puzzle_next")}>{done === "solved" ? "Next" : "Next puzzle"}</button>
 										{done !== "solved" && <button className="btn" onClick={() => { if (p) getSocket().emit("puzzle_retry", { puzzleId: p.puzzleId }); }}>Try again</button>}
