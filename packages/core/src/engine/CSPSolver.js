@@ -395,37 +395,6 @@ function combineIntersection(A, B, known) {
 // a strictly stronger condition than "gap <= maxBbox"). Meant to be checked once per (clue, other)
 // pair, before the 4 separate combine attempts (each of which still does its own tighter check) and
 // before the more expensive isFresh scan in analyzeBoard's search loop.
-// The four combine attempts for one pair, behind a single relationship test: overlapping boxes can give a
-// subset (either way) or an intersection, and a union too when the combined box fits; boxes apart can only
-// give a union. Same admissions as calling all four (each op's own early-outs are unchanged), with the pairs
-// that can produce nothing dismissed on the one test.
-function combinePair(c, other, maxBbox, admit) {
-	var overlap = !(c.maxR < other.minR || other.maxR < c.minR || c.maxC < other.minC || other.maxC < c.minC);
-	var minR = c.minR < other.minR ? c.minR : other.minR, maxR = c.maxR > other.maxR ? c.maxR : other.maxR;
-	var minC = c.minC < other.minC ? c.minC : other.minC, maxC = c.maxC > other.maxC ? c.maxC : other.maxC;
-	var unionFits = (maxR - minR) <= maxBbox && (maxC - minC) <= maxBbox;
-	var known = admit.known || null;
-	if (overlap) {
-		if (c.cells.length < other.cells.length) admit(combineSubset(c, other, known));
-		else if (other.cells.length < c.cells.length) admit(combineSubset(other, c, known));
-		if (unionFits) admit(combineDisjointUnion(c, other, maxBbox, known));
-		admit(combineIntersection(c, other, known));
-	} else if (unionFits) {
-		admit(combineDisjointUnion(c, other, maxBbox, known));
-	}
-}
-
-// Tightened (2026-09-21): subset and intersection both need the two bounding boxes to actually overlap, and
-// a union needs the COMBINED box within maxBbox (its own check); a pair that fails both can't produce
-// anything from any of the three ops, so it is skipped before the four combine attempts.
-function boxesCanCombine(A, B, maxBbox) {
-	if (!(A.maxR < B.minR || B.maxR < A.minR || A.maxC < B.minC || B.maxC < A.minC)) return true; // overlap
-	var minR = A.minR < B.minR ? A.minR : B.minR, maxR = A.maxR > B.maxR ? A.maxR : B.maxR;
-	if (maxR - minR > maxBbox) return false;
-	var minC = A.minC < B.minC ? A.minC : B.minC, maxC = A.maxC > B.maxC ? A.maxC : B.maxC;
-	return maxC - minC <= maxBbox;
-}
-
 // Tiny binary heap keyed on (complexity, clue.key) — the key is a pure tiebreaker so pop order for
 // equal-complexity entries is a deterministic function of the clues themselves, not of whatever
 // order they happened to be admitted in. A heap isn't stable under ties, and admission order isn't
@@ -462,11 +431,70 @@ function heapPop(h) {
 
 // Builds an admit() closure bound to a given seen/keys/heap store. Shared between
 // findBestTrivialClue's one-shot store and analyzeBoard's persistent, whole-solve store.
+// ---- the spatial index over a store ----
+// A clue's box spans at most maxBbox in each direction, so a partner that overlaps it, or forms a union
+// within the cap, has its top-left corner within maxBbox rows and columns of this one's: only the
+// (2·maxBbox+1)² buckets around a popped clue's corner can hold a partner at all.
+function bucketKey(minR, minC) { return minR * 4096 + minC; }
+function addToBucket(buckets, minR, minC, slot) {
+	var k = bucketKey(minR, minC), b = buckets.get(k);
+	if (b) b.push(slot); else buckets.set(k, [slot]);
+}
+// Expands one popped clue against the partners in its window. Results are collected and admitted afterwards
+// in partner-slot order, exactly the order a full walk of the list would have admitted them in, so a tie
+// between two equally cheap derivations of the same clue resolves the same way whatever the bucket order.
+// `keys` is the store's clue list; `buckets` maps corners to slots (the store's own, or a fresh-only copy);
+// `isLive` (optional) skips partners that no longer apply.
+function expandClue(c, keys, buckets, maxBbox, admit, isLive) {
+	var known = admit.known || null;
+	var pendingSlots = null, pendingClues = null;
+	for (var dr = -maxBbox; dr <= maxBbox; dr++) {
+		for (var dc = -maxBbox; dc <= maxBbox; dc++) {
+			var bucket = buckets.get(bucketKey(c.minR + dr, c.minC + dc));
+			if (!bucket) continue;
+			for (var i = 0; i < bucket.length; i++) {
+				var slot = bucket[i], other = keys[slot];
+				if (other === c || (isLive && !isLive(other))) continue;
+				var overlap = !(c.maxR < other.minR || other.maxR < c.minR || c.maxC < other.minC || other.maxC < c.minC);
+				var minR = c.minR < other.minR ? c.minR : other.minR, maxR = c.maxR > other.maxR ? c.maxR : other.maxR;
+				var minC = c.minC < other.minC ? c.minC : other.minC, maxC = c.maxC > other.maxC ? c.maxC : other.maxC;
+				var unionFits = (maxR - minR) <= maxBbox && (maxC - minC) <= maxBbox;
+				var r1 = null, r2 = null, r3 = null;
+				if (overlap) {
+					if (c.cells.length < other.cells.length) r1 = combineSubset(c, other, known);
+					else if (other.cells.length < c.cells.length) r1 = combineSubset(other, c, known);
+					if (unionFits) r2 = combineDisjointUnion(c, other, maxBbox, known);
+					r3 = combineIntersection(c, other, known);
+				} else if (unionFits) {
+					r2 = combineDisjointUnion(c, other, maxBbox, known);
+				}
+				if (r1 || r2 || r3) {
+					if (!pendingSlots) { pendingSlots = []; pendingClues = []; }
+					if (r1) { pendingSlots.push(slot); pendingClues.push(r1); }
+					if (r2) { pendingSlots.push(slot); pendingClues.push(r2); }
+					if (r3) { pendingSlots.push(slot); pendingClues.push(r3); }
+				}
+			}
+		}
+	}
+	if (!pendingSlots) return;
+	var ordered = true;
+	for (var q = 1; q < pendingSlots.length; q++) if (pendingSlots[q] < pendingSlots[q - 1]) { ordered = false; break; }
+	if (ordered) { for (var a = 0; a < pendingClues.length; a++) admit(pendingClues[a]); return; }
+	var idx = new Array(pendingSlots.length);
+	for (var b = 0; b < idx.length; b++) idx[b] = b;
+	idx.sort(function(x, y) { return pendingSlots[x] - pendingSlots[y] || x - y; });
+	for (var e = 0; e < idx.length; e++) admit(pendingClues[idx[e]]);
+}
+
 function makeAdmitter(seen, keys, heap, opts) {
 	var maxCells = opts.maxCells || DEFAULT_MAX_CELLS;
 	var maxBbox = opts.maxBbox != null ? opts.maxBbox : DEFAULT_MAX_BBOX;
 	var maxComplexity = opts.maxComplexity != null ? opts.maxComplexity : Infinity;
 	var seenNum = {};   // numKey -> the same clue objects `seen` holds, for the pre-build check (known)
+	// Slots bucketed by the top-left corner of the clue's box (see bucketKey / forEachPartnerBucket): a popped
+	// clue only visits the buckets a partner could combine from, instead of the whole list.
+	var buckets = new Map();
 	function admit(clue) {
 		if (!clue) return;
 		if (clue.cells.length > maxCells) return;
@@ -483,8 +511,10 @@ function makeAdmitter(seen, keys, heap, opts) {
 		heapPush(heap, [clue.complexity, clue]);
 		// `keys` is the list of live clue objects, one slot per key: a cheaper version takes over its
 		// predecessor's slot, so the pairing loops read `keys[k]` directly instead of a hash lookup per pair.
-		if (!prev) { clue.slot = keys.length; keys.push(clue); } else { clue.slot = prev.slot; keys[prev.slot] = clue; }
+		if (!prev) { clue.slot = keys.length; keys.push(clue); addToBucket(buckets, clue.minR, clue.minC, clue.slot); }
+		else { clue.slot = prev.slot; keys[prev.slot] = clue; }   // same cells, same corner, same bucket
 	}
+	admit.buckets = buckets;
 	// Would admit reject a result with this identity and complexity as already known? (Exactly admit's own
 	// duplicate test, asked before the result is built.)
 	admit.known = function(numKey, complexity) {
@@ -502,6 +532,7 @@ function makeAdmitter(seen, keys, heap, opts) {
 		seen[copy.key] = copy;
 		if (copy.numKey) seenNum[copy.numKey] = copy;
 		keys.push(copy);
+		addToBucket(buckets, copy.minR, copy.minC, copy.slot);
 	};
 	return admit;
 }
@@ -521,13 +552,7 @@ function findBestTrivialClue(initialClues, opts) {
 		var c = top[1];
 		if (seen[c.key] !== c) continue; // a cheaper version superseded this one
 		if (isTrivial(c)) return c;
-
-		// Combine with every clue we've seen so far. Subset is asymmetric
-		// (try both directions); union and intersection are symmetric.
-		for (var k = 0; k < keys.length; k++) {
-			var other = keys[k];
-			if (other !== c) combinePair(c, other, maxBbox, admit);
-		}
+		expandClue(c, keys, admit.buckets, maxBbox, admit, null);
 	}
 
 	return null;
@@ -630,12 +655,12 @@ function propagateBranchIncremental(board, state, opts, baseKeys, changedCells) 
 	// the clues fresh at its start, plus every clue admitted during the pass (derived from fresh parents, so
 	// fresh itself); a slot always reads the key's current cheapest version. Same pairs as scanning all of
 	// `keys` with a freshness test each time, without the per-pair scan.
-	var live = [];
+	var liveBuckets = new Map();
 	function admit(clue) {
 		if (!clue) return;
 		var before = keys.length;
 		admitRaw(clue);
-		if (keys.length > before) live.push(keys.length - 1);
+		if (keys.length > before) { var nc = keys[keys.length - 1]; addToBucket(liveBuckets, nc.minR, nc.minC, nc.slot); }
 	}
 	admit.known = admitRaw.known;
 	// The seeds never go on the heap: nothing to expand.
@@ -664,8 +689,8 @@ function propagateBranchIncremental(board, state, opts, baseKeys, changedCells) 
 			if (isTrivial(initial[ii]) && (!best || initial[ii].complexity < best.complexity)) best = initial[ii];
 		}
 		if (!best) {
-			live.length = 0;
-			for (var lk = 0; lk < keys.length; lk++) if (fresh(keys[lk])) live.push(lk);
+			liveBuckets.clear();
+			for (var lk = 0; lk < keys.length; lk++) if (fresh(keys[lk])) addToBucket(liveBuckets, keys[lk].minR, keys[lk].minC, lk);
 			while (heap.length > 0) {
 				if (keys.length > maxClues) break;
 				var top = heapPop(heap);
@@ -673,10 +698,7 @@ function propagateBranchIncremental(board, state, opts, baseKeys, changedCells) 
 				if (seen[c.key] !== c) continue;
 				if (!fresh(c)) continue;
 				if (isTrivial(c)) { best = c; break; }
-				for (var li = 0; li < live.length; li++) {
-					var other = keys[live[li]];
-					if (other !== c) combinePair(c, other, maxBbox, admit);
-				}
+				expandClue(c, keys, liveBuckets, maxBbox, admit, null);
 			}
 		}
 		if (!best) break;
@@ -1100,13 +1122,7 @@ function analyzeBoard(board, state, opts) {
 			if (seen[c.key] !== c) continue; // a cheaper version superseded this one
 			if (!isFresh(c)) continue; // stale (or fully dead) — a fresh equivalent will surface separately
 			if (isTrivial(c)) return c;
-			for (var k = 0; k < keys.length; k++) {
-				var other = keys[k];
-				// Cheapest check first: rule out geometrically-incompatible pairs before paying for
-				// the isFresh scan (which touches every one of other's cells).
-				if (other === c || !boxesCanCombine(c, other, maxBbox) || !isFresh(other)) continue;
-				combinePair(c, other, maxBbox, admit);
-			}
+			expandClue(c, keys, admit.buckets, maxBbox, admit, isFresh);
 		}
 		return null;
 	}
