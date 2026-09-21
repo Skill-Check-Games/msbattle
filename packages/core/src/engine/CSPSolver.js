@@ -96,6 +96,24 @@ function mergeSortedCells(a, b) {
 //  - `alreadySorted` lets combineSubset/combineIntersection (whose results are order-preserving
 //    subsequences of an already-sorted parent) skip the sort entirely; combineDisjointUnion merges
 //    its two sorted inputs in O(n) (mergeSortedCells) instead of sorting the concatenation.
+// The mask identity of a clue: its first row, one column mask per row of its box, and its bounds. Cells and
+// bounds map to it one-to-one (no leading or trailing empty rows), so it names the same clue `key` does,
+// but it can be computed from masks alone, before a result's cells exist.
+function maskKey(minR, rowMasks, lo, hi) {
+	var k = minR + ":" + rowMasks[0];
+	for (var i = 1; i < rowMasks.length; i++) k += ":" + rowMasks[i];
+	return k + "|" + lo + "-" + hi;
+}
+// Trims empty rows off both ends of a result's masks and asks the store whether that clue is already known
+// at this complexity or cheaper (in which case admit would reject it, so building it would be waste).
+function knownResult(known, firstRow, masks, lo, hi, complexity) {
+	var a = 0, b = masks.length - 1;
+	while (a <= b && masks[a] === 0) a++;
+	while (b >= a && masks[b] === 0) b--;
+	var trimmed = (a === 0 && b === masks.length - 1) ? masks : masks.slice(a, b + 1);
+	return known(maskKey(firstRow + a, trimmed, lo, hi), complexity);
+}
+
 function makeClue(cells, lo, hi, complexity, meta, alreadySorted) {
 	if (!alreadySorted) cells.sort(cellCompare);
 	// Clamp bounds to the legal [0, |cells|] range.
@@ -116,6 +134,16 @@ function makeClue(cells, lo, hi, complexity, meta, alreadySorted) {
 		if (c < minC) minC = c; else if (c > maxC) maxC = c;
 	}
 	var key = cellsKey + "|" + lo + "-" + hi;
+	// One column bitmask per row of the bounding box (bit c set for a cell in column c): the combine ops test
+	// subset / intersection / disjointness with a few int ops per row instead of rebuilding a window mask per
+	// pair. Boards wider than 31 columns fall back to the window masks (null here).
+	var rowMasks = null, numKey = null;
+	if (maxC <= 30) {
+		rowMasks = new Array(maxR - minR + 1);
+		for (var q = 0; q < rowMasks.length; q++) rowMasks[q] = 0;
+		for (var j = 0; j < cells.length; j++) rowMasks[cells[j][0] - minR] |= 1 << cells[j][1];
+		numKey = maskKey(minR, rowMasks, lo, hi);
+	}
 	meta = meta || {};
 	var depth = 0;
 	if (meta.parents) {
@@ -126,6 +154,9 @@ function makeClue(cells, lo, hi, complexity, meta, alreadySorted) {
 	return {
 		key: key, cellsKey: cellsKey, cells: cells, lo: lo, hi: hi,
 		minR: minR, maxR: maxR, minC: minC, maxC: maxC,
+		rowMasks: rowMasks,
+		numKey: numKey,
+		slot: -1,                   // index in the admitter's clue list (see makeAdmitter)
 		complexity: complexity,
 		source: meta.source || "initial",
 		parents: meta.parents || null,
@@ -193,7 +224,7 @@ function cellsMask(cells, originR, originC, width) {
 	return mask;
 }
 
-function combineSubset(A, B) {
+function combineSubset(A, B, known) {
 	// A.cells ⊂ B.cells. The extras (B\A) hold mines(B) − mines(A).
 	// With bounded clues, mines(B\A) ∈ [B.lo − A.hi, B.hi − A.lo].
 	if (A.cells.length >= B.cells.length) return null;
@@ -202,6 +233,39 @@ function combineSubset(A, B) {
 	// other (maxBbox keeps every clue's own footprint small, but says nothing about how far apart
 	// two clues sit from one another).
 	if (A.minR < B.minR || A.maxR > B.maxR || A.minC < B.minC || A.maxC > B.maxC) return null;
+	if (A.rowMasks && B.rowMasks) {
+		// Row by row: every cell of A must be in B; count B's extras with popcount so the bounds (and the
+		// uninformative-result check) are decided before a single cell array is built.
+		var extrasCount = 0;
+		for (var bi = 0; bi < B.rowMasks.length; bi++) {
+			var br = B.minR + bi, bmRow = B.rowMasks[bi];
+			var amRow = (br >= A.minR && br <= A.maxR) ? A.rowMasks[br - A.minR] : 0;
+			if (amRow & ~bmRow) return null; // some cell of A isn't in B
+			extrasCount += popcount(bmRow & ~amRow);
+		}
+		var loS = Math.max(0, B.lo - A.hi);
+		var hiS = Math.min(extrasCount, B.hi - A.lo);
+		if (loS > hiS) return null;
+		if (loS === 0 && hiS === extrasCount) return null;
+		var cxS = Math.max(A.complexity, B.complexity) + SUBSET_COST + RESULT_SIZE_SURCHARGE * extrasCount;
+		if (known) {
+			var rmS = new Array(B.rowMasks.length);
+			for (var si = 0; si < B.rowMasks.length; si++) {
+				var sr = B.minR + si;
+				rmS[si] = B.rowMasks[si] & ~((sr >= A.minR && sr <= A.maxR) ? A.rowMasks[sr - A.minR] : 0);
+			}
+			if (knownResult(known, B.minR, rmS, loS, hiS, cxS)) return null;
+		}
+		var extrasS = [];
+		for (var em = 0; em < B.cells.length; em++) {
+			var er = B.cells[em][0];
+			var emRow = (er >= A.minR && er <= A.maxR) ? A.rowMasks[er - A.minR] : 0;
+			if (!(emRow & (1 << B.cells[em][1]))) extrasS.push(B.cells[em]);
+		}
+		return makeClue(extrasS, loS, hiS, cxS, {
+			source: "subset", parents: [A, B]
+		}, true);
+	}
 	// A's bbox ⊆ B's bbox (just checked), so both fit in B's own window.
 	var width = B.maxC - B.minC + 1;
 	var aMask = cellsMask(A.cells, B.minR, B.minC, width);
@@ -224,7 +288,7 @@ function combineSubset(A, B) {
 	}, true);
 }
 
-function combineDisjointUnion(A, B, maxBbox) {
+function combineDisjointUnion(A, B, maxBbox, known) {
 	// Unlike subset/intersection (whose result is always ⊆ one of the parents' already-admissible
 	// footprints), a union can span a WIDER area than either parent — that's the one case where the
 	// result can fail the bbox cap on its own merits, so it's the one combine op that needs it.
@@ -235,27 +299,69 @@ function combineDisjointUnion(A, B, maxBbox) {
 	// automatic (common case: most admissible-union pairs are gap-adjacent, not overlapping).
 	var bboxesOverlap = !(A.maxR < B.minR || B.maxR < A.minR || A.maxC < B.minC || B.maxC < A.minC);
 	if (bboxesOverlap) {
-		// The maxBbox check above already bounds this shared window to <=(maxBbox+1)^2.
-		var uWidth = maxC - minC + 1;
-		var aMask = cellsMask(A.cells, minR, minC, uWidth);
-		var bMask = cellsMask(B.cells, minR, minC, uWidth);
-		if (aMask & bMask) return null;
+		if (A.rowMasks && B.rowMasks) {
+			var ur0 = A.minR > B.minR ? A.minR : B.minR, ur1 = A.maxR < B.maxR ? A.maxR : B.maxR;
+			for (var ur = ur0; ur <= ur1; ur++) if (A.rowMasks[ur - A.minR] & B.rowMasks[ur - B.minR]) return null;
+		} else {
+			// The maxBbox check above already bounds this shared window to <=(maxBbox+1)^2.
+			var uWidth = maxC - minC + 1;
+			var aMask = cellsMask(A.cells, minR, minC, uWidth);
+			var bMask = cellsMask(B.cells, minR, minC, uWidth);
+			if (aMask & bMask) return null;
+		}
 	}
-	var union = mergeSortedCells(A.cells, B.cells);
 	var lo = A.lo + B.lo;
 	var hi = A.hi + B.hi;
-	if (lo === 0 && hi === union.length) return null;
-	var sizeCost = RESULT_SIZE_SURCHARGE * union.length;
-	return makeClue(union, lo, hi, Math.max(A.complexity, B.complexity) + UNION_COST + sizeCost, {
+	var unionSize = A.cells.length + B.cells.length; // disjoint: the union's size is the sum
+	if (lo === 0 && hi === unionSize) return null;
+	var sizeCost = RESULT_SIZE_SURCHARGE * unionSize;
+	var cxU = Math.max(A.complexity, B.complexity) + UNION_COST + sizeCost;
+	if (known && A.rowMasks && B.rowMasks) {
+		var rmU = new Array(maxR - minR + 1);
+		for (var ui = 0; ui < rmU.length; ui++) {
+			var urr = minR + ui;
+			rmU[ui] = ((urr >= A.minR && urr <= A.maxR) ? A.rowMasks[urr - A.minR] : 0) | ((urr >= B.minR && urr <= B.maxR) ? B.rowMasks[urr - B.minR] : 0);
+		}
+		if (known(maskKey(minR, rmU, lo, hi), cxU)) return null; // the union's end rows are never empty
+	}
+	var union = mergeSortedCells(A.cells, B.cells);
+	return makeClue(union, lo, hi, cxU, {
 		source: "union", parents: [A, B]
 	}, true);
 }
 
-function combineIntersection(A, B) {
+function combineIntersection(A, B, known) {
 	// Bounds on mines(A∩B) from each side, then take the tighter.
 	// A non-empty intersection requires the two bounding boxes to overlap at all — cheap AABB test
 	// before paying for the real membership check.
 	if (A.maxR < B.minR || B.maxR < A.minR || A.maxC < B.minC || B.maxC < A.minC) return null;
+	if (A.rowMasks && B.rowMasks) {
+		var ir0 = A.minR > B.minR ? A.minR : B.minR, ir1 = A.maxR < B.maxR ? A.maxR : B.maxR, interCount = 0;
+		for (var ir = ir0; ir <= ir1; ir++) interCount += popcount(A.rowMasks[ir - A.minR] & B.rowMasks[ir - B.minR]);
+		if (interCount === 0) return null;
+		if (interCount === A.cells.length) return null; // A ⊆ B — subset handles it
+		if (interCount === B.cells.length) return null; // B ⊆ A
+		var uaI = A.cells.length - interCount, ubI = B.cells.length - interCount;
+		var loI = Math.max(0, A.lo - uaI, B.lo - ubI);
+		var hiI = Math.min(interCount, A.hi, B.hi);
+		if (loI > hiI) return null;
+		if (loI === 0 && hiI === interCount) return null;
+		var cxI = Math.max(A.complexity, B.complexity) + INTERSECT_COST + RESULT_SIZE_SURCHARGE * interCount;
+		if (known) {
+			var rmI = new Array(ir1 - ir0 + 1);
+			for (var ki = 0; ki < rmI.length; ki++) rmI[ki] = A.rowMasks[ir0 + ki - A.minR] & B.rowMasks[ir0 + ki - B.minR];
+			if (knownResult(known, ir0, rmI, loI, hiI, cxI)) return null;
+		}
+		var interI = [];
+		for (var ij = 0; ij < B.cells.length; ij++) {
+			var jr = B.cells[ij][0];
+			if (jr < A.minR || jr > A.maxR) continue;
+			if (A.rowMasks[jr - A.minR] & (1 << B.cells[ij][1])) interI.push(B.cells[ij]);
+		}
+		return makeClue(interI, loI, hiI, cxI, {
+			source: "intersect", parents: [A, B]
+		}, true);
+	}
 	// Overlap just confirmed, so the shared span is at most (maxBbox+1) + (maxBbox+1) - 1 in the
 	// worst case (two max-span clues overlapping by a single row/col).
 	var originR = A.minR < B.minR ? A.minR : B.minR, originC = A.minC < B.minC ? A.minC : B.minC;
@@ -289,11 +395,35 @@ function combineIntersection(A, B) {
 // a strictly stronger condition than "gap <= maxBbox"). Meant to be checked once per (clue, other)
 // pair, before the 4 separate combine attempts (each of which still does its own tighter check) and
 // before the more expensive isFresh scan in analyzeBoard's search loop.
+// The four combine attempts for one pair, behind a single relationship test: overlapping boxes can give a
+// subset (either way) or an intersection, and a union too when the combined box fits; boxes apart can only
+// give a union. Same admissions as calling all four (each op's own early-outs are unchanged), with the pairs
+// that can produce nothing dismissed on the one test.
+function combinePair(c, other, maxBbox, admit) {
+	var overlap = !(c.maxR < other.minR || other.maxR < c.minR || c.maxC < other.minC || other.maxC < c.minC);
+	var minR = c.minR < other.minR ? c.minR : other.minR, maxR = c.maxR > other.maxR ? c.maxR : other.maxR;
+	var minC = c.minC < other.minC ? c.minC : other.minC, maxC = c.maxC > other.maxC ? c.maxC : other.maxC;
+	var unionFits = (maxR - minR) <= maxBbox && (maxC - minC) <= maxBbox;
+	var known = admit.known || null;
+	if (overlap) {
+		if (c.cells.length < other.cells.length) admit(combineSubset(c, other, known));
+		else if (other.cells.length < c.cells.length) admit(combineSubset(other, c, known));
+		if (unionFits) admit(combineDisjointUnion(c, other, maxBbox, known));
+		admit(combineIntersection(c, other, known));
+	} else if (unionFits) {
+		admit(combineDisjointUnion(c, other, maxBbox, known));
+	}
+}
+
+// Tightened (2026-09-21): subset and intersection both need the two bounding boxes to actually overlap, and
+// a union needs the COMBINED box within maxBbox (its own check); a pair that fails both can't produce
+// anything from any of the three ops, so it is skipped before the four combine attempts.
 function boxesCanCombine(A, B, maxBbox) {
-	var gapR = A.maxR < B.minR ? (B.minR - A.maxR) : (B.maxR < A.minR ? (A.minR - B.maxR) : 0);
-	if (gapR > maxBbox) return false;
-	var gapC = A.maxC < B.minC ? (B.minC - A.maxC) : (B.maxC < A.minC ? (A.minC - B.maxC) : 0);
-	return gapC <= maxBbox;
+	if (!(A.maxR < B.minR || B.maxR < A.minR || A.maxC < B.minC || B.maxC < A.minC)) return true; // overlap
+	var minR = A.minR < B.minR ? A.minR : B.minR, maxR = A.maxR > B.maxR ? A.maxR : B.maxR;
+	if (maxR - minR > maxBbox) return false;
+	var minC = A.minC < B.minC ? A.minC : B.minC, maxC = A.maxC > B.maxC ? A.maxC : B.maxC;
+	return maxC - minC <= maxBbox;
 }
 
 // Tiny binary heap keyed on (complexity, clue.key) — the key is a pure tiebreaker so pop order for
@@ -336,7 +466,8 @@ function makeAdmitter(seen, keys, heap, opts) {
 	var maxCells = opts.maxCells || DEFAULT_MAX_CELLS;
 	var maxBbox = opts.maxBbox != null ? opts.maxBbox : DEFAULT_MAX_BBOX;
 	var maxComplexity = opts.maxComplexity != null ? opts.maxComplexity : Infinity;
-	return function admit(clue) {
+	var seenNum = {};   // numKey -> the same clue objects `seen` holds, for the pre-build check (known)
+	function admit(clue) {
 		if (!clue) return;
 		if (clue.cells.length > maxCells) return;
 		// Derivations only get more complex (children >= parent complexity + a
@@ -348,9 +479,31 @@ function makeAdmitter(seen, keys, heap, opts) {
 		var prev = seen[clue.key];
 		if (prev && prev.complexity <= clue.complexity) return;
 		seen[clue.key] = clue;
+		if (clue.numKey) seenNum[clue.numKey] = clue;
 		heapPush(heap, [clue.complexity, clue]);
-		if (!prev) keys.push(clue.key);
+		// `keys` is the list of live clue objects, one slot per key: a cheaper version takes over its
+		// predecessor's slot, so the pairing loops read `keys[k]` directly instead of a hash lookup per pair.
+		if (!prev) { clue.slot = keys.length; keys.push(clue); } else { clue.slot = prev.slot; keys[prev.slot] = clue; }
+	}
+	// Would admit reject a result with this identity and complexity as already known? (Exactly admit's own
+	// duplicate test, asked before the result is built.)
+	admit.known = function(numKey, complexity) {
+		var prev = seenNum[numKey];
+		return !!prev && prev.complexity <= complexity;
 	};
+	// A clue placed in the store without going on the heap (a seed: nothing left to expand, see
+	// propagateBranchIncremental). Takes a fresh copy so the slot belongs to this store.
+	admit.seed = function(clue) {
+		var copy = {
+			key: clue.key, cellsKey: clue.cellsKey, cells: clue.cells, lo: clue.lo, hi: clue.hi,
+			minR: clue.minR, maxR: clue.maxR, minC: clue.minC, maxC: clue.maxC, rowMasks: clue.rowMasks, numKey: clue.numKey, slot: keys.length,
+			complexity: clue.complexity, source: clue.source, parents: clue.parents, from: clue.from, depth: clue.depth
+		};
+		seen[copy.key] = copy;
+		if (copy.numKey) seenNum[copy.numKey] = copy;
+		keys.push(copy);
+	};
+	return admit;
 }
 
 function findBestTrivialClue(initialClues, opts) {
@@ -372,12 +525,8 @@ function findBestTrivialClue(initialClues, opts) {
 		// Combine with every clue we've seen so far. Subset is asymmetric
 		// (try both directions); union and intersection are symmetric.
 		for (var k = 0; k < keys.length; k++) {
-			var other = seen[keys[k]];
-			if (other === c || !boxesCanCombine(c, other, maxBbox)) continue;
-			admit(combineSubset(c, other));
-			admit(combineSubset(other, c));
-			admit(combineDisjointUnion(c, other, maxBbox));
-			admit(combineIntersection(c, other));
+			var other = keys[k];
+			if (other !== c) combinePair(c, other, maxBbox, admit);
 		}
 	}
 
@@ -458,6 +607,98 @@ function propagateBranchSound(board, state, opts) {
 	return { contradiction: null, moves: trace, maxC: maxC };
 }
 
+// propagateBranchSound, seeded from the caller's exhausted clue store (analyzeBoard hands its live clues over
+// through opts.baseStore, see findCaseSplitStep). Every base clue is already known to be non-trivial in the
+// base state and has already been paired with every other, so a hypothesis only has to derive what it
+// touches: the origins around the split cell to begin with, then the origins around each cell a step
+// resolves, each paired against the seeds and against everything derived since. The first trivial clue it
+// pops is the one a fresh search would find: a seed's complexity is an upper bound in the branch (an origin
+// only gets cheaper as its cells resolve, so any cheaper version comes through a changed origin, is
+// re-admitted and re-expanded), and ties break on the same key order. Same contract as propagateBranchSound.
+function propagateBranchIncremental(board, state, opts, baseKeys, changedCells) {
+	var rows = board.length, cols = board[0].length;
+	var maxClues = opts.maxClues || DEFAULT_MAX_CLUES;
+	var maxBbox = opts.maxBbox != null ? opts.maxBbox : DEFAULT_MAX_BBOX;
+	var seen = {}, keys = [], heap = [];
+	var admitRaw = makeAdmitter(seen, keys, heap, opts);
+	function fresh(clue) {
+		var cells = clue.cells;
+		for (var i = 0; i < cells.length; i++) if (state[cells[i][0]][cells[i][1]] !== UNKNOWN) return false;
+		return true;
+	}
+	// Freshness only changes between propagation steps, so each search pass pairs against `live`, the slots of
+	// the clues fresh at its start, plus every clue admitted during the pass (derived from fresh parents, so
+	// fresh itself); a slot always reads the key's current cheapest version. Same pairs as scanning all of
+	// `keys` with a freshness test each time, without the per-pair scan.
+	var live = [];
+	function admit(clue) {
+		if (!clue) return;
+		var before = keys.length;
+		admitRaw(clue);
+		if (keys.length > before) live.push(keys.length - 1);
+	}
+	admit.known = admitRaw.known;
+	// The seeds never go on the heap: nothing to expand.
+	for (var si = 0; si < baseKeys.length; si++) if (fresh(baseKeys[si])) admitRaw.seed(baseKeys[si]);
+	function admitOriginsAround(cells) {
+		var done = {};
+		for (var i = 0; i < cells.length; i++) {
+			BoardLogic.forEachNeighbour(cells[i][0], cells[i][1], rows, cols, function(nr, nc) {
+				var k = nr * cols + nc;
+				if (done[k]) return;
+				done[k] = true;
+				admit(buildOriginClue(board, state, rows, cols, nr, nc));
+			});
+		}
+	}
+	admitOriginsAround(changedCells);
+	var maxC = 0, trace = [];
+	while (true) {
+		var bad = findInconsistency(board, state);
+		if (bad) return { contradiction: bad, moves: trace, maxC: maxC };
+		// A trivial origin clue is taken straight away, cheapest first in origin order (as propagateBranchSound does).
+		var initial = buildInitialClues(board, state);
+		if (!initial.length) break;
+		var best = null;
+		for (var ii = 0; ii < initial.length; ii++) {
+			if (isTrivial(initial[ii]) && (!best || initial[ii].complexity < best.complexity)) best = initial[ii];
+		}
+		if (!best) {
+			live.length = 0;
+			for (var lk = 0; lk < keys.length; lk++) if (fresh(keys[lk])) live.push(lk);
+			while (heap.length > 0) {
+				if (keys.length > maxClues) break;
+				var top = heapPop(heap);
+				var c = top[1];
+				if (seen[c.key] !== c) continue;
+				if (!fresh(c)) continue;
+				if (isTrivial(c)) { best = c; break; }
+				for (var li = 0; li < live.length; li++) {
+					var other = keys[live[li]];
+					if (other !== c) combinePair(c, other, maxBbox, admit);
+				}
+			}
+		}
+		if (!best) break;
+		if (best.complexity > maxC) maxC = best.complexity;
+		var changed = [];
+		for (var ci = 0; ci < best.cells.length; ci++) {
+			if (state[best.cells[ci][0]][best.cells[ci][1]] === UNKNOWN) changed.push(best.cells[ci]);
+		}
+		trace.push({
+			action: best.hi === 0 ? "reveal" : "flag",
+			cells: best.cells,
+			changed: changed,
+			complexity: best.complexity,
+			depth: best.depth,
+			derivation: flattenDerivation(best)
+		});
+		if (!applyDeductionSound(state, best)) break;
+		admitOriginsAround(changed);
+	}
+	return { contradiction: null, moves: trace, maxC: maxC };
+}
+
 // SOUND 1-cell case split. For each frontier cell, try both hypotheses ("safe" = mark SAFE, "mine" = flag)
 // and propagate each with propagateBranchSound (visible clues only — no peeking). Conclusions:
 //   - one branch contradicts  → the split cell takes the other value, plus everything that branch forced;
@@ -467,6 +708,9 @@ function propagateBranchSound(board, state, opts) {
 // contradiction that exhaustive enumeration can't reach within ENUM_CAP.
 function findCaseSplitStep(board, state, opts) {
 	var rows = board.length, cols = board[0].length;
+	// opts.baseStore: the caller's clue list, only when its search ran to exhaustion (every live clue paired with
+	// every other, none trivial): the branches then start from it instead of rebuilding the closure each.
+	var baseKeys = (opts && opts.baseStore) || null;
 	var frontierMap = {};
 	for (var r = 0; r < rows; r++) {
 		for (var c = 0; c < cols; c++) {
@@ -485,11 +729,11 @@ function findCaseSplitStep(board, state, opts) {
 
 		var sA = snapshotState(state);
 		sA[pr][pc] = SAFE;                 // hypothesis: split cell is safe (no reveal, no clue read)
-		var resA = propagateBranchSound(board, sA, opts);
+		var resA = baseKeys ? propagateBranchIncremental(board, sA, opts, baseKeys, [[pr, pc]]) : propagateBranchSound(board, sA, opts);
 
 		var sB = snapshotState(state);
 		sB[pr][pc] = FLAGGED;              // hypothesis: split cell is a mine
-		var resB = propagateBranchSound(board, sB, opts);
+		var resB = baseKeys ? propagateBranchIncremental(board, sB, opts, baseKeys, [[pr, pc]]) : propagateBranchSound(board, sB, opts);
 
 		var okA = !resA.contradiction, okB = !resB.contradiction;
 		if (!okA && !okB) continue; // both contradict — only on an already-inconsistent board
@@ -857,14 +1101,11 @@ function analyzeBoard(board, state, opts) {
 			if (!isFresh(c)) continue; // stale (or fully dead) — a fresh equivalent will surface separately
 			if (isTrivial(c)) return c;
 			for (var k = 0; k < keys.length; k++) {
-				var other = seen[keys[k]];
+				var other = keys[k];
 				// Cheapest check first: rule out geometrically-incompatible pairs before paying for
 				// the isFresh scan (which touches every one of other's cells).
 				if (other === c || !boxesCanCombine(c, other, maxBbox) || !isFresh(other)) continue;
-				admit(combineSubset(c, other));
-				admit(combineSubset(other, c));
-				admit(combineDisjointUnion(c, other, maxBbox));
-				admit(combineIntersection(c, other));
+				combinePair(c, other, maxBbox, admit);
 			}
 		}
 		return null;
@@ -906,7 +1147,10 @@ function analyzeBoard(board, state, opts) {
 		// the cell is safe vs a mine, propagate each branch over the VISIBLE clues only (never revealing a
 		// cell or reading its hidden number), and take what a contradiction forces / both branches agree on.
 		// Cheaper than full enumeration and works on frontiers larger than ENUM_CAP. Skipped below CASE_BASE.
-		var caseStep = (maxComplexity >= CASE_BASE) ? findCaseSplitStep(board, state, opts) : null;
+		// The store is complete only when the heap drained (not when the clue cap cut the search short, and not
+		// when a found clue was merely over the complexity cap): only then may the branches build on it.
+		var caseOpts = (best === null && heap.length === 0) ? Object.assign({}, opts, { baseStore: keys }) : opts;
+		var caseStep = (maxComplexity >= CASE_BASE) ? findCaseSplitStep(board, state, caseOpts) : null;
 		if (caseStep && caseStep.complexity <= maxComplexity) {
 			var caseRevealed = [];
 			for (var csi = 0; csi < caseStep.revealed.length; csi++) {
