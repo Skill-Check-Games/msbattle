@@ -4,13 +4,6 @@
 // Live (navbar hidden, main padding 0.75rem + 1.5rem): the view fills the viewport so the duel grid can
 // sit vertically centred in it, like the old client.
 .live { min-height: calc(100dvh - 2.25rem); display: flex; flex-direction: column; }
-// The scene behind your own board: a layer inside the card (clipped to its corners), under a tint that keeps
-// the head readable; the board's cells sit over it, so the scene shows in the gaps between them and around the head.
-.arenaBackdrop { position: absolute; inset: 0; z-index: 0; border-radius: inherit; overflow: hidden; background-size: cover; background-position: center; animation: backdropIn 0.8s ease-out both;
-	&::after { content: ""; position: absolute; inset: 0; background: rgba(5, 8, 18, 0.38); }
-}
-.arenaYou > :not(.arenaBackdrop) { position: relative; z-index: 1; }
-@keyframes backdropIn { from { opacity: 0; } }
 .live .duelStack { margin: auto; }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 .header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }

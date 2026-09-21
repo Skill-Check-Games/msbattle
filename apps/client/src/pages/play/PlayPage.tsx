@@ -33,7 +33,6 @@ import Modal from "../../app/Modal";
 
 const DUEL_GAP_PX = 16;  // .duelGrid's gap between the two cards (PlayPage.module.scss)
 const LS_PANEL_W = 158;  // the landscape side panels' width (matches .landscape's grid columns in PlayPage.module.scss)
-const BATTLE_BACKDROP = "/backdrops/ice.webp";   // the scene behind your own board in online battles (trial: the ice concept)
 const FOUND_GAP_MS = 300;        // the match-found banner is gone at least this long before the 3-2-1 begins
 const FOUND_FIELD_BREATH_MS = 1100;  // 6 players: the pause between the last seat filling and the field's presentation (a breath, so it does not feel rushed)
 const FOUND_WAIT_MAX_MS = 4000;  // how long the found card waits for start_game beyond its natural length before giving up
@@ -563,8 +562,6 @@ export default function PlayPage() {
 					<LeadBar myLeft={cellsLeftNum(myFrame)} opLeft={cellsLeftNum(opps[0] ? frameOf(opps[0]) : null)} />
 					<div className={`${styles.duelGrid} ${duoStacked ? styles.duelGridStacked : ""}`}>
 						<div className={`${styles.arena} ${styles.arenaYou} ${hitClass(myHit)}`} style={viewW ? ({ "--board-view-w": viewW + "px" } as React.CSSProperties) : undefined} ref={boardHostRef} data-shake-host="">
-							{/* The scene behind your own board (design-refs/skin-concepts, a trial with the ice one): inside the card, under a tint, the cells over it. */}
-							{battle && <div className={styles.arenaBackdrop} style={{ backgroundImage: `url(${BATTLE_BACKDROP})` }} aria-hidden="true" />}
 							{portrait && !planningLobby && flagToggle}
 							<div className={styles.arenaHead}>
 								<DuelIdentity player={me || (account ? { id: "", name: account.name, avatar: account.avatarColor, country: account.country, rating: undefined } as any : null)} side="you" plain />
@@ -598,7 +595,6 @@ export default function PlayPage() {
 						<div className={styles.multiCol}>
 							<div className={styles.multiHead}><div className={`${styles.timerBadge} ${!timer.text ? styles.clockIdle : ""}`}><div className={`${styles.duelTimer} ${timer.cls}`}>{clockText}</div></div></div>
 							<div className={`${styles.arena} ${styles.arenaYou} ${hitClass(myHit)}`} ref={boardHostRef} data-shake-host="">
-								{battle && <div className={styles.arenaBackdrop} style={{ backgroundImage: `url(${BATTLE_BACKDROP})` }} aria-hidden="true" />}
 								<div className={styles.arenaHead}>
 									<DuelIdentity player={me || (account ? { id: "", name: account.name, avatar: account.avatarColor, country: account.country, rating: undefined } as any : null)} side="you" plain />
 									<ArenaStat frame={myFrame} side="you" hit={myHit === "on"} />
