@@ -13,6 +13,7 @@ var fs = require("fs");
 var puzzleGen = require("core/src/engine/PuzzleGenerator");
 var insideOut = require("core/src/engine/InsideOutGenerator");
 var cspSolver = require("core/src/engine/CSPSolver");
+var Worker = require("worker_threads").Worker;
 var BoardLogic = require("core/src/common/BoardLogic");
 var botPlayer = require("core/src/engine/BotPlayer");
 var db = require("../db");
@@ -327,31 +328,51 @@ function servePuzzleStats(req, res) {
 	res.end(JSON.stringify(stats));
 }
 
-// Run the CSP analyzer on a puzzle ({rows,cols,mines,revealed}) and return the trace payload
-// the Analyze modal expects. Shared by the pool's analyze endpoint and the combined-puzzles one.
-function analyzePuzzleBoard(puzzle) {
-	var board = puzzleGen.buildBoard(puzzle.rows, puzzle.cols, puzzle.mines);
-	var state = [];
-	for (var r = 0; r < puzzle.rows; r++) {
-		state.push([]);
-		for (var c = 0; c < puzzle.cols; c++) state[r].push(BoardLogic.UNKNOWN);
+// The Analyze endpoints run the CSP analyzer on a worker thread (analyze-worker.js), one request at a time
+// with the rest queued behind it: a deep case-split solve is seconds of CPU, and on the main thread it would
+// stall every socket this process serves. A run past ANALYZE_TIMEOUT_MS is killed and reported as an error.
+var ANALYZE_TIMEOUT_MS = 180000;
+var analyzeQueue = [], analyzeBusy = false;
+function analyzePuzzleBoardAsync(puzzle) {
+	var job = { rows: puzzle.rows, cols: puzzle.cols, mines: puzzle.mines, revealed: puzzle.revealed };
+	return new Promise(function(resolve) {
+		analyzeQueue.push({ puzzle: job, resolve: resolve });
+		pumpAnalyzeQueue();
+	});
+}
+function pumpAnalyzeQueue() {
+	if (analyzeBusy || !analyzeQueue.length) return;
+	analyzeBusy = true;
+	var job = analyzeQueue.shift();
+	var worker = new Worker(path.join(__dirname, "analyze-worker.js"));
+	var done = false;
+	var timer = setTimeout(function() { finish({ error: "Analysis timed out after " + Math.round(ANALYZE_TIMEOUT_MS / 1000) + "s" }); }, ANALYZE_TIMEOUT_MS);
+	function finish(out) {
+		if (done) return;
+		done = true;
+		clearTimeout(timer);
+		worker.terminate();
+		analyzeBusy = false;
+		job.resolve(out || { error: "no result" });
+		pumpAnalyzeQueue();
 	}
-	puzzle.revealed.forEach(function(rc) { state[rc[0]][rc[1]] = BoardLogic.KNOWN; });
-	function cascade(rr, cc) {
-		BoardLogic.cascadeReveal(rr, cc, puzzle.rows, puzzle.cols,
-			function(r2, c2) { return state[r2][c2] === BoardLogic.UNKNOWN; },
-			function(r2, c2) { state[r2][c2] = BoardLogic.KNOWN; return false; },
-			function(r2, c2) { return board[r2][c2]; }
-		);
-	}
-	var result = cspSolver.analyzeBoard(board, state, { revealCell: cascade });
-	return {
-		solved: result.solved,
-		maxComplexity: result.maxComplexity,
-		totalComplexity: result.totalComplexity,
-		safeCovered: result.safeCovered,
-		moves: result.moves
-	};
+	worker.on("message", finish);
+	worker.on("error", function(e) { finish({ error: String((e && e.message) || e) }); });
+	worker.on("exit", function(code) { if (!done) finish({ error: "analysis worker exited (" + code + ")" }); });
+	worker.postMessage(job.puzzle);
+}
+// Sends the analysis, or its error, as the response; `decorate` adds the endpoint's own fields first.
+function respondWithAnalysis(res, puzzle, decorate) {
+	analyzePuzzleBoardAsync(puzzle).then(function(payload) {
+		if (payload.error) {
+			res.writeHead(500, { "Content-Type": "application/json" });
+			res.end(JSON.stringify({ error: payload.error }));
+			return;
+		}
+		decorate(payload);
+		res.writeHead(200, { "Content-Type": "application/json" });
+		res.end(JSON.stringify(payload));
+	});
 }
 
 // CSP solver trace for a single puzzle. Used by the Analyze modal in
@@ -364,10 +385,7 @@ function servePuzzleAnalyze(req, res, puzzleId) {
 		res.end(JSON.stringify({ error: "Puzzle not found" }));
 		return;
 	}
-	var payload = analyzePuzzleBoard(puzzle);
-	payload.puzzleId = puzzleId;
-	res.writeHead(200, { "Content-Type": "application/json" });
-	res.end(JSON.stringify(payload));
+	respondWithAnalysis(res, puzzle, function(payload) { payload.puzzleId = puzzleId; });
 }
 
 // Combined-puzzle catalogue (scripts/combine-patterns.js -> combined-puzzles.json): starting
@@ -402,10 +420,7 @@ function serveCombinedPuzzleAnalyze(req, res, puzzleId) {
 		res.end(JSON.stringify({ error: "Puzzle not found" }));
 		return;
 	}
-	var payload = analyzePuzzleBoard(puzzle);
-	payload.puzzleId = puzzleId;
-	res.writeHead(200, { "Content-Type": "application/json" });
-	res.end(JSON.stringify(payload));
+	respondWithAnalysis(res, puzzle, function(payload) { payload.puzzleId = puzzleId; });
 }
 
 // Reconstruct a concrete, consistent board for a stored "corner-mine" (variant corner4) starting
@@ -478,14 +493,13 @@ function serveStartingPositionAnalyze(req, res, posId) {
 		res.end(JSON.stringify({ error: "Analyze is only supported for the 4x4 corner-mine family" }));
 		return;
 	}
-	var payload = analyzePuzzleBoard(puzzle);
-	payload.rows = puzzle.rows;
-	payload.cols = puzzle.cols;
-	payload.mines = puzzle.mines;
-	payload.revealed = puzzle.revealed;
-	payload.positionId = posId;
-	res.writeHead(200, { "Content-Type": "application/json" });
-	res.end(JSON.stringify(payload));
+	respondWithAnalysis(res, puzzle, function(payload) {
+		payload.rows = puzzle.rows;
+		payload.cols = puzzle.cols;
+		payload.mines = puzzle.mines;
+		payload.revealed = puzzle.revealed;
+		payload.positionId = posId;
+	});
 }
 
 function puzzleJobStatus() {
