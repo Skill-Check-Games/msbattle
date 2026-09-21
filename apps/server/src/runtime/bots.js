@@ -13,7 +13,7 @@ var gameUtil = require("./gameUtil");
 // Per-bot state (same objects the server holds).
 var bots = appState.bots, botTickHandles = appState.botTickHandles, botLastClick = appState.botLastClick;
 var games = appState.games, rooms = appState.rooms, roomMapping = appState.roomMapping, names = appState.names;
-var avatars = appState.avatars, countries = appState.countries, sockets = appState.sockets;
+var avatars = appState.avatars, countries = appState.countries, sockets = appState.sockets, skins = appState.skins;
 var botDifficulty = appState.botDifficulty, botSpeedMs = appState.botSpeedMs, botDifficultyMs = appState.botDifficultyMs;
 var botDistanceMult = appState.botDistanceMult, botMaxDifficulty = appState.botMaxDifficulty, botRating = appState.botRating;
 var botMistake = appState.botMistake, botChord = appState.botChord;
@@ -135,13 +135,9 @@ function applyBotConfigToGame(botId) {
 	g.botChordRate = botChord[botId];
 }
 
-// "anon"/"mine"/every image preset (Cosmetics.AVATAR_IMAGES) — bots have no account/ownership to gate
-// against, so unlike a real player they draw from the WHOLE image catalogue, purchasable items included.
-// Deliberately excludes AVATAR_COLORS (the flag pennant colours): a flag is tied to identity/country, a
-// separate concept from a costume avatar, so it isn't part of this "which avatar does the bot look like"
-// pool at all, the same reasoning that keeps AVATAR_COLORS down to just the one free default colour now
-// (Cosmetics.js). Picking one per bot (instead of leaving them all on the default) means a casual room
-// filled out with Add Bot actually previews a varied-looking match, not a wall of identical silhouettes.
+// A bot's look comes from BotPlayer (pickBotAvatar / pickBotSkin): the three free avatars nearly always, a
+// purchasable image or board skin only once in a while, so bots blend in with the players rather than
+// standing out as a row of bought costumes or as a wall of identical silhouettes.
 function randomBotAvatar() { return botPlayer.pickBotAvatar(); }
 
 // prechosenName/prechosenCountry/prechosenAvatar: a ranked pool bot already shown in the search list keeps that identity.
@@ -153,6 +149,7 @@ function addBotToRoom(room, config, prechosenName, prechosenCountry, prechosenAv
 	bots[botId] = true;
 	names[botId] = prechosenName || botPlayer.pickBotName(getRoomBotNames(room));
 	avatars[botId] = prechosenAvatar || randomBotAvatar(); // must be set before createPlayerGame, which reads it below
+	var skin = botPlayer.pickBotSkin(); if (skin) skins[botId] = skin; // likewise (null: the default skin, like most players)
 	countries[botId] = prechosenCountry || botPlayer.pickBotCountry();
 	games[botId] = createPlayerGame(botId, room.rows, room.cols);
 	games[botId].country = countries[botId];
@@ -200,6 +197,7 @@ function removeBotEntirely(botId) {
 	delete games[botId];
 	delete names[botId];
 	delete avatars[botId];
+	delete skins[botId];
 	delete countries[botId];
 	delete bots[botId];
 	delete botDifficulty[botId];

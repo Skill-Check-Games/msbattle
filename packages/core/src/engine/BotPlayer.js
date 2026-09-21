@@ -174,11 +174,25 @@ function generateName() {
 // per bot, so the flag it shows in the search list is the one it plays under).
 var BOT_COUNTRIES = ["US", "CA", "GB", "IE", "FR", "DE", "NL", "BE", "SE", "NO", "DK", "FI", "IS", "ES", "PT", "IT", "CH", "AT", "AU", "NZ", "PL", "CZ"];
 function pickBotCountry() { return BOT_COUNTRIES[Math.floor(Math.random() * BOT_COUNTRIES.length)]; }
-// A bot's avatar: "anon", "mine" or any image preset, purchasable ones included (a bot has no account to gate
-// against). Picked with the name and country, once per bot, so the search list already shows the face it plays with.
+// A bot's avatar: one of the three free defaults ("anon", "mine", the default flag colour), equally likely, and
+// once in a while (BOT_FANCY_RATE) one of the purchasable image presets (a bot has no account to gate against,
+// but a lobby full of bought avatars would look like a lobby full of bots). Picked with the name and country,
+// once per bot, so the search list already shows the face it plays with.
+var BOT_FANCY_RATE = 0.08;
+var BOT_DEFAULT_AVATARS = ["anon", "mine", Cosmetics.DEFAULT_AVATAR_COLOR];
 function pickBotAvatar() {
-	var values = ["anon", "mine"].concat(Object.keys(Cosmetics.AVATAR_IMAGES).map(function(id) { return "img:" + id; }));
-	return values[Math.floor(Math.random() * values.length)];
+	if (Math.random() < BOT_FANCY_RATE) {
+		var images = Object.keys(Cosmetics.AVATAR_IMAGES);
+		if (images.length) return "img:" + images[Math.floor(Math.random() * images.length)];
+	}
+	return BOT_DEFAULT_AVATARS[Math.floor(Math.random() * BOT_DEFAULT_AVATARS.length)];
+}
+// A bot's board skin: the default (null) nearly always, once in a while (the same BOT_FANCY_RATE) one of the
+// purchasable skins, so a bought board turns up across the table now and then without becoming a bot tell.
+function pickBotSkin() {
+	if (Math.random() >= BOT_FANCY_RATE) return null;
+	var skins = Cosmetics.BOARD_SKIN_LIST.filter(function(id) { return id !== "classic"; });
+	return skins.length ? skins[Math.floor(Math.random() * skins.length)] : null;
 }
 
 function pickBotName(taken) {
@@ -474,6 +488,7 @@ exports.computeMoveDelay = computeMoveDelay;
 exports.pickBotName = pickBotName;
 exports.pickBotCountry = pickBotCountry;
 exports.pickBotAvatar = pickBotAvatar;
+exports.pickBotSkin = pickBotSkin;
 exports.DIFFICULTIES = DIFFICULTIES;
 exports.DEFAULT_DIFFICULTY = DEFAULT_DIFFICULTY;
 exports.configForDifficulty = configForDifficulty;
