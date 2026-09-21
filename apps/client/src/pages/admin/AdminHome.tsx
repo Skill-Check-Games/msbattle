@@ -20,6 +20,7 @@ const CARDS: { title: string; desc: string; label: string; href: string }[] = [
 	{ title: "Design", desc: "Visual design reference: the full rank ladder (every tier and sub-tier) rendered with the live badge component.", label: "Open design", href: "/admin/design" },
 	{ title: "Board animations", desc: "Live preview of the round-start countdown digit and the \"go\" sweep that follows it, looping forever, with sliders for style, colour, and timing.", label: "Open lab", href: "/admin/countdown" },
 	{ title: "Sound Lab", desc: "Every sound effect in the game, each with its own Play button and a shared speed control, plus a set of alternate takes on the idle to ready sweep sound to compare.", label: "Open lab", href: "/admin/sounds" },
+	{ title: "Marketing HQ", desc: "The story, the brand kit, a studio for social images, copy to paste per channel, video storyboards with a recording recipe, and the launch plan with a checklist.", label: "Open Marketing HQ", href: "/admin/marketing" },
 	{ title: "Match debug", desc: "Client versus server board state for this tab's live match, with the socket event log. Open it in the tab that is playing.", label: "Open debug", href: "/admin/debug" }
 ];
 
