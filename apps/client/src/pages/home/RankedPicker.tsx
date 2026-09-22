@@ -26,7 +26,7 @@ export default function RankedPicker({ style, onClose }: { style: RankedStyle | 
 			<div className={styles.head}>
 				<div className={styles.icon} style={{ color: meta.color }} aria-hidden="true"><svg viewBox="0 0 24 24"><path d={meta.icon} fill="currentColor" /></svg></div>
 				<div><h2 id="ranked_modal_title" className={styles.title}>{meta.title}</h2><p className={styles.sub}>{meta.sub}</p></div>
-				<div className={styles.rating}>{tier ? <><span className={styles.tier} style={{ color: tier.color }}>{tier.name}</span><span className={styles.num}>{rating}</span></> : <span className={styles.tier}>—</span>}</div>
+				<div className={styles.rating}>{tier ? <><span className={styles.tier} style={{ color: tier.color }}>{tier.name}</span></> : <span className={styles.tier}>—</span>}</div>
 			</div>
 			<p className={styles.pitch}>{meta.pitch}</p>
 			<div className={styles.options}>

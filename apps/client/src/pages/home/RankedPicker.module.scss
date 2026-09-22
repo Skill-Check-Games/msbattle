@@ -8,7 +8,6 @@
 .sub { margin: 0.2rem 0 0; color: var(--muted); font-size: 0.85rem; }
 .rating { text-align: right; display: flex; flex-direction: column; align-items: flex-end; }
 .tier { font-weight: 700; font-size: 1.1rem; white-space: nowrap; }
-.num { font-size: 0.85rem; color: var(--muted); font-variant-numeric: tabular-nums; }
 .pitch { margin: 0 0 1.4rem; color: var(--text); opacity: 0.85; font-size: 0.95rem; }
 .options { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; @include below($bp-sm) { grid-template-columns: 1fr; } }
 .option {
