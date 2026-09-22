@@ -170,7 +170,8 @@ function Player({ rep, winnerId, createdAt, standings, myUserId }: { rep: Replay
 	};
 
 	// The match's own views (standings rail, opponent cards) read room and frame shapes: the replay builds
-	// them at the playhead. Ids are seats ("p0"…); you are "me" when you were in the match.
+	// them at the playhead. Ids are seats ("p0"…); you are "me" when you were in the match. Seats stay put as
+	// in the match (you first, then the others): the bars and percentages tell the race, the rows never move.
 	const ids = rep.players.map((_, i) => "p" + i);
 	const myId = meIdx < 0 ? null : ids[meIdx];
 	const room = useMemo<RoomState>(() => ({
@@ -192,7 +193,7 @@ function Player({ rep, winnerId, createdAt, standings, myUserId }: { rep: Replay
 	// Places among those who have cleared by now, in clear order.
 	const placeOf: Record<string, number> = {};
 	frames.filter(f => f.finished).sort((a, b) => a.finishedAt - b.finishedAt).forEach((f, i) => { placeOf[f.id] = i + 1; });
-	const nameLink = (p: RoomPlayer) => { const pl = rep.players[ids.indexOf(p.id)]; return pl && pl.userId ? <Link to={"/profile?id=" + pl.userId} className={styles.playerLink} onClick={e => e.stopPropagation()}>{p.name}</Link> : <>{p.name}</>; };
+	const nameLink = (p: RoomPlayer) => { const pl = rep.players[ids.indexOf(p.id)]; return pl && pl.userId ? <Link to={"/profile?id=" + pl.userId} className={styles.playerLink} title={"Open " + p.name + "'s profile"} onClick={e => e.stopPropagation()}>{p.name}</Link> : <>{p.name}</>; };
 
 	const fp = rep.players[focus], ff = frames[focus], ftl = timelines[focus], fpt = pointAt(ftl, playT);
 	const focusPct = ff.finished ? 100 : Math.round(fpt.progress * 100);
@@ -219,8 +220,8 @@ function Player({ rep, winnerId, createdAt, standings, myUserId }: { rep: Replay
 
 			<div className={`${styles.body} ${layout.stacked ? styles.bodyStacked : ""}`} style={{ "--rail-w": RAIL_W + "px", "--players-w": layout.columnW + "px" } as React.CSSProperties}>
 				<aside className={styles.rail} aria-label="Standings">
-					<div className={styles.railHead}><span className={styles.kicker}>Standings at {fmtTime(playT)}</span></div>
-					<Standings room={room} frames={frames} myId={myId} placeOf={placeOf} liveOrder renderName={nameLink} onRowClick={p => setFocus(ids.indexOf(p.id))} focusId={ids[focus]} />
+					<div className={styles.railHead}><span className={styles.kicker}>Players at {fmtTime(playT)}</span><span className={styles.railHint}>Click a row to watch, a name for the profile</span></div>
+					<Standings room={room} frames={frames} myId={myId} placeOf={placeOf} big renderName={nameLink} onRowClick={p => setFocus(ids.indexOf(p.id))} focusId={ids[focus]} />
 					{finals && (
 						<div className={styles.finals}>
 							<div className={styles.kicker}>Final result</div>
@@ -243,7 +244,7 @@ function Player({ rep, winnerId, createdAt, standings, myUserId }: { rep: Replay
 					<div className={styles.stageHead} style={{ width: rep.cols * layout.stagePx + STAGE_CHROME_W }}>
 						<AvatarChip avatar={fp.avatar} country={fp.country} px={40} />
 						<div className={styles.stageWho}>
-							<span className={styles.stageName}>{fp.userId ? <Link to={"/profile?id=" + fp.userId} className={styles.playerLink}>{fp.name}</Link> : fp.name}<FlagChip country={fp.country} px={14} /></span>
+							<span className={styles.stageName}>{fp.userId ? <Link to={"/profile?id=" + fp.userId} className={styles.playerLink} title={"Open " + fp.name + "'s profile"}>{fp.name}</Link> : fp.name}<FlagChip country={fp.country} px={14} /></span>
 							<span className={styles.stageNote}>{ff.finished ? "Cleared at " + fmtClock(ftl.finishMs || 0) + (placeOf[ff.id] ? " · " + ordinal(placeOf[ff.id]) + " to clear" : "") : focusHit ? "Mine penalty" : "Clearing"}</span>
 						</div>
 						<div className={styles.spacer} />

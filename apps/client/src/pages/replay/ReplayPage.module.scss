@@ -4,7 +4,11 @@
 .back { display: inline-block; color: var(--accent-hover); text-decoration: none; font-weight: 600; white-space: nowrap; &:hover { text-decoration: underline; } }
 .status { color: var(--muted); padding: 2rem 0; }
 .spacer { flex: 1 1 auto; }
-.playerLink { color: inherit; text-decoration: none; &:hover { color: var(--accent-hover); text-decoration: underline; } }
+// A player's name is a link to their profile, and looks like one: the accent, a small arrow after the name, a solid
+// underline on hover. Clicking a row or a card anywhere else focuses that board instead.
+.playerLink { color: var(--accent-hover); text-decoration: underline; text-decoration-color: rgba(129, 140, 248, 0.4); text-underline-offset: 2px; white-space: nowrap;
+	&::after { content: "\2197"; font-size: 0.7em; margin-left: 0.2em; opacity: 0.7; text-decoration: none; display: inline-block; }
+	&:hover { text-decoration-color: currentColor; } }
 .kicker { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
 
 // Top bar: back, the match, the round tabs, copy link.
@@ -21,7 +25,8 @@
 // ReplayPage.tsx layoutFor); the stage takes the rest.
 .body { display: grid; grid-template-columns: var(--rail-w, 300px) minmax(0, 1fr) var(--players-w, 300px); gap: 16px; align-items: start; min-width: 0; }
 .rail { display: flex; flex-direction: column; gap: 0.6rem; min-width: 0; }
-.railHead { display: flex; align-items: baseline; justify-content: space-between; min-height: 1.1rem; }
+.railHead { display: flex; flex-direction: column; gap: 2px; min-height: 2rem; }
+.railHint { font-size: 0.74rem; color: var(--muted); }
 .stage { display: flex; flex-direction: column; align-items: center; gap: 0.6rem; min-width: 0; }
 .stageHead { display: flex; align-items: center; gap: 0.7rem; max-width: 100%; min-height: 48px; }
 .stageWho { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
