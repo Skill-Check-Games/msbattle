@@ -13,6 +13,7 @@ import { SliderRow, Toggle, labStyles } from "../lab-shared";
 import { TILINGS, TILING_BY_ID, TilingId, Tiling, makeRng, neighborGraph } from "./tilings";
 import { PolyGame, generateBoard, centerCell, deduce, COVERED, REVEALED, FLAGGED } from "./poly-game";
 import { paint, cellAt, transformFor } from "./poly-render";
+import { keybindings } from "../../../shared/keybindings";
 import styles from "./ShapeLab.module.scss";
 
 const SIZES: { id: string; label: string; cells: number }[] = [
@@ -39,6 +40,7 @@ export default function ShapeLab() {
 	const [flagMode, setFlagMode] = useState(false);
 	const [hover, setHover] = useState<number | null>(null);
 	const [hint, setHint] = useState<number[]>([]);
+	const [focus, setFocus] = useState<number | null>(null);   // the keyboard cursor; null until a key is pressed, hidden again by the mouse
 	const [note, setNote] = useState("");
 	const [auto, setAuto] = useState(false);
 	const [, bump] = useState(0);
@@ -65,7 +67,7 @@ export default function ShapeLab() {
 	}, [tilingId, cells, density, noGuess, diagonals, jitter, gradient, seed, spec]);
 
 	useEffect(() => {
-		setHint([]); setHover(null); setAuto(false);
+		setHint([]); setHover(null); setAuto(false); setFocus(null);
 		setNote(noGuess && !board.noGuess ? "Could not reach a no-guess layout in the time budget, so this board may need a guess. Try fewer mines." : "");
 	}, [board, noGuess]);
 
@@ -87,7 +89,7 @@ export default function ShapeLab() {
 		if (!canvas || box.w < 2 || box.h < 2) return;
 		const w = Math.round(box.w * DPR), h = Math.round(box.h * DPR);
 		if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }   // reassigning clears the canvas, so only on a real resize
-		paint(canvas, { tiling: board.tiling, game: board.game, skin, hover, xray, hint, showSides });
+		paint(canvas, { tiling: board.tiling, game: board.game, skin, hover, xray, hint, showSides, focus });
 	});
 
 	// ---- input ----
@@ -107,6 +109,54 @@ export default function ShapeLab() {
 		setHint([]);
 		rerender();
 	};
+	// ---- keyboard: the game's own bindings (Settings), on cells that have no rows and columns ----
+	// A step goes to the cell whose centre lies most squarely in that direction: nearest by distance along the
+	// axis with sideways drift counted double, within a 90 degree cone, so a triangle grid or a Voronoi board
+	// still walks in straight-ish lines. Shift skips over revealed cells the way it does on the square board.
+	const stepFrom = (from: number, dx: number, dy: number): number | null => {
+		const cs = board.tiling.centroids, [fx, fy] = cs[from];
+		let best: number | null = null, bestCost = Infinity;
+		for (let i = 0; i < cs.length; i++) {
+			if (i === from) continue;
+			const vx = cs[i][0] - fx, vy = cs[i][1] - fy, along = vx * dx + vy * dy;
+			if (along <= 0) continue;
+			const perp = Math.abs(vx * dy - vy * dx);
+			if (perp > along) continue;   // outside the cone
+			const cost = along + perp * 2;
+			if (cost < bestCost) { bestCost = cost; best = i; }
+		}
+		return best;
+	};
+	const moveFocus = (dx: number, dy: number, skipRevealed: boolean) => {
+		const g = board.game, cur = focus ?? board.start;
+		let next = stepFrom(cur, dx, dy), last = cur;
+		if (skipRevealed) { while (next != null && g.state[next] === REVEALED) { last = next; next = stepFrom(next, dx, dy); } if (next == null) next = last; }
+		setFocus(next ?? cur);
+	};
+	const jumpFocus = (forward: boolean) => {
+		const g = board.game, n = g.state.length, cur = focus ?? board.start;
+		for (let k = 1; k <= n; k++) { const i = forward ? (cur + k) % n : (cur - k + n) % n; if (g.state[i] === COVERED) { setFocus(i); return; } }
+	};
+	useEffect(() => {
+		const onKey = (e: KeyboardEvent) => {
+			const tag = (e.target as HTMLElement | null)?.tagName || "";
+			if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+			if ((tag === "BUTTON" || tag === "A") && (e.key === " " || e.key === "Enter")) return;
+			if (e.ctrlKey || e.metaKey || e.altKey) return;
+			const action = keybindings.actionFor(e);
+			if (!action) return;
+			e.preventDefault();
+			if (action === "up") moveFocus(0, -1, e.shiftKey);
+			else if (action === "down") moveFocus(0, 1, e.shiftKey);
+			else if (action === "left") moveFocus(-1, 0, e.shiftKey);
+			else if (action === "right") moveFocus(1, 0, e.shiftKey);
+			else if (action === "next") jumpFocus(!e.shiftKey);
+			else if (!e.repeat) { const i = focus ?? board.start; setFocus(i); act(i, action === "flag"); }
+		};
+		document.addEventListener("keydown", onKey);
+		return () => document.removeEventListener("keydown", onKey);
+	});
+
 	const touch = useRef({ x: 0, y: 0, moved: false, long: false, timer: 0 as any });
 	const onTouchStart = (e: React.TouchEvent) => {
 		const t = e.touches[0];
@@ -203,7 +253,7 @@ export default function ShapeLab() {
 						<canvas
 							ref={canvasRef}
 							className={styles.canvas}
-							onMouseMove={e => setHover(hit(e.clientX, e.clientY))}
+							onMouseMove={e => { setHover(hit(e.clientX, e.clientY)); if (focus != null) setFocus(null); }}
 							onMouseLeave={() => setHover(null)}
 							onContextMenu={e => { e.preventDefault(); act(hit(e.clientX, e.clientY), true); }}
 							onClick={e => act(hit(e.clientX, e.clientY), false)}
@@ -254,7 +304,7 @@ export default function ShapeLab() {
 						<div><dt>No-guess</dt><dd>{board.noGuess ? "yes, in " + board.attempts + " pass" + (board.attempts === 1 ? "" : "es") : "no"}</dd></div>
 						<div><dt>Built in</dt><dd>{Math.round(board.genMs)} ms</dd></div>
 					</dl>
-					<p className={styles.help}>Left click opens, right click flags, clicking a number with its flags placed opens the rest. On a phone, long press flags.</p>
+					<p className={styles.help}>Left click opens, right click flags, clicking a number with its flags placed opens the rest. On a phone, long press flags. The keyboard works too, with your bindings from Settings: {keybindings.label(keybindings.get("up"))} {keybindings.label(keybindings.get("down"))} {keybindings.label(keybindings.get("left"))} {keybindings.label(keybindings.get("right"))} move (Shift skips open cells), {keybindings.label(keybindings.get("reveal"))} opens, {keybindings.label(keybindings.get("flag"))} flags, {keybindings.label(keybindings.get("next"))} jumps to the next covered cell.</p>
 				</div>
 			</div>
 		</AdminPage>

@@ -36,6 +36,7 @@ export interface PaintOpts {
 	xray: boolean;
 	hint: number[];
 	showSides: boolean;
+	focus?: number | null;   // the keyboard cursor's cell: an accent outline
 }
 
 function tracePath(ctx: CanvasRenderingContext2D, poly: Pt[], c: Pt, t: Transform, shrink: number) {
@@ -143,5 +144,17 @@ export function paint(canvas: HTMLCanvasElement, o: PaintOpts) {
 			ctx.fillStyle = "rgba(255,255,255,0.65)";
 			ctx.fillText(String(tiling.sides[i]), px, py);
 		}
+	}
+	if (o.focus != null && o.focus >= 0 && o.focus < tiling.polys.length && !game.over) {
+		const i = o.focus, r = tiling.radius[i] * t.scale;
+		tracePath(ctx, tiling.polys[i], tiling.centroids[i], t, Math.max(0.55, 1 - 1.1 / Math.max(r, 2)));
+		ctx.strokeStyle = "#fff";
+		ctx.lineWidth = Math.max(1.5, Math.min(3, r * 0.18));
+		ctx.stroke();
+		ctx.strokeStyle = "#6366f1";
+		ctx.lineWidth = Math.max(3, Math.min(6, r * 0.36));
+		ctx.globalAlpha = 0.5;
+		ctx.stroke();
+		ctx.globalAlpha = 1;
 	}
 }
