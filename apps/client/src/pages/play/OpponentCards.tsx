@@ -100,6 +100,24 @@ function Seat({ seat, myId, live, playing, placeOf, rows, cols, cellPx, searchSi
 	);
 }
 
+// The card's chrome on its own (the head row over a board slot), for views that draw the board themselves: the
+// replay page puts its re-simulated canvases in it so its panel is the match's panel. focused: the one on the
+// stage; onClick: put this player on the stage.
+export function SeatCard({ avatar, country, name, pct, finished, place, me, hit, focused, onClick, children }: { avatar: string | null; country: string | null; name: React.ReactNode; pct: number; finished: boolean; place: number | null; me?: boolean; hit?: boolean; focused?: boolean; onClick?: () => void; children: React.ReactNode }) {
+	const placeCls = finished && place === 1 ? styles.place1 : finished && place === 2 ? styles.place2 : finished && place === 3 ? styles.place3 : "";
+	return (
+		<div className={`${styles.card} ${me ? styles.me : ""} ${finished ? styles.finished : ""} ${hit ? styles.hit : ""} ${focused ? styles.focusedCard : ""} ${onClick ? styles.clickable : ""}`} onClick={onClick}>
+			<div className={styles.head}>
+				<AvatarChip avatar={avatar} country={country} px={36} className={styles.avatar} />
+				<span className={styles.name}><span className={styles.nameText}>{name}</span><FlagChip country={country} px={13} /></span>
+				<span className={`${styles.pct} ${placeCls}`}>{finished && place ? ordinal(place) : pct + "%"}</span>
+				<span className={styles.bar}><span className={styles.fill} style={{ width: pct + "%" }} /></span>
+			</div>
+			<div className={styles.boardWrap}>{children}</div>
+		</div>
+	);
+}
+
 // One player's card. me: your own (blue). compact: the landscape phone's leader card at the top of its standings panel.
 export function OpponentCard({ p, rank, me, frame, playing, place, rows, cols, cellPx, compact }: { p: RoomPlayer; rank: number; me?: boolean; frame: GameFrame | null; playing: boolean; place: number | null; rows: number; cols: number; cellPx: number; compact?: boolean }) {
 	const finished = !!(frame && frame.finished);

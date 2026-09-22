@@ -133,6 +133,9 @@ function persistResult(report) {
 	// replayPayload is already wire-safe (built at buildResultReport time, in-process, before any
 	// network hop) — persisting it is the same call whether this report came from the local match-end
 	// path or over the internal API from a game server.
+	// The final standings ride with the replay (rank, progress, clear time, and the Elo just applied), so the
+	// replay page can show how it ended without a second lookup.
+	if (report.replayPayload && report.replayPayload.meta) report.replayPayload.meta.standings = replay.summarizeStandings(report.standings);
 	if (report.replayPayload) replay.persistPayload(report.replayPayload);
 	return { applied: true, standings: report.standings };
 }

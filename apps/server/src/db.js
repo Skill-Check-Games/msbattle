@@ -963,16 +963,18 @@ function getRatingHistory(userId, limit) {
 // Persist one finished ranked match. `meta` carries the summary columns; `blob` is the gzipped
 // input-log (a Buffer). `participants` is the list of real (non-bot) user ids in the match, used to
 // populate the side table so a user's replays are listable without touching the blob.
+addColumnIfMissing("match_replays", "standings", "TEXT");   // the series standings as JSON (see replay.summarizeStandings)
 function saveReplay(meta, blob, participants) {
 	try {
 		var info = db.prepare(
-			"INSERT INTO match_replays (created_at, style, mode, rows, cols, mine_count, game_count, winner_id, players, format, raw_bytes, data) " +
-			"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+			"INSERT INTO match_replays (created_at, style, mode, rows, cols, mine_count, game_count, winner_id, players, format, raw_bytes, data, standings) " +
+			"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 		).run(
 			meta.createdAt || Date.now(), meta.style || null, meta.mode || null,
 			meta.rows, meta.cols, meta.mineCount, meta.gameCount,
 			meta.winnerId || null, meta.players ? JSON.stringify(meta.players) : null,
-			meta.format || 1, meta.rawBytes || blob.length, blob
+			meta.format || 1, meta.rawBytes || blob.length, blob,
+			meta.standings ? JSON.stringify(meta.standings) : null
 		);
 		var id = info.lastInsertRowid;
 		if (participants && participants.length) {

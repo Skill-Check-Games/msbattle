@@ -232,6 +232,18 @@ function persistPayload(payload) {
 	}
 }
 
+// The series standings as the replay stores them: one entry per player in finishing order, by user id
+// where there is one (a player, or a pool bot's profile), else by name.
+function summarizeStandings(standings) {
+	return (standings || []).map(function(s) {
+		return {
+			name: s.name || "Anonymous", userId: s.userId || appState.botUserIds[s.id] || (appState.accounts[s.id] && appState.accounts[s.id].userId) || null,
+			rank: s.rank || null, progress: typeof s.progress === "number" ? Math.round(s.progress * 1000) / 1000 : null, finishMs: s.finishMs || s.clearMs || null,
+			rating: typeof s.rating === "number" ? s.rating : null, ratingDelta: typeof s.ratingDelta === "number" ? s.ratingDelta : null, score: typeof s.score === "number" ? s.score : null
+		};
+	});
+}
+
 // In-process convenience (build then persist immediately) — kept for anything that still wants the
 // old one-call shape; results.js now calls buildPayload/persistPayload separately so the payload can
 // travel over the wire in between on a split deploy.
@@ -240,6 +252,7 @@ function finishMatch(room, seriesStandings) {
 }
 
 module.exports = {
+	summarizeStandings: summarizeStandings,
 	shouldCapture: shouldCapture,
 	startMatch: startMatch,
 	startRound: startRound,

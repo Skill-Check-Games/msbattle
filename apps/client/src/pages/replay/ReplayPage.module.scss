@@ -1,26 +1,85 @@
-.back { display: inline-block; color: var(--accent-hover); text-decoration: none; font-weight: 600; margin-bottom: 0.75rem; &:hover { text-decoration: underline; } }
+// The replay page: a broadcast of one round. Top bar, then [standings rail | stage | the match's opponent
+// panel], then the dock with the controls and the race timeline. Full width (body.replay-wide, base.scss).
+.page { display: flex; flex-direction: column; gap: 0.75rem; min-width: 0; }
+.back { display: inline-block; color: var(--accent-hover); text-decoration: none; font-weight: 600; white-space: nowrap; &:hover { text-decoration: underline; } }
 .status { color: var(--muted); padding: 2rem 0; }
-.topbar { display: flex; align-items: baseline; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap; .back { margin: 0; } }
-.title { font-weight: 700; font-size: 1.25rem; }
-.when { color: var(--muted); font-size: 0.82rem; margin-left: auto; }
-.rounds { display: flex; gap: 0.4rem; margin-bottom: 1rem; flex-wrap: wrap; }
-.roundTab { background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); padding: 0.35rem 0.8rem; border-radius: 5px; font-weight: 600; font-size: 0.85rem; &:hover { color: var(--text); } }
-.active { background: var(--accent); border-color: var(--accent); color: #fff; }
-.board { display: flex; flex-direction: column; gap: 0.4rem; align-items: center; }
-.stage { display: flex; justify-content: center; margin-bottom: 1rem; }
-.stageBoard .label { font-size: 1rem; }
-.strip { display: flex; gap: 0.9rem; flex-wrap: wrap; justify-content: center; margin-bottom: 1.25rem; }
-.thumb { cursor: pointer; padding: 0.4rem; border-radius: 6px; border: 1px solid transparent; opacity: 0.72; transition: opacity 0.12s, border-color 0.12s, background 0.12s; .label { font-size: 0.78rem; } &:hover { opacity: 1; border-color: var(--border); background: rgba(255, 255, 255, 0.03); } }
-.focused { opacity: 1; border-color: var(--accent); background: rgba(99, 102, 241, 0.1); cursor: default; }
-.label { display: flex; align-items: center; gap: 0.4rem; font-weight: 600; font-size: 0.9rem; }
-.canvas { border-radius: 5px; max-width: 100%; }
-.controls { display: flex; align-items: center; gap: 0.9rem; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 0.7rem 1rem; }
-.play { background: var(--accent); border: 0; color: #fff; font-weight: 700; padding: 0.45rem 1rem; border-radius: 5px; min-width: 6.5rem; &:hover { background: var(--accent-hover); } }
-.slider { flex: 1; min-width: 180px; accent-color: var(--accent); cursor: pointer; }
-.time { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 0.85rem; min-width: 5.5rem; text-align: center; }
-.speeds { display: flex; gap: 0.3rem; }
-.speed { background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); padding: 0.3rem 0.55rem; border-radius: 5px; font-weight: 600; font-size: 0.8rem; }
-.speed.active { background: var(--accent); border-color: var(--accent); color: #fff; }
-
-// A player's name links to their profile (players and pool bots alike).
+.spacer { flex: 1 1 auto; }
 .playerLink { color: inherit; text-decoration: none; &:hover { color: var(--accent-hover); text-decoration: underline; } }
+.kicker { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+
+// Top bar: back, the match, the round tabs, copy link.
+.topbar { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; min-height: 46px; }
+.titleBlock { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.title { font-family: var(--font-display); font-weight: 700; font-size: 1.2rem; line-height: 1.1; }
+.sub { color: var(--muted); font-size: 0.8rem; }
+.rounds { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+.roundTab { background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); padding: 0.35rem 0.75rem; border-radius: 5px; font-weight: 600; font-size: 0.82rem; &:hover { color: var(--text); } }
+.active { background: rgba(99, 102, 241, 0.18); border-color: var(--accent); color: var(--text); }
+.copy { background: var(--surface-2); border: 1px solid var(--border); color: var(--text); padding: 0.45rem 0.8rem; border-radius: 6px; font-weight: 600; font-size: 0.85rem; min-width: 6.2rem; &:hover { border-color: var(--accent); } }
+
+// The three columns. The rail and the players column are fixed widths (the page sizes the boards to the window,
+// ReplayPage.tsx layoutFor); the stage takes the rest.
+.body { display: grid; grid-template-columns: var(--rail-w, 300px) minmax(0, 1fr) var(--players-w, 300px); gap: 16px; align-items: start; min-width: 0; }
+.rail { display: flex; flex-direction: column; gap: 0.6rem; min-width: 0; }
+.railHead { display: flex; align-items: baseline; justify-content: space-between; min-height: 1.1rem; }
+.stage { display: flex; flex-direction: column; align-items: center; gap: 0.6rem; min-width: 0; }
+.stageHead { display: flex; align-items: center; gap: 0.7rem; max-width: 100%; min-height: 48px; }
+.stageWho { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.stageName { display: inline-flex; align-items: center; gap: 0.4rem; font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stageNote { color: var(--muted); font-size: 0.78rem; white-space: nowrap; }
+.stageStat { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+.stagePct { font-family: var(--font-display); font-weight: 700; font-size: 1.5rem; line-height: 1; font-variant-numeric: tabular-nums; color: var(--text); min-width: 3.2rem; text-align: right; }
+.pctDone { color: var(--energy-win); }
+.pctHit { color: var(--danger); }
+// The stage board wears the arena's card: a border that takes the colour where it says something (cleared, a mine hit).
+.stageCard { padding: 10px; border-radius: 10px; background: var(--surface); border: 1px solid var(--border); transition: border-color 0.25s ease, box-shadow 0.25s ease; max-width: 100%; }
+.stageDone { border-color: var(--energy-win); box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.35); }
+.stageHit { border-color: var(--danger); box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.35); }
+.canvas { display: block; border-radius: 5px; max-width: 100%; }
+.players { display: flex; flex-direction: column; min-width: 0; }
+.cardGrid { display: grid; gap: 10px; width: 100%; }
+.cardCanvas { display: block; border-radius: 4px; max-width: 100%; }
+
+// The final result under the live standings: place, name, series points, the rating change.
+.finals { display: flex; flex-direction: column; gap: 0.4rem; margin-top: 0.4rem; padding-top: 0.7rem; border-top: 1px solid var(--border); }
+.finalList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.2rem; }
+.finalRow { display: grid; grid-template-columns: 2.4rem minmax(0, 1fr) auto auto; gap: 0.5rem; align-items: center; font-size: 0.85rem; padding: 0.25rem 0.4rem; border-radius: 5px; &:hover { background: rgba(255, 255, 255, 0.03); } }
+.finalRank { font-family: var(--font-display); font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+.gold { color: var(--energy-gold); }
+.finalName { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+.finalScore { color: var(--muted); font-size: 0.78rem; font-variant-numeric: tabular-nums; }
+.finalDelta { font-weight: 700; font-variant-numeric: tabular-nums; min-width: 2.4rem; text-align: right; color: var(--muted); }
+.up { color: var(--energy-win); }
+.down { color: var(--danger); }
+.winnerName { font-weight: 700; }
+
+// The dock: controls over the race timeline.
+.dock { display: flex; flex-direction: column; gap: 0.5rem; }
+.controls { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; min-height: 40px; }
+.play { width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--accent); color: #fff; font-size: 0.9rem; display: grid; place-items: center; &:hover { background: var(--accent-hover); } }
+.time { font-family: var(--font-display); font-weight: 700; font-size: 1rem; font-variant-numeric: tabular-nums; min-width: 6.4rem; }
+.speeds { display: flex; gap: 0.3rem; }
+.speed { background: var(--surface); border: 1px solid var(--border); color: var(--muted); padding: 0.3rem 0.6rem; border-radius: 5px; font-weight: 600; font-size: 0.8rem; min-width: 2.9rem; &:hover { color: var(--text); } }
+.speed.active { background: rgba(99, 102, 241, 0.18); border-color: var(--accent); color: var(--text); }
+.legend { display: flex; gap: 0.9rem; font-size: 0.75rem; color: var(--muted); flex-wrap: wrap; > span { display: inline-flex; align-items: center; gap: 0.35rem; } }
+.legLine { display: inline-block; width: 12px; height: 2px; background: var(--text); }
+.legDot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #fb7185; }
+.legFlag { display: inline-block; width: 8px; height: 8px; background: var(--energy-win); }
+.keys { opacity: 0.8; }
+.timeline { position: relative; height: 96px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); overflow: hidden; cursor: ew-resize; touch-action: none; user-select: none; }
+.svg { display: block; }
+.axis { stroke: var(--border); }
+.axisFaint { stroke: var(--border); stroke-opacity: 0.5; stroke-dasharray: 3 5; }
+.track { opacity: 0.98; }
+.trackDim { opacity: 0.45; }
+.hitDot { fill: #fb7185; stroke: var(--bg, #0b1020); stroke-width: 1.5; }
+.playhead { stroke: var(--text); stroke-width: 2; }
+.playheadCap { fill: var(--text); }
+.tlLabels { position: absolute; inset: 0; pointer-events: none; }
+.tlLabel { position: absolute; right: 8px; transform: translateY(-50%); pointer-events: auto; background: rgba(11, 16, 32, 0.8); border: 1px solid transparent; border-radius: 4px; padding: 0 5px; font-size: 0.68rem; font-weight: 700; line-height: 1.5; max-width: 9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; opacity: 0.7; &:hover { opacity: 1; } }
+.tlLabelFocus { opacity: 1; border-color: currentColor; }
+.tlStart { position: absolute; left: 8px; top: 4px; font-size: 0.68rem; color: var(--muted); pointer-events: none; }
+.tlOpen { position: absolute; left: 8px; bottom: 10px; font-size: 0.68rem; color: var(--muted); pointer-events: none; }
+
+// Narrow windows: the columns stack (stage, then the boards, then the standings), the boards two to a row.
+.bodyStacked { grid-template-columns: minmax(0, 1fr); .stage { order: 0; } .players { order: 1; } .rail { order: 2; } }

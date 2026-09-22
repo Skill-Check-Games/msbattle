@@ -134,3 +134,7 @@
 	.place2 { color: #e2e8f0; }
 	.place3 { color: #f0b486; }
 }
+
+// The replay's rail: the row on the stage is outlined in the accent; rows are buttons to the stage.
+.focusedRow { outline: 1px solid var(--accent); outline-offset: -1px; }
+.clickableRow { cursor: pointer; &:hover { background: rgba(255, 255, 255, 0.05); } }

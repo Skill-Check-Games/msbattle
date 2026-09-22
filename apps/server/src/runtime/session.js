@@ -375,6 +375,7 @@ function registerSocketHandlers(socket, playerID) {
 			id: id, createdAt: row.created_at, style: row.style, mode: row.mode,
 			// Strip any legacy `bot` field — whether an opponent was a bot is hidden information.
 			winnerId: row.winner_id, players: row.players ? JSON.parse(row.players).map(function(p) { delete p.bot; return p; }) : [],
+			standings: row.standings ? JSON.parse(row.standings) : null,   // the final standings (newer replays only)
 			data: raw // Buffer → socket.io sends as binary; arrives as ArrayBuffer on the client
 		});
 	});

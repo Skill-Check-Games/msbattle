@@ -15,6 +15,9 @@
 .finished { --side: var(--energy-win, #22c55e); }
 .hit { --side: var(--danger); }
 .waiting { border-color: var(--border); }
+// The replay's panel: the card on the stage is outlined in the accent; every card is a button to the stage.
+.focusedCard { border-color: var(--accent) !important; box-shadow: 0 0 0 1px var(--accent); }
+.clickable { cursor: pointer; &:hover { background: rgba(255, 255, 255, 0.05); } }
 .head { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; grid-template-areas: "avatar name pct" "avatar bar bar"; column-gap: 0.5rem; row-gap: 0.3rem; align-items: center; min-width: 0; }
 // A finished player's place, in the percentage's slot, wears the podium colours.
 .place1 { color: var(--energy-gold); }

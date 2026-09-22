@@ -85,3 +85,41 @@ export function stateAt(model: RoundModel, events: ReplayEvent[], T: number): { 
 export function roundDuration(round: ReplayRound): number {
 	let max = 0; for (const t of round.tracks) if (t.length) max = Math.max(max, t[t.length - 1].ct); return max;
 }
+
+// One player's whole round as a timeline: after every event, how much of the board they had cleared and how
+// many mines they had hit, plus when they finished. The race chart draws it and the standings read it at the
+// playhead. Simulated once per player per round; stateAt still re-simulates the board itself for drawing.
+export interface TrackPoint { ct: number; progress: number; hits: number; }
+export interface TrackTimeline { points: TrackPoint[]; finishMs: number | null; hits: number; hitTimes: number[]; totalSafe: number; }
+export function trackTimeline(model: RoundModel, events: ReplayEvent[]): TrackTimeline {
+	const s = model.freshState(), { R, C, mines, clue } = model;
+	let totalSafe = 0, safeOpen = 0;
+	for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) { if (!mines[r][c]) { totalSafe++; if (s[r][c] === KNOWN) safeOpen++; } }
+	const dfs = (r: number, c: number) => BoardLogic.cascadeReveal(r, c, R, C,
+		(rr: number, cc: number) => s[rr][cc] === UNKNOWN || s[rr][cc] === FLAGGED,
+		(rr: number, cc: number) => { if (s[rr][cc] !== KNOWN && !mines[rr][cc]) safeOpen++; s[rr][cc] = KNOWN; return false; },
+		(rr: number, cc: number) => mines[rr][cc] ? -1 : clue[rr][cc]);
+	const chord = (r: number, c: number) => {
+		const ctx = BoardLogic.chordContext(r, c, R, C, (rr: number, cc: number) => s[rr][cc] === FLAGGED, (rr: number, cc: number) => s[rr][cc] === KNOWN && mines[rr][cc], (rr: number, cc: number) => s[rr][cc] === UNKNOWN);
+		if (ctx.flagCount === clue[r][c]) for (const cell of ctx.covered) { if (mines[cell[0]][cell[1]] && s[cell[0]][cell[1]] === UNKNOWN) hitAt(); dfs(cell[0], cell[1]); }
+	};
+	let hits = 0; const hitTimes: number[] = []; let finishMs: number | null = null; let curCt = 0;
+	const hitAt = () => { hits++; hitTimes.push(curCt); };
+	const points: TrackPoint[] = [{ ct: 0, progress: totalSafe ? safeOpen / totalSafe : 0, hits: 0 }];
+	for (const ev of events) {
+		curCt = ev.ct;
+		const r = (ev.cell / C) | 0, c = ev.cell % C;
+		if (ev.button === 0) { if (s[r][c] === UNKNOWN) { if (mines[r][c]) hitAt(); dfs(r, c); } else if (s[r][c] === KNOWN) chord(r, c); }
+		else { if (s[r][c] === UNKNOWN) s[r][c] = FLAGGED; else if (s[r][c] === FLAGGED) s[r][c] = UNKNOWN; else if (s[r][c] === KNOWN) chord(r, c); }
+		const progress = totalSafe ? safeOpen / totalSafe : 0;
+		points.push({ ct: ev.ct, progress, hits });
+		if (finishMs == null && safeOpen >= totalSafe) finishMs = ev.ct;
+	}
+	return { points, finishMs, hits, hitTimes, totalSafe };
+}
+// The last point at or before T (binary search), so the standings read the timeline in O(log n) per frame.
+export function pointAt(tl: TrackTimeline, T: number): TrackPoint {
+	const pts = tl.points; let lo = 0, hi = pts.length - 1;
+	while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (pts[mid].ct <= T) lo = mid; else hi = mid - 1; }
+	return pts[lo];
+}
