@@ -8,7 +8,9 @@ var BoardLogic = require("core/src/common/BoardLogic");
 // Bumped any time the puzzle scoring formula changes. Rows stored under an
 // older version are re-classified on startup so their score and rating
 // match what a freshly-generated puzzle would get.
-var CURRENT_SCORING_VERSION = 22;
+// 23 (2026-09-22): the guided case split (CSPSolver.findCaseSplitStep): a hypothesis is only tried where an
+// adjacent clue makes it immediately productive. Moves a handful of tier-5 scores by under a point.
+var CURRENT_SCORING_VERSION = 23;
 
 // Dev: ranked.db lives at the project root (gitignored). Prod: RANKED_DB is
 // set to /data/ranked.db on the fly volume.

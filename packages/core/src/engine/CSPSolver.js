@@ -721,18 +721,33 @@ function propagateBranchIncremental(board, state, opts, baseKeys, changedCells) 
 	return { contradiction: null, moves: trace, maxC: maxC };
 }
 
-// SOUND 1-cell case split. For each frontier cell, try both hypotheses ("safe" = mark SAFE, "mine" = flag)
-// and propagate each with propagateBranchSound (visible clues only — no peeking). Conclusions:
+// SOUND 1-cell case split, guided (2026-09-22). A hypothesis on a frontier cell is only tried when some
+// adjacent clue turns it into an immediate trivial conclusion, the way a player picks a guess worth testing:
+// "mine" needs a clue one mine short (its other covered cells then become safe), "safe" needs a clue one free
+// cell short (its other covered cells then become mines). Each allowed hypothesis is propagated with
+// propagateBranchSound / propagateBranchIncremental (visible clues only — no peeking). Conclusions:
 //   - one branch contradicts  → the split cell takes the other value, plus everything that branch forced;
 //   - both branches survive    → any cell determined the SAME way in BOTH is forced regardless of the split.
 // Because neither branch ever reads a deduced cell's clue, every conclusion is forced by public information
-// alone. Cheaper/broader than full enumeration on large frontiers, where a single hypothesis still cracks a
-// contradiction that exhaustive enumeration can't reach within ENUM_CAP.
+// alone. A hypothesis that was not tried counts as surviving with no conclusions, so a cell with only one
+// allowed hypothesis can be decided by its contradiction and nothing more. Cheaper/broader than full
+// enumeration on large frontiers, where a single hypothesis still cracks a contradiction that exhaustive
+// enumeration can't reach within ENUM_CAP.
 function findCaseSplitStep(board, state, opts) {
 	var rows = board.length, cols = board[0].length;
 	// opts.baseStore: the caller's clue list, only when its search ran to exhaustion (every live clue paired with
 	// every other, none trivial): the branches then start from it instead of rebuilding the closure each.
 	var baseKeys = (opts && opts.baseStore) || null;
+	function allowedHypotheses(pr, pc) {
+		var mine = false, safe = false;
+		BoardLogic.forEachNeighbour(pr, pc, rows, cols, function(cr, cc) {
+			if (state[cr][cc] !== KNOWN || board[cr][cc] <= 0) return;
+			var k = constraintAt(board, state, cr, cc);
+			if (k.need === 1) mine = true;
+			if (k.need === k.covered.length - 1) safe = true;
+		});
+		return { mine: mine, safe: safe };
+	}
 	var frontierMap = {};
 	for (var r = 0; r < rows; r++) {
 		for (var c = 0; c < cols; c++) {
@@ -749,14 +764,21 @@ function findCaseSplitStep(board, state, opts) {
 	for (var fi = 0; fi < frontier.length; fi++) {
 		var pr = frontier[fi][0], pc = frontier[fi][1];
 
-		var sA = snapshotState(state);
-		sA[pr][pc] = SAFE;                 // hypothesis: split cell is safe (no reveal, no clue read)
-		var resA = baseKeys ? propagateBranchIncremental(board, sA, opts, baseKeys, [[pr, pc]]) : propagateBranchSound(board, sA, opts);
-
-		var sB = snapshotState(state);
-		sB[pr][pc] = FLAGGED;              // hypothesis: split cell is a mine
-		var resB = baseKeys ? propagateBranchIncremental(board, sB, opts, baseKeys, [[pr, pc]]) : propagateBranchSound(board, sB, opts);
-
+		var allowed = allowedHypotheses(pr, pc);
+		if (!allowed.mine && !allowed.safe) continue;
+		var sA = null, resA = null, sB = null, resB = null;
+		if (allowed.safe) {
+			sA = snapshotState(state);
+			sA[pr][pc] = SAFE;                 // hypothesis: split cell is safe (no reveal, no clue read)
+			resA = baseKeys ? propagateBranchIncremental(board, sA, opts, baseKeys, [[pr, pc]]) : propagateBranchSound(board, sA, opts);
+		}
+		if (allowed.mine) {
+			sB = snapshotState(state);
+			sB[pr][pc] = FLAGGED;              // hypothesis: split cell is a mine
+			resB = baseKeys ? propagateBranchIncremental(board, sB, opts, baseKeys, [[pr, pc]]) : propagateBranchSound(board, sB, opts);
+		}
+		if (!resA) resA = { contradiction: null, moves: [], maxC: 0, skipped: true };
+		if (!resB) resB = { contradiction: null, moves: [], maxC: 0, skipped: true };
 		var okA = !resA.contradiction, okB = !resB.contradiction;
 		if (!okA && !okB) continue; // both contradict — only on an already-inconsistent board
 
@@ -770,11 +792,11 @@ function findCaseSplitStep(board, state, opts) {
 		}
 		if (!okA && okB) {            // "safe" impossible → split cell is a mine
 			flagged.push([pr, pc]);
-			gather(sB, function(r2, c2) { return sB[r2][c2] === SAFE; }, function(r2, c2) { return sB[r2][c2] === FLAGGED; });
+			if (!resB.skipped) gather(sB, function(r2, c2) { return sB[r2][c2] === SAFE; }, function(r2, c2) { return sB[r2][c2] === FLAGGED; });
 		} else if (!okB && okA) {     // "mine" impossible → split cell is safe
 			revealed.push([pr, pc]);
-			gather(sA, function(r2, c2) { return sA[r2][c2] === SAFE; }, function(r2, c2) { return sA[r2][c2] === FLAGGED; });
-		} else {                      // both consistent → agreement deductions
+			if (!resA.skipped) gather(sA, function(r2, c2) { return sA[r2][c2] === SAFE; }, function(r2, c2) { return sA[r2][c2] === FLAGGED; });
+		} else if (!resA.skipped && !resB.skipped) {   // both consistent → agreement deductions
 			gather(null, function(r2, c2) { return sA[r2][c2] === SAFE && sB[r2][c2] === SAFE; },
 			              function(r2, c2) { return sA[r2][c2] === FLAGGED && sB[r2][c2] === FLAGGED; });
 		}
@@ -790,8 +812,8 @@ function findCaseSplitStep(board, state, opts) {
 				complexity: complexity,
 				yieldCount: yieldCount,
 				branches: {
-					safe: { contradiction: resA.contradiction, moves: resA.moves, maxC: resA.maxC },
-					mine: { contradiction: resB.contradiction, moves: resB.moves, maxC: resB.maxC }
+					safe: { contradiction: resA.contradiction, moves: resA.moves, maxC: resA.maxC, skipped: !!resA.skipped },
+					mine: { contradiction: resB.contradiction, moves: resB.moves, maxC: resB.maxC, skipped: !!resB.skipped }
 				}
 			};
 		}
