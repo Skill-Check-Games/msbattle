@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { getSocket, onSocket } from "../../online/socket";
 import type { Account } from "../../shared/types";
 
-export interface MatchRow { won: number; rating_before: number; rating_after: number; created_at: number; style?: string; placement?: number; players?: number; opponent?: string | null; replay_id?: number | null; }
+export interface MatchOpponent { userId: number | null; name: string; avatar?: string | null; country?: string | null; placement?: number; }
+export interface MatchRow { won: number; rating_before: number; rating_after: number; created_at: number; style?: string; placement?: number; players?: number; opponent?: string | null; opponents?: MatchOpponent[] | null; replay_id?: number | null; }
 
 export function useMatchHistory(account: Account | null): MatchRow[] | null {
 	const [matches, setMatches] = useState<MatchRow[] | null>(null);

@@ -103,6 +103,12 @@ addColumnIfMissing("users", "email", "TEXT");
 // Guests: a real user row (with ratings/stats) that isn't linked to an auth provider yet.
 // provider = "guest", provider_id = a random token. Signing in later upgrades the row in place.
 addColumnIfMissing("users", "is_guest", "INTEGER NOT NULL DEFAULT 0");
+// Ranked pool bots get a persistent users row on first use (runtime/botProfiles.js): is_bot marks it, bot_key
+// is the pool entry's identity key. They are kept off the leaderboard; everything else about them (history,
+// wins, profile page) works like a player's, and nothing sent to clients says which rows are bots.
+addColumnIfMissing("users", "is_bot", "INTEGER NOT NULL DEFAULT 0");
+addColumnIfMissing("users", "bot_key", "TEXT");
+try { db.exec("CREATE INDEX IF NOT EXISTS idx_users_bot_key ON users(bot_key)"); } catch (e) { /* older schema */ }
 // `provider` is the account's ORIGINAL/primary login (never changes once set). `last_provider` is the
 // one most recently signed in with — for accounts linked across providers, the topbar shows this.
 addColumnIfMissing("users", "last_provider", "TEXT");
@@ -229,6 +235,9 @@ db.exec(
 	");" +
 	"CREATE INDEX IF NOT EXISTS idx_match_user ON match_history(user_id, created_at);"
 );
+// Everyone else in the match, as JSON [{userId, name, avatar, country, placement}], so a match list can link
+// each opponent to their profile (the 1v1 `opponent` name stays for older rows).
+addColumnIfMissing("match_history", "opponents", "TEXT");
 // Ranked repair (idempotent, cheap; the wipe that made it necessary is described above the ranked_reset_v2 column): where the wipe left `played` below the recorded matches, or a style's rating
 // at 0 although matches were recorded for it, put back the counts and the latest recorded rating.
 try {
@@ -549,6 +558,18 @@ function upsertUser(provider, providerId, providerName, avatarUrl, email) {
 
 // Create a fresh guest user: a normal row (default rating/stats) flagged is_guest, not yet auth-linked.
 // The display name is a random "GuestNNNNN".
+// ---- ranked pool bots as users ----
+function getBotUserByKey(key) { return db.prepare("SELECT * FROM users WHERE bot_key = ? AND is_bot = 1").get(key) || null; }
+function botNames() { return db.prepare("SELECT name FROM users WHERE is_bot = 1").all().map(function(r) { return r.name; }); }
+function ensureBotUser(key, identity) {
+	db.prepare(
+		"INSERT OR IGNORE INTO users (provider, provider_id, name, display_name, country, avatar_color, is_bot, bot_key, is_guest, created_at, " +
+		"rating_sprint, rating_standard, rating_tournament, rating_territory, puzzle_rating, ranked_reset_v2) " +
+		"VALUES ('bot', ?, ?, ?, ?, ?, 1, ?, 0, ?, ?, ?, 0, 0, ?, 1)"
+	).run(key, identity.name, identity.name, identity.country || null, identity.avatar || null, key, Date.now(), identity.ratingSprint || 0, identity.ratingStandard || 0, PUZZLE_START_RATING);
+	return getBotUserByKey(key);
+}
+
 function createGuest() {
 	var name = "Guest" + (10000 + Math.floor(Math.random() * 90000));
 	var providerId = crypto.randomBytes(12).toString("hex");
@@ -754,7 +775,7 @@ function topPlayers(limit, mode) {
 	var ratingExpr = col || "MAX(rating_sprint, rating_standard, rating_tournament, rating_territory)";
 	return db.prepare(
 		"SELECT id, COALESCE(display_name, name) AS name, " + ratingExpr + " AS rating, " +
-		"wins, played, avatar_color, country FROM users WHERE is_guest = 0 ORDER BY rating DESC LIMIT ?"
+		"wins, played, avatar_color, country FROM users WHERE is_guest = 0 AND is_bot = 0 ORDER BY rating DESC LIMIT ?"
 	).all(limit || 20);
 }
 // Cosmetic identity setters (avatar cloth colour + country code). Null clears.
@@ -856,9 +877,9 @@ function bumpMatchStats(m) {
 function recordMatch(m) {
 	try {
 		db.prepare(
-			"INSERT INTO match_history (user_id, style, rating_before, rating_after, placement, players, won, opponent, created_at) " +
-			"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"
-		).run(m.userId, m.style, m.ratingBefore, m.ratingAfter, m.placement, m.players, m.won ? 1 : 0, m.opponent || null, Date.now());
+			"INSERT INTO match_history (user_id, style, rating_before, rating_after, placement, players, won, opponent, opponents, created_at) " +
+			"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+		).run(m.userId, m.style, m.ratingBefore, m.ratingAfter, m.placement, m.players, m.won ? 1 : 0, m.opponent || null, m.opponents ? JSON.stringify(m.opponents) : null, Date.now());
 	} catch (e) { console.error("recordMatch failed", e); }
 	bumpMatchStats(m);
 }
@@ -921,9 +942,14 @@ function playedByStyle(userId, lifetimePlayed) {
 
 function getMatchHistory(userId, limit) {
 	return db.prepare(
-		"SELECT style, rating_before, rating_after, placement, players, won, opponent, created_at, replay_id " +
+		"SELECT style, rating_before, rating_after, placement, players, won, opponent, opponents, created_at, replay_id " +
 		"FROM match_history WHERE user_id = ? ORDER BY created_at DESC LIMIT ?"
-	).all(userId, limit || 50);
+	).all(userId, limit || 50).map(function(r) {
+		var opps = null;
+		if (r.opponents) { try { opps = JSON.parse(r.opponents); } catch (e) { opps = null; } }
+		r.opponents = opps;
+		return r;
+	});
 }
 // Oldest-first rating points across all styles — the client buckets per style for the graph.
 function getRatingHistory(userId, limit) {
@@ -1829,6 +1855,9 @@ module.exports = {
 	clearPuzzles: clearPuzzles,
 	getPuzzleById: getPuzzleById,
 	getPuzzleByKey: getPuzzleByKey,
+	getBotUserByKey: getBotUserByKey,
+	botNames: botNames,
+	ensureBotUser: ensureBotUser,
 	listBuilderPuzzles: listBuilderPuzzles,
 	getBuilderPuzzle: getBuilderPuzzle,
 	insertBuilderPuzzle: insertBuilderPuzzle,

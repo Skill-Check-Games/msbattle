@@ -54,7 +54,7 @@ function buildMatchConfig(room) {
 		var bot = gameUtil.isBot(pid);
 		var acc = appState.accounts[pid];
 		var rating = bot ? (appState.botRating[pid] || null) : null;
-		var userId = null, played = 0;
+		var userId = bot ? (appState.botUserIds[pid] || null) : null, played = 0;
 		if (!bot && acc) {
 			var u = db.getUserById(acc.userId);
 			if (u) { rating = elo.readUserRating(u, style); userId = acc.userId; played = u.played; }

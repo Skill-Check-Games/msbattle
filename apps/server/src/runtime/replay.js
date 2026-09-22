@@ -33,7 +33,7 @@ function describePlayer(pid) {
 		pid: pid,
 		name: appState.names[pid] || "Anonymous",
 		isBot: !!gameUtil.isBot(pid),
-		userId: (acc && acc.userId) || null,
+		userId: (acc && acc.userId) || appState.botUserIds[pid] || null,   // a pool bot: its persistent profile
 		skin: appState.skins[pid] || null, // board skin active at match time (null → default/classic)
 		avatar: appState.avatars[pid] || null, // avatar cloth colour
 		country: appState.countries[pid] || null // ISO country code

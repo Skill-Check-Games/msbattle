@@ -21,3 +21,6 @@
 .speeds { display: flex; gap: 0.3rem; }
 .speed { background: var(--surface-2); border: 1px solid var(--border); color: var(--muted); padding: 0.3rem 0.55rem; border-radius: 5px; font-weight: 600; font-size: 0.8rem; }
 .speed.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+// A player's name links to their profile (players and pool bots alike).
+.playerLink { color: inherit; text-decoration: none; &:hover { color: var(--accent-hover); text-decoration: underline; } }

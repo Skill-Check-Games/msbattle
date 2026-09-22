@@ -1,6 +1,6 @@
 // Profile: Overview (identity, lifetime stats, per-mode ranked ladders, Puzzle Ladder), Matches
 // (rating history chart + recent games with replay links) and Achievements. With ?id=<userId> it is
-// someone else's read-only public profile (Overview only).
+// someone else's read-only public profile (Overview plus their recent games; pool bots have profiles too).
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { getSocket, onSocket } from "../../online/socket";
@@ -89,6 +89,12 @@ function PublicProfile({ userId }: { userId: string }) {
 							<Stat label="Wins" value={String(profile.wins || 0)} />
 							<Stat label="Win rate" value={(profile.played ? Math.round((profile.wins || 0) / profile.played * 100) : 0) + "%"} />
 						</div>
+						{Array.isArray(profile.recent) && profile.recent.length > 0 && (
+							<>
+								<h3 className={styles.sectionTitle}>Recent games</h3>
+								<div className={styles.games}>{profile.recent.slice(0, 20).map((m: MatchRow, i: number) => <GameRow key={i} m={m} />)}</div>
+							</>
+						)}
 						<Ladders ratingStandard={profile.ratingStandard || 0} ratingSprint={profile.ratingSprint || 0} puzzleRating={profile.puzzleRating || 0} puzzlesAttemptedGate={profile.puzzlesAttempted || 0} puzzlesSolved={profile.puzzlesSolved || 0} puzzlesAttempted={profile.puzzlesAttempted || 0} streakBest={profile.streakBest || 0} stormBest={profile.stormBest || 0} />
 					</>
 				)}
@@ -162,19 +168,25 @@ function Matches({ history }: { history: History | null }) {
 		</>
 	);
 }
+// The opponents, each a link to their profile when they have one (players and pool bots alike); a match
+// with more than one opponent lists them in finishing order.
+function Opponents({ m }: { m: MatchRow }) {
+	const list = m.opponents && m.opponents.length ? m.opponents.slice().sort((a, b) => (a.placement || 0) - (b.placement || 0)) : null;
+	if (!list) return <>{m.opponent ? "vs " + m.opponent : (m.players || 0) > 2 ? m.players + " players" : ""}</>;
+	return <>vs {list.map((o, i) => <span key={i}>{i > 0 ? ", " : ""}{o.userId ? <Link to={"/profile?id=" + o.userId} className={styles.oppLink} onClick={e => e.stopPropagation()}>{o.name}</Link> : o.name}</span>)}</>;
+}
 function GameRow({ m }: { m: MatchRow }) {
 	const delta = (m.rating_after || 0) - (m.rating_before || 0);
-	const inner = (
-		<>
+	return (
+		<div className={`${styles.gameRow} ${m.replay_id ? styles.gameRowReplay : ""}`}>
 			<span className={styles.chip}>{STYLE_LABELS[m.style || ""] || m.style}</span>
 			<span className={`${styles.result} ${m.won ? styles.won : styles.lost}`}>{(m.players || 2) <= 2 ? (m.won ? "Won" : "Lost") : ordinal(m.placement || 0) + " of " + m.players}</span>
-			<span className={styles.opp}>{m.opponent ? "vs " + m.opponent : (m.players || 0) > 2 ? m.players + " players" : ""}</span>
+			<span className={styles.opp}><Opponents m={m} /></span>
 			<span className={`${styles.delta} ${delta >= 0 ? styles.pos : styles.neg}`}>{(delta >= 0 ? "+" : "") + delta}</span>
 			<span className={styles.time}>{relTime(m.created_at)}</span>
-			<span className={styles.watch}>{m.replay_id ? "▶ Watch" : ""}</span>
-		</>
+			<span className={styles.watch}>{m.replay_id ? <Link to={"/replay?id=" + m.replay_id} className={styles.watchLink}>▶ Watch</Link> : ""}</span>
+		</div>
 	);
-	return m.replay_id ? <Link to={"/replay?id=" + m.replay_id} className={`${styles.gameRow} ${styles.gameRowReplay}`}>{inner}</Link> : <div className={styles.gameRow}>{inner}</div>;
 }
 // Responsive SVG line chart with reference lines at tier boundaries.
 function RatingChart({ points }: { points: Array<{ t: number; r: number }> }) {

@@ -52,7 +52,7 @@ function buildMatchFromConfig(spec) {
 	});
 	(spec.bots || []).forEach(function(b) {
 		if (gameUtil.botCount(room) >= (spec.maxBots || Infinity)) return;
-		_addBotToRoom(room, b.config, b.name, b.country || null, b.avatar || null);
+		_addBotToRoom(room, b.config, b.name, b.country || null, b.avatar || null, b.userId || null);
 	});
 	return room;
 }

@@ -90,7 +90,8 @@ function buildPublicProfilePayload(user) {
 		puzzlesAttempted: user.puzzles_attempted,
 		streakBest: user.streak_best,
 		stormBest: user.storm_best,
-		soloBests: db.getSoloBests(user.id)
+		soloBests: db.getSoloBests(user.id),
+		recent: db.getMatchHistory(user.id, 20)   // the recent games list, opponents linked to their profiles
 	};
 }
 

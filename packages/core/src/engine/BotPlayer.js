@@ -488,6 +488,12 @@ exports.computeMoveDelay = computeMoveDelay;
 exports.pickBotName = pickBotName;
 exports.pickBotCountry = pickBotCountry;
 exports.pickBotAvatar = pickBotAvatar;
+// A pool bot's identity key: its AI knobs, which are what make it the same opponent from one match to the
+// next (the server keeps a persistent profile per key, see runtime/botProfiles.js).
+function botKeyOf(config) {
+	return "pool:" + [config.speedMs, config.difficultyMs, config.distanceMult, config.maxDifficulty, config.mistakeRate, config.chordRate].map(function(v) { return v == null ? "" : String(v); }).join(":");
+}
+exports.botKeyOf = botKeyOf;
 exports.pickBotSkin = pickBotSkin;
 exports.DIFFICULTIES = DIFFICULTIES;
 exports.DEFAULT_DIFFICULTY = DEFAULT_DIFFICULTY;

@@ -11,6 +11,7 @@
 var appState = require("./appState");
 var db = require("../db");
 var botPlayer = require("core/src/engine/BotPlayer");
+var botProfiles = require("./botProfiles");
 var roomCreator = require("core/src/engine/RoomCreator");
 var gameUtil = require("./gameUtil");
 var lifecycle = require("./lifecycle");
@@ -170,11 +171,16 @@ function scheduleBotArrival(mode) {
 		var batch = Math.min(slotsLeft, pickBotBatchSize());
 		for (var b = 0; b < batch; b++) {
 			var taken = pendingBotsLists[mode].map(function(p) { return p.name; });
+			// A pool bot plays under its persistent profile (botProfiles.js): the same name, flag and avatar every
+			// time, created on first use; only a pool-less fallback would get a throwaway identity.
+			var cfg = botPlayer.pickBotFromPool(rankedTargetElo(mode), 0, RANKED_MODES[mode].ratingKey);
+			var prof = botProfiles.ensure(cfg);
 			pendingBotsLists[mode].push({
-				name: botPlayer.pickBotName(taken),
-				country: botPlayer.pickBotCountry(),
-				avatar: botPlayer.pickBotAvatar(),
-				config: botPlayer.pickBotFromPool(rankedTargetElo(mode), 0, RANKED_MODES[mode].ratingKey)
+				name: prof ? prof.name : botPlayer.pickBotName(taken),
+				country: prof ? prof.country : botPlayer.pickBotCountry(),
+				avatar: prof ? prof.avatar : botPlayer.pickBotAvatar(),
+				userId: prof ? prof.id : null,
+				config: cfg
 			});
 		}
 		if (rankedCount(mode) >= modeSize(mode)) {
@@ -242,7 +248,7 @@ function formRankedMatch(mode) {
 	var seats = matchSize - humans.length;
 	var botSpecs = [];
 	for (var b = 0; b < queuedBots.length && botSpecs.length < seats && botSpecs.length < MAX_BOTS_PER_ROOM; b++) {
-		botSpecs.push({ config: queuedBots[b].config, name: queuedBots[b].name, country: queuedBots[b].country || null, avatar: queuedBots[b].avatar || null });
+		botSpecs.push({ config: queuedBots[b].config, name: queuedBots[b].name, country: queuedBots[b].country || null, avatar: queuedBots[b].avatar || null, userId: queuedBots[b].userId || null });
 	}
 	if (!modeDef.noBots && botSpecs.length < seats) {
 		var sumElo = 0, eloCount = 0;
@@ -253,7 +259,8 @@ function formRankedMatch(mode) {
 		}
 		var targetElo = eloCount ? Math.round(sumElo / eloCount) : 1000;
 		while (botSpecs.length < seats && botSpecs.length < MAX_BOTS_PER_ROOM) {
-			botSpecs.push({ config: botPlayer.pickBotFromPool(targetElo), name: null });
+			var fillCfg = botPlayer.pickBotFromPool(targetElo), fillProf = botProfiles.ensure(fillCfg);
+			botSpecs.push({ config: fillCfg, name: fillProf ? fillProf.name : null, country: fillProf ? fillProf.country : null, avatar: fillProf ? fillProf.avatar : null, userId: fillProf ? fillProf.id : null });
 		}
 	}
 

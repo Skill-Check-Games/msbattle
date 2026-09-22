@@ -9,7 +9,18 @@ var appState = require("./appState");
 var gameUtil = require("./gameUtil");
 var botPlayer = require("core/src/engine/BotPlayer");
 
-var accounts = appState.accounts, botRating = appState.botRating;
+var accounts = appState.accounts, botRating = appState.botRating, botUserIds = appState.botUserIds;
+// Everyone else in a match, for the match row: profile id when there is one (a player, or a pool bot's
+// persistent profile), plus what a match list shows.
+function opponentsOf(standings, i, userIdOf) {
+	var out = [];
+	for (var j = 0; j < standings.length; j++) {
+		if (j === i) continue;
+		var s = standings[j];
+		out.push({ userId: userIdOf(s) || null, name: s.name || "Anonymous", avatar: s.avatar || null, country: s.country || null, placement: s.rank });
+	}
+	return out;
+}
 var isBot = gameUtil.isBot;
 
 var RANKED_BOT_RATING, PROVISIONAL_GAMES;
@@ -239,7 +250,7 @@ function applyRankedElo(standings, style) {
 	var parts = standings.map(function(s) {
 		var bot = isBot(s.id);
 		var acc = accounts[s.id];
-		var rating = bot ? (botRating[s.id] || RANKED_BOT_RATING) : RANKED_BOT_RATING, userId = null, played = 0;
+		var rating = bot ? (botRating[s.id] || RANKED_BOT_RATING) : RANKED_BOT_RATING, userId = bot ? (botUserIds[s.id] || null) : null, played = 0;
 		if (!bot && acc) {
 			var u = db.getUserById(acc.userId);
 			if (u) { rating = readUserRating(u, style); userId = acc.userId; played = db.playedByStyle(u.id, u.played || 0)[style]; } // games on THIS ladder
@@ -250,16 +261,21 @@ function applyRankedElo(standings, style) {
 	var n = parts.length;
 	if (n < 2) return;
 	computeRankedElo(parts, style); // pure math — fills delta/newRating/provisional
+	var localUserId = function(s) { return isBot(s.id) ? botUserIds[s.id] : (accounts[s.id] && accounts[s.id].userId); };
 	for (var i = 0; i < n; i++) {
 		var p = parts[i];
-		if (p.bot || !p.userId) continue;
+		if (!p.userId) continue;   // a bot without a profile (casual-room bot): nothing to persist
+		// A pool bot's profile takes the result like a player's: its rating moves with the same delta and its
+		// match is recorded, so its profile shows a real history. (The rating the math used is still its pool
+		// benchmark, read from botRating above; the profile's rating is what it shows the world.)
 		db.updateRating(p.userId, p.newRating, p.rank === 1, style);
 		// Record the match for the profile rating graph + recent-games list. In 1v1 the opponent
 		// is the other standing; bigger lobbies have no single opponent label.
 		db.recordMatch({
 			userId: p.userId, style: style, ratingBefore: p.rating, ratingAfter: p.newRating,
 			placement: p.rank, players: n, won: p.rank === 1,
-			opponent: (n === 2 && standings[1 - i]) ? standings[1 - i].name : null
+			opponent: (n === 2 && standings[1 - i]) ? standings[1 - i].name : null,
+			opponents: opponentsOf(standings, i, localUserId)
 		});
 	}
 	for (var k = 0; k < standings.length; k++) {
@@ -300,29 +316,28 @@ function applyRankedEloFromReport(standings, style) {
 			rating: (typeof s.ratingBefore === "number") ? s.ratingBefore : RANKED_BOT_RATING,
 			progress: s.progress,
 			clearMs: s.clearMs,
-			bot: !s.userId,
+			bot: s.isBot != null ? !!s.isBot : !s.userId,   // older game servers send no flag: then no id means a bot
 			userId: s.userId || null,
 			played: s.played || 0,
-			streak: s.userId ? db.currentWinStreak(s.userId) : 0
+			streak: (s.userId && !s.isBot) ? db.currentWinStreak(s.userId) : 0
 		};
 	});
 	computeRankedElo(parts, style);
+	var wireUserId = function(s) { return s.userId; };
 	for (var i = 0; i < parts.length; i++) {
 		var p = parts[i];
-		if (!p.userId) {   // a bot: the display fields only, nothing persisted (see BOT_SETTLED_PLAYED)
-			standings[i].ratingDelta = p.delta;
-			standings[i].rating = p.newRating;
-			standings[i].provisional = false;
-			continue;
+		if (p.userId) {
+			db.updateRating(p.userId, p.newRating, p.rank === 1, style);
+			db.recordMatch({
+				userId: p.userId, style: style, ratingBefore: p.rating, ratingAfter: p.newRating,
+				placement: p.rank, players: parts.length, won: p.rank === 1,
+				opponent: (parts.length === 2 && standings[1 - i]) ? standings[1 - i].name : null,
+				opponents: opponentsOf(standings, i, wireUserId)
+			});
 		}
-		db.updateRating(p.userId, p.newRating, p.rank === 1, style);
-		db.recordMatch({
-			userId: p.userId, style: style, ratingBefore: p.rating, ratingAfter: p.newRating,
-			placement: p.rank, players: parts.length, won: p.rank === 1,
-			opponent: (parts.length === 2 && standings[1 - i]) ? standings[1 - i].name : null
-		});
 		standings[i].ratingDelta = p.delta;
 		standings[i].rating = p.newRating;
+		if (p.bot) { standings[i].provisional = false; continue; }   // a bot's display fields only (see BOT_SETTLED_PLAYED)
 		standings[i].provisional = p.provisional;
 		standings[i].played = p.played + 1;
 	}
@@ -336,7 +351,7 @@ function applyLeaveFromReport(leaver, others, style) {
 	if (!leaver || leaver.userId == null || !Array.isArray(others) || !others.length) return null;
 	var parts = [{ rank: others.length + 1, rating: (typeof leaver.ratingBefore === "number") ? leaver.ratingBefore : RANKED_BOT_RATING, bot: false, userId: leaver.userId, played: leaver.played || 0, streak: 0 }];
 	others.forEach(function(o, i) {
-		parts.push({ rank: typeof o.rank === "number" ? o.rank : i + 1, rating: (typeof o.ratingBefore === "number") ? o.ratingBefore : RANKED_BOT_RATING, bot: !o.userId, userId: o.userId || null, played: o.played || 0, streak: 0 });
+		parts.push({ rank: typeof o.rank === "number" ? o.rank : i + 1, rating: (typeof o.ratingBefore === "number") ? o.ratingBefore : RANKED_BOT_RATING, bot: o.isBot != null ? !!o.isBot : !o.userId, userId: o.userId || null, played: o.played || 0, streak: 0 });
 	});
 	computeRankedElo(parts, style);
 	var p = parts[0];

@@ -113,7 +113,7 @@ function Player({ rep, winnerId, createdAt, myUserId }: { rep: Replay; winnerId:
 			<div className={`${styles.board} ${stage ? styles.stageBoard : styles.thumb} ${!stage && p === focus ? styles.focused : ""}`} onClick={stage ? undefined : () => setFocus(p)}>
 				<div className={styles.label}>
 					<AvatarChip avatar={pl.avatar || DEFAULT_AVATAR} country={pl.country} px={stage ? 40 : 28} />
-					<span>{pl.name}</span>
+					{pl.userId ? <Link to={"/profile?id=" + pl.userId} className={styles.playerLink} onClick={e => e.stopPropagation()}>{pl.name}</Link> : <span>{pl.name}</span>}
 					{winnerId && pl.userId === winnerId && <span>🏆</span>}
 				</div>
 				<canvas key={`${roundIdx}-${p}-${px}`} ref={el => registerCanvas(p, el, px)} className={styles.canvas} />

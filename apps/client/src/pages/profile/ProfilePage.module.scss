@@ -36,6 +36,8 @@
 .won { color: var(--success); }
 .lost { color: var(--muted); }
 .opp { color: var(--muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.oppLink { color: var(--text); text-decoration: none; font-weight: 600; &:hover { color: var(--accent-hover); text-decoration: underline; } }
+.watchLink { color: inherit; text-decoration: none; &:hover { text-decoration: underline; } }
 .delta { font-weight: 800; font-variant-numeric: tabular-nums; text-align: right; }
 .pos { color: var(--success); }
 .neg { color: var(--danger); }

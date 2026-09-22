@@ -58,6 +58,7 @@ module.exports = {
 	botDistanceMult: {}, // botId -> multiplier on the mouse-travel term
 	botMaxDifficulty: {},// botId -> hardest move (CSP difficulty) the bot can deduce
 	botRating: {},       // botId -> Elo used for ranked rating math
+	botUserIds: {},      // botId -> users.id of the bot's persistent profile (pool bots only, see botProfiles.js)
 	botMistake: {},      // botId -> blunder rate
 	botChord: {},        // botId -> chord rate
 	botTickHandles: {},  // botId -> setTimeout handle

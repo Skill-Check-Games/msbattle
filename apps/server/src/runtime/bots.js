@@ -13,7 +13,7 @@ var gameUtil = require("./gameUtil");
 // Per-bot state (same objects the server holds).
 var bots = appState.bots, botTickHandles = appState.botTickHandles, botLastClick = appState.botLastClick;
 var games = appState.games, rooms = appState.rooms, roomMapping = appState.roomMapping, names = appState.names;
-var avatars = appState.avatars, countries = appState.countries, sockets = appState.sockets, skins = appState.skins;
+var avatars = appState.avatars, countries = appState.countries, sockets = appState.sockets, skins = appState.skins, botUserIds = appState.botUserIds;
 var botDifficulty = appState.botDifficulty, botSpeedMs = appState.botSpeedMs, botDifficultyMs = appState.botDifficultyMs;
 var botDistanceMult = appState.botDistanceMult, botMaxDifficulty = appState.botMaxDifficulty, botRating = appState.botRating;
 var botMistake = appState.botMistake, botChord = appState.botChord;
@@ -141,7 +141,8 @@ function applyBotConfigToGame(botId) {
 function randomBotAvatar() { return botPlayer.pickBotAvatar(); }
 
 // prechosenName/prechosenCountry/prechosenAvatar: a ranked pool bot already shown in the search list keeps that identity.
-function addBotToRoom(room, config, prechosenName, prechosenCountry, prechosenAvatar) {
+// prechosenUserId: the pool bot's persistent profile (botProfiles.js), so its matches are recorded under it.
+function addBotToRoom(room, config, prechosenName, prechosenCountry, prechosenAvatar, prechosenUserId) {
 	if (room.phase !== "planning") return false;
 	if (room.isFull()) return false;
 	if (botCount(room) >= MAX_BOTS_PER_ROOM) return false;
@@ -151,6 +152,7 @@ function addBotToRoom(room, config, prechosenName, prechosenCountry, prechosenAv
 	avatars[botId] = prechosenAvatar || randomBotAvatar(); // must be set before createPlayerGame, which reads it below
 	var skin = botPlayer.pickBotSkin(); if (skin) skins[botId] = skin; // likewise (null: the default skin, like most players)
 	countries[botId] = prechosenCountry || botPlayer.pickBotCountry();
+	botUserIds[botId] = prechosenUserId || null;
 	games[botId] = createPlayerGame(botId, room.rows, room.cols);
 	games[botId].country = countries[botId];
 	if (config) {
@@ -198,6 +200,7 @@ function removeBotEntirely(botId) {
 	delete names[botId];
 	delete avatars[botId];
 	delete skins[botId];
+	delete botUserIds[botId];
 	delete countries[botId];
 	delete bots[botId];
 	delete botDifficulty[botId];

@@ -150,6 +150,7 @@ var botDifficultyMs = appState.botDifficultyMs; // botId -> ms of thinking per u
 var botDistanceMult = appState.botDistanceMult; // botId -> multiplier on the mouse-travel term
 var botMaxDifficulty = appState.botMaxDifficulty; // botId -> hardest move (CSP difficulty) the bot can deduce
 var botRating = appState.botRating; // botId -> Elo used for ranked rating math
+var botUserIds = appState.botUserIds;
 var botMistake = appState.botMistake; // botId -> blunder rate (re-applied to the game each round)
 var botChord = appState.botChord; // botId -> chord rate (re-applied to the game each round)
 var botTickHandles = appState.botTickHandles; // botId -> setTimeout handle
@@ -653,7 +654,7 @@ function applyEarlyLeavePenalty(playerID, room) {
 		if (!mine || mine.userId == null) return null;
 		var others = seriesStandings.map(function(s) {
 			var seat = seats[s.id];
-			return seat ? { rank: s.rank, userId: seat.userId, ratingBefore: seat.rating, played: seat.played, name: s.name } : { rank: s.rank, userId: null, ratingBefore: s.rating, name: s.name };
+			return seat ? { rank: s.rank, userId: seat.userId, ratingBefore: seat.rating, played: seat.played, name: s.name, isBot: false } : { rank: s.rank, userId: botUserIds[s.id] || null, ratingBefore: s.rating, name: s.name, isBot: true };
 		});
 		return postLeaveToMain({ matchId: (room.matchConfig && room.matchConfig.matchId) || null, style: room.rankedStyle, leaver: { userId: mine.userId, ratingBefore: mine.rating, played: mine.played }, others: others });
 	}
@@ -1073,10 +1074,11 @@ async function reportResultToMain(report) {
 	var seatByPid = (report.room && report.room.seatByPid) || {};
 	var standings = (report.standings || []).map(function(s) {
 		var seat = seatByPid[s.id];
-		if (seat) return Object.assign({}, s, { userId: seat.userId, ratingBefore: seat.rating, played: seat.played });
+		if (seat) return Object.assign({}, s, { userId: seat.userId, ratingBefore: seat.rating, played: seat.played, isBot: false });
 		// A bot has no seat: its pool rating (already on the standing, from buildSeriesStandings) is its
 		// rating-before, or main would score it as a 1000-rated Silver and the result card would show that.
-		return Object.assign({}, s, { ratingBefore: typeof s.rating === "number" ? s.rating : undefined });
+		// It carries its profile id so main records its match, and isBot so main never scores it as a player.
+		return Object.assign({}, s, { ratingBefore: typeof s.rating === "number" ? s.rating : undefined, userId: botUserIds[s.id] || null, isBot: true });
 	});
 	var wire = {
 		matchId: report.matchId, ranked: report.ranked, mode: report.mode, style: report.style,
