@@ -78,7 +78,7 @@ export default function ReplayPage() {
 		return off;
 	}, [id, !!account]);
 
-	if (!rep) return <section className={styles.page}><Link to="/profile" className={styles.back}>← Back to profile</Link><div className={styles.status}>{status}</div></section>;
+	if (!rep) return <section className={styles.page}><Link to="/profile?tab=matches" className={styles.back}>← Back to profile</Link><div className={styles.status}>{status}</div></section>;
 	return <Player rep={rep.rep} createdAt={rep.createdAt} standings={rep.standings} myUserId={account?.userId ?? null} />;
 }
 
@@ -240,7 +240,7 @@ function Player({ rep, createdAt, standings, myUserId }: { rep: Replay; createdA
 	return (
 		<section ref={hostRef} className={styles.page}>
 			<div className={styles.topbar}>
-				<Link to="/profile" className={styles.back}>← Profile</Link>
+				<Link to="/profile?tab=matches" className={styles.back}>← Profile</Link>
 				<div className={styles.titleBlock}>
 					<div className={styles.title}>{styleName(rep)} · {rep.players.length} players</div>
 					<div className={styles.sub}>{rep.rows}×{rep.cols} board · {rep.mineCount} mines{createdAt ? " · " + new Date(createdAt).toLocaleString() : ""}</div>
