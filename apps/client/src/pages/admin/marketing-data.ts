@@ -228,7 +228,7 @@ export const VIDEO_SPECS: { platform: string; aspect: string; length: string; no
 
 // ---- images: what each surface wants ----
 export const IMAGE_SPECS: { surface: string; size: string; use: string }[] = [
-	{ surface: "Open Graph / link preview", size: "1200x630", use: "index.html og:image. Today it is the bare logo: replace with a studio export." },
+	{ surface: "Open Graph / link preview", size: "1200x630", use: "index.html og:image: the Then vs Now crop (public/og-then-now.jpg). Swap for a studio export any time." },
 	{ surface: "X header", size: "1500x500", use: "Profile header." },
 	{ surface: "Square feed post", size: "1080x1080", use: "Instagram, Mastodon, Discord." },
 	{ surface: "Story / Short cover", size: "1080x1920", use: "TikTok, Reels, Shorts thumbnail." },
