@@ -2,7 +2,7 @@
 // (rating history chart + recent games with replay links) and Achievements. With ?id=<userId> it is
 // someone else's read-only public profile (Overview only; pool bots have profiles too).
 import { useEffect, useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { getSocket, onSocket } from "../../online/socket";
 import { useAuth } from "../../shared/auth";
 import { AvatarChip, FlagChip } from "../../shared/Avatar";
@@ -166,19 +166,23 @@ function Matches({ history }: { history: History | null }) {
 // lobby just says how many played.
 function Opponents({ m }: { m: MatchRow }) {
 	const one = m.opponents && m.opponents.length === 1 ? m.opponents[0] : null;
-	if (one) return <>vs {one.userId ? <Link to={"/profile?id=" + one.userId} className={styles.oppLink}>{one.name}</Link> : one.name}</>;
+	if (one) return <>vs {one.userId ? <Link to={"/profile?id=" + one.userId} className={styles.oppLink} onClick={e => e.stopPropagation()}>{one.name}</Link> : one.name}</>;
 	return <>{m.opponent && (m.players || 2) <= 2 ? "vs " + m.opponent : (m.players || 0) > 2 ? m.players + " players" : ""}</>;
 }
+// The whole row opens the replay when there is one (a click anywhere, or Enter); the opponent's name inside
+// it goes to their profile instead. A div with a click handler rather than a link, so the name can be a link.
 function GameRow({ m }: { m: MatchRow }) {
+	const navigate = useNavigate();
 	const delta = (m.rating_after || 0) - (m.rating_before || 0);
+	const open = m.replay_id ? () => navigate("/replay?id=" + m.replay_id) : undefined;
 	return (
-		<div className={`${styles.gameRow} ${m.replay_id ? styles.gameRowReplay : ""}`}>
+		<div className={`${styles.gameRow} ${m.replay_id ? styles.gameRowReplay : ""}`} role={open ? "link" : undefined} tabIndex={open ? 0 : undefined} onClick={open} onKeyDown={open ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } } : undefined}>
 			<span className={styles.chip}>{STYLE_LABELS[m.style || ""] || m.style}</span>
 			<span className={`${styles.result} ${m.won ? styles.won : styles.lost}`}>{(m.players || 2) <= 2 ? (m.won ? "Won" : "Lost") : ordinal(m.placement || 0) + " of " + m.players}</span>
 			<span className={styles.opp}><Opponents m={m} /></span>
 			<span className={`${styles.delta} ${delta >= 0 ? styles.pos : styles.neg}`}>{(delta >= 0 ? "+" : "") + delta}</span>
 			<span className={styles.time}>{relTime(m.created_at)}</span>
-			<span className={styles.watch}>{m.replay_id ? <Link to={"/replay?id=" + m.replay_id} className={styles.watchLink}>▶ Watch</Link> : ""}</span>
+			<span className={styles.watch}>{m.replay_id ? "▶ Watch" : ""}</span>
 		</div>
 	);
 }
