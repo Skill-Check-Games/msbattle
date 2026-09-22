@@ -110,22 +110,28 @@ export default function ShapeLab() {
 		rerender();
 	};
 	// ---- keyboard: the game's own bindings (Settings), on cells that have no rows and columns ----
-	// A step goes to the cell whose centre lies most squarely in that direction: nearest by distance along the
-	// axis with sideways drift counted double, within a 90 degree cone, so a triangle grid or a Voronoi board
-	// still walks in straight-ish lines. Shift skips over revealed cells the way it does on the square board.
+	// A step goes to the nearest neighbouring cell in that direction (within a 90 degree cone), so a hex grid
+	// walks to the adjacent row rather than skipping to the one straight above, and a triangle strip walks
+	// through every triangle. Where two cells are equally near (a hex has an up-left and an up-right neighbour),
+	// up always takes the left one and down the right one, so a vertical walk is a straight diagonal that
+	// reaches every cell. Shift skips over revealed cells the way it does on the square board.
 	const stepFrom = (from: number, dx: number, dy: number): number | null => {
-		const cs = board.tiling.centroids, [fx, fy] = cs[from];
-		let best: number | null = null, bestCost = Infinity;
-		for (let i = 0; i < cs.length; i++) {
-			if (i === from) continue;
-			const vx = cs[i][0] - fx, vy = cs[i][1] - fy, along = vx * dx + vy * dy;
-			if (along <= 0) continue;
-			const perp = Math.abs(vx * dy - vy * dx);
-			if (perp > along) continue;   // outside the cone
-			const cost = along + perp * 2;
-			if (cost < bestCost) { bestCost = cost; best = i; }
-		}
-		return best;
+		const cs = board.tiling.centroids, tl = board.tiling, [fx, fy] = cs[from];
+		const pick = (cands: Iterable<number>) => {
+			let best: number | null = null, bestCost = Infinity;
+			for (const i of cands) {
+				if (i === from) continue;
+				const vx = cs[i][0] - fx, vy = cs[i][1] - fy, along = vx * dx + vy * dy;
+				if (along <= 0) continue;
+				if (Math.abs(vx * dy - vy * dx) > along * 1.05) continue;   // outside the cone
+				const lean = dy ? -vx * dy : 0;   // up (dy -1): cheaper to the left; down (dy 1): cheaper to the right
+				const cost = along + lean * 0.35;
+				if (cost < bestCost) { bestCost = cost; best = i; }
+			}
+			return best;
+		};
+		const near = pick(tl.edgeNeighbors[from].concat(tl.cornerNeighbors[from]));
+		return near != null ? near : pick(cs.keys());   // nothing adjacent that way: the nearest cell in the cone, if any
 	};
 	const moveFocus = (dx: number, dy: number, skipRevealed: boolean) => {
 		const g = board.game, cur = focus ?? board.start;
@@ -253,6 +259,7 @@ export default function ShapeLab() {
 						<canvas
 							ref={canvasRef}
 							className={styles.canvas}
+							data-focus={focus == null ? undefined : focus + "@" + board.tiling.centroids[focus].map(v => v.toFixed(1)).join(",")}   // the cursor's cell and centre, for tests
 							onMouseMove={e => { setHover(hit(e.clientX, e.clientY)); if (focus != null) setFocus(null); }}
 							onMouseLeave={() => setHover(null)}
 							onContextMenu={e => { e.preventDefault(); act(hit(e.clientX, e.clientY), true); }}

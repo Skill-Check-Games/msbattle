@@ -148,13 +148,13 @@ export function paint(canvas: HTMLCanvasElement, o: PaintOpts) {
 	if (o.focus != null && o.focus >= 0 && o.focus < tiling.polys.length && !game.over) {
 		const i = o.focus, r = tiling.radius[i] * t.scale;
 		tracePath(ctx, tiling.polys[i], tiling.centroids[i], t, Math.max(0.55, 1 - 1.1 / Math.max(r, 2)));
-		ctx.strokeStyle = "#fff";
-		ctx.lineWidth = Math.max(1.5, Math.min(3, r * 0.18));
-		ctx.stroke();
-		ctx.strokeStyle = "#6366f1";
+		ctx.strokeStyle = "#6366f1";   // the halo first, the white line over it
 		ctx.lineWidth = Math.max(3, Math.min(6, r * 0.36));
 		ctx.globalAlpha = 0.5;
 		ctx.stroke();
 		ctx.globalAlpha = 1;
+		ctx.strokeStyle = "#fff";
+		ctx.lineWidth = Math.max(1.5, Math.min(3, r * 0.18));
+		ctx.stroke();
 	}
 }
