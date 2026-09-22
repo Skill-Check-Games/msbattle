@@ -138,5 +138,3 @@
 // The replay's rail: the row on the stage is outlined in the accent; rows are buttons to the stage.
 .focusedRow { outline: 1px solid var(--accent); outline-offset: -1px; }
 .clickableRow { cursor: pointer; &:hover { background: rgba(255, 255, 255, 0.05); } }
-// The replay rail's rows: taller, a larger avatar, the name and percentage a step up.
-.big { height: 68px; grid-template-columns: 44px minmax(0, 1fr) auto; padding: 0 0.9rem 0 0.75rem; .name { font-size: 1.02rem; } .pct { font-size: 1.25rem; } .bar { height: 9px; } }

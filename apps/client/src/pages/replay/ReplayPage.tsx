@@ -1,6 +1,7 @@
-// The replay: a broadcast of one round. The standings rail on the left reorders as the race runs, the
-// focused board fills the stage, every board plays in the match's own opponent panel on the right, and
-// the race timeline at the bottom (each player's progress over time, mine hits, clears) is the scrubber.
+// The replay: a broadcast of one round. The rail on the left is the match's final result (names open
+// profiles), the focused board fills the stage, the right column is the match's own players panel (the
+// boards, or the live standings list, switchable as in a game), and the race timeline at the bottom (each
+// player's progress over time, mine hits, clears) is the scrubber.
 // Each player's board is re-simulated once per frame and drawn into every view showing it.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -18,6 +19,7 @@ import styles from "./ReplayPage.module.scss";
 // The final standings as the server stores them with newer replays (results.persistResult): finishing order
 // over the series with the rating change applied. Older replays carry none.
 interface FinalStanding { name: string; userId: number | null; rank: number | null; progress: number | null; finishMs: number | null; rating: number | null; ratingDelta: number | null; score: number | null; }
+interface ResultRow { idx: number; name: string; userId: number | null; rank: number; points: number | null; ratingDelta: number | null; }
 interface ReplayData { id: number; createdAt?: number; winnerId?: number | null; standings?: FinalStanding[] | null; error?: string; data?: ArrayBuffer | { buffer: ArrayBuffer }; }
 
 const fmtTime = (ms: number) => { const s = Math.max(0, Math.round(ms / 1000)); return Math.floor(s / 60) + ":" + ("0" + (s % 60)).slice(-2); };
@@ -33,7 +35,7 @@ const TRACK_COLORS = ["#60a5fa", "#4ade80", "#c084fc", "#fb923c", "#f472b6", "#f
 // the stage board takes what is left, both capped by the height between the top bar and the timeline.
 const RAIL_W = 300, COL_GAP = 16, MAIN_GUTTER = 56, STACK_BELOW = 1000;
 const TOP_H = 64 + 62, BOTTOM_H = 168 + 40;   // nav + topbar; controls + timeline + page padding
-const CARD_CHROME_H = 78, CARD_CHROME_W = 18, CARD_GAP = 10, STAGE_CHROME_H = 70, STAGE_CHROME_W = 24;
+const CARD_CHROME_H = 78, CARD_CHROME_W = 18, CARD_GAP = 10, STAGE_CHROME_H = 70, STAGE_CHROME_W = 24, PLAYERS_HEAD_H = 34;
 // The cards column is two cards wide from four players up (the match's panel); a duel or trio stacks them in one.
 function layoutFor(vw: number, vh: number, rows: number, cols: number, n: number) {
 	const stacked = vw < STACK_BELOW, columns = n <= 3 ? 1 : 2;
@@ -42,7 +44,7 @@ function layoutFor(vw: number, vh: number, rows: number, cols: number, n: number
 		return { stacked, columns: 2, stagePx: Math.max(8, Math.min(40, Math.floor((inner - STAGE_CHROME_W) / cols))), cardPx: Math.max(3, Math.min(14, Math.floor(((inner - CARD_GAP) / 2 - CARD_CHROME_W) / cols))), columnW: inner };
 	}
 	const h = Math.max(240, vh - TOP_H - BOTTOM_H), cardRows = Math.max(1, Math.ceil(n / columns));
-	const cardPx = Math.max(4, Math.min(16, Math.floor(((h - (cardRows - 1) * CARD_GAP) / cardRows - CARD_CHROME_H) / rows)));
+	const cardPx = Math.max(4, Math.min(16, Math.floor(((h - PLAYERS_HEAD_H - (cardRows - 1) * CARD_GAP) / cardRows - CARD_CHROME_H) / rows)));
 	const columnW = columns * (cols * cardPx + CARD_CHROME_W) + (columns - 1) * CARD_GAP;
 	const stagePx = Math.max(10, Math.min(40, Math.floor(Math.min((h - STAGE_CHROME_H) / rows, (vw - MAIN_GUTTER - RAIL_W - columnW - 2 * COL_GAP - STAGE_CHROME_W) / cols))));
 	return { stacked, columns, stagePx, cardPx, columnW };
@@ -74,10 +76,10 @@ export default function ReplayPage() {
 	}, [id, !!account]);
 
 	if (!rep) return <section className={styles.page}><Link to="/profile" className={styles.back}>← Back to profile</Link><div className={styles.status}>{status}</div></section>;
-	return <Player rep={rep.rep} winnerId={rep.winnerId} createdAt={rep.createdAt} standings={rep.standings} myUserId={account?.userId ?? null} />;
+	return <Player rep={rep.rep} createdAt={rep.createdAt} standings={rep.standings} myUserId={account?.userId ?? null} />;
 }
 
-function Player({ rep, winnerId, createdAt, standings, myUserId }: { rep: Replay; winnerId: number | null; createdAt?: number; standings: FinalStanding[] | null; myUserId: number | null }) {
+function Player({ rep, createdAt, standings, myUserId }: { rep: Replay; createdAt?: number; standings: FinalStanding[] | null; myUserId: number | null }) {
 	const [roundIdx, setRoundIdx] = useState(0);
 	const meIdx = rep.players.findIndex(p => p.userId && p.userId === myUserId);
 	const [focus, setFocus] = useState(meIdx < 0 ? 0 : meIdx);
@@ -85,12 +87,36 @@ function Player({ rep, winnerId, createdAt, standings, myUserId }: { rep: Replay
 	const [speed, setSpeed] = useState(1);
 	const [playT, setPlayT] = useState(0);
 	const [copied, setCopied] = useState(false);
+	const [oppView, setOppView] = useState<"boards" | "list">(() => { try { return localStorage.getItem("ms_opp_view") === "list" ? "list" : "boards"; } catch { return "boards"; } });
+	const pickOppView = (v: "boards" | "list") => { setOppView(v); try { localStorage.setItem("ms_opp_view", v); } catch { /* private mode */ } };
 	const [viewport, setViewport] = useState(() => ({ w: window.innerWidth, h: window.innerHeight }));
 	useEffect(() => { const on = () => setViewport({ w: window.innerWidth, h: window.innerHeight }); window.addEventListener("resize", on); return () => window.removeEventListener("resize", on); }, []);
 	const round = rep.rounds[roundIdx];
 	const model = useMemo(() => buildRoundModel(rep, round), [rep, round]);
 	const duration = useMemo(() => roundDuration(round), [round]);
 	const timelines = useMemo(() => round.tracks.map(t => trackTimeline(model, t)), [model, round]);
+	// The match's result: the standings stored with the replay when there are any (rank, points and the rating
+	// change as the server settled them), else scored from the rounds themselves the way the server scores a
+	// series (per round N, N-1, … points by finishing order, ties sharing the higher place).
+	const results = useMemo<ResultRow[]>(() => {
+		const n = rep.players.length;
+		if (standings && standings.length) {
+			return standings.map(s => {
+				let idx = rep.players.findIndex(p => s.userId && p.userId === s.userId); if (idx < 0) idx = rep.players.findIndex(p => p.name === s.name);
+				return { idx, name: s.name, userId: s.userId, rank: s.rank || 0, points: s.score, ratingDelta: s.ratingDelta };
+			}).sort((a, b) => (a.rank || 99) - (b.rank || 99));
+		}
+		const points = new Array(n).fill(0);
+		for (const rd of rep.rounds) {
+			const m = buildRoundModel(rep, rd), tls = rd.tracks.map(t => trackTimeline(m, t));
+			const last = tls.map(tl => tl.points[tl.points.length - 1].progress);
+			const better = (a: number, b: number) => { const fa = tls[a].finishMs != null, fb = tls[b].finishMs != null; if (fa !== fb) return fa; if (fa && fb) return (tls[a].finishMs as number) < (tls[b].finishMs as number); return last[a] > last[b]; };
+			for (let i = 0; i < n; i++) { let ahead = 0; for (let j = 0; j < n; j++) if (j !== i && better(j, i)) ahead++; points[i] += n - ahead; }
+		}
+		const rows = rep.players.map((p, i) => ({ idx: i, name: p.name, userId: p.userId, rank: 0, points: points[i], ratingDelta: null }));
+		for (const r of rows) r.rank = 1 + rows.filter(o => o.points > r.points).length;
+		return rows.sort((a, b) => a.rank - b.rank);
+	}, [rep, standings]);
 	const layout = layoutFor(viewport.w, viewport.h, rep.rows, rep.cols, rep.players.length);
 	// Shared mutable state per player; every view of that player draws from the same array.
 	const states = useMemo(() => rep.players.map(() => model.freshState()), [model]);
@@ -193,13 +219,12 @@ function Player({ rep, winnerId, createdAt, standings, myUserId }: { rep: Replay
 	// Places among those who have cleared by now, in clear order.
 	const placeOf: Record<string, number> = {};
 	frames.filter(f => f.finished).sort((a, b) => a.finishedAt - b.finishedAt).forEach((f, i) => { placeOf[f.id] = i + 1; });
-	const nameLink = (p: RoomPlayer) => { const pl = rep.players[ids.indexOf(p.id)]; return pl && pl.userId ? <Link to={"/profile?id=" + pl.userId} className={styles.playerLink} title={"Open " + p.name + "'s profile"} onClick={e => e.stopPropagation()}>{p.name}</Link> : <>{p.name}</>; };
+	const nameLink = (p: RoomPlayer) => { const pl = rep.players[ids.indexOf(p.id)]; return pl && pl.userId ? <Link to={"/profile?id=" + pl.userId} className={styles.playerLink} onClick={e => e.stopPropagation()}>{p.name}</Link> : <>{p.name}</>; };
 
 	const fp = rep.players[focus], ff = frames[focus], ftl = timelines[focus], fpt = pointAt(ftl, playT);
 	const focusPct = ff.finished ? 100 : Math.round(fpt.progress * 100);
 	const focusHit = ff.frozenUntil > now;
 	const cellsLeft = Math.max(0, ftl.totalSafe - Math.round(fpt.progress * ftl.totalSafe));
-	const finals = standings ? standings.slice().sort((a, b) => (a.rank || 99) - (b.rank || 99)) : null;
 
 	return (
 		<section ref={hostRef} className={styles.page}>
@@ -219,32 +244,31 @@ function Player({ rep, winnerId, createdAt, standings, myUserId }: { rep: Replay
 			</div>
 
 			<div className={`${styles.body} ${layout.stacked ? styles.bodyStacked : ""}`} style={{ "--rail-w": RAIL_W + "px", "--players-w": layout.columnW + "px" } as React.CSSProperties}>
-				<aside className={styles.rail} aria-label="Standings">
-					<div className={styles.railHead}><span className={styles.kicker}>Players at {fmtTime(playT)}</span><span className={styles.railHint}>Click a row to watch, a name for the profile</span></div>
-					<Standings room={room} frames={frames} myId={myId} placeOf={placeOf} big renderName={nameLink} onRowClick={p => setFocus(ids.indexOf(p.id))} focusId={ids[focus]} />
-					{finals && (
-						<div className={styles.finals}>
-							<div className={styles.kicker}>Final result</div>
-							<ol className={styles.finalList}>
-								{finals.map((s, i) => (
-									<li key={i} className={styles.finalRow}>
-										<span className={`${styles.finalRank} ${s.rank === 1 ? styles.gold : ""}`}>{s.rank ? ordinal(s.rank) : "–"}</span>
-										<span className={styles.finalName}>{s.userId ? <Link to={"/profile?id=" + s.userId} className={styles.playerLink}>{s.name}</Link> : s.name}</span>
-										<span className={styles.finalScore}>{s.score != null ? s.score + " pts" : ""}</span>
-										{s.ratingDelta != null && <span className={`${styles.finalDelta} ${s.ratingDelta > 0 ? styles.up : s.ratingDelta < 0 ? styles.down : ""}`}>{s.ratingDelta > 0 ? "+" : ""}{s.ratingDelta}</span>}
-									</li>
-								))}
-							</ol>
-						</div>
-					)}
-					{!finals && winnerId && <div className={styles.finals}><div className={styles.kicker}>Winner</div><div className={styles.winnerName}>{rep.players.find(p => p.userId === winnerId)?.name || "Unknown"}</div></div>}
+				<aside className={styles.rail} aria-label="Result">
+					<div className={styles.railHead}><span className={styles.kicker}>Result</span>{rep.gameCount > 1 && <span className={styles.railNote}>{rep.gameCount} rounds</span>}</div>
+					<ol className={styles.resultList}>
+						{results.map((r, i) => {
+							const pl = r.idx >= 0 ? rep.players[r.idx] : null;
+							return (
+								<li key={i} className={`${styles.resultRow} ${r.idx === meIdx ? styles.resultMe : ""}`}>
+									<span className={`${styles.resultRank} ${r.rank === 1 ? styles.gold : r.rank === 2 ? styles.silver : r.rank === 3 ? styles.bronze : ""}`}>{r.rank ? ordinal(r.rank) : "–"}</span>
+									<AvatarChip avatar={pl ? pl.avatar : null} country={pl ? pl.country : null} px={36} />
+									<span className={styles.resultWho}>
+										<span className={styles.resultName}>{r.userId ? <Link to={"/profile?id=" + r.userId} className={styles.playerLink}>{r.name}</Link> : r.name}</span>
+										<span className={styles.resultMeta}>{pl && <FlagChip country={pl.country} px={13} />}{r.points != null && <span>{r.points} {r.points === 1 ? "pt" : "pts"}</span>}</span>
+									</span>
+									<span className={`${styles.resultDelta} ${r.ratingDelta != null && r.ratingDelta > 0 ? styles.up : r.ratingDelta != null && r.ratingDelta < 0 ? styles.down : ""}`}>{r.ratingDelta != null ? (r.ratingDelta > 0 ? "+" : "") + r.ratingDelta : ""}</span>
+								</li>
+							);
+						})}
+					</ol>
 				</aside>
 
 				<main className={styles.stage}>
 					<div className={styles.stageHead} style={{ width: rep.cols * layout.stagePx + STAGE_CHROME_W }}>
 						<AvatarChip avatar={fp.avatar} country={fp.country} px={40} />
 						<div className={styles.stageWho}>
-							<span className={styles.stageName}>{fp.userId ? <Link to={"/profile?id=" + fp.userId} className={styles.playerLink} title={"Open " + fp.name + "'s profile"}>{fp.name}</Link> : fp.name}<FlagChip country={fp.country} px={14} /></span>
+							<span className={styles.stageName}>{fp.userId ? <Link to={"/profile?id=" + fp.userId} className={styles.playerLink}>{fp.name}</Link> : fp.name}<FlagChip country={fp.country} px={14} /></span>
 							<span className={styles.stageNote}>{ff.finished ? "Cleared at " + fmtClock(ftl.finishMs || 0) + (placeOf[ff.id] ? " · " + ordinal(placeOf[ff.id]) + " to clear" : "") : focusHit ? "Mine penalty" : "Clearing"}</span>
 						</div>
 						<div className={styles.spacer} />
@@ -258,17 +282,27 @@ function Player({ rep, winnerId, createdAt, standings, myUserId }: { rep: Replay
 					</div>
 				</main>
 
-				<aside className={styles.players} aria-label="Boards">
-					<div className={styles.cardGrid} style={{ gridTemplateColumns: `repeat(${layout.columns}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${Math.max(1, Math.ceil(rep.players.length / layout.columns))}, minmax(0, 1fr))` }}>
-						{rep.players.map((p, i) => {
-							const f = frames[i];
-							return (
-								<SeatCard key={i} avatar={p.avatar} country={p.country} name={nameLink(room.players[i])} pct={f.finished ? 100 : Math.round(f.progress * 100)} finished={f.finished} place={placeOf[f.id] || null} me={i === meIdx} hit={f.frozenUntil > now} focused={i === focus} onClick={() => setFocus(i)}>
-									<canvas key={`card-${roundIdx}-${i}-${layout.cardPx}`} data-rp={i} data-px={layout.cardPx} className={styles.cardCanvas} />
-								</SeatCard>
-							);
-						})}
+				<aside className={styles.players} aria-label="Players">
+					<div className={styles.playersHead}>
+						<div className={styles.viewSwitch} role="group" aria-label="Players view">
+							<button type="button" className={oppView === "boards" ? styles.viewOn : ""} aria-pressed={oppView === "boards"} onClick={() => pickOppView("boards")}>Boards</button>
+							<button type="button" className={oppView === "list" ? styles.viewOn : ""} aria-pressed={oppView === "list"} onClick={() => pickOppView("list")}>List</button>
+						</div>
 					</div>
+					{oppView === "boards" ? (
+						<div className={styles.cardGrid} style={{ gridTemplateColumns: `repeat(${layout.columns}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${Math.max(1, Math.ceil(rep.players.length / layout.columns))}, minmax(0, 1fr))` }}>
+							{rep.players.map((p, i) => {
+								const f = frames[i];
+								return (
+									<SeatCard key={i} avatar={p.avatar} country={p.country} name={nameLink(room.players[i])} pct={f.finished ? 100 : Math.round(f.progress * 100)} finished={f.finished} place={placeOf[f.id] || null} me={i === meIdx} hit={f.frozenUntil > now} focused={i === focus} onClick={() => setFocus(i)}>
+										<canvas key={`card-${roundIdx}-${i}-${layout.cardPx}`} data-rp={i} data-px={layout.cardPx} className={styles.cardCanvas} />
+									</SeatCard>
+								);
+							})}
+						</div>
+					) : (
+						<Standings room={room} frames={frames} myId={myId} placeOf={placeOf} renderName={nameLink} onRowClick={p => setFocus(ids.indexOf(p.id))} focusId={ids[focus]} />
+					)}
 				</aside>
 			</div>
 
