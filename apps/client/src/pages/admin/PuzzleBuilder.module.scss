@@ -1,0 +1,43 @@
+@use "../../styles/variables" as *;
+
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 1.2rem; align-items: start; margin-bottom: 1.5rem; @include below($bp-md) { grid-template-columns: 1fr; } }
+.editor { display: flex; flex-direction: column; gap: 0.8rem; min-width: 0; }
+.toolbar { display: flex; flex-direction: column; gap: 0.6rem; }
+.tools { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.tool { font: inherit; font-family: var(--font-display); font-weight: 700; min-width: 40px; padding: 0.4rem 0.6rem; border-radius: 6px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); &:hover { border-color: var(--muted); } }
+.toolActive { border-color: var(--accent); background: rgba(99, 102, 241, 0.18); box-shadow: 0 0 0 1px var(--accent); }
+.toolMine { color: #fca5a5; }
+.toolSafe { color: #86efac; }
+.checkRow { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; cursor: pointer; }
+
+// ---- the board: a DOM grid, one button per cell; the analysis paints rings, the next move a glow ----
+.board { display: grid; gap: 3px; padding: 8px; background: #0b1220; border: 1px solid var(--border); border-radius: 8px; width: max-content; max-width: 100%; overflow: auto; }
+.cell { position: relative; display: grid; place-items: center; border-radius: 5px; border: 1px solid transparent; font: inherit; font-family: var(--font-display); font-weight: 800; font-size: 1.15rem; line-height: 1; padding: 0; cursor: pointer; transition: box-shadow var(--motion-micro), border-color var(--motion-micro); &:hover { border-color: rgba(255, 255, 255, 0.35); } }
+.covered { background: linear-gradient(180deg, #4f93f7, #2563eb); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25); }
+.revealed { background: #162033; border-color: #0b1220; }
+.mine { background: linear-gradient(180deg, #7f1d1d, #450a0a); color: #fca5a5; font-size: 0.9rem; }
+.safe { background: linear-gradient(180deg, #14532d, #052e16); color: #86efac; font-size: 0.9rem; }
+.detSafe { box-shadow: 0 0 0 2px #22c55e inset, 0 0 0 1px #22c55e; }
+.detMine { box-shadow: 0 0 0 2px #ef4444 inset, 0 0 0 1px #ef4444; }
+.amb { box-shadow: 0 0 0 2px #f59e0b inset; border-style: dashed; border-color: #f59e0b; }
+.free { opacity: 0.55; }
+.next { box-shadow: 0 0 0 2px #60a5fa inset, 0 0 14px 2px rgba(96, 165, 250, 0.7); }
+.split { box-shadow: 0 0 0 2px #c084fc inset, 0 0 14px 2px rgba(192, 132, 252, 0.7); }
+.legend { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; font-size: 0.78rem; color: var(--muted); span { display: inline-flex; align-items: center; gap: 0.35rem; } i { display: inline-block; width: 14px; height: 14px; border-radius: 3px; background: #2563eb; } }
+
+// ---- the solver panel ----
+.panel { display: flex; flex-direction: column; gap: 0.8rem; padding: 1rem 1.1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; position: sticky; top: 1rem; }
+.busy { color: var(--accent-hover); font-weight: 600; font-size: 0.85rem; }
+.verdict { padding: 0.55rem 0.8rem; border-radius: 6px; font-weight: 600; font-size: 0.9rem; line-height: 1.4; }
+.verdictOk { background: rgba(34, 197, 94, 0.14); color: #86efac; }
+.verdictWarn { background: rgba(245, 158, 11, 0.14); color: #fcd34d; }
+.verdictErr { background: rgba(239, 68, 68, 0.14); color: #fca5a5; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 0.5rem; > div { display: flex; flex-direction: column; gap: 0.1rem; padding: 0.45rem 0.6rem; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; } b { font-family: var(--font-display); font-size: 1.1rem; } }
+.block { display: flex; flex-direction: column; gap: 0.3rem; p { margin: 0; font-size: 0.88rem; line-height: 1.5; } }
+.blockTitle { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.actions { display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.2rem; .btn { width: 100%; } }
+.err { color: #fca5a5; }
+.warnText { color: #fcd34d; }
+.okText { color: #86efac; }
+.rowActions { display: flex; gap: 0.35rem; flex-wrap: wrap; .btn { padding: 0.3rem 0.6rem; font-size: 0.8rem; } }
+.danger { color: #fca5a5; }

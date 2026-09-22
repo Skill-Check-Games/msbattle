@@ -18,6 +18,7 @@ var http = require("http")
   , cspSolver = require("core/src/engine/CSPSolver")
   , oauth = require("./runtime/oauth")
   , puzzleApi = require("./runtime/puzzleApi")
+  , builderApi = require("./runtime/builderApi")
   , shopApi = require("./runtime/shopApi")
   , staticServer = require("./runtime/staticServer")
   , appState = require("./runtime/appState")
@@ -108,6 +109,7 @@ function handler (req, res) {
 	if (role.isSplit() && internalApi.handleInternalRoute(req, res, url)) return;
 	if (oauth.handleAuthRoute(req, res, url)) return;
 	if (shopApi.handleShopRoute(req, res, url)) return;
+	if (builderApi.handleBuilderRoute(req, res, url)) return;
 	if (puzzleApi.handleApiRoute(req, res, url)) return;
 	staticServer.serve(res, url.pathname, req);
 }

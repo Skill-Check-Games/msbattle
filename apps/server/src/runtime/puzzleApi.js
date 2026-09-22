@@ -13,7 +13,7 @@ var fs = require("fs");
 var puzzleGen = require("core/src/engine/PuzzleGenerator");
 var insideOut = require("core/src/engine/InsideOutGenerator");
 var cspSolver = require("core/src/engine/CSPSolver");
-var Worker = require("worker_threads").Worker;
+var analyzeQueue = require("./analyzeQueue");
 var BoardLogic = require("core/src/common/BoardLogic");
 var botPlayer = require("core/src/engine/BotPlayer");
 var db = require("../db");
@@ -328,38 +328,10 @@ function servePuzzleStats(req, res) {
 	res.end(JSON.stringify(stats));
 }
 
-// The Analyze endpoints run the CSP analyzer on a worker thread (analyze-worker.js), one request at a time
-// with the rest queued behind it: a deep case-split solve is seconds of CPU, and on the main thread it would
-// stall every socket this process serves. A run past ANALYZE_TIMEOUT_MS is killed and reported as an error.
-var ANALYZE_TIMEOUT_MS = 180000;
-var analyzeQueue = [], analyzeBusy = false;
+// The Analyze endpoints run the CSP analyzer on the shared solver worker (analyzeQueue.js): a deep case-split
+// solve is seconds of CPU, and on the main thread it would stall every socket this process serves.
 function analyzePuzzleBoardAsync(puzzle) {
-	var job = { rows: puzzle.rows, cols: puzzle.cols, mines: puzzle.mines, revealed: puzzle.revealed };
-	return new Promise(function(resolve) {
-		analyzeQueue.push({ puzzle: job, resolve: resolve });
-		pumpAnalyzeQueue();
-	});
-}
-function pumpAnalyzeQueue() {
-	if (analyzeBusy || !analyzeQueue.length) return;
-	analyzeBusy = true;
-	var job = analyzeQueue.shift();
-	var worker = new Worker(path.join(__dirname, "analyze-worker.js"));
-	var done = false;
-	var timer = setTimeout(function() { finish({ error: "Analysis timed out after " + Math.round(ANALYZE_TIMEOUT_MS / 1000) + "s" }); }, ANALYZE_TIMEOUT_MS);
-	function finish(out) {
-		if (done) return;
-		done = true;
-		clearTimeout(timer);
-		worker.terminate();
-		analyzeBusy = false;
-		job.resolve(out || { error: "no result" });
-		pumpAnalyzeQueue();
-	}
-	worker.on("message", finish);
-	worker.on("error", function(e) { finish({ error: String((e && e.message) || e) }); });
-	worker.on("exit", function(code) { if (!done) finish({ error: "analysis worker exited (" + code + ")" }); });
-	worker.postMessage(job.puzzle);
+	return analyzeQueue.run({ kind: "analyze", puzzle: { rows: puzzle.rows, cols: puzzle.cols, mines: puzzle.mines, revealed: puzzle.revealed } });
 }
 // Sends the analysis, or its error, as the response; `decorate` adds the endpoint's own fields first.
 function respondWithAnalysis(res, puzzle, decorate) {

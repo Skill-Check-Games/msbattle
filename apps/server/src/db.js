@@ -376,6 +376,29 @@ addColumnIfMissing("puzzles", "total_complexity", "REAL");
 addColumnIfMissing("puzzles", "gen_method", "TEXT");
 addColumnIfMissing("puzzles", "gen_iterations", "INTEGER");
 
+// The Puzzle Builder's collection (/admin/builder): hand-made puzzles per author, rated by the solver on save;
+// pool_puzzle_id is set once one is published into the pool (an ordinary puzzles row, playable at /puzzles/:id).
+db.exec(
+	"CREATE TABLE IF NOT EXISTS builder_puzzles (" +
+	"  id INTEGER PRIMARY KEY," +
+	"  user_id INTEGER NOT NULL," +
+	"  name TEXT NOT NULL," +
+	"  rows INTEGER NOT NULL," +
+	"  cols INTEGER NOT NULL," +
+	"  mines TEXT NOT NULL," +
+	"  revealed TEXT NOT NULL," +
+	"  solved INTEGER NOT NULL," +
+	"  difficulty INTEGER NOT NULL," +
+	"  score REAL NOT NULL," +
+	"  rating INTEGER," +
+	"  csp_method TEXT," +
+	"  max_complexity REAL," +
+	"  pool_puzzle_id INTEGER," +
+	"  created_at INTEGER NOT NULL" +
+	");" +
+	"CREATE INDEX IF NOT EXISTS idx_builder_user ON builder_puzzles(user_id);"
+);
+
 db.exec(
 	"CREATE TABLE IF NOT EXISTS daily_puzzles (" +
 	"  date TEXT PRIMARY KEY," +
@@ -1477,6 +1500,36 @@ function getMarathonBests(userId, puzzleIds) {
 	return map;
 }
 
+function getPuzzleByKey(key) {
+	var row = db.prepare("SELECT * FROM puzzles WHERE canonical_key = ?").get(key);
+	return row ? deserializePuzzle(row) : null;
+}
+
+// ---- the Puzzle Builder's collection ----
+function builderRow(r) {
+	return { id: r.id, userId: r.user_id, name: r.name, rows: r.rows, cols: r.cols, mines: JSON.parse(r.mines), revealed: JSON.parse(r.revealed), solved: !!r.solved, difficulty: r.difficulty, score: r.score, rating: r.rating, cspMethod: r.csp_method, maxComplexity: r.max_complexity, poolPuzzleId: r.pool_puzzle_id, createdAt: r.created_at };
+}
+function listBuilderPuzzles(userId) {
+	return db.prepare("SELECT * FROM builder_puzzles WHERE user_id = ? ORDER BY created_at DESC").all(userId).map(builderRow);
+}
+function getBuilderPuzzle(id, userId) {
+	var r = db.prepare("SELECT * FROM builder_puzzles WHERE id = ? AND user_id = ?").get(id, userId);
+	return r ? builderRow(r) : null;
+}
+function insertBuilderPuzzle(userId, name, puzzle, a) {
+	var info = db.prepare(
+		"INSERT INTO builder_puzzles (user_id, name, rows, cols, mines, revealed, solved, difficulty, score, rating, csp_method, max_complexity, created_at) " +
+		"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+	).run(userId, name, puzzle.rows, puzzle.cols, JSON.stringify(puzzle.mines), JSON.stringify(puzzle.revealed), a.solved ? 1 : 0, a.difficulty || 0, a.score || 0, a.rating == null ? null : a.rating, a.cspMethod || null, a.maxComplexity == null ? null : a.maxComplexity, Date.now());
+	return getBuilderPuzzle(Number(info.lastInsertRowid), userId);
+}
+function deleteBuilderPuzzle(id, userId) {
+	return db.prepare("DELETE FROM builder_puzzles WHERE id = ? AND user_id = ?").run(id, userId).changes > 0;
+}
+function setBuilderPuzzlePool(id, userId, poolId) {
+	db.prepare("UPDATE builder_puzzles SET pool_puzzle_id = ? WHERE id = ? AND user_id = ?").run(poolId, id, userId);
+}
+
 function getPuzzleById(id) {
 	var row = db.prepare("SELECT * FROM puzzles WHERE id = ?").get(id);
 	return row ? deserializePuzzle(row) : null;
@@ -1775,6 +1828,12 @@ module.exports = {
 	puzzleStats: puzzleStats,
 	clearPuzzles: clearPuzzles,
 	getPuzzleById: getPuzzleById,
+	getPuzzleByKey: getPuzzleByKey,
+	listBuilderPuzzles: listBuilderPuzzles,
+	getBuilderPuzzle: getBuilderPuzzle,
+	insertBuilderPuzzle: insertBuilderPuzzle,
+	deleteBuilderPuzzle: deleteBuilderPuzzle,
+	setBuilderPuzzlePool: setBuilderPuzzlePool,
 	deletePuzzleById: deletePuzzleById,
 	recordPuzzleAttempt: recordPuzzleAttempt,
 	updateUserPuzzleRating: updateUserPuzzleRating,

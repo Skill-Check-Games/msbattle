@@ -56,4 +56,10 @@ export function useQueryState<T extends Record<string, string>>(defaults: T): [T
 	return [state, set];
 }
 
+// The session token as a header, for the admin-gated API routes (the server resolves it to the user and
+// checks is_admin; DEV_AUTH opens the gate locally).
+export function adminHeaders(): Record<string, string> {
+	try { const t = localStorage.getItem("ms_session"); return t ? { "X-Session-Token": t } : {}; } catch { return {}; }
+}
+
 export { styles as adminStyles };

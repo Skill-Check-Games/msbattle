@@ -10,6 +10,7 @@ import styles from "./AdminHome.module.scss";
 
 const CARDS: { title: string; desc: string; label: string; href: string }[] = [
 	{ title: "Puzzle Lab", desc: "Generate new puzzles, tune density and difficulty, inspect tier distribution.", label: "Open Lab", href: "/admin/lab" },
+	{ title: "Puzzle Builder", desc: "Draw a puzzle by hand: reveal cells and pick their numbers, let the solver check the position as you go, finish it or autocomplete it, and save it to your collection with its rating.", label: "Open builder", href: "/admin/builder" },
 	{ title: "All puzzles", desc: "Browse the entire pool. Sort by rating, filter by tier.", label: "Browse pool", href: "/admin/puzzles" },
 	{ title: "Ranked bots", desc: "Browse the benchmarked bot pool, inspect variables and per-mode Elo, and watch any bot play.", label: "Browse bots", href: "/admin/bots" },
 	{ title: "Starting positions", desc: "Enumerated cascade patterns rated by analyzer difficulty.", label: "Browse positions", href: "/admin/starting-positions" },

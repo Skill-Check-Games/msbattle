@@ -6,6 +6,7 @@ var workerThreads = require("worker_threads");
 var puzzleGen = require("core/src/engine/PuzzleGenerator");
 var cspSolver = require("core/src/engine/CSPSolver");
 var BoardLogic = require("core/src/common/BoardLogic");
+var puzzleBuilder = require("core/src/engine/PuzzleBuilder");
 
 // Run the CSP analyzer on a puzzle ({rows,cols,mines,revealed}) and return the trace payload the Analyze
 // modal expects. Shared by the pool's analyze endpoint, the combined-puzzles one and the starting positions.
@@ -34,10 +35,21 @@ function analyzePuzzleBoard(puzzle) {
 	};
 }
 
+// Jobs, by kind: "analyze" (a pool puzzle's trace, the Analyze modal), "rate" (a finished puzzle's rating
+// fields), "builder-analyze" and "builder-autocomplete" (the Puzzle Builder's position, see PuzzleBuilder.js).
+// A message with no kind is an "analyze" job (the original protocol).
+function runJob(job) {
+	var kind = (job && job.kind) || "analyze";
+	if (kind === "analyze") return analyzePuzzleBoard(job.puzzle || job);
+	if (kind === "rate") return puzzleBuilder.rate(job.puzzle);
+	if (kind === "builder-analyze") return puzzleBuilder.analyzePosition(job.spec);
+	if (kind === "builder-autocomplete") return puzzleBuilder.autocomplete(job.spec, job.opts || {});
+	return { error: "unknown job kind " + kind };
+}
 if (workerThreads.parentPort) {
-	workerThreads.parentPort.on("message", function(puzzle) {
+	workerThreads.parentPort.on("message", function(job) {
 		var out;
-		try { out = analyzePuzzleBoard(puzzle); } catch (e) { out = { error: String((e && e.message) || e) }; }
+		try { out = runJob(job); } catch (e) { out = { error: String((e && e.message) || e) }; }
 		workerThreads.parentPort.postMessage(out);
 	});
 }

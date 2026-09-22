@@ -30,6 +30,7 @@ import DesignAdmin from "../pages/admin/DesignAdmin";
 import CountdownLab from "../pages/admin/CountdownLab";
 import SoundLab from "../pages/admin/SoundLab";
 import MarketingAdmin from "../pages/admin/MarketingAdmin";
+import PuzzleBuilder from "../pages/admin/PuzzleBuilder";
 import { Toasts, useAchievementUnlocks } from "./Toasts";
 import { useDocumentHead } from "./useDocumentHead";
 import Placeholder from "../pages/Placeholder";
@@ -76,6 +77,7 @@ export default function App() {
 					<Route path="/admin/countdown" element={<CountdownLab />} />
 					<Route path="/admin/sounds" element={<SoundLab />} />
 					<Route path="/admin/marketing" element={<MarketingAdmin />} />
+					<Route path="/admin/builder" element={<PuzzleBuilder />} />
 					<Route path="/settings" element={<SettingsPage />} />
 					<Route path="/privacy" element={<PrivacyPage />} />
 					<Route path="/terms" element={<TermsPage />} />
