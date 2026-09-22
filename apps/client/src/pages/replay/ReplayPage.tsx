@@ -219,7 +219,6 @@ function Player({ rep, createdAt, standings, myUserId }: { rep: Replay; createdA
 	// Places among those who have cleared by now, in clear order.
 	const placeOf: Record<string, number> = {};
 	frames.filter(f => f.finished).sort((a, b) => a.finishedAt - b.finishedAt).forEach((f, i) => { placeOf[f.id] = i + 1; });
-	const nameLink = (p: RoomPlayer) => { const pl = rep.players[ids.indexOf(p.id)]; return pl && pl.userId ? <Link to={"/profile?id=" + pl.userId} className={styles.playerLink} onClick={e => e.stopPropagation()}>{p.name}</Link> : <>{p.name}</>; };
 
 	const fp = rep.players[focus], ff = frames[focus], ftl = timelines[focus], fpt = pointAt(ftl, playT);
 	const focusPct = ff.finished ? 100 : Math.round(fpt.progress * 100);
@@ -294,14 +293,14 @@ function Player({ rep, createdAt, standings, myUserId }: { rep: Replay; createdA
 							{rep.players.map((p, i) => {
 								const f = frames[i];
 								return (
-									<SeatCard key={i} avatar={p.avatar} country={p.country} name={nameLink(room.players[i])} pct={f.finished ? 100 : Math.round(f.progress * 100)} finished={f.finished} place={placeOf[f.id] || null} me={i === meIdx} hit={f.frozenUntil > now} focused={i === focus} onClick={() => setFocus(i)}>
+									<SeatCard key={i} avatar={p.avatar} country={p.country} name={p.name} pct={f.finished ? 100 : Math.round(f.progress * 100)} finished={f.finished} place={placeOf[f.id] || null} me={i === meIdx} hit={f.frozenUntil > now} focused={i === focus} onClick={() => setFocus(i)}>
 										<canvas key={`card-${roundIdx}-${i}-${layout.cardPx}`} data-rp={i} data-px={layout.cardPx} className={styles.cardCanvas} />
 									</SeatCard>
 								);
 							})}
 						</div>
 					) : (
-						<Standings room={room} frames={frames} myId={myId} placeOf={placeOf} renderName={nameLink} onRowClick={p => setFocus(ids.indexOf(p.id))} focusId={ids[focus]} />
+						<Standings room={room} frames={frames} myId={myId} placeOf={placeOf} onRowClick={p => setFocus(ids.indexOf(p.id))} focusId={ids[focus]} />
 					)}
 				</aside>
 			</div>
