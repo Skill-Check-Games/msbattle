@@ -173,7 +173,9 @@ function scheduleBotArrival(mode) {
 			var taken = pendingBotsLists[mode].map(function(p) { return p.name; });
 			// A pool bot plays under its persistent profile (botProfiles.js): the same name, flag and avatar every
 			// time, created on first use; only a pool-less fallback would get a throwaway identity.
-			var cfg = botPlayer.pickBotFromPool(rankedTargetElo(mode), 0, RANKED_MODES[mode].ratingKey);
+			// Never the same bot twice in one lobby: the bots already waiting for this mode are excluded.
+			var seated = pendingBotsLists[mode].map(function(p) { return botPlayer.botKeyOf(p.config); });
+			var cfg = botPlayer.pickBotFromPool(rankedTargetElo(mode), 0, RANKED_MODES[mode].ratingKey, seated);
 			var prof = botProfiles.ensure(cfg);
 			pendingBotsLists[mode].push({
 				name: prof ? prof.name : botPlayer.pickBotName(taken),
@@ -259,7 +261,8 @@ function formRankedMatch(mode) {
 		}
 		var targetElo = eloCount ? Math.round(sumElo / eloCount) : 1000;
 		while (botSpecs.length < seats && botSpecs.length < MAX_BOTS_PER_ROOM) {
-			var fillCfg = botPlayer.pickBotFromPool(targetElo), fillProf = botProfiles.ensure(fillCfg);
+			var seatedKeys = botSpecs.map(function(b) { return botPlayer.botKeyOf(b.config); });
+			var fillCfg = botPlayer.pickBotFromPool(targetElo, 0, null, seatedKeys), fillProf = botProfiles.ensure(fillCfg);
 			botSpecs.push({ config: fillCfg, name: fillProf ? fillProf.name : null, country: fillProf ? fillProf.country : null, avatar: fillProf ? fillProf.avatar : null, userId: fillProf ? fillProf.id : null });
 		}
 	}

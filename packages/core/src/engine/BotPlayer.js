@@ -119,21 +119,27 @@ function getPoolMeta() { return botPoolMeta || {}; }
 // future one that might), falling back to `b.rating` for any bot that predates that calibration.
 // The returned bot's `rating` is set to the matched value so the
 // rest of matchmaking (display, Elo seeding) uses the right ladder; the pool entry isn't mutated.
-function pickBotFromPool(targetElo, window, ratingKey) {
+// excludeKeys: identity keys (botKeyOf) of bots already chosen for the same match, so a lobby never seats the
+// same bot twice. Near the ends of the ladder only one or two pool bots sit inside the window, so the window
+// widens until an unseated one is found; only a pool smaller than the lobby falls back to a repeat.
+function pickBotFromPool(targetElo, window, ratingKey, excludeKeys) {
 	if (!botPool || !botPool.length) return null;
 	function ratingOf(b) { return ratingKey && b.ratings && b.ratings[ratingKey] != null ? b.ratings[ratingKey] : b.rating; }
 	function chosen(b) { return ratingKey ? Object.assign({}, b, { rating: ratingOf(b) }) : b; }
+	function free(b) { return !excludeKeys || excludeKeys.indexOf(botKeyOf(b)) === -1; }
+	var candidates = botPool.filter(free);
+	if (!candidates.length) candidates = botPool;
 	var w = window > 0 ? window : 60;
 	for (var widen = 0; widen < 24; widen++) {
 		var lo = targetElo - w, hi = targetElo + w;
-		var inRange = botPool.filter(function(b) { return ratingOf(b) >= lo && ratingOf(b) <= hi; });
+		var inRange = candidates.filter(function(b) { return ratingOf(b) >= lo && ratingOf(b) <= hi; });
 		if (inRange.length) return chosen(inRange[Math.floor(Math.random() * inRange.length)]);
 		w += 60;
 	}
 	// Whole pool somehow outside the widened window — return the nearest bot.
-	var nearest = botPool[0];
-	for (var i = 1; i < botPool.length; i++) {
-		if (Math.abs(ratingOf(botPool[i]) - targetElo) < Math.abs(ratingOf(nearest) - targetElo)) nearest = botPool[i];
+	var nearest = candidates[0];
+	for (var i = 1; i < candidates.length; i++) {
+		if (Math.abs(ratingOf(candidates[i]) - targetElo) < Math.abs(ratingOf(nearest) - targetElo)) nearest = candidates[i];
 	}
 	return chosen(nearest);
 }
