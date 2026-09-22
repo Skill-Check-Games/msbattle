@@ -1,6 +1,6 @@
 // Top-rated players per ranked style. Rows link to that player's public profile.
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { getSocket, onSocket } from "../../online/socket";
 import { useAuth } from "../../shared/auth";
 import { tierFor } from "../../shared/ranking";
@@ -13,7 +13,10 @@ const MODES: Array<[string, string]> = [["sprint", "Sprint"], ["standard", "Stan
 export default function LeaderboardPage() {
 	const { account } = useAuth();
 	const navigate = useNavigate();
-	const [mode, setMode] = useState("sprint");
+	// The mode is in the URL, so a reload or the back button lands on the same list.
+	const [params, setParams] = useSearchParams();
+	const wanted = params.get("mode"), mode = MODES.some(([m]) => m === wanted) ? (wanted as string) : "sprint";
+	const setMode = (m: string) => setParams(m === "sprint" ? {} : { mode: m }, { replace: true });
 	const [rows, setRows] = useState<Row[] | null>(null);
 	const [provisional, setProvisional] = useState(5);
 	useEffect(() => {

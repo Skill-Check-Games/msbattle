@@ -36,7 +36,10 @@ export default function ProfilePage() {
 
 function OwnProfile() {
 	const { account } = useAuth();
-	const [tab, setTab] = useState<Tab>("overview");
+	// The tab is in the URL (?tab=matches), so a reload or the back button lands on the same tab.
+	const [params, setParams] = useSearchParams();
+	const wantedTab = params.get("tab"), tab: Tab = wantedTab === "matches" || wantedTab === "achievements" ? wantedTab : "overview";
+	const setTab = (t: Tab) => setParams(prev => { const next = new URLSearchParams(prev); if (t === "overview") next.delete("tab"); else next.set("tab", t); next.delete("style"); return next; }, { replace: true });
 	const [history, setHistory] = useState<History | null>(null);
 	useEffect(() => {
 		if (!account) return;
@@ -131,8 +134,12 @@ function LadderCard({ label, rating }: { label: string; rating: number }) {
 
 // ---- Matches tab ----
 function Matches({ history }: { history: History | null }) {
-	const [style, setStyle] = useState<string | null>(null);
-	const buckets = useMemo(() => { const b: Record<string, RatingPoint[]> = {}; for (const p of (history?.ratings || [])) (b[p.style] = b[p.style] || []).push(p); return b; }, [history]);
+	// The chart's style is in the URL too (?tab=matches&style=standard). Only the ranked styles get a chart:
+	// rating rows from a mode that no longer exists (an old ladder) are left out.
+	const [params, setParams] = useSearchParams();
+	const style = params.get("style");
+	const setStyle = (s: string) => setParams(prev => { const next = new URLSearchParams(prev); next.set("style", s); return next; }, { replace: true });
+	const buckets = useMemo(() => { const b: Record<string, RatingPoint[]> = {}; for (const p of (history?.ratings || [])) if (STYLE_LABELS[p.style]) (b[p.style] = b[p.style] || []).push(p); return b; }, [history]);
 	const styleKeys = Object.keys(buckets);
 	const active = style && buckets[style] ? style : styleKeys.reduce((best, s) => buckets[s].length > (buckets[best]?.length || 0) ? s : best, styleKeys[0]);
 	if (!history) return <div className={styles.card}><p>Loading…</p></div>;
