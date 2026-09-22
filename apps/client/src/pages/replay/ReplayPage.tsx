@@ -9,11 +9,11 @@ import { getSocket, onSocket } from "../../online/socket";
 import { useAuth } from "../../shared/auth";
 import { AvatarChip, FlagChip } from "../../shared/Avatar";
 import { ordinal } from "../../shared/ranking";
-import { BoardView, BOARD_SKIN_LIST, sizeCellCanvas } from "../../game/board-render";
+import { BoardView, BOARD_SKIN_LIST, sizeCellCanvas, REVEAL_FX_DUR, WAVE_STEP_MS, WAVE_MAX_MS, CellAnim } from "../../game/board-render";
 import type { GameFrame, RoomPlayer, RoomState } from "../../game/match-store";
 import Standings from "../play/Standings";
 import { SeatCard } from "../play/OpponentCards";
-import { decodeReplay, buildRoundModel, stateAt, roundDuration, trackTimeline, pointAt, Replay, TrackTimeline } from "./replay-decode";
+import { decodeReplay, buildRoundModel, stateAt, roundDuration, trackTimeline, pointAt, openingWave, Replay, TrackTimeline } from "./replay-decode";
 import styles from "./ReplayPage.module.scss";
 
 // The final standings as the server stores them with newer replays (results.persistResult): finishing order
@@ -28,6 +28,9 @@ const styleName = (rep: Replay) => { const m = (rep.style || rep.mode || "").rep
 const skinFor = (skin: string | null) => (skin && BOARD_SKIN_LIST.indexOf(skin) >= 0) ? skin : "classic";
 const SPEEDS = [0.5, 1, 2, 4];
 const PENALTY_MS = 5000;   // the ranked mine penalty; the replay does not carry a room's own setting
+// Playback starts this long before the round on the covered board; at 0:00 the opening cascades open (the
+// same wave as in the game), then the moves. The lead-in is off the timeline, which starts at 0:00.
+const LEAD_IN_MS = 900;
 // Each player's line on the timeline (the seat order's colours; you are always blue when you are in the match).
 const TRACK_COLORS = ["#60a5fa", "#4ade80", "#c084fc", "#fb923c", "#f472b6", "#facc15"];
 
@@ -85,7 +88,7 @@ function Player({ rep, createdAt, standings, myUserId }: { rep: Replay; createdA
 	const [focus, setFocus] = useState(meIdx < 0 ? 0 : meIdx);
 	const [playing, setPlaying] = useState(false);
 	const [speed, setSpeed] = useState(1);
-	const [playT, setPlayT] = useState(0);
+	const [playT, setPlayT] = useState(-LEAD_IN_MS);
 	const [copied, setCopied] = useState(false);
 	const [oppView, setOppView] = useState<"boards" | "list">(() => { try { return localStorage.getItem("ms_opp_view") === "list" ? "list" : "boards"; } catch { return "boards"; } });
 	const pickOppView = (v: "boards" | "list") => { setOppView(v); try { localStorage.setItem("ms_opp_view", v); } catch { /* private mode */ } };
@@ -94,6 +97,8 @@ function Player({ rep, createdAt, standings, myUserId }: { rep: Replay; createdA
 	const round = rep.rounds[roundIdx];
 	const model = useMemo(() => buildRoundModel(rep, round), [rep, round]);
 	const duration = useMemo(() => roundDuration(round), [round]);
+	const opening = useMemo(() => openingWave(model, round, WAVE_STEP_MS, WAVE_MAX_MS, REVEAL_FX_DUR), [model, round]);
+	const endT = Math.max(duration, opening.endMs);   // playback runs at least through the opening
 	const timelines = useMemo(() => round.tracks.map(t => trackTimeline(model, t)), [model, round]);
 	// The match's result: the standings stored with the replay when there are any (rank, points and the rating
 	// change as the server settled them), else scored from the rounds themselves the way the server scores a
@@ -121,7 +126,7 @@ function Player({ rep, createdAt, standings, myUserId }: { rep: Replay; createdA
 	// Shared mutable state per player; every view of that player draws from the same array.
 	const states = useMemo(() => rep.players.map(() => model.freshState()), [model]);
 	const lastApplied = useRef<number[]>([]);
-	const playTRef = useRef(0); playTRef.current = playT;
+	const playTRef = useRef(-LEAD_IN_MS); playTRef.current = playT;
 	const hostRef = useRef<HTMLElement>(null);
 	// The views are found from the DOM at draw time (every board canvas carries its player and cell size as data
 	// attributes) and built lazily, one per canvas per round model, so React's ref timing never matters.
@@ -130,7 +135,13 @@ function Player({ rep, createdAt, standings, myUserId }: { rep: Replay; createdA
 		const hit = viewCache.current.get(canvas);
 		if (hit && hit.model === model) return hit.view;
 		sizeCellCanvas(canvas, rep.cols, rep.rows, px);
-		const view = new BoardView(canvas, rep.rows, rep.cols, states[p], model.cellAt, { skin: skinFor(rep.players[p].skin) });
+		// A cell of the opening is covered until its turn in the wave, then reveals over REVEAL_FX_DUR, all on the replay's clock.
+		const animAt = (r: number, c: number): CellAnim | null => {
+			const d = opening.depth[r * rep.cols + c]; if (d < 0) return null;
+			const t = (playTRef.current - d * opening.stepMs) / REVEAL_FX_DUR;
+			return t >= 1 ? null : { type: "reveal", t };
+		};
+		const view = new BoardView(canvas, rep.rows, rep.cols, states[p], model.cellAt, { skin: skinFor(rep.players[p].skin), animAt });
 		viewCache.current.set(canvas, { model, view });
 		view.draw();
 		return view;
@@ -138,6 +149,7 @@ function Player({ rep, createdAt, standings, myUserId }: { rep: Replay; createdA
 	// Re-sim + draw. Skips players whose applied-event count is unchanged unless forced.
 	const renderFrame = (T: number, force: boolean) => {
 		const canvases = hostRef.current ? Array.from(hostRef.current.querySelectorAll<HTMLCanvasElement>("canvas[data-rp]")) : [];
+		const opening_live = T < opening.endMs;   // the lead-in and the cascade: every frame is a new picture
 		for (let p = 0; p < states.length; p++) {
 			const res = stateAt(model, round.tracks[p], T);
 			const changed = res.applied !== lastApplied.current[p];
@@ -150,11 +162,11 @@ function Player({ rep, createdAt, standings, myUserId }: { rep: Replay; createdA
 				if (+cv.dataset.rp! !== p) continue;
 				const fresh = !viewCache.current.has(cv);
 				const view = viewFor(cv, p, +cv.dataset.px!);
-				if ((changed || force) && !fresh) view.draw();
+				if ((changed || force || opening_live) && !fresh) view.draw();
 			}
 		}
 	};
-	useEffect(() => { lastApplied.current = []; setPlayT(0); playTRef.current = 0; setPlaying(false); renderFrame(0, true); }, [model]);
+	useEffect(() => { lastApplied.current = []; setPlayT(-LEAD_IN_MS); playTRef.current = -LEAD_IN_MS; setPlaying(false); renderFrame(-LEAD_IN_MS, true); }, [model]);
 	useEffect(() => { renderFrame(playTRef.current, true); }, [focus, layout.stagePx, layout.cardPx]);
 	useEffect(() => {
 		if (!playing) return;
@@ -162,17 +174,17 @@ function Player({ rep, createdAt, standings, myUserId }: { rep: Replay; createdA
 		const tick = (ts: number) => {
 			if (!last) last = ts;
 			let t = playTRef.current + (ts - last) * speed; last = ts;
-			if (t >= duration) { t = duration; setPlaying(false); }
+			if (t >= endT) { t = endT; setPlaying(false); }
 			playTRef.current = t; setPlayT(t); renderFrame(t, false);
 			raf = requestAnimationFrame(tick);
 		};
 		raf = requestAnimationFrame(tick);
 		return () => cancelAnimationFrame(raf);
-	}, [playing, speed, duration]);
+	}, [playing, speed, endT]);
 
-	const seek = (v: number) => { const t = Math.max(0, Math.min(duration, v)); setPlayT(t); playTRef.current = t; renderFrame(t, true); };
+	const seek = (v: number) => { const t = Math.max(-LEAD_IN_MS, Math.min(endT, v)); setPlayT(t); playTRef.current = t; renderFrame(t, true); };
 	const togglePlay = () => {
-		if (!playing && playT >= duration) { lastApplied.current = []; seek(0); }
+		if (!playing && playT >= endT) { lastApplied.current = []; seek(-LEAD_IN_MS); }
 		setPlaying(p => !p);
 	};
 	const scrub = (v: number) => { setPlaying(false); seek(v); };
@@ -184,8 +196,8 @@ function Player({ rep, createdAt, standings, myUserId }: { rep: Replay; createdA
 			if (e.key === " ") { e.preventDefault(); togglePlay(); }
 			else if (e.key === "ArrowLeft") { e.preventDefault(); scrub(playTRef.current - (e.shiftKey ? 5000 : 1000)); }
 			else if (e.key === "ArrowRight") { e.preventDefault(); scrub(playTRef.current + (e.shiftKey ? 5000 : 1000)); }
-			else if (e.key === "Home") { e.preventDefault(); scrub(0); }
-			else if (e.key === "End") { e.preventDefault(); scrub(duration); }
+			else if (e.key === "Home") { e.preventDefault(); scrub(-LEAD_IN_MS); }
+			else if (e.key === "End") { e.preventDefault(); scrub(endT); }
 		};
 		window.addEventListener("keydown", onKey);
 		return () => window.removeEventListener("keydown", onKey);
@@ -209,7 +221,7 @@ function Player({ rep, createdAt, standings, myUserId }: { rep: Replay; createdA
 	} as RoomState), [rep, roundIdx]);
 	const now = Date.now();
 	const frames: GameFrame[] = rep.players.map((p, i) => {
-		const tl = timelines[i], pt = pointAt(tl, playT);
+		const tl = timelines[i], pt = playT < 0 ? { ct: 0, progress: 0, hits: 0 } : pointAt(tl, playT);
 		const finished = tl.finishMs != null && playT >= tl.finishMs;
 		// A mine hit within the last penalty window freezes the row and card, on the replay's clock: the wall time it lifts is scaled by the speed.
 		let frozenUntil = 0;
@@ -220,7 +232,7 @@ function Player({ rep, createdAt, standings, myUserId }: { rep: Replay; createdA
 	const placeOf: Record<string, number> = {};
 	frames.filter(f => f.finished).sort((a, b) => a.finishedAt - b.finishedAt).forEach((f, i) => { placeOf[f.id] = i + 1; });
 
-	const fp = rep.players[focus], ff = frames[focus], ftl = timelines[focus], fpt = pointAt(ftl, playT);
+	const fp = rep.players[focus], ff = frames[focus], ftl = timelines[focus], fpt = playT < 0 ? { ct: 0, progress: 0, hits: 0 } : pointAt(ftl, playT);
 	const focusPct = ff.finished ? 100 : Math.round(fpt.progress * 100);
 	const focusHit = ff.frozenUntil > now;
 	const cellsLeft = Math.max(0, ftl.totalSafe - Math.round(fpt.progress * ftl.totalSafe));
@@ -268,7 +280,7 @@ function Player({ rep, createdAt, standings, myUserId }: { rep: Replay; createdA
 						<AvatarChip avatar={fp.avatar} country={fp.country} px={40} />
 						<div className={styles.stageWho}>
 							<span className={styles.stageName}>{fp.userId ? <Link to={"/profile?id=" + fp.userId} className={styles.playerLink}>{fp.name}</Link> : fp.name}<FlagChip country={fp.country} px={14} /></span>
-							<span className={styles.stageNote}>{ff.finished ? "Cleared at " + fmtClock(ftl.finishMs || 0) + (placeOf[ff.id] ? " · " + ordinal(placeOf[ff.id]) + " to clear" : "") : focusHit ? "Mine penalty" : "Clearing"}</span>
+							<span className={styles.stageNote}>{playT < 0 ? "Ready" : ff.finished ? "Cleared at " + fmtClock(ftl.finishMs || 0) + (placeOf[ff.id] ? " · " + ordinal(placeOf[ff.id]) + " to clear" : "") : focusHit ? "Mine penalty" : "Clearing"}</span>
 						</div>
 						<div className={styles.spacer} />
 						<div className={styles.stageStat}>
@@ -308,7 +320,7 @@ function Player({ rep, createdAt, standings, myUserId }: { rep: Replay; createdA
 			<div className={styles.dock}>
 				<div className={styles.controls}>
 					<button type="button" className={styles.play} onClick={togglePlay} aria-label={playing ? "Pause" : "Play"}>{playing ? "❚❚" : "▶"}</button>
-					<span className={styles.time}>{fmtTime(playT)} / {fmtTime(duration)}</span>
+					<span className={styles.time}>{fmtTime(Math.max(0, playT))} / {fmtTime(duration)}</span>
 					<div className={styles.speeds}>{SPEEDS.map(m => <button key={m} type="button" className={`${styles.speed} ${m === speed ? styles.active : ""}`} onClick={() => setSpeed(m)}>{m}×</button>)}</div>
 					<div className={styles.spacer} />
 					<div className={styles.legend}><span><i className={styles.legLine} />progress</span><span><i className={styles.legDot} />mine hit</span><span><i className={styles.legFlag} />cleared</span><span className={styles.keys}>Space plays · arrows step</span></div>
@@ -339,7 +351,7 @@ function Timeline({ timelines, duration, playT, focus, names, onScrub, onFocus }
 	const y = (progress: number) => TL_H - TL_PAD_BOTTOM - Math.max(0, progress - p0) / span * (TL_H - TL_PAD_TOP - TL_PAD_BOTTOM);
 	const tAt = (clientX: number) => { const r = hostRef.current!.getBoundingClientRect(); return Math.max(0, Math.min(1, (clientX - r.left) / r.width)) * duration; };
 	const dragging = useRef(false);
-	const px = x(playT);
+	const px = x(Math.max(0, Math.min(duration, playT)));
 	// The lines' end labels: at each player's final progress, nudged apart so they never overlap.
 	const labels = timelines.map((tl, i) => ({ i, y: y(tl.points[tl.points.length - 1].progress) })).sort((a, b) => a.y - b.y);
 	for (let k = 1; k < labels.length; k++) if (labels[k].y - labels[k - 1].y < 12) labels[k].y = labels[k - 1].y + 12;

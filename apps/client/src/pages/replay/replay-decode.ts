@@ -123,3 +123,27 @@ export function pointAt(tl: TrackTimeline, T: number): TrackPoint {
 	while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (pts[mid].ct <= T) lo = mid; else hi = mid - 1; }
 	return pts[lo];
 }
+
+// The opening as a wave: the round starts on a covered board and the pre-revealed cells open in a cascade
+// from the start cell, breadth-first through the opening set the way the game animates a flood (board-session
+// waveDepths), each cell's turn `depth * stepMs` after the round's start. Cells outside the opening are -1.
+export interface OpeningWave { depth: Int16Array; stepMs: number; endMs: number; }
+export function openingWave(model: RoundModel, round: ReplayRound, stepCap: number, waveMax: number, revealMs: number): OpeningWave {
+	const { R, C } = model, depth = new Int16Array(R * C).fill(-1), fresh = model.freshState(), queue: number[] = [];
+	const inSet = (r: number, c: number) => fresh[r][c] === KNOWN;
+	const visit = (r: number, c: number, d: number) => { if (inSet(r, c) && depth[r * C + c] < 0) { depth[r * C + c] = d; queue.push(r * C + c); } };
+	if (inSet(round.startR, round.startC)) visit(round.startR, round.startC, 0);
+	else BoardLogic.forEachNeighbour(round.startR, round.startC, R, C, (nr: number, nc: number) => visit(nr, nc, 1));
+	for (let qi = 0; qi < queue.length; qi++) {
+		const cur = queue[qi], d0 = depth[cur];
+		BoardLogic.forEachNeighbour((cur / C) | 0, cur % C, R, C, (nr: number, nc: number) => visit(nr, nc, d0 + 1));
+	}
+	let maxDepth = 0;
+	for (let r = 0; r < R; r++) for (let c = 0; c < C; c++) {
+		if (!inSet(r, c)) continue;
+		if (depth[r * C + c] < 0) depth[r * C + c] = Math.round(Math.hypot(r - round.startR, c - round.startC));
+		if (depth[r * C + c] > maxDepth) maxDepth = depth[r * C + c];
+	}
+	const stepMs = maxDepth > 0 ? Math.min(stepCap, waveMax / maxDepth) : stepCap;
+	return { depth, stepMs, endMs: maxDepth * stepMs + revealMs };
+}
