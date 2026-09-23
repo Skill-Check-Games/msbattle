@@ -134,6 +134,13 @@ function solve(puzzle) {
 	};
 }
 
+// Whether some layout fits the clues with the cell at rc marked as (M or S): one search to the first solution.
+function feasibleWith(spec, rc, mark) {
+	var cells = spec.cells.map(function(row) { return row.slice(); });
+	cells[rc[0]][rc[1]] = mark;
+	return enumerate({ rows: spec.rows, cols: spec.cols, cells: cells }, { maxSolutions: 1 }).solutions.length > 0;
+}
+
 function analyzePosition(spec) {
 	var en = enumerate(spec, { maxSolutions: 5000 });
 	var out = { rows: spec.rows, cols: spec.cols, clues: en.clues.length, layouts: en.solutions.length, capped: en.capped, contradiction: en.solutions.length === 0 && !en.capped, determinedSafe: [], determinedMine: [], ambiguous: [], free: [], nextMove: null, preview: null };
@@ -143,6 +150,10 @@ function analyzePosition(spec) {
 		if (spec.cells[rc[0]][rc[1]] !== "?") return;   // the author's own marks are not "determined by the clues"
 		var anyMine = false, anySafe = false;
 		for (var s = 0; s < en.solutions.length && !(anyMine && anySafe); s++) { if (en.solutions[s][i]) anyMine = true; else anySafe = true; }
+		// A capped enumeration is a biased sample: the search branches on the most constrained cell first and tries
+		// "safe" first, so its first thousands of layouts can all agree on a cell that is in fact open. Whatever the
+		// sample did not see is checked exactly: is there any layout with this cell a mine (or safe)?
+		if (en.capped && !(anyMine && anySafe)) { if (!anyMine) anyMine = feasibleWith(spec, rc, "M"); if (!anySafe) anySafe = feasibleWith(spec, rc, "S"); }
 		(anyMine && anySafe ? out.ambiguous : anyMine ? out.determinedMine : out.determinedSafe).push(rc);
 	});
 	var completion = complete(spec, en, en.solutions[0], "M");
