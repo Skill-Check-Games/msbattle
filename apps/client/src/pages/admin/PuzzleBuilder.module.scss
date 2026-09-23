@@ -44,3 +44,6 @@
 
 // Autocomplete's density: a small labelled number next to the button.
 .densityField { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.8rem; color: var(--muted); input { width: 3.6rem; text-align: right; } }
+
+// The selected cell (hotkeys change it): a white ring inside the cell over any other mark.
+.selected { box-shadow: inset 0 0 0 2px #fff, 0 0 0 1px var(--accent) !important; z-index: 1; }

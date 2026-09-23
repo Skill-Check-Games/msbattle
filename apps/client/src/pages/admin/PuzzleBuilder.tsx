@@ -34,6 +34,8 @@ const specFromSaved = (p: Saved): Spec => {
 export default function PuzzleBuilder() {
 	const [spec, setSpec] = useState<Spec>({ rows: 6, cols: 6, cells: emptyCells(6, 6) });
 	const [tool, setTool] = useState<Tool>("2");
+	const [sel, setSel] = useState<[number, number] | null>(null);   // the selected cell: hotkeys change its content
+	const selRef = useRef(sel); selRef.current = sel;
 	const [analysis, setAnalysis] = useState<Analysis | null>(null);
 	const [busy, setBusy] = useState<string | null>(null);
 	const [status, setStatus] = useState<{ text: string; kind: "ok" | "warn" | "err" } | null>(null);
@@ -60,8 +62,29 @@ export default function PuzzleBuilder() {
 
 	const setCell = (r: number, c: number, v: Cell) => setSpec(s => { if (s.cells[r][c] === v) return s; const cells = s.cells.map(row => row.slice()); cells[r][c] = v; return { ...s, cells }; });
 	const paint = (r: number, c: number) => { if (tool === "erase") setCell(r, c, "?"); else setCell(r, c, tool); };
-	const resize = (rows: number, cols: number) => setSpec(s => { const cells = emptyCells(rows, cols); for (let r = 0; r < Math.min(rows, s.rows); r++) for (let c = 0; c < Math.min(cols, s.cols); c++) cells[r][c] = s.cells[r][c]; return { rows, cols, cells }; });
-	const clearBoard = () => { setSpec(s => ({ ...s, cells: emptyCells(s.rows, s.cols) })); setStatus(null); };
+	// Hotkeys: 0 to 8 a clue, M a mine, S safe, Backspace, Delete or ? erase. With a cell selected they change that
+	// cell (and become the tool); with none they pick the tool. Arrows move the selection, Escape drops it.
+	useEffect(() => {
+		const onKey = (e: KeyboardEvent) => {
+			const tag = (e.target as HTMLElement | null)?.tagName || "";
+			if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || e.ctrlKey || e.metaKey || e.altKey) return;
+			const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+			let t: Tool | null = null;
+			if (k >= "0" && k <= "8" && k.length === 1) t = k as Tool; else if (k === "m") t = "M"; else if (k === "s") t = "S"; else if (k === "?" || k === "Backspace" || k === "Delete") t = "erase";
+			const cur = selRef.current;
+			if (t) { e.preventDefault(); setTool(t); if (cur) setCell(cur[0], cur[1], t === "erase" ? "?" : t); return; }
+			if (k === "Escape") { setSel(null); return; }
+			const d = k === "ArrowUp" ? [-1, 0] : k === "ArrowDown" ? [1, 0] : k === "ArrowLeft" ? [0, -1] : k === "ArrowRight" ? [0, 1] : null;
+			if (!d) return;
+			e.preventDefault();
+			const from = cur || [0, 0], next: [number, number] = [Math.max(0, Math.min(spec.rows - 1, from[0] + d[0])), Math.max(0, Math.min(spec.cols - 1, from[1] + d[1]))];
+			selRef.current = next; setSel(next);
+		};
+		document.addEventListener("keydown", onKey);
+		return () => document.removeEventListener("keydown", onKey);
+	}, [spec.rows, spec.cols]);
+	const resize = (rows: number, cols: number) => { setSel(null); setSpec(s => { const cells = emptyCells(rows, cols); for (let r = 0; r < Math.min(rows, s.rows); r++) for (let c = 0; c < Math.min(cols, s.cols); c++) cells[r][c] = s.cells[r][c]; return { rows, cols, cells }; }); }
+	const clearBoard = () => { setSpec(s => ({ ...s, cells: emptyCells(s.rows, s.cols) })); setStatus(null); setSel(null); };
 	const autocomplete = () => {
 		setBusy("Autocompleting"); setStatus(null);
 		api("/api/builder/autocomplete", { method: "POST", body: JSON.stringify({ spec, density: density / 100 }) }).then(d => {
@@ -90,12 +113,12 @@ export default function PuzzleBuilder() {
 	const a = analysis;
 	const cellPx = Math.max(34, Math.min(56, Math.floor(520 / Math.max(spec.rows, spec.cols))));
 	const tools: { id: Tool; label: string; title: string }[] = [
-		...(["0", "1", "2", "3", "4", "5", "6", "7", "8"] as Cell[]).map(d => ({ id: d as Tool, label: d, title: `Reveal with a ${d}` })),
+		...(["0", "1", "2", "3", "4", "5", "6", "7", "8"] as Cell[]).map(d => ({ id: d as Tool, label: d, title: `Reveal with a ${d} (key ${d})` })),
 		{ id: "M", label: "Mine", title: "A covered mine" }, { id: "S", label: "Safe", title: "A covered safe cell" }, { id: "erase", label: "Clear", title: "Back to undecided" }
 	];
 
 	return (
-		<AdminPage title="Puzzle Builder" sub="Draw a position: pick a tool, click cells. Numbers reveal a cell with that clue; Mine and Safe decide covered cells. The solver checks the position after every edit." wide>
+		<AdminPage title="Puzzle Builder" sub="Draw a position: pick a tool, click cells. Numbers reveal a cell with that clue; Mine and Safe decide covered cells. Keys work too: 0 to 8, M, S and Backspace change the selected cell, arrows move the selection. The solver checks the position after every edit." wide>
 			<div className={styles.layout}>
 				<div className={styles.editor}>
 					<div className={styles.toolbar}>
@@ -114,10 +137,11 @@ export default function PuzzleBuilder() {
 							const mark = !a ? "" : has(a.determinedSafe, r, c) ? styles.detSafe : has(a.determinedMine, r, c) ? styles.detMine : has(a.ambiguous, r, c) ? styles.amb : has(a.free, r, c) ? styles.free : "";
 							const next = showNext && a && a.nextMove && has(a.nextMove.cells, r, c) ? styles.next : "";
 							const split = showNext && a && a.nextMove && a.nextMove.splitCell && a.nextMove.splitCell[0] === r && a.nextMove.splitCell[1] === c ? styles.split : "";
+							const selected = sel && sel[0] === r && sel[1] === c ? styles.selected : "";
 							return (
-								<button key={r + "," + c} type="button" className={`${styles.cell} ${digit ? styles.revealed : styles.covered} ${v === "M" ? styles.mine : v === "S" ? styles.safe : ""} ${mark} ${next} ${split}`}
+								<button key={r + "," + c} type="button" className={`${styles.cell} ${digit ? styles.revealed : styles.covered} ${v === "M" ? styles.mine : v === "S" ? styles.safe : ""} ${mark} ${next} ${split} ${selected}`}
 									style={digit ? { color: NUMBER_COLORS[v] } : undefined} title={`(${r},${c})`}
-									onClick={() => paint(r, c)} onContextMenu={() => setCell(r, c, v === "M" ? "?" : "M")}>
+									onClick={() => { paint(r, c); setSel([r, c]); }} onContextMenu={() => { setCell(r, c, v === "M" ? "?" : "M"); setSel([r, c]); }}>
 									{digit ? (v === "0" ? "" : v) : v === "M" ? "●" : v === "S" ? "○" : ""}
 								</button>
 							);
