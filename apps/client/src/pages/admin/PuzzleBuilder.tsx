@@ -40,6 +40,7 @@ export default function PuzzleBuilder() {
 	const [name, setName] = useState("");
 	const [saved, setSaved] = useState<Saved[]>([]);
 	const [showNext, setShowNext] = useState(true);
+	const [density, setDensity] = useState(20);   // autocomplete: mines among the cells no clue touches, in percent
 	const latest = useRef(0);
 
 	const loadCollection = useCallback(() => { api("/api/builder/puzzles").then(d => { if (d && d.puzzles) setSaved(d.puzzles); else if (d && d.error) setStatus({ text: d.error, kind: "err" }); }).catch(() => {}); }, []);
@@ -63,13 +64,13 @@ export default function PuzzleBuilder() {
 	const clearBoard = () => { setSpec(s => ({ ...s, cells: emptyCells(s.rows, s.cols) })); setStatus(null); };
 	const autocomplete = () => {
 		setBusy("Autocompleting"); setStatus(null);
-		api("/api/builder/autocomplete", { method: "POST", body: JSON.stringify({ spec }) }).then(d => {
+		api("/api/builder/autocomplete", { method: "POST", body: JSON.stringify({ spec, density: density / 100 }) }).then(d => {
 			setBusy(null);
 			if (!d || d.error) { setStatus({ text: (d && d.error) || "failed", kind: "err" }); return; }
 			if (!d.ok) { setStatus({ text: d.contradiction ? "No layout fits these clues." : "Nothing to complete.", kind: "err" }); return; }
 			setSpec(s => ({ ...s, cells: d.best.cells }));
-			setStatus(d.best.solved ? { text: `Completed: ${TIER_NAMES[d.best.difficulty]}, score ${d.best.score}, rating ${d.best.rating}. ${d.solvable} of ${d.tried} layouts${d.capped ? " (of many more)" : ""} were solvable; this is the hardest.`, kind: "ok" }
-				: { text: `None of ${d.tried} layouts${d.capped ? " tried" : ""} is solvable by the solver; filled in the one it gets furthest on (${d.best.safeLeft} safe cells left).`, kind: "warn" });
+			setStatus(d.best.solved ? { text: `Completed: ${TIER_NAMES[d.best.difficulty]}, score ${d.best.score}, rating ${d.best.rating}. ${d.solvable} of ${d.tried} fills${d.capped ? " (of many more)" : ""} were solvable; this is the hardest.`, kind: "ok" }
+				: { text: `None of ${d.tried} fills${d.capped ? " tried" : ""} is solvable by the solver; filled in the one it gets furthest on (${d.best.safeLeft} safe cells left).`, kind: "warn" });
 		}).catch(e => { setBusy(null); setStatus({ text: String(e), kind: "err" }); });
 	};
 	const save = () => {
@@ -155,6 +156,7 @@ export default function PuzzleBuilder() {
 					)}
 					<div className={styles.actions}>
 						<button type="button" className="btn" disabled={!!busy || !a || a.contradiction} onClick={autocomplete}>Autocomplete</button>
+						<label className={styles.densityField} title="Mines among the cells no clue touches. The rest of the board is seeded at this share, and the fill that makes the hardest solvable puzzle wins."><span>Rest</span><input type="number" className={adminStyles.input} min={0} max={60} step={5} value={density} onChange={e => setDensity(Math.max(0, Math.min(60, parseInt(e.target.value, 10) || 0)))} /><span>%</span></label>
 						<input className={adminStyles.input} placeholder="Name" value={name} onChange={e => setName(e.target.value)} />
 						<button type="button" className="btn btn-primary" disabled={!!busy || !complete || !a} title={complete ? "" : "Decide every cell first (or Autocomplete)"} onClick={save}>Save to collection</button>
 					</div>

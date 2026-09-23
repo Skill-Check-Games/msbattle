@@ -4,8 +4,10 @@
 // author's M / S marks are fixed). analyzePosition() turns that into what the builder shows: contradiction,
 // determined and ambiguous cells, the solver's next move from the visible clues, and a preview rating of one
 // completion. autocomplete() picks the completion that makes the best-rated solvable puzzle. Covered cells no
-// clue touches ("free") are filled as mines on completion: nothing ever needs to deduce them, so they cannot
-// make a puzzle unsolvable, and they keep the visible position exactly as drawn.
+// clue touches ("free") are filled as mines in the analysis preview (nothing ever needs to deduce them, so
+// they cannot make a puzzle unsolvable, and they keep the visible position exactly as drawn); autocomplete
+// instead seeds them at random like the pool generator does, so the finished board plays on past the clues,
+// and only falls back to mines when no random fill is solvable.
 var BoardLogic = require("../common/BoardLogic");
 var cspSolver = require("./CSPSolver");
 var puzzleGen = require("./PuzzleGenerator");
@@ -151,23 +153,52 @@ function analyzePosition(spec) {
 	return out;
 }
 
-// Tries up to maxTries consistent layouts and keeps the solvable one with the highest score (the hardest
-// puzzle the drawn position can be). Free cells become mines. If none is solvable, the best-scoring
-// attempt comes back with solvable: false so the author can see how far the solver gets.
+// Tries consistent layouts of the constrained cells, and for each one several random fills of the free cells
+// at opts.density (jittered a few points either way, as the pool generator varies its boards), and keeps the
+// solvable puzzle with the highest score: the hardest puzzle the drawn position can be, on a board that goes
+// on past the clues. Bounded by opts.budgetMs. If no random fill is solvable it falls back to filling the free
+// cells with mines (always as solvable as the clues allow); if even that fails, the attempt the solver gets
+// furthest on comes back with solvable: false so the author can see where it sticks.
+var FILL_DENSITY = 0.2, FILL_BUDGET_MS = 2500, FILLS_PER_LAYOUT = 6;
 function autocomplete(spec, opts) {
 	opts = opts || {};
+	var density = typeof opts.density === "number" ? Math.max(0, Math.min(0.6, opts.density)) : FILL_DENSITY;
+	var budgetMs = opts.budgetMs || FILL_BUDGET_MS, started = Date.now();
 	var en = enumerate(spec, { maxSolutions: opts.maxTries || 400 });
 	if (!en.solutions.length) return { ok: false, contradiction: !en.capped, tried: 0 };
-	var best = null, solvable = 0;
-	for (var i = 0; i < en.solutions.length; i++) {
-		var completion = complete(spec, en, en.solutions[i], "M");
-		var tp = toPuzzle(completion);
-		var s = solve(tp.puzzle);
+	var free = [];
+	for (var r = 0; r < spec.rows; r++) for (var c = 0; c < spec.cols; c++) if (spec.cells[r][c] === "?" && en.idx[cellKey(r, c)] == null) free.push([r, c]);
+	var best = null, solvable = 0, tried = 0;
+	function consider(completion) {
+		var tp = toPuzzle(completion), s = solve(tp.puzzle);
+		tried++;
 		if (s.solved) solvable++;
 		var better = !best || (s.solved && !best.solved) || (s.solved === best.solved && s.score > best.score);
 		if (better) best = { solved: s.solved, score: s.score, difficulty: s.difficulty, rating: s.rating, maxComplexity: s.maxComplexity, moves: s.moves, safeLeft: s.safeLeft, cells: completion.cells, puzzle: tp.puzzle };
 	}
-	return { ok: true, tried: en.solutions.length, capped: en.capped, solvable: solvable, best: best };
+	// Layouts in a random order, so a run that hits the budget has sampled the space rather than its first corner.
+	var order = en.solutions.map(function(_, i) { return i; });
+	for (var i = order.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var t = order[i]; order[i] = order[j]; order[j] = t; }
+	var fills = free.length ? FILLS_PER_LAYOUT : 1;
+	for (var oi = 0; oi < order.length && Date.now() - started < budgetMs; oi++) {
+		var solution = en.solutions[order[oi]];
+		for (var f = 0; f < fills && Date.now() - started < budgetMs; f++) {
+			var completion = complete(spec, en, solution, "S");
+			if (free.length) {
+				var d = Math.max(0, Math.min(0.6, density + (Math.random() - 0.5) * 0.06)), want = Math.round(free.length * d);
+				var picks = free.slice();
+				for (var k = picks.length - 1; k > 0; k--) { var kk = Math.floor(Math.random() * (k + 1)); var tt = picks[k]; picks[k] = picks[kk]; picks[kk] = tt; }
+				for (var m = 0; m < want; m++) completion.cells[picks[m][0]][picks[m][1]] = "M";
+			}
+			consider(completion);
+		}
+	}
+	if (!best || !best.solved) {
+		// Nothing random solved: the old fill (free cells all mines) for every layout, which cannot fail on the free
+		// side, so what is left tells the author about the clues themselves.
+		for (var li = 0; li < en.solutions.length && Date.now() - started < budgetMs * 2; li++) consider(complete(spec, en, en.solutions[li], "M"));
+	}
+	return { ok: true, tried: tried, layouts: en.solutions.length, capped: en.capped, solvable: solvable, free: free.length, density: density, best: best };
 }
 
 // A finished puzzle's rating fields, as the pool stores them (analyzeWithTracking's view) plus the tier.

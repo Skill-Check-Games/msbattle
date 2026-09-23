@@ -36,7 +36,10 @@ function serveAnalyze(req, res, kind) {
 	readJsonBody(req, function(err, body) {
 		var spec = !err && validSpec(body && body.spec);
 		if (!spec) { json(res, 400, { error: "bad position" }); return; }
-		analyzeQueue.run({ kind: kind, spec: spec }).then(function(out) { json(res, out && out.error ? 500 : 200, out); });
+		// Autocomplete's options: the mine density for the cells no clue touches (a share, 0 to 0.6).
+		var opts = {};
+		if (body && typeof body.density === "number" && isFinite(body.density)) opts.density = Math.max(0, Math.min(0.6, body.density));
+		analyzeQueue.run({ kind: kind, spec: spec, opts: opts }).then(function(out) { json(res, out && out.error ? 500 : 200, out); });
 	});
 }
 function serveList(req, res, user) { json(res, 200, { puzzles: db.listBuilderPuzzles(user.id) }); }
