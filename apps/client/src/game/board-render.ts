@@ -395,6 +395,10 @@ function drawRevealLid(ctx: CanvasRenderingContext2D, w: number, h: number, rad:
 
 export function drawNumber(ctx: CanvasRenderingContext2D, n: number, w: number, h: number, t: number) {
 	ctx.save();
+	// A glowing digit's halo stays inside its own tile. Left to bleed into the neighbours, a repaint of a few cells
+	// would drop or double the halos around them, which is what kept the glow skins on full-board redraws
+	// (every key press and every animation frame repainting all of it: a felt input delay on Tactical and Neon).
+	if (NUMBER_GLOW) { roundRectPath(ctx, 0, 0, w, h, Math.min(w, h) * 0.2); ctx.clip(); }
 	ctx.globalAlpha = clamp01(t);
 	const scale = 0.7 + 0.3 * easeOutBack(clamp01(t));
 	ctx.translate(w / 2, h / 2); ctx.scale(scale, scale);

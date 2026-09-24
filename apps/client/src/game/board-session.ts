@@ -8,7 +8,7 @@ import BoardLogic from "core/src/common/BoardLogic.js";
 import {
 	BoardView, CellAnim, HoverKind, MINE, UNKNOWN, KNOWN, FLAGGED,
 	REVEAL_FX_DUR, FLAG_DUR, MINE_DUR, SETTLE_DUR, WAVE_STEP_MS, WAVE_MAX_MS,
-	drawKnownBase, drawNumber, drawUnknown, roundRectPath, paletteHasGlow, localBoardSkin, easeOutCubic
+	drawKnownBase, drawNumber, drawUnknown, roundRectPath, localBoardSkin, easeOutCubic
 } from "./board-render";
 // Puzzle solved sweep: ms per ring of distance from the origin, one cell's flash length, and its alpha curve.
 const SWEEP_STEP_MS = 55, SWEEP_CELL_MS = 1100, SWEEP_PEAK = 0.55, SWEEP_REST = 0.1, SWEEP_COLOR = "#22c55e";
@@ -391,7 +391,6 @@ export class BoardSession {
 	// ---- animations ----
 	private canPartialRepaint(): boolean {
 		if (this.goAnim || this.idleActive) return false;
-		if (paletteHasGlow()) return false; // glow digits bleed past their cell
 		if (this.glyphs.length) return false;
 		if (this.hintClues.length || this.hintCovered.length) return false;
 		if (this.sweep) return false;
